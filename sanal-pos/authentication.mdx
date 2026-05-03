@@ -1,0 +1,136 @@
+---
+title: "Kimlik Doğrulama"
+description: "Sanal POS API'sine sunucu-sunucu erişim için header'lar."
+---
+
+Sanal POS API'si **API Key + Secret + Merchant** modeli kullanır. Tüm istekler **HTTPS** üzerinden ve **sunucu tarafından** yapılmalıdır.
+
+## Zorunlu header'lar
+
+```http
+X-API-Key:           pvk-prod-XXXXXXXX
+X-API-Secret:        <gizli imza anahtarı>
+X-Merchant-Id:       3fa85f64-5717-4562-b3fc-2c963f66afa6
+Content-Type:        application/json
+```
+
+| Header | Açıklama |
+|---|---|
+| `X-API-Key` | API anahtarınızın public tanımlayıcısı (`pvk-` prefix'li) |
+| `X-API-Secret` | API anahtarınızın gizli secret'ı |
+| `X-Merchant-Id` veya `X-External-Merchant-Id` | İşlem hangi merchant adına yapılıyor |
+| `Content-Type` | JSON içerik için `application/json` |
+
+## Merchant kimliği — iki form
+
+İki farklı şekilde merchant'ı belirtebilirsiniz. Birini seçmeniz yeterli, ikisi birden gönderilirse `X-Merchant-Id` öncelikli olur.
+
+| Header | Tip | Kaynak |
+|---|---|---|
+| `X-Merchant-Id` | UUID | Konsoldan kopyalanır |
+| `X-External-Merchant-Id` | Serbest metin | Onboarding sırasında belirlenir, sizin sisteminizdeki kimlik |
+
+## Opsiyonel header'lar
+
+```http
+Idempotency-Key:    8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6
+X-Request-Id:       req-2026-05-03-001
+```
+
+| Header | Açıklama |
+|---|---|
+| `Idempotency-Key` | Aynı isteğin iki kez işlenmemesi için. [Detay](/documentation/concepts/idempotency). |
+| `X-Request-Id` | Sizin tarafınızdaki istek ID'niz. Yanıtta aynen geri döner — debug için faydalıdır. |
+
+## Yanıt başlıkları
+
+Her yanıtta Payven ek başlıklar ekler:
+
+```http
+X-Payven-Request-Id:    pvn-9f1c8e76-2a3b-4f12-9c8d
+X-RateLimit-Limit:      200
+X-RateLimit-Remaining:  187
+X-RateLimit-Reset:      1714742400
+```
+
+| Başlık | Açıklama |
+|---|---|
+| `X-Payven-Request-Id` | Payven'in atadığı istek kimliği. Destek talebi açarken bu değeri paylaşın. |
+| `X-RateLimit-*` | Mevcut kota durumu. [Detay](/documentation/concepts/rate-limiting). |
+
+## Hatalı kimlik doğrulama
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `401` | `AUTH_MISSING_KEY` | `X-API-Key` eksik |
+| `401` | `AUTH_INVALID_KEY` | Anahtar geçersiz veya pasif |
+| `401` | `AUTH_INVALID_SECRET` | Secret eşleşmiyor |
+| `401` | `AUTH_MERCHANT_REQUIRED` | Merchant header'ı eksik |
+| `401` | `AUTH_MERCHANT_NOT_FOUND` | Belirtilen merchant bulunamadı |
+| `403` | `AUTH_MERCHANT_INACTIVE` | Merchant pasif statüde |
+| `403` | `AUTH_IP_NOT_ALLOWED` | İstek IP'si whitelist dışında |
+| `403` | `AUTH_PRODUCT_NOT_LICENSED` | Sanal POS modülü planınızda etkin değil |
+| `429` | `RATE_LIMIT_EXCEEDED` | Saniyedeki istek limitleri aşıldı |
+
+## Tipik istek
+
+<CodeGroup>
+```bash cURL
+curl https://vpos.payven.com.tr/api/v1/transactions?pageSize=10 \
+  -H "X-API-Key: $PAYVEN_KEY" \
+  -H "X-API-Secret: $PAYVEN_SECRET" \
+  -H "X-Merchant-Id: $PAYVEN_MERCHANT"
+```
+
+```csharp C#
+public class PayvenClient
+{
+    private readonly HttpClient _http;
+
+    public PayvenClient(string apiKey, string apiSecret, string merchantId, string baseUrl)
+    {
+        _http = new HttpClient { BaseAddress = new Uri(baseUrl) };
+        _http.DefaultRequestHeaders.Add("X-API-Key", apiKey);
+        _http.DefaultRequestHeaders.Add("X-API-Secret", apiSecret);
+        _http.DefaultRequestHeaders.Add("X-Merchant-Id", merchantId);
+    }
+
+    public async Task<TransactionListResult> ListTransactionsAsync(int pageSize = 10)
+    {
+        var response = await _http.GetAsync($"/api/v1/transactions?pageSize={pageSize}");
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<TransactionListResult>();
+    }
+}
+```
+
+```javascript Node.js
+class PayvenClient {
+  constructor({ apiKey, apiSecret, merchantId, baseUrl }) {
+    this.headers = {
+      "X-API-Key": apiKey,
+      "X-API-Secret": apiSecret,
+      "X-Merchant-Id": merchantId,
+      "Content-Type": "application/json",
+    };
+    this.baseUrl = baseUrl;
+  }
+
+  async request(path, init = {}) {
+    const res = await fetch(this.baseUrl + path, {
+      ...init,
+      headers: { ...this.headers, ...(init.headers ?? {}) },
+    });
+    return res.json();
+  }
+}
+```
+</CodeGroup>
+
+## Güvenlik kuralları
+
+<Check>**Sadece sunucu tarafı:** API çağrılarınızı **frontend'den asla atmayın**.</Check>
+<Check>**Sadece HTTPS:** HTTP istekleri reddedilir.</Check>
+<Check>**Production = IP whitelist:** Production anahtarları için mutlaka whitelist tanımlayın.</Check>
+<Check>**Düzenli rotasyon:** En az 6 ayda bir secret rotasyonu uygulayın.</Check>
+<Check>**Loglarda maskele:** Header değerlerini loglamadan önce `X-API-Secret`'i maskeleyin.</Check>

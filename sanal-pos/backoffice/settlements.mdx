@@ -1,0 +1,62 @@
+---
+title: "Settlement Kayıtları"
+description: "Banka tarafından yapılan gün sonu transferi kayıtları."
+---
+
+Settlement, Payven'in bilgi taşıdığı banka **gün sonu transferi** kayıtlarıdır. Banka, gün boyunca tahsil ettiği tutarı sizin hesabınıza aktarırken ürettiği özet kayıttır.
+
+## Endpoint
+
+```
+GET /api/v1/settlements
+```
+
+JWT Bearer auth gerektirir (Backoffice).
+
+## Sorgu parametreleri
+
+| Parametre | Açıklama |
+|---|---|
+| `from` / `to` | Tarih aralığı |
+| `connectorCode` | Belirli bir banka |
+| `currency` | Para birimi |
+| `status` | `Pending`, `Settled`, `Disputed` |
+
+## Yanıt
+
+```json
+{
+  "data": {
+    "items": [
+      {
+        "id": "stl_8e3f5c12",
+        "date": "2026-05-03",
+        "connectorCode": "GarantiVPOS",
+        "currency": "TRY",
+        "grossAmount": 187435000,
+        "commission": 6747260,
+        "netAmount": 180687740,
+        "transactionCount": 1247,
+        "status": "Settled",
+        "bankReference": "STL-2026-05-03-789"
+      }
+    ]
+  }
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `grossAmount` | Brüt tahsilat (kuruş) |
+| `commission` | Banka komisyonu |
+| `netAmount` | Sizin hesabınıza aktarılan net tutar |
+| `transactionCount` | Bu settlement'a dahil işlem sayısı |
+| `bankReference` | Bankanın referans numarası |
+
+## Detay endpoint'i
+
+```bash
+GET /api/v1/settlements/{id}/transactions
+```
+
+Bu settlement'a dahil tüm işlemleri listeler. Mutabakatla birlikte muhasebe için kritik veridir.

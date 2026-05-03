@@ -1,0 +1,96 @@
+---
+title: "Tutarlar ve Para Birimleri"
+description: "Payven'de tutarlar her zaman kuruş cinsinden tam sayıdır."
+---
+
+Tüm Payven API'lerinde tutarlar **kuruş** cinsinden, tam sayı (`integer`) olarak iletilir. Ondalıklı (`float`, `decimal`) değer **kabul edilmez**.
+
+## Çevrim kuralı
+
+`tutar (kuruş) = tutar (₺) × 100`
+
+| Görünen tutar | API değeri |
+|---|---|
+| 0,01 ₺ | `1` |
+| 1,00 ₺ | `100` |
+| 25,50 ₺ | `2550` |
+| 150,00 ₺ | `15000` |
+| 1.234,56 ₺ | `123456` |
+| 1.999.999,99 ₺ | `199999999` |
+
+## Örnek dönüştürme fonksiyonları
+
+<CodeGroup>
+```csharp C#
+public static long LiraToKurus(decimal lira) => (long)Math.Round(lira * 100m);
+public static decimal KurusToLira(long kurus) => kurus / 100m;
+
+// Görüntüleme
+public static string FormatKurus(long kurus) =>
+    (kurus / 100m).ToString("N2", new CultureInfo("tr-TR")) + " ₺";
+```
+
+```javascript Node.js
+const liraToKurus = (lira) => Math.round(lira * 100);
+const kurusToLira = (kurus) => kurus / 100;
+
+const formatKurus = (kurus) =>
+  new Intl.NumberFormat("tr-TR", {
+    style: "currency",
+    currency: "TRY",
+  }).format(kurus / 100);
+```
+
+```go Go
+func LiraToKurus(lira float64) int64 {
+    return int64(math.Round(lira * 100))
+}
+func KurusToLira(kurus int64) float64 {
+    return float64(kurus) / 100
+}
+```
+
+```php PHP
+function liraToKurus(float $lira): int {
+    return (int) round($lira * 100);
+}
+function kurusToLira(int $kurus): float {
+    return $kurus / 100;
+}
+```
+
+```python Python
+from decimal import Decimal, ROUND_HALF_UP
+
+def lira_to_kurus(lira: Decimal) -> int:
+    return int((Decimal(lira) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+def kurus_to_lira(kurus: int) -> Decimal:
+    return Decimal(kurus) / 100
+```
+</CodeGroup>
+
+<Warning>
+**Float kullanmayın.** Ondalık aritmetiği yuvarlama hatalarına yol açar. Çevrimi mutlaka tamsayı (`integer`/`long`) ile yapın.
+</Warning>
+
+## Para birimleri
+
+| Kod | Para birimi | Durum |
+|---|---|---|
+| `TRY` | Türk Lirası | ✅ Birincil |
+| `USD` | Amerikan Doları | ✅ DCC ile destekli |
+| `EUR` | Euro | ✅ DCC ile destekli |
+| `GBP` | İngiliz Sterlini | ✅ DCC ile destekli |
+
+Yabancı para biriminde işlem için kullanılan **DCC (Dynamic Currency Conversion)** akışı, müşteriye işlem anında kart para biriminde tutarı gösterir. Detay: [DCC Akışı](/sanal-pos/payments/dcc).
+
+## Sınır değerler
+
+| Kural | Limit |
+|---|---|
+| Minimum işlem tutarı | 100 kuruş (1,00 ₺) |
+| Maksimum tek işlem tutarı | Plan ve banka anlaşmanıza göre değişir |
+| Kısmi iade tutarı | Orijinal işlem tutarını aşamaz |
+
+İhlal durumunda `VALIDATION_AMOUNT_TOO_LOW`, `VALIDATION_AMOUNT_EXCEEDED` veya `REFUND_EXCEEDS_ORIGINAL` hatası döner.

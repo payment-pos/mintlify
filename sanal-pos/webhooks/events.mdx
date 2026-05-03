@@ -1,0 +1,132 @@
+---
+title: "Webhook Olay Kataloğu"
+description: "Sanal POS'un yayınladığı tüm webhook olayları."
+---
+
+Aşağıdaki olaylar Sanal POS modülü tarafından yayınlanır. Aboneliğinizde `events: ["*"]` ile hepsini, ya da seçici olarak alabilirsiniz.
+
+## Genel olay yapısı
+
+```json
+{
+  "id": "evt_8e3f5c12",
+  "type": "payment.succeeded",
+  "createdAt": "2026-05-03T12:34:56Z",
+  "tenantId": "1a2b3c4d-...",
+  "merchantId": "3fa85f64-...",
+  "data": { ... }
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `id` | Olay kimliği — idempotent işleme için kullanın |
+| `type` | Olay tipi (aşağıdaki tablo) |
+| `createdAt` | Olayın oluştuğu UTC zaman |
+| `data` | Olay-spesifik payload (genelde tam payment objesi) |
+
+## Ödeme olayları
+
+| Tip | Tetiklenme |
+|---|---|
+| `payment.created` | Yeni bir ödeme oluşturuldu (henüz banka onayı yok) |
+| `payment.authorized` | Banka tutarı onayladı (Pre-Auth dahil) |
+| `payment.captured` | Capture başarılı |
+| `payment.succeeded` | Ödeme başarıyla tamamlandı (Sale veya Capture sonrası) |
+| `payment.failed` | Ödeme banka tarafından reddedildi |
+| `payment.voided` | İptal başarılı |
+| `payment.expired` | Hosted Checkout / Pay-by-Link süresi doldu |
+
+```json
+{
+  "type": "payment.succeeded",
+  "data": {
+    "id": "8e3f5c12-...",
+    "externalId": "ORDER-1001",
+    "status": "Success",
+    "amount": 15000,
+    "currency": "TRY",
+    "card": { "binNumber": "454671", "lastFourDigits": "7894", ... },
+    "connector": { "responseCode": "00", "authCode": "123456" }
+  }
+}
+```
+
+## 3D Secure olayları
+
+| Tip | Tetiklenme |
+|---|---|
+| `payment.threeds.initialized` | 3DS init yapıldı, müşteri yönlendirilecek |
+| `payment.threeds.authenticated` | 3DS başarılı, banka onayı bekleniyor |
+| `payment.threeds.failed` | 3DS başarısız |
+
+## İade olayları
+
+| Tip | Tetiklenme |
+|---|---|
+| `refund.created` | İade isteği oluşturuldu |
+| `refund.succeeded` | İade banka tarafında onaylandı |
+| `refund.failed` | İade reddedildi |
+
+```json
+{
+  "type": "refund.succeeded",
+  "data": {
+    "id": "ref_9f3d2b8e",
+    "paymentId": "8e3f5c12-...",
+    "amount": 5000,
+    "currency": "TRY",
+    "status": "Success"
+  }
+}
+```
+
+## Hosted Checkout olayları
+
+| Tip | Tetiklenme |
+|---|---|
+| `checkout.session.completed` | Müşteri ödemeyi başarıyla tamamladı |
+| `checkout.session.failed` | Müşteri ödeme yapamadı |
+| `checkout.session.expired` | Oturum süresi doldu |
+
+## Pay-by-Link olayları
+
+| Tip | Tetiklenme |
+|---|---|
+| `payment.link.created` | Link oluşturuldu |
+| `payment.link.viewed` | Müşteri link'e tıkladı |
+| `payment.link.expired` | Link süresi doldu |
+
+## Mutabakat olayları
+
+| Tip | Tetiklenme |
+|---|---|
+| `reconciliation.created` | Yeni mutabakat oturumu açıldı |
+| `reconciliation.completed` | Mutabakat tamamlandı |
+| `reconciliation.discrepancy` | Mutabakatta tutarsızlık tespit edildi |
+
+## Sistem olayları
+
+| Tip | Tetiklenme |
+|---|---|
+| `webhook.test` | `POST /webhooks/{id}/test` çağrısı |
+| `plan.usage.warning` | Kotanın %80'i geçildi |
+| `plan.usage.critical` | Kotanın %95'i geçildi |
+| `plan.usage.exceeded` | Kota aşıldı, istekler reddedilmeye başlandı |
+
+## Idempotent işleme
+
+Aynı olay birden fazla kez gelebilir (Payven retry mekanizması veya ağ sorunları nedeniyle). `evt.id` değerini saklayıp duplikatları yok sayın:
+
+```javascript
+async function handleEvent(evt) {
+  const seen = await db.events.findOne({ id: evt.id });
+  if (seen) return; // duplikat
+  await db.events.insert({ id: evt.id, processedAt: new Date() });
+  await processEvent(evt);
+}
+```
+
+## Olay sürümlemesi
+
+Yeni alanlar olay payload'una eklenebilir, mevcut alanlar **silinmez**. İstemcinizi tolerant yazın — bilmediği alanları yok saysın.

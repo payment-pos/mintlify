@@ -1,0 +1,83 @@
+---
+title: "Bankalar"
+description: "Türkiye'deki bankaların kataloğu — kod, isim, BKM ID."
+---
+
+Identity servisi, Türkiye'deki tüm aktif bankaların kataloğunu sağlar. Banka kodu, BKM üye numarası ve görüntüleme bilgileri buradan çekilir.
+
+## Endpoint
+
+```
+GET /api/v1/lookups/banks
+```
+
+## İstek
+
+```bash
+curl https://identity.payven.com.tr/api/v1/lookups/banks \
+  -H "Authorization: Bearer ..."
+```
+
+| Query parametresi | Tip | Açıklama |
+|---|---|---|
+| `searchTerm` | `string` | İsim veya kodda arama |
+| `pageNumber` | `int` | Sayfa numarası (varsayılan: 1) |
+| `pageSize` | `int` | Sayfa boyutu (varsayılan: 50, max: 200) |
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "items": [
+      {
+        "id": "8e3f5c12-...",
+        "code": "GARANTI",
+        "name": "Garanti BBVA",
+        "bkmMemberId": "62",
+        "swiftCode": "TGBATRIS",
+        "isActive": true,
+        "logoUrl": "https://cdn.payven.com.tr/banks/garanti.svg"
+      },
+      {
+        "id": "9f3d2b8e-...",
+        "code": "AKBANK",
+        "name": "Akbank",
+        "bkmMemberId": "46",
+        "swiftCode": "AKBKTRIS",
+        "isActive": true,
+        "logoUrl": "https://cdn.payven.com.tr/banks/akbank.svg"
+      }
+    ],
+    "totalCount": 28
+  }
+}
+```
+
+## Kullanım örnekleri
+
+- **Checkout sayfasında banka listesi:** Müşteriye hangi bankalardan kart kabul edildiğini göstermek.
+- **Raporlama:** İşlemleri banka adına göre gruplamak.
+- **Routing kuralları:** Akıllı yönlendirme kurallarında banka seçimi için.
+
+## Caching önerisi
+
+Banka kataloğu **nadiren değişir**. İstemcinizde 24 saatlik cache önerilir:
+
+```javascript
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+let banksCache = null;
+
+async function getBanks() {
+  if (banksCache && Date.now() - banksCache.fetchedAt < CACHE_TTL_MS) {
+    return banksCache.data;
+  }
+  const res = await fetch(`${BASE}/lookups/banks`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const { data } = await res.json();
+  banksCache = { data: data.items, fetchedAt: Date.now() };
+  return data.items;
+}
+```

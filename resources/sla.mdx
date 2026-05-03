@@ -1,0 +1,46 @@
+---
+title: "SLA"
+description: "Servis seviyesi taahhütleri ve erişilebilirlik garantileri."
+---
+
+Payven, kurumsal müşterilere yazılı **Service Level Agreement** (SLA) taahhüdü sunar. Bu sayfa standart SLA seviyelerini özetler — özelleştirilmiş anlaşmalar için [destek ekibine](/resources/support) yazın.
+
+## Erişilebilirlik
+
+| Servis | Aylık erişilebilirlik | Aylık izinli kesinti |
+|---|---|---|
+| Sanal POS API | 99,95% | ~22 dakika |
+| Identity & Auth | 99,95% | ~22 dakika |
+| Hosted Checkout | 99,90% | ~43 dakika |
+| Webhook teslim | 99,90% | ~43 dakika |
+| Konsol | 99,50% | ~3,6 saat |
+
+Erişilebilirlik, planlı bakım pencereleri **dışında** ölçülür.
+
+## Yanıt süresi taahhütleri
+
+| Endpoint kategorisi | p95 yanıt süresi |
+|---|---|
+| Senkron ödeme (`POST /payments`) | < 2,5 sn |
+| Sorgulama (`GET /transactions`) | < 500 ms |
+| Webhook teslim girişimi | < 5 sn timeout |
+
+## Bakım pencereleri
+
+Planlı bakımlar:
+- Türkiye saatiyle **Salı 03:00-05:00**
+- Aylık bir kez
+- En az 5 iş günü önceden duyurulur
+
+## Kesinti durumunda
+
+Erişilebilirlik taahhüdü altında kalan aylar için kontrat şartlarına göre **service credit** uygulanır. Detay yazılı SLA dokümanınızda yer alır.
+
+## İlk müdahale süreleri
+
+| Severity | Tanım | İlk yanıt süresi |
+|---|---|---|
+| **Sev1** | Tüm production trafik etkilenmiş | 15 dk (7×24) |
+| **Sev2** | Bir ürün etkilenmiş | 1 saat (7×24) |
+| **Sev3** | Performans degradasyonu | 4 saat (mesai) |
+| **Sev4** | Soru, geliştirme talebi | 1 iş günü |

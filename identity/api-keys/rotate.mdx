@@ -1,0 +1,65 @@
+---
+title: "Secret Rotasyonu"
+description: "Mevcut anahtarın `apiKey` değerini koruyup secret'ı yenileme."
+---
+
+Rotasyon, anahtarın **public tanımlayıcısını korur** (servisinizdeki konfigürasyonu değiştirmeden) ama secret'ı yeniler. Sızıntı şüphesinde veya periyodik güvenlik politikası gereği kullanılır.
+
+## Endpoint
+
+```
+POST /api/v1/tenants/me/api-keys/{id}/rotate-secret
+```
+
+## İstek
+
+```bash
+curl -X POST https://identity.payven.com.tr/api/v1/tenants/me/api-keys/key_8e3f5c12/rotate-secret \
+  -H "Authorization: Bearer ..."
+```
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "id": "key_8e3f5c12",
+    "apiKey": "pvk-prod-MaVpaXii",
+    "secret": "yeni-secret-değeri-burada",
+    "rotatedAt": "2026-05-03T12:34:56Z"
+  }
+}
+```
+
+<Warning>
+Eski secret **anında geçersiz** olur. Servisleriniz hâlâ eski secret ile çalışıyorsa istek başarısız olur. Aşağıdaki sıfır-kesinti yaklaşımını uygulayın.
+</Warning>
+
+## Sıfır kesintiyle rotasyon
+
+Tek bir anahtarın secret'ını rotasyona almak yerine **iki anahtarla** çalışmak daha güvenlidir:
+
+<Steps>
+  <Step title="Yeni anahtar oluşturun">
+    Eskisini bırakıp [yeni anahtar üretin](/identity/api-keys/create).
+  </Step>
+  <Step title="Yeni anahtarı secret manager'a yazın">
+    Production secret manager'ında yeni `apiKey` ve `secret` değerlerini kaydedin.
+  </Step>
+  <Step title="Servisi rolling restart ile dağıtın">
+    Yeni anahtarla başlayan instance'lar çalışmaya başlasın. Eski instance'lar hâlâ eski anahtarla çalışıyor — ikisi de geçerli.
+  </Step>
+  <Step title="Eski anahtara trafik kalmadığında pasife alın">
+    Konsol → API Kayıtları'ndan eski anahtara gelen istek olup olmadığını izleyin. Sıfırlanınca [revoke edin](/identity/api-keys/revoke).
+  </Step>
+</Steps>
+
+`rotate-secret` endpoint'i ise **tek bir anahtar bağlamında** çalışır — sızıntı şüphesinde anlık kapatma için uygundur.
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `API_KEY_NOT_FOUND` | Anahtar bulunamadı |
+| `403` | `PERMISSION_DENIED` | Rotasyon yetkiniz yok (TenantAdmin gerekir) |

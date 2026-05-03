@@ -1,0 +1,74 @@
+---
+title: "Identity & Auth"
+description: "Payven platformunun ortak kimlik, yetkilendirme ve referans veri servisi."
+---
+
+Identity & Auth servisi, Payven platformunun **omurgasıdır**. Tüm ürünler için ortak olan üç işlevi sağlar:
+
+<CardGroup cols={3}>
+  <Card title="Kimlik Doğrulama" icon="shield-keyhole" href="/identity/auth/login">
+    OAuth 2.0 / OIDC tabanlı kullanıcı oturumu, refresh ve logout.
+  </Card>
+  <Card title="API Anahtarı Yönetimi" icon="key" href="/identity/api-keys/overview">
+    Kuruluş başına anahtar üretimi, rotasyonu ve revoke.
+  </Card>
+  <Card title="Referans Veriler" icon="database" href="/identity/lookups/banks">
+    Banka, BIN, MCC, şehir/ilçe gibi ortak lookup tabloları.
+  </Card>
+</CardGroup>
+
+## Base URL
+
+```
+https://identity.payven.com.tr/api/v1
+```
+
+## Auth modeli
+
+Identity servisi **JWT Bearer token** kullanır — diğer ürün servislerinde kullanılan API Key + Secret modelinden farklıdır.
+
+```http
+Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+```
+
+Token nasıl alınır: [Login](/identity/auth/login).
+
+## Slug tabanlı oturum
+
+Identity, çoklu kuruluş (multi-tenant) yapısı için **slug tabanlı** oturum URL'leri kullanır:
+
+```
+POST /api/v1/auth/{slug}/login
+POST /api/v1/auth/{slug}/refresh
+GET  /api/v1/auth/{slug}/me
+```
+
+`slug`, kuruluşunuzun benzersiz tanımlayıcısıdır (örn. `acme-bank`). Onboarding sırasında atanır. Platform yöneticileri için özel `platform` slug'ı kullanılır.
+
+## Kullanım senaryoları
+
+| Kim? | Ne için? | Endpoint |
+|---|---|---|
+| Konsol kullanıcısı | Konsola giriş yapmak | `POST /auth/{slug}/login` |
+| Kuruluş yöneticisi | API anahtarı oluşturmak | `POST /tenants/me/api-keys` |
+| Geliştirici | Onboarding sırasında merchant kayıt | `GET /me` |
+| Backend servisi | BIN'den banka çözümleme (internal) | `GET /internal/lookups/bankbins/resolve` |
+
+## Hangi servisi ne zaman kullanırsınız?
+
+```mermaid
+flowchart LR
+    User["Kullanıcı / Konsol"] -->|"Bearer Token"| ID["Identity"]
+    ID -->|"API Key oluştur"| Key["API Anahtarı"]
+    Server["Sunucunuz"] -->|"X-API-Key + Secret"| Products["Ürün Servisleri<br/>(Sanal POS, Para Transferi, Fraud, Fatura)"]
+```
+
+- **Konsol işlemleri (admin, kullanıcı yönetimi, anahtar oluşturma):** Identity üzerinden Bearer token ile.
+- **Production işlemleri (ödeme, transfer, fraud):** Ürün servislerine API Key + Secret ile.
+
+## Ortam URL'leri
+
+| Ortam | Identity Base URL |
+|---|---|
+| Sandbox | `https://identity-sandbox.payven.com.tr/api/v1` |
+| Production | `https://identity.payven.com.tr/api/v1` |

@@ -1,0 +1,40 @@
+---
+title: "Ödeme Detayı"
+description: "Tek bir ödemenin tam durumunu sorgulayın."
+---
+
+Bir ödemenin **mevcut** durumunu ve tüm bağlam bilgilerini çekmek için kullanılır.
+
+## Endpoint
+
+```
+GET /api/v1/payments/{paymentId}
+```
+
+## İstek
+
+```bash
+curl https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-... \
+  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT"
+```
+
+`paymentId` yerine `externalId` ile sorgulamak için:
+
+```bash
+curl "https://vpos.payven.com.tr/api/v1/payments?externalId=ORDER-1001" \
+  -H "..."
+```
+
+## Yanıt
+
+Tam payment objesi döner. Yapı için: [Payment Objesi](/sanal-pos/payment-object).
+
+## Tipik kullanım
+
+- 3DS akışı sonrası `returnUrl`'de sunucu tarafında durumu doğrulamak.
+- Webhook gelmemiş bir ödemenin son durumunu sorgulamak.
+- Müşteri destek talebinde geçmiş bir işlemi incelemek.
+
+<Tip>
+**Polling kullanmayın.** Webhook entegre edin. Eğer webhook gelmezse yeniden gönderme istemek için konsoldaki **Webhook Teslim Kayıtları** ekranını kullanın.
+</Tip>

@@ -1,0 +1,64 @@
+---
+title: "MCC Kodları"
+description: "Merchant Category Code lookup — sektör ve iş kolu eşleştirme."
+---
+
+**MCC** (Merchant Category Code), kart endüstrisinde merchant'ı sektörüne göre sınıflayan 4 haneli ISO standardıdır. Mutabakat, fraud kuralları ve raporlamada kullanılır.
+
+## Endpoint
+
+```
+GET /api/v1/lookups/mcc-codes
+```
+
+```bash
+curl "https://identity.payven.com.tr/api/v1/lookups/mcc-codes?searchTerm=restoran" \
+  -H "Authorization: Bearer ..."
+```
+
+| Query parametresi | Açıklama |
+|---|---|
+| `searchTerm` | Kod veya açıklamada arama |
+| `category` | Üst kategori filtresi (örn. `Retail`, `Food`, `Travel`) |
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "items": [
+      {
+        "code": "5812",
+        "description": "Yiyecek Servisleri ve Restoranlar",
+        "descriptionEn": "Eating Places, Restaurants",
+        "category": "Food"
+      },
+      {
+        "code": "5814",
+        "description": "Fast Food Restoranlar",
+        "descriptionEn": "Fast Food Restaurants",
+        "category": "Food"
+      }
+    ]
+  }
+}
+```
+
+## Kullanım
+
+- **Onboarding:** Yeni merchant kaydederken MCC kodunu seçtirme.
+- **Fraud:** Belirli MCC'ler için ek kontrol kuralları.
+- **Raporlama:** İşlemleri sektöre göre gruplama.
+
+## Yaygın kategoriler
+
+| Kategori | Örnek MCC | Açıklama |
+|---|---|---|
+| Retail | `5311`, `5651` | Mağazalar, giyim |
+| Food | `5812`, `5814`, `5411` | Restoran, market |
+| Travel | `4511`, `7011` | Havayolu, otel |
+| Online | `5969`, `7372` | E-ticaret, yazılım |
+| Services | `7311`, `8011` | Reklam, sağlık |
+
+Tam liste 800+ koddan oluşur. Kataloğu uygulamanızın başlangıcında bir kez çekip cache'lemeniz önerilir.

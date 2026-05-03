@@ -1,0 +1,84 @@
+---
+title: "Payven Developer Portal"
+sidebarTitle: "Genel Bakış"
+description: "Türkiye'nin lisanslı ödeme kuruluşları, bankaları ve fintek platformları için modern ödeme altyapısı."
+---
+
+Payven, ödeme lisansına sahip kuruluşların kendi müşterilerine sundukları ödeme hizmetlerinin arkasındaki teknik altyapıyı sağlar. Sanal POS, para transferi, fraud yönetimi ve fatura ödeme modüllerini tek bir platform üzerinden, tek bir kimlik doğrulama modeliyle kullanırsınız.
+
+<CardGroup cols={2}>
+  <Card title="Sanal POS" icon="credit-card" href="/sanal-pos/overview">
+    Çoklu banka entegrasyonu, akıllı yönlendirme, 3D Secure, ön provizyon, ödeme linki ve hosted checkout.
+  </Card>
+  <Card title="Identity & Auth" icon="shield-keyhole" href="/identity/overview">
+    OAuth 2.0 tabanlı kimlik doğrulama, API anahtarı yönetimi, BIN ve banka lookup servisleri.
+  </Card>
+  <Card title="Para Transferi" icon="arrow-right-arrow-left" href="/resources/coming-soon">
+    Çoklu banka üzerinden FAST, EFT ve havale yönlendirme. **Yakında.**
+  </Card>
+  <Card title="Fraud Yönetimi" icon="shield-halved" href="/resources/coming-soon">
+    Kural motoru, kara/beyaz liste, hız kontrolü ve risk skorlama. **Yakında.**
+  </Card>
+</CardGroup>
+
+## Beş dakikada ilk ödeme
+
+<Steps>
+  <Step title="Kuruluş hesabınızı oluşturun">
+    [Konsola](https://dashboard.payven.com.tr) giriş yapın ve kuruluşunuza ait bir merchant tanımlayın.
+  </Step>
+  <Step title="API anahtarınızı alın">
+    Konsoldan bir **API Key** ve **API Secret** çifti üretin. Secret yalnızca oluşturma anında gösterilir.
+  </Step>
+  <Step title="Test ortamında ilk isteğinizi atın">
+    [Hızlı Başlangıç](/documentation/quickstart) sayfasındaki örnek `curl` isteğiyle ilk işleminizi başlatın.
+  </Step>
+  <Step title="Webhook'ları kurun">
+    İşlem sonuçlarını gerçek zamanlı almak için bir endpoint kaydedin ve [imza doğrulamasını](/sanal-pos/webhooks/signature) etkinleştirin.
+  </Step>
+  <Step title="Canlıya geçin">
+    [Production geçiş kontrol listesini](/documentation/security/go-live-checklist) tamamlayın ve canlı kuruluşunuzu açın.
+  </Step>
+</Steps>
+
+## Payven'i farklı kılan ne?
+
+<CardGroup cols={2}>
+  <Card title="Akıllı Yönlendirme" icon="route">
+    Composite-score tabanlı kural motoru: BIN, tutar, taksit, kart birliği, 3DS durumu ve banka sağlığına göre dinamik banka seçimi.
+  </Card>
+  <Card title="Smart Retry & Circuit Breaker" icon="arrows-rotate">
+    Banka tarafında geçici arıza yaşandığında işlem otomatik olarak alternatif konnektöre yönlendirilir; arızalı banka geçici olarak devre dışı bırakılır.
+  </Card>
+  <Card title="Tek Kimlik, Çoklu Ürün" icon="layer-group">
+    Tek API anahtarı çiftiyle Sanal POS, Para Transferi, Fraud ve Fatura Ödeme modüllerine erişirsiniz.
+  </Card>
+  <Card title="Çok Bankalı Mutabakat" icon="scale-balanced">
+    Tüm bankaların gün sonu hareketleri tek bir mutabakat akışında konsolide edilir.
+  </Card>
+</CardGroup>
+
+## Ne zaman Payven'i tercih etmelisiniz?
+
+Payven, doğrudan son tüketiciye veya son satıcıya hizmet vermez. Lisanslı ödeme kuruluşları, bankalar ve büyük e-ticaret/fintek platformları için tasarlanmıştır.
+
+| Profil | Uygun mu? |
+|---|---|
+| Lisanslı ödeme kuruluşu — kendi alt bayilerinize ödeme hizmeti sunuyorsunuz | ✅ Birincil hedef |
+| Banka — kendi sanal POS gateway altyapınızı yenilemek istiyorsunuz | ✅ Uygun |
+| Büyük e-ticaret veya marketplace — birden fazla bankayı tek API'den yönetmek istiyorsunuz | ✅ Uygun |
+| Bireysel geliştirici / küçük e-ticaret sitesi | ❌ Doğrudan PSP'lerle çalışmanız önerilir |
+
+## Yardım almak
+
+<CardGroup cols={3}>
+  <Card title="API Referansı" icon="code" href="/sanal-pos/overview">
+    Tüm endpoint, parametre ve yanıt şemaları.
+  </Card>
+  <Card title="Konsol" icon="gauge-high" href="https://dashboard.payven.com.tr">
+    İşlem izleme, raporlama, kullanıcı ve API anahtarı yönetimi.
+  </Card>
+  <Card title="Destek" icon="life-ring" href="/resources/support">
+    Entegrasyon sorularınız için teknik destek ekibimize ulaşın.
+  </Card>
+</CardGroup>

@@ -1,0 +1,75 @@
+---
+title: "İşlem Listesi"
+description: "Filtreleme ve sayfalama ile işlemleri toplu olarak listeleyin."
+---
+
+İşlemlerinizi tarih aralığı, durum, merchant, kart bilgileri gibi kriterlere göre listeleyin.
+
+## Endpoint
+
+```
+GET /api/v1/transactions
+```
+
+## Sorgu parametreleri
+
+| Parametre | Tip | Açıklama |
+|---|---|---|
+| `from` / `to` | string | Tarih aralığı (UTC, ISO-8601) |
+| `status` | enum[] | `Success`, `Failed`, `Pending3D`, vb. |
+| `currency` | enum | `TRY`, `USD`, `EUR`, `GBP` |
+| `minAmount` / `maxAmount` | int | Tutar aralığı (kuruş) |
+| `cardScheme` | enum | `Visa`, `Mastercard`, `Troy`, `Amex` |
+| `cardBin` | string | İlk 6-8 hane |
+| `connectorCode` | string | Belirli bir banka konnektörü |
+| `externalId` | string | Sizin sipariş ID'niz |
+| `merchantId` | uuid | Belirli bir merchant |
+| `searchTerm` | string | İşlem ID, sipariş ID, kart son 4 hane veya müşteri e-postasında arama |
+| `sortBy` | enum | `createdAt`, `amount` |
+| `sortDirection` | enum | `asc`, `desc` |
+| `pageNumber` / `pageSize` | int | Sayfalama (max 100) |
+
+## İstek
+
+```bash
+curl "https://vpos.payven.com.tr/api/v1/transactions?from=2026-05-01T00:00:00Z&to=2026-05-31T23:59:59Z&status=Success&pageSize=50" \
+  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT"
+```
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "items": [
+      {
+        "id": "8e3f5c12-...",
+        "externalId": "ORDER-1001",
+        "status": "Success",
+        "amount": 15000,
+        "currency": "TRY",
+        "card": { "binNumber": "454671", "lastFourDigits": "7894", "scheme": "Visa" },
+        "connector": { "code": "GarantiVPOS", "responseCode": "00" },
+        "createdAt": "2026-05-03T12:34:56Z"
+      }
+    ],
+    "pageNumber": 1,
+    "pageSize": 50,
+    "totalCount": 1247,
+    "totalPages": 25
+  }
+}
+```
+
+Yanıttaki kayıtlar **özet** versiyondur (kart numarası, müşteri detayları yoktur). Tam detay için ilgili `id` ile [Ödeme Detayı](/sanal-pos/inquiries/payment-detail) endpoint'ini çağırın.
+
+## Export
+
+Konsol → İşlemler ekranından CSV ve XLSX export yapabilirsiniz. Programatik export için:
+
+```bash
+GET /api/v1/transactions/export?format=csv&from=...&to=...
+```
+
+İndirme linki yanıt header'ında `Location` olarak döner; büyük export'lar asenkron işlenir.

@@ -1,0 +1,40 @@
+---
+title: "Logout"
+description: "Aktif oturumu sonlandırma ve token'ları geçersiz kılma."
+---
+
+Logout endpoint'i hem access hem refresh token'ı geçersiz kılar.
+
+## Endpoint
+
+```
+POST /api/v1/auth/{slug}/logout
+```
+
+## İstek
+
+```bash
+curl -X POST https://identity.payven.com.tr/api/v1/auth/acme-bank/logout \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "eyJhbGciOiJIUzUxMiIs..."
+  }'
+```
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "message": "Çıkış yapıldı.",
+  "code": "200",
+  "data": null
+}
+```
+
+## En iyi uygulamalar
+
+<Check>Kullanıcı çıkış yaptığında **mutlaka logout endpoint'i çağrılsın** — sadece istemci tarafında token'ı silmek yeterli değildir, çalınmış bir token hâlâ geçerli olabilir.</Check>
+<Check>İstemci tarafında token'ları temizleyin (cookie, in-memory state).</Check>
+<Check>Cross-tab senaryoda diğer sekmelere `storage` event'i ile haber verin.</Check>

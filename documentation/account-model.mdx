@@ -1,0 +1,98 @@
+---
+title: "Hesap Modeli"
+description: "Kuruluş, merchant ve API anahtarı arasındaki ilişki."
+---
+
+Payven'i doğru kullanmak için **kuruluş**, **merchant** ve **API anahtarı** arasındaki farkı anlamak gerekir.
+
+## Kavramlar
+
+<Tabs>
+  <Tab title="Kuruluş (Tenant)">
+    Payven'in birincil müşterisidir. Lisanslı ödeme kuruluşu, banka veya büyük e-ticaret platformu. Bir kuruluşun:
+
+    - Birden fazla **merchant**'ı,
+    - Birden fazla **API anahtarı**,
+    - Birden fazla **banka konfigürasyonu**,
+    - Bir **plan**'ı (kullanım kotaları) olur.
+
+    Tüm idari işlemler — kullanıcı yönetimi, plan, banka credential'ları, akıllı yönlendirme kuralları — kuruluş seviyesindedir.
+  </Tab>
+  <Tab title="Merchant">
+    Kuruluşa bağlı bayi veya alt müşteridir. Her ödeme bir merchant adına gerçekleştirilir. Bir merchant'ın:
+
+    - **Kimliği** (`merchantId` — UUID),
+    - **Dış kimliği** (`externalId` — sizin sisteminizdeki kimlik),
+    - **Vergi bilgileri**, iletişim bilgileri,
+    - Bağlı olduğu **banka profilleri** olur.
+
+    API çağrılarında merchant'ı `X-Merchant-Id` veya `X-External-Merchant-Id` header'ı ile belirtirsiniz.
+  </Tab>
+  <Tab title="Alt Merchant">
+    İhtiyaç halinde merchant'ın altında ek seviye. Marketplace ortamlarında satıcıları temsil eder.
+
+    Alt merchant kullanımı **opsiyoneldir**. İhtiyacınız yoksa merchant seviyesinde kalabilirsiniz.
+  </Tab>
+  <Tab title="API Anahtarı">
+    API'ye erişim için kullanılan kimlik bilgisi:
+
+    - `apiKey`: Public tanımlayıcı (`pvk-` ile başlar).
+    - `apiSecret`: Gizli imza anahtarı.
+
+    Anahtarlar **kuruluş seviyesindedir** — yani aynı anahtarla kuruluşa bağlı tüm merchant'lar adına işlem yapabilirsiniz. Hangi merchant'ın adına işlem yaptığınızı her istekte ilgili header ile belirtirsiniz.
+  </Tab>
+</Tabs>
+
+## Bir bakışta hiyerarşi
+
+```
+Kuruluş (Tenant)
+├── Plan ve kotalar
+├── Kullanıcılar (konsol erişimi)
+├── API Anahtarları
+├── Banka Konfigürasyonları
+├── Akıllı Yönlendirme Kuralları
+└── Merchant'lar
+    ├── Merchant 1
+    │   ├── Vergi/iletişim bilgileri
+    │   ├── Banka profilleri
+    │   └── Alt Merchant'lar (opsiyonel)
+    ├── Merchant 2
+    └── ...
+```
+
+## Merchant kimliği — iki form
+
+Her API isteğinde merchant'ı **iki şekilde** belirtebilirsiniz. Hangisini kullanacağınızı sisteminize en uygun olana göre seçersiniz.
+
+| Header | Değer | Ne zaman kullanılır? |
+|---|---|---|
+| `X-Merchant-Id` | UUID (örn. `3fa85f64-5717-4562-b3fc-2c963f66afa6`) | Payven'in atadığı dahili kimlik. Konsol üzerinden alınır. |
+| `X-External-Merchant-Id` | Serbest metin (örn. `M-IST-001`) | Sizin sisteminizdeki merchant kimliği. Onboarding sırasında belirlenir. |
+
+İki header'dan **biri** zorunludur. İkisini birden gönderirseniz öncelik `X-Merchant-Id`'dedir.
+
+## Çoklu ürün senaryosu
+
+Aynı API anahtarı çiftiyle birden fazla ürünü kullanabilirsiniz:
+
+```mermaid
+flowchart LR
+    Key["API Key + Secret"]
+    Key --> VPOS["Sanal POS"]
+    Key --> Transfer["Para Transferi"]
+    Key --> Fraud["Fraud Yönetimi"]
+```
+
+Her ürün için ayrı anahtar oluşturmanıza gerek yoktur. Plan, hangi ürünlerin etkin olduğunu belirler.
+
+## Sınırlar ve kotalar
+
+Plan seviyenize bağlı olarak:
+
+- Saniyede istek sayısı,
+- Aylık işlem hacmi,
+- Eşzamanlı webhook hedefi,
+- Aktif merchant sayısı
+
+gibi limitler uygulanır. Mevcut planınızı ve kullanımınızı [Konsol → Plan ve Kullanım](https://dashboard.payven.com.tr/my-plan) ekranından izleyebilirsiniz.

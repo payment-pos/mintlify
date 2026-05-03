@@ -1,0 +1,119 @@
+---
+title: "İade"
+description: "Bir ödemenin tamamını veya bir kısmını müşteriye geri ödeme."
+---
+
+Başarılı bir ödemenin **tamamını** veya **bir kısmını** iade edebilirsiniz. İade banka tarafında gerçekleşir; tutar müşterinin kartına geri yansır.
+
+## Endpoint
+
+```
+POST /api/v1/payments/{paymentId}/refund
+```
+
+## İstek
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-.../refund \
+  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT" \
+  -H "Idempotency-Key: order-1001-refund-1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 5000,
+    "reason": "Müşteri talep etti — kısmi iade"
+  }'
+```
+
+| Alan | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `amount` | int | ❌ | İade tutarı (kuruş). Boş bırakılırsa **kalan tüm tutar** iade edilir. |
+| `reason` | string | ❌ | İade sebebi — raporlamada görünür |
+
+<Warning>
+**Idempotency-Key zorunludur.** Aynı anahtarla yapılan ikinci istek yeni iade oluşturmaz. Detay: [Idempotency](/documentation/concepts/idempotency).
+</Warning>
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "code": "201",
+  "data": {
+    "id": "ref_9f3d2b8e",
+    "paymentId": "8e3f5c12-...",
+    "amount": 5000,
+    "currency": "TRY",
+    "status": "Success",
+    "reason": "Müşteri talep etti — kısmi iade",
+    "connector": {
+      "responseCode": "00",
+      "responseMessage": "İade onaylandı",
+      "hostReference": "REFUND-REF-789"
+    },
+    "createdAt": "2026-05-03T15:00:00Z"
+  }
+}
+```
+
+İlgili payment objesi de güncellenir:
+
+```json
+{
+  "id": "8e3f5c12-...",
+  "status": "PartiallyRefunded",
+  "amount": 15000,
+  "refundedAmount": 5000
+}
+```
+
+## Çoklu iade
+
+Bir ödemeye **birden fazla** kısmi iade yapabilirsiniz. Toplam iade tutarı orijinali aşamaz.
+
+| İade no | Tutar | Toplam iade | Status |
+|---|---|---|---|
+| 1 | 5000 | 5000 | `PartiallyRefunded` |
+| 2 | 5000 | 10000 | `PartiallyRefunded` |
+| 3 | 5000 | 15000 | `Refunded` |
+
+```bash
+GET /api/v1/refunds?paymentId=8e3f5c12-...
+```
+
+ile bir ödemenin tüm iadelerini listeleyebilirsiniz.
+
+## Süre kısıtları
+
+| Durum | İade yapılabilir mi? |
+|---|---|
+| Mutabakat öncesi (gün içi) | ✅ İptal/iade — banka tarafında muhasebe yansıması yok |
+| Mutabakat sonrası | ✅ İade — banka muhasebesinde geri ödeme satırı |
+| 180 gün sonrası | ❌ Çoğu banka iade kabul etmez (`BANK_REFUND_PERIOD_EXPIRED`) |
+
+<Tip>
+Mutabakat öncesi iadeler `0` ücrete tabidir, mutabakat sonrası iadelerde banka komisyonu çoğu durumda iade edilmez. Anlaşmanızı kontrol edin.
+</Tip>
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `PAYMENT_NOT_FOUND` | Ödeme bulunamadı |
+| `422` | `PAYMENT_NOT_REFUNDABLE` | Ödeme iade edilemez durumda (örn. zaten iade edilmiş, başarısız) |
+| `422` | `REFUND_EXCEEDS_ORIGINAL` | İade tutarı kalan tutardan büyük |
+| `422` | `BANK_REFUND_PERIOD_EXPIRED` | Banka iade süresi dolmuş |
+| `502` | `BANK_DECLINED` | Banka iadeyi reddetti — `connector.responseCode`'a bakın |
+
+## Webhook olayları
+
+| Olay | Açıklama |
+|---|---|
+| `refund.succeeded` | İade başarıyla tamamlandı |
+| `refund.failed` | İade başarısız |
+
+Detay: [Webhook Olayları](/sanal-pos/webhooks/events).
+
+## Test
+
+Sandbox'ta test kartlarıyla yapılan ödemeler iade edilebilir. Detay: [Test Kartları](/sanal-pos/test/test-cards).

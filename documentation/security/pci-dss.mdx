@@ -1,0 +1,90 @@
+---
+title: "PCI-DSS Uyumluluğu"
+description: "Payven'in kart endüstrisi güvenlik standardına uyumluluğu ve sizin sorumluluklarınız."
+---
+
+Payven, **PCI-DSS** (Payment Card Industry Data Security Standard) uyumlu bir altyapı sunar. Bu, kart verisi işleyen ve saklayan sistemlerin uyması gereken global güvenlik standardıdır.
+
+<Card title="PCI-DSS Sertifikalı Altyapı" icon="shield-check">
+Payven platformu **PCI-DSS** standardına uyumludur. Sertifika ve denetim raporları talep üzerine paylaşılır — [destek ekibimize](/resources/support) yazın.
+</Card>
+
+## Sizin sorumluluğunuz
+
+PCI-DSS uyumluluğu **sizin kart verisi nasıl topladığınızla** doğrudan ilgilidir. Aşağıdaki yaklaşımlar farklı sorumluluk seviyelerine karşılık gelir:
+
+<Tabs>
+  <Tab title="En düşük yük: Hosted Checkout">
+    Müşteri kart bilgilerini **Payven'in barındırdığı** ödeme sayfasına girer.
+
+    - Kart verisi sizin sunucularınıza **hiç dokunmaz**.
+    - PCI-DSS denetim kapsamınız **SAQ-A** (en kısa form, ~22 madde).
+    - Önerilen yaklaşım: çoğu B2C entegrasyonu için ideal.
+
+    Akış: [Hosted Checkout](/sanal-pos/payments/hosted-checkout)
+  </Tab>
+  <Tab title="Orta yük: Pay-by-Link">
+    Müşteriye SMS/e-posta ile bir **ödeme linki** gönderirsiniz; müşteri linkten Payven veya banka sayfasına geçer.
+
+    - Kart verisi sizin sunucularınıza dokunmaz.
+    - Denetim kapsamı **SAQ-A**.
+
+    Akış: [Pay-by-Link](/sanal-pos/payments/pay-by-link)
+  </Tab>
+  <Tab title="Yüksek yük: Direct API">
+    Kart bilgilerini kendi formunuzdan toplayıp `POST /payments` ile Payven'e iletirsiniz.
+
+    - Kart verisi sizin sunucularınıza **uğrar**.
+    - Denetim kapsamı **SAQ-D** (~330 madde) veya tam ROC.
+    - Önerilen yaklaşım: yalnızca ileri düzey entegrasyonlar; PCI-DSS sertifikanız yoksa **kullanmayın**.
+  </Tab>
+</Tabs>
+
+## Asla saklamayın
+
+| Veri | Saklamak yasak mı? |
+|---|---|
+| Tam kart numarası (PAN) | ❌ **Yasak** (Payven saklar, siz saklamayın) |
+| CVV / CVC | ❌ **Kesinlikle yasak** |
+| Manyetik şerit / chip track verisi | ❌ **Kesinlikle yasak** |
+| PIN | ❌ **Kesinlikle yasak** |
+| Kart sahibi adı (referans için) | ✅ İzinli ama gerekmiyorsa saklamayın |
+| Son 4 hane (referans/raporlama için) | ✅ İzinli |
+| BIN (ilk 6 hane) | ✅ İzinli |
+| Son kullanma tarihi | ⚠️ Tek başına yeterli değil ama saklamamak en iyisi |
+
+<Warning>
+Kart numarasını veya CVV'yi loglara, veritabanınıza, dosya sistemine veya geçici cache'e **yazmayın**. Yanlışlıkla yazılması bile uyumluluk ihlali sayılır.
+</Warning>
+
+## Önerilen güvenlik kontrolleri
+
+<Check>**TLS 1.2 veya üstü** — Payven yalnızca TLS 1.2+ kabul eder. Eski TLS sürümleri reddedilir.</Check>
+<Check>**HSTS** — Kendi domain'iniz için HTTP Strict Transport Security ekleyin.</Check>
+<Check>**API anahtarı güvenliği** — Anahtarları HashiCorp Vault, AWS Secrets Manager veya benzeri bir secret manager'da saklayın.</Check>
+<Check>**Loglar maskelenir** — Yanlışlıkla kart numarası loglanırsa hemen maskeleyin: `4546 71** **** 7894`.</Check>
+<Check>**Erişim kontrolü** — API anahtarına yalnızca ödeme alan servis erişebilsin, geliştiriciler doğrudan production anahtarına erişmesin.</Check>
+<Check>**Düzenli rotasyon** — En az 6 ayda bir API anahtarınızı rotasyona alın.</Check>
+
+## Denetim ve raporlama
+
+İhtiyaç durumunda destek ekibinden talep edebileceğiniz belgeler:
+
+- PCI-DSS Attestation of Compliance (AOC)
+- Sorumluluk Matrisi (Payven ↔ siz)
+- Penetrasyon test özet raporu (NDA altında)
+- ISO 27001 sertifikası
+
+## Sık sorulanlar
+
+<AccordionGroup>
+  <Accordion title="Kendi sayfamda kart formu kullanmak istemiyorum, neyi seçmeliyim?">
+    [Hosted Checkout](/sanal-pos/payments/hosted-checkout) kullanın. Kart verisi sizin sunucularınıza dokunmaz, PCI yükü minimumdur.
+  </Accordion>
+  <Accordion title="Direct API kullanmak için PCI sertifikası şart mı?">
+    Evet — PAN'i sizin altyapınızdan geçen her senaryoda PCI-DSS denetimi yaptırmanız gerekir.
+  </Accordion>
+  <Accordion title="Test ortamında PCI kuralları geçerli mi?">
+    Sandbox test kartları **gerçek kart değildir**, dolayısıyla saklamak/loglamak teknik olarak ihlal değildir. Yine de production kodunuz gerçek kartı işlemediğinden emin olmak için sandbox'ta da aynı disiplinle çalışın.
+  </Accordion>
+</AccordionGroup>

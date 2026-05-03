@@ -1,0 +1,117 @@
+---
+title: "Mevcut Kullanıcı (/me)"
+description: "Aktif kullanıcının kuruluş, merchant ve özellik bağlamı."
+---
+
+`/me` endpoint'i; aktif kullanıcının **kim olduğu**, **hangi kuruluşa bağlı**, **hangi merchant'lara erişebildiği** ve **hangi ürünleri kullanabildiği** bilgisini tek bir istekle döner. Konsolun ana yükleme isteğidir.
+
+## Endpoint
+
+```
+GET /api/v1/me
+```
+
+## İstek
+
+```bash
+curl https://identity.payven.com.tr/api/v1/me \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+```
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "code": "200",
+  "data": {
+    "user": {
+      "id": "9f3d2b8e-...",
+      "email": "user@acme-bank.com",
+      "firstName": "Ayşe",
+      "lastName": "Yılmaz",
+      "roles": ["pos-admin", "transfer-viewer"]
+    },
+    "tenant": {
+      "id": "1a2b3c4d-...",
+      "slug": "acme-bank",
+      "name": "Acme Bank A.Ş.",
+      "status": "Active"
+    },
+    "merchants": [
+      {
+        "id": "3fa85f64-...",
+        "externalId": "M-IST-001",
+        "name": "Acme E-Ticaret"
+      }
+    ],
+    "features": [
+      {
+        "code": "sanalpos",
+        "name": "Sanal POS",
+        "category": "Module",
+        "enabled": true
+      },
+      {
+        "code": "para-transferi",
+        "name": "Para Transferi",
+        "category": "Module",
+        "enabled": true
+      },
+      {
+        "code": "fraud",
+        "name": "Fraud Yönetimi",
+        "category": "Module",
+        "enabled": false
+      }
+    ],
+    "permissions": [
+      "transactions.view",
+      "transactions.refund",
+      "merchants.manage"
+    ]
+  }
+}
+```
+
+## Plan ve kullanım
+
+Kuruluşunuzun aktif planını ve kotalarını ayrı endpoint'ten çekebilirsiniz:
+
+```
+GET /api/v1/me/plan
+```
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "plan": {
+      "name": "Standart",
+      "price": 999900,
+      "currency": "TRY",
+      "billingCycle": "Monthly"
+    },
+    "usage": {
+      "monthlyTransactions": 12450,
+      "monthlyTransactionsLimit": 100000,
+      "activeMerchants": 18,
+      "activeMerchantsLimit": 50
+    },
+    "features": [
+      { "code": "sanalpos", "enabled": true },
+      { "code": "para-transferi", "enabled": true }
+    ]
+  }
+}
+```
+
+## Permission ve role
+
+Permission'lar `kategori.aksiyon` formatındadır. UI'da bir butonu göstermeden önce ilgili permission'ı kontrol edin:
+
+```javascript
+const canRefund = me.permissions.includes("transactions.refund");
+```
+
+Tam permission listesi: [Konsol → Kullanıcı Yönetimi → Roller](https://dashboard.payven.com.tr/users).

@@ -1,0 +1,110 @@
+---
+title: "Tarih ve Zaman"
+description: "ISO-8601 ve UTC kullanımı."
+---
+
+Payven, tüm tarih-zaman alanlarında **ISO-8601** formatını ve **UTC** zaman dilimini kullanır.
+
+## Format
+
+```
+2026-05-03T12:34:56.789Z
+```
+
+| Bölüm | Anlam |
+|---|---|
+| `2026-05-03` | Tarih (yıl-ay-gün) |
+| `T` | Tarih ve saat ayırıcısı |
+| `12:34:56.789` | Saat:dakika:saniye.milisaniye |
+| `Z` | UTC zaman dilimi (offset = +00:00) |
+
+## Yerel saat gönderme
+
+Yerel saat dilimi göndermek istiyorsanız offset ekleyin. Türkiye için `+03:00`:
+
+```
+2026-05-03T15:34:56+03:00
+```
+
+Bu değer Payven tarafında otomatik olarak UTC'ye çevrilip saklanır.
+
+## Yanıtlarda
+
+Tüm yanıtlardaki tarih alanları UTC olarak döner:
+
+```json
+{
+  "id": "8e3f5c12-...",
+  "createdAt": "2026-05-03T12:34:56.789Z",
+  "updatedAt": "2026-05-03T12:35:01.234Z"
+}
+```
+
+## Yerel saatte gösterme
+
+Müşteriye gösterirken kendi tarafınızda yerelleştirin:
+
+<CodeGroup>
+```csharp C#
+var utc = DateTimeOffset.Parse("2026-05-03T12:34:56.789Z");
+var istanbul = TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time");
+var local = TimeZoneInfo.ConvertTime(utc, istanbul);
+
+Console.WriteLine(local.ToString("dd MMMM yyyy HH:mm", new CultureInfo("tr-TR")));
+// 03 Mayıs 2026 15:34
+```
+
+```javascript Node.js
+const utc = new Date("2026-05-03T12:34:56.789Z");
+
+const formatted = new Intl.DateTimeFormat("tr-TR", {
+  dateStyle: "long",
+  timeStyle: "short",
+  timeZone: "Europe/Istanbul",
+}).format(utc);
+
+console.log(formatted);
+// 3 Mayıs 2026 15:34
+```
+
+```go Go
+utc, _ := time.Parse(time.RFC3339Nano, "2026-05-03T12:34:56.789Z")
+istanbul, _ := time.LoadLocation("Europe/Istanbul")
+local := utc.In(istanbul)
+fmt.Println(local.Format("02 Jan 2006 15:04"))
+```
+
+```php PHP
+$utc = new DateTimeImmutable("2026-05-03T12:34:56.789Z");
+$utc->setTimezone(new DateTimeZone("Europe/Istanbul"));
+echo $utc->format("d.m.Y H:i"); // 03.05.2026 15:34
+```
+
+```python Python
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+utc = datetime.fromisoformat("2026-05-03T12:34:56.789+00:00")
+istanbul = utc.astimezone(ZoneInfo("Europe/Istanbul"))
+print(istanbul.strftime("%d.%m.%Y %H:%M"))
+```
+</CodeGroup>
+
+## Tarih aralığı parametreleri
+
+Liste sorgularında tarih aralığı parametreleri yine **ISO-8601 + UTC** beklenir:
+
+```
+GET /api/v1/transactions?from=2026-05-01T00:00:00Z&to=2026-05-31T23:59:59Z
+```
+
+| Parametre | Yön | Tip |
+|---|---|---|
+| `from` | dahil | UTC tarih-zaman |
+| `to` | dahil | UTC tarih-zaman |
+
+Yerel saat dilimini sorguya çevirmeyi unutmayın — örn. "1 Mayıs 2026 Türkiye saati ile 00:00" → `2026-04-30T21:00:00Z`.
+
+<Tip>
+Mutabakat ve raporlama için **gün başı/sonu** sınırlarını kuruluşunuzun tercih ettiği zaman dilimine göre konsoldan ayarlayabilirsiniz. Detay: [Mutabakat → Yaşam Döngüsü](/sanal-pos/reconciliation/lifecycle).
+</Tip>

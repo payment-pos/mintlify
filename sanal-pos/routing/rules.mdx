@@ -1,0 +1,130 @@
+---
+title: "Yönlendirme Kuralları"
+description: "Koşul tabanlı kural oluşturma ve yönetme."
+---
+
+Yönlendirme kuralları **koşul-aksiyon** çiftleridir. Bir kural birden fazla koşul içerebilir (AND/OR).
+
+## Kural oluşturma
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules \
+  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Bonus kartlar Garantiye",
+    "priority": 10,
+    "enabled": true,
+    "conditions": {
+      "operator": "AND",
+      "rules": [
+        { "field": "card.program", "operator": "equals", "value": "Bonus" },
+        { "field": "amount", "operator": "lte", "value": 200000 }
+      ]
+    },
+    "connectors": [
+      { "configurationId": "cfg_garanti_001", "weight": 100 }
+    ]
+  }'
+```
+
+## Koşul alanları
+
+| Alan | Tip | Açıklama |
+|---|---|---|
+| `card.scheme` | enum | `Visa`, `Mastercard`, `Troy`, `Amex` |
+| `card.type` | enum | `Credit`, `Debit`, `Prepaid` |
+| `card.program` | string | `Bonus`, `Maximum`, `Axess`, `World`, `Paraf`, `CardFinans`, ... |
+| `card.bankCode` | string | Banka kodu (`GARANTI`, `AKBANK`, ...) |
+| `card.binNumber` | string | İlk 6 hane (regex destekli) |
+| `card.country` | string | `TR`, `US`, ... |
+| `amount` | int | Tutar (kuruş) |
+| `currency` | enum | `TRY`, `USD`, `EUR`, `GBP` |
+| `installment` | int | Taksit sayısı |
+| `use3D` | bool | 3DS kullanılıyor mu |
+| `merchantId` | uuid | Merchant filtresi |
+| `merchantCategory` | string | Merchant'ın MCC kategorisi |
+
+## Operatörler
+
+| Operatör | Açıklama |
+|---|---|
+| `equals` | Eşit |
+| `notEquals` | Eşit değil |
+| `gt`, `gte` | Büyük / büyük eşit |
+| `lt`, `lte` | Küçük / küçük eşit |
+| `in` | Listede mi |
+| `notIn` | Listede değil mi |
+| `between` | Aralık |
+| `regex` | Regex eşleşmesi (BIN için) |
+
+## Bileşik koşullar
+
+`AND` ve `OR` ile koşulları gruplayabilirsiniz:
+
+```json
+{
+  "operator": "AND",
+  "rules": [
+    {
+      "operator": "OR",
+      "rules": [
+        { "field": "card.program", "operator": "equals", "value": "Bonus" },
+        { "field": "card.program", "operator": "equals", "value": "Maximum" }
+      ]
+    },
+    { "field": "amount", "operator": "between", "value": [10000, 500000] }
+  ]
+}
+```
+
+## Ağırlıklı dağıtım
+
+Bir kural birden fazla konnektör hedefleyebilir:
+
+```json
+{
+  "connectors": [
+    { "configurationId": "cfg_akbank_001", "weight": 70 },
+    { "configurationId": "cfg_isbank_001", "weight": 30 }
+  ]
+}
+```
+
+Trafik **70/30** dağıtılır. Bir konnektör down olursa ağırlığı geçici olarak diğerlerine devreder.
+
+## Fallback (Smart Retry için)
+
+```json
+{
+  "connectors": [
+    { "configurationId": "cfg_garanti_001", "weight": 100 }
+  ],
+  "fallbacks": [
+    { "configurationId": "cfg_akbank_001", "priority": 1 },
+    { "configurationId": "cfg_isbank_001", "priority": 2 }
+  ]
+}
+```
+
+Birinci konnektör başarısız olursa sırayla fallback'ler denenir.
+
+## Aktif/pasif yönetimi
+
+```bash
+# Pasife al
+PATCH /api/v1/routing-rules/{id}/deactivate
+
+# Aktif et
+PATCH /api/v1/routing-rules/{id}/activate
+```
+
+Pasif kurallar değerlendirme sırasından çıkarılır.
+
+## Hata yanıtları
+
+| `code` | Anlam |
+|---|---|
+| `ROUTING_INVALID_CONDITION` | Koşul alanı veya operatör tanınmadı |
+| `ROUTING_CONNECTOR_NOT_FOUND` | Hedef configurationId bulunamadı |
+| `ROUTING_WEIGHT_SUM_INVALID` | Ağırlıkların toplamı 0'dan büyük olmalı |

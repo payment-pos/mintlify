@@ -1,0 +1,128 @@
+---
+title: "Sanal POS"
+description: "Çoklu banka entegrasyonlu, akıllı yönlendirmeli ödeme alma altyapısı."
+---
+
+Payven Sanal POS, ödeme kuruluşları ve büyük platformlar için **çoklu banka entegrasyonlu** bir ödeme alma altyapısıdır. Tek bir API ile birden fazla bankaya ödeme yönlendirir, akıllı yönlendirme motoruyla başarı oranını maksimize eder.
+
+## Temel özellikler
+
+<CardGroup cols={2}>
+  <Card title="Çoklu Banka" icon="building-columns">
+    Tek API ile 12+ banka entegrasyonu. Konnektör ekleme yeni anlaşma değil, konfigürasyon meselesidir.
+  </Card>
+  <Card title="Akıllı Yönlendirme" icon="route">
+    BIN, tutar, taksit, kart birliği, banka sağlığı bazlı kompozit-skor ile dinamik yönlendirme.
+  </Card>
+  <Card title="3D Secure 2.0" icon="shield-check">
+    Tüm bankalar için tek tip 3DS akışı. Frictionless ve challenge mode ayrımı otomatiktir.
+  </Card>
+  <Card title="Smart Retry" icon="arrows-rotate">
+    Geçici banka hatasında işlem alternatif konnektöre yönlendirilir, kullanıcı yeniden ödeme yapmaz.
+  </Card>
+  <Card title="Hosted Checkout" icon="window-maximize">
+    Payven barındırır, siz yönlendirme URL'si alır. PCI-DSS yükünü minimize eder.
+  </Card>
+  <Card title="Tek Mutabakat" icon="scale-balanced">
+    Tüm bankaların gün sonu hareketleri tek bir mutabakat akışında konsolide edilir.
+  </Card>
+</CardGroup>
+
+## Base URL
+
+| Ortam | URL |
+|---|---|
+| Sandbox | `https://vpos-sandbox.payven.com.tr` |
+| Production | `https://vpos.payven.com.tr` |
+
+## Hangi entegrasyonu seçmeliyim?
+
+<Tabs>
+  <Tab title="Hosted Checkout (önerilir)">
+    **Sizin akış:**
+    1. Sunucunuz `POST /checkout/sessions` ile bir oturum oluşturur.
+    2. Müşteriyi dönen URL'ye yönlendirirsiniz.
+    3. Müşteri kart bilgilerini Payven sayfasında girer.
+    4. Sonuç webhook ile size iletilir.
+
+    **Avantajlar:** En düşük PCI-DSS yükü (SAQ-A), banka sayfası gibi görünür, 3DS otomatik.
+
+    **Uygunsa:** Çoğu B2C entegrasyonu için tercih bu olmalı.
+
+    [Detay →](/sanal-pos/payments/hosted-checkout)
+  </Tab>
+  <Tab title="Pay-by-Link">
+    **Sizin akış:**
+    1. Sunucunuz `POST /payments/order-link` ile link üretir.
+    2. SMS, e-posta veya WhatsApp ile müşteriye gönderirsiniz.
+    3. Müşteri linkten ödemeyi yapar.
+
+    **Avantajlar:** Sıfır frontend geliştirme, çağrı merkezi senaryoları için ideal.
+
+    [Detay →](/sanal-pos/payments/pay-by-link)
+  </Tab>
+  <Tab title="Direct API">
+    **Sizin akış:**
+    1. Kart bilgilerini kendi formunuzdan toplarsınız.
+    2. `POST /payments` ile Payven'e iletirsiniz.
+    3. 3DS gerekiyorsa müşteriyi yönlendirme URL'sine yönlendirirsiniz.
+    4. Callback ile dönüş alırsınız.
+
+    **Avantajlar:** UI üzerinde tam kontrol.
+
+    **Maliyet:** PCI-DSS denetim kapsamı yüksek (SAQ-D veya ROC). Yalnızca sertifikalı kuruluşlar kullanmalı.
+
+    [Non-3D →](/sanal-pos/payments/non-3d) · [3D Secure →](/sanal-pos/payments/3d-secure)
+  </Tab>
+</Tabs>
+
+## Endpoint kategorileri
+
+| Kategori | Endpoint örnekleri | Auth |
+|---|---|---|
+| Ödeme oluşturma | `POST /payments`, `POST /payments/3d/init`, `POST /checkout/sessions` | API Key |
+| Ödeme aksiyonları | `POST /payments/{id}/refund`, `/void`, `/capture` | API Key |
+| Sorgulama | `GET /transactions`, `GET /payments/{id}` | API Key |
+| Webhook yönetimi | `POST /webhooks` | API Key |
+| Mutabakat | `POST /reconciliations/start` | API Key |
+| Backoffice | `GET /connectors`, `/connector-configurations` | Bearer |
+
+## İşlem yaşam döngüsü
+
+```mermaid
+stateDiagram-v2
+    [*] --> Created: POST /payments
+    Created --> Pending3D: 3DS init
+    Pending3D --> Authenticated: 3DS başarılı
+    Pending3D --> Failed: 3DS başarısız
+    Created --> Authorized: Non-3D ya da Pre-Auth
+    Authenticated --> Authorized: Banka onayı
+    Authorized --> Captured: capture
+    Authorized --> Voided: void
+    Captured --> Refunded: tam iade
+    Captured --> PartiallyRefunded: kısmi iade
+    PartiallyRefunded --> Refunded: tüm tutar iade
+    Authorized --> Settled: gün sonu
+    Captured --> Settled: gün sonu
+    Failed --> [*]
+    Voided --> [*]
+    Refunded --> [*]
+    Settled --> [*]
+```
+
+## Sıradaki adım
+
+<CardGroup cols={2}>
+  <Card title="Kimlik Doğrulama" icon="key" href="/sanal-pos/authentication">
+    Sanal POS'a özgü header'lar ve kurallar.
+  </Card>
+  <Card title="Payment Objesi" icon="cube" href="/sanal-pos/payment-object">
+    Tüm ödeme yanıtlarında dönen alanların referansı.
+  </Card>
+  <Card title="İlk Non-3D Ödeme" icon="credit-card" href="/sanal-pos/payments/non-3d">
+    En basit ödeme akışıyla başlayın.
+  </Card>
+  <Card title="3D Secure" icon="shield-check" href="/sanal-pos/payments/3d-secure">
+    Müşteri doğrulama akışının tam detayı.
+  </Card>
+</CardGroup>

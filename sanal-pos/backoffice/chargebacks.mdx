@@ -1,0 +1,82 @@
+---
+title: "Chargeback (Ters İbraz) Yönetimi"
+description: "Müşteri bankası tarafından açılan ters ibraz dosyalarını izleyin."
+---
+
+Chargeback, kart sahibinin bankasına başvurarak işlemi reddetmesi durumunda **bankanın size karşı açtığı geri alma talebidir**. Cevap vermez veya kaybederseniz tutar hesabınızdan çekilir.
+
+## Endpoint'ler
+
+```
+GET /api/v1/chargebacks
+GET /api/v1/chargebacks/{id}
+POST /api/v1/chargebacks/{id}/respond
+```
+
+## Liste
+
+```bash
+curl https://vpos.payven.com.tr/api/v1/chargebacks?status=NeedsResponse \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "data": {
+    "items": [
+      {
+        "id": "cb_8e3f5c12",
+        "paymentId": "8e3f5c12-...",
+        "amount": 15000,
+        "currency": "TRY",
+        "reasonCode": "4837",
+        "reasonDescription": "İşlem yetkisiz",
+        "openedAt": "2026-05-15T10:00:00Z",
+        "responseDeadline": "2026-05-22T23:59:59Z",
+        "status": "NeedsResponse"
+      }
+    ]
+  }
+}
+```
+
+## Statüler
+
+| Status | Anlam |
+|---|---|
+| `NeedsResponse` | Bankaya yanıt vermeniz gerekiyor |
+| `Responded` | Yanıt gönderildi, banka kararı bekleniyor |
+| `Won` | Lehinize karara bağlandı |
+| `Lost` | Aleyhinize karara bağlandı, tutar düşüldü |
+| `Withdrawn` | Müşteri çekildi |
+
+## Yanıt verme
+
+```bash
+POST /api/v1/chargebacks/{id}/respond
+{
+  "narrative": "Müşteri ürünü teslim aldı. Kargo takip no: ...",
+  "evidenceUrls": [
+    "https://files.example.com/teslimat.pdf",
+    "https://files.example.com/yazismalar.pdf"
+  ]
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `narrative` | Müşterinin iddiasına karşı açıklamanız |
+| `evidenceUrls` | Kanıt belgeleri (teslimat fişi, yazışmalar, IP logları) |
+
+## Süre kısıtı
+
+Chargeback'lere **7 gün** içinde yanıt vermelisiniz. Süreyi geçirirseniz banka otomatik olarak müşteri lehine karar verir ve tutar düşülür.
+
+## Önleme
+
+Chargeback'leri en aza indirmek için:
+
+<Check>**3D Secure kullanın** — chargeback sorumluluğu bankaya geçer.</Check>
+<Check>**Müşteri iletişim kayıtlarını saklayın.**</Check>
+<Check>**Net açıklama yapın** — kart ekstresinde müşterinin tanıyacağı bir merchant adı kullanın.</Check>
+<Check>**Hızlı iade politikası uygulayın** — müşteri sizden iade alabilse chargeback açmaz.</Check>

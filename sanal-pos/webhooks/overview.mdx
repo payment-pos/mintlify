@@ -1,0 +1,130 @@
+---
+title: "Sanal POS Webhook'ları"
+description: "Ödeme, iade ve mutabakat olaylarını gerçek zamanlı alın."
+---
+
+Webhook'lar, ödeme yaşam döngüsünün asenkron olaylarını sunucunuza **anlık** iletir: 3DS sonrası ödeme tamamlandığında, banka iadeyi onayladığında, mutabakat oluştuğunda.
+
+<Note>
+Bu sayfa Sanal POS özelinde webhook detaylarını anlatır. Genel webhook prensipleri için: [Webhook Genel Bakış (Documentation)](/documentation/concepts/webhooks).
+</Note>
+
+## Abone olma
+
+```
+POST /api/v1/webhooks
+```
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/webhooks \
+  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://api.example.com/webhooks/payven",
+    "events": [
+      "payment.succeeded",
+      "payment.failed",
+      "payment.voided",
+      "refund.succeeded",
+      "refund.failed",
+      "reconciliation.completed"
+    ],
+    "active": true
+  }'
+```
+
+| Alan | Tip | Açıklama |
+|---|---|---|
+| `url` | string | HTTPS endpoint'iniz |
+| `events` | string[] | Abone olunan olay tipleri. Tüm olaylar için `["*"]`. |
+| `active` | bool | Pasifleştirme için `false` |
+
+### Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "code": "201",
+  "data": {
+    "id": "wh_8e3f5c12",
+    "url": "https://api.example.com/webhooks/payven",
+    "events": ["payment.succeeded", ...],
+    "secret": "whsec_8e3f5c12_9a7b4c8dbc4e2c963f66afa6",
+    "active": true,
+    "createdAt": "2026-05-03T12:00:00Z"
+  }
+}
+```
+
+<Warning>
+**`secret` yalnızca yanıtta bir kez döner.** Hemen secret manager'a kaydedin — imza doğrulamada kullanacaksınız.
+</Warning>
+
+## Olay listesi
+
+[Tüm olayların kataloğu →](/sanal-pos/webhooks/events)
+
+Özet:
+
+| Kategori | Olaylar |
+|---|---|
+| Ödeme | `payment.succeeded`, `payment.failed`, `payment.authorized`, `payment.captured`, `payment.voided` |
+| 3D Secure | `payment.threeds.initialized`, `payment.threeds.authenticated`, `payment.threeds.failed` |
+| İade | `refund.succeeded`, `refund.failed` |
+| Hosted Checkout | `checkout.session.completed`, `checkout.session.expired`, `checkout.session.failed` |
+| Pay-by-Link | `payment.link.created`, `payment.link.viewed`, `payment.link.expired` |
+| Mutabakat | `reconciliation.created`, `reconciliation.completed`, `reconciliation.discrepancy` |
+| Sistem | `webhook.test`, `plan.usage.warning` |
+
+## İmza doğrulama
+
+Her gelen webhook isteği `X-Payven-Signature` başlığı ile imzalanır. Detay ve kod örnekleri: [İmza Doğrulama](/sanal-pos/webhooks/signature).
+
+## Yeniden deneme
+
+Endpoint'iniz `2xx` dönmezse Payven 5 kez yeniden dener: 1m, 5m, 30m, 2h, 24h. Detay: [Yeniden Deneme Politikası](/sanal-pos/webhooks/retry-policy).
+
+## Abonelikleri yönetme
+
+```bash
+# Liste
+GET /api/v1/webhooks
+
+# Detay
+GET /api/v1/webhooks/{id}
+
+# Güncelleme
+PUT /api/v1/webhooks/{id}
+
+# Secret rotasyonu
+POST /api/v1/webhooks/{id}/rotate-secret
+
+# Silme
+DELETE /api/v1/webhooks/{id}
+
+# Teslim kayıtları
+GET /api/v1/webhooks/{id}/deliveries
+```
+
+## Teslim kayıtları
+
+Konsol → **Webhook Teslim Kayıtları** ekranından her teslim denemesinin:
+
+- HTTP yanıt kodunu
+- Yanıt gövdesini
+- Süresini (ms)
+- Yeniden deneme sayısını
+- Tam request/response payload'unu
+
+görebilirsiniz. Sorun gidermede **ilk başvurulacak yer** burasıdır.
+
+## Test webhook'u gönderme
+
+İmza ve endpoint doğrulamak için:
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/webhooks/{id}/test \
+  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT"
+```
+
+Endpoint'inize `webhook.test` tipinde bir olay gönderir.

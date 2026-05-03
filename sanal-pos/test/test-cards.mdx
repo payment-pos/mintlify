@@ -1,0 +1,79 @@
+---
+title: "Test Kartları"
+description: "Sandbox ortamında kullanabileceğiniz test kart numaraları ve simüle ettikleri yanıtlar."
+---
+
+Sandbox'ta **gerçek kart numarası kullanmayın** — yalnızca aşağıdaki test kartları işlem alır.
+
+## Tüm akışlar için ortak
+
+| Alan | Değer |
+|---|---|
+| Son kullanma tarihi | Gelecek bir tarih (örn. `12/2030`) |
+| CVV | Genelde `000` (kart bazlı, aşağıda belirtilmiş) |
+
+## Başarılı senaryolar
+
+| Kart | Birlik | Tip | Banka | CVV | 3DS |
+|---|---|---|---|---|---|
+| `4546711234567894` | Visa | Credit | Garanti | `000` | Otomatik onay |
+| `5400637000000005` | Mastercard | Credit | Akbank | `000` | Onay (parola: `a`) |
+| `9792030394440796` | Troy | Credit | Ziraat | `000` | Otomatik onay |
+| `4022774022774026` | Visa | Debit | Akbank | `000` | Otomatik onay |
+| `5440931234567890` | Mastercard | Credit | İş Bankası | `000` | Otomatik onay |
+| `6504331234567890` | Troy | Credit | Yapı Kredi | `000` | Otomatik onay |
+
+## Banka tarafından red senaryoları
+
+| Kart | Senaryo | `responseCode` |
+|---|---|---|
+| `4111111111111111` | Yetersiz bakiye | `51` |
+| `5555555555554444` | Limit aşımı | `61` |
+| `4012888888881881` | Şüpheli işlem | `59` |
+| `4242424242424242` | Banka timeout | `99` |
+| `4444333322221111` | Kart bloke | `41` |
+| `5105105105105100` | Geçersiz CVV | `82` |
+
+## 3DS senaryoları
+
+| Kart | Senaryo | 3DS sonucu |
+|---|---|---|
+| `5400637000000005` | Başarılı (challenge) | `Y`, ECI `05` |
+| `4485084920000003` | Başarılı (frictionless) | `Y`, ECI `06` |
+| `4900200000000007` | Doğrulama başarısız | `N` |
+| `4666899999999999` | Banka 3DS desteklemiyor | `U` |
+| `4111990000000003` | 3DS attempt (pasif) | `A` |
+
+## Taksit testi
+
+Aşağıdaki kartlarla taksit testleri yapabilirsiniz:
+
+| Kart | Program | Desteklediği max taksit |
+|---|---|---|
+| `4546711234567894` | Bonus | 12 |
+| `5400637000000005` | Axess | 9 |
+| `4022774022774026` | (debit) | 1 (taksit yok) |
+
+## Pre-Auth + Capture
+
+Tüm başarılı kartlar Pre-Auth akışını destekler. Capture sonrası status `Captured` olur.
+
+## DCC testi
+
+Yabancı kart simülasyonu için:
+
+| Kart | Kart para birimi |
+|---|---|
+| `4444555566667777` | USD |
+| `5555444433332222` | EUR |
+| `4111888877776666` | GBP |
+
+İlk istekte DCC teklifi alır, `dcc/confirm` ile seçim yaparsınız.
+
+## İade ve iptal
+
+Tüm başarılı işlemler iade ve iptal edilebilir. Sandbox 24 saatlik mutabakat penceresini **5 dakikaya** sıkıştırır — bu sürede void, sonrasında refund gerekir.
+
+## Üretim simülasyonu
+
+Yüksek hacim testi için Payven'de **load test ortamı** sunulur. Anlaşmanıza dahil olup olmadığını kontrol edin — değilse [destek ekibine](/resources/support) yazın.

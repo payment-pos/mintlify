@@ -1,0 +1,80 @@
+---
+title: "Banka Yanıt Kodları"
+description: "Bankaların döndürdüğü ISO 8583 standardı kodları."
+---
+
+Bankalar, ödeme yanıtında **ISO 8583** standardına dayanan 2 haneli kod döner. Payven bunu `connector.responseCode` alanında size iletir.
+
+```json
+{
+  "data": {
+    "status": "Failed",
+    "connector": {
+      "code": "GarantiVPOS",
+      "responseCode": "51",
+      "responseMessage": "Yetersiz bakiye"
+    }
+  }
+}
+```
+
+## Sık karşılaşılan kodlar
+
+| Kod | Açıklama | Müşteriye gösterim |
+|---|---|---|
+| `00` | Onaylandı | (Başarılı) |
+| `01` | Bankanızı arayın | "Lütfen bankanızla iletişime geçin." |
+| `04` | Karta el konuldu | "Bu kart kullanılamaz." |
+| `05` | Reddedildi | "Bankanız işlemi onaylamadı." |
+| `12` | Geçersiz işlem | Genel red mesajı |
+| `13` | Geçersiz tutar | Genel red mesajı |
+| `14` | Kart numarası geçersiz | "Kart bilgilerinizi kontrol edin." |
+| `15` | Tanınmayan banka | Genel red mesajı |
+| `30` | Format hatası | Genel red mesajı |
+| `41` | Kart kayıp/çalıntı | "Bu kart kullanılamaz." |
+| `43` | Çalıntı kart | "Bu kart kullanılamaz." |
+| `51` | Yetersiz bakiye | "Yetersiz bakiye." |
+| `54` | Kart süresi dolmuş | "Kartınızın süresi dolmuş." |
+| `55` | Hatalı PIN | "Bilgilerinizi kontrol edin." |
+| `57` | Kart sahibi bu işlemi yapamaz | Genel red mesajı |
+| `58` | Terminal bu işlemi yapamaz | (Konfigürasyon hatası — destek) |
+| `59` | Şüpheli sahtecilik | "Bankanızla iletişime geçin." |
+| `61` | Limit aşımı | "Kart limitiniz yeterli değil." |
+| `62` | Kısıtlı kart | Genel red mesajı |
+| `63` | Güvenlik ihlali | (İzleme — destek) |
+| `65` | Aktivite limit aşımı | "Çok fazla deneme yaptınız, lütfen sonra tekrar deneyin." |
+| `75` | PIN deneme limiti aşıldı | "Bilgilerinizi kontrol edin." |
+| `82` | Geçersiz CVV | "CVV kontrol edin." |
+| `91` | Banka sistemi yanıt vermedi | (Smart Retry devreye girer) |
+| `92` | Yönlendirme hatası | (Konfigürasyon — destek) |
+| `96` | Sistem hatası | (Smart Retry) |
+
+## Banka-spesifik kodlar
+
+Her bankanın kendi özel kodları da olabilir (örn. Garanti'nin "fraud kuralı kategorisi 2"). Bu kodlar konsoldaki **Hata Kodları** ekranında banka bazında listelenir:
+
+[dashboard.payven.com.tr/connector-error-codes](https://dashboard.payven.com.tr/connector-error-codes)
+
+## Müşteriye gösterme prensibi
+
+<Check>**Hassas kodları gizleyin.** "Şüpheli sahtecilik" gibi kodlar müşteriye direkt gösterilmemelidir — fraud filterları açık etmenize neden olabilir.</Check>
+<Check>**Yönlendirici mesaj verin.** "Reddedildi" yerine "Bankanız işlemi onaylamadı, başka bir kart denemek ister misiniz?"</Check>
+<Check>**Smart Retry zaten devrede.** `91`, `96` gibi geçici kodlar için Smart Retry alternatif konnektör dener — kullanıcıya genelde göstermenize gerek yok.</Check>
+
+## Örnek müşteri mesajı eşleme
+
+```javascript
+function userMessageFromCode(code) {
+  const map = {
+    "51": "Bakiyeniz yeterli değil, başka bir kart denemek ister misiniz?",
+    "54": "Kartınızın son kullanma tarihi geçmiş.",
+    "61": "İşlem tutarı kart limitinizi aşıyor.",
+    "82": "Güvenlik kodunuz (CVV) yanlış.",
+    "14": "Kart bilgilerinizde hata var.",
+    "01": "Bankanızla iletişime geçmeniz gerekiyor.",
+    "59": "Bankanız işlemi onaylamadı.",
+    "65": "Çok fazla deneme yapıldı. Lütfen daha sonra tekrar deneyin.",
+  };
+  return map[code] || "İşleminiz gerçekleştirilemedi. Lütfen tekrar deneyin.";
+}
+```

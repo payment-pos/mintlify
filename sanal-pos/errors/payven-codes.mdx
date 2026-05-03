@@ -1,0 +1,99 @@
+---
+title: "Payven Hata Kodları"
+description: "Payven tarafının ürettiği iş kuralı ve validasyon kodları."
+---
+
+Bu sayfa, Sanal POS modülüne özgü Payven kodlarını listeler.
+
+## Kimlik doğrulama
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `AUTH_MISSING_KEY` | 401 | `X-API-Key` eksik |
+| `AUTH_INVALID_KEY` | 401 | API anahtarı geçersiz veya pasif |
+| `AUTH_INVALID_SECRET` | 401 | Secret eşleşmiyor |
+| `AUTH_MERCHANT_REQUIRED` | 401 | Merchant header'ı eksik |
+| `AUTH_MERCHANT_NOT_FOUND` | 401 | Merchant bulunamadı |
+| `AUTH_MERCHANT_INACTIVE` | 403 | Merchant pasif |
+| `AUTH_IP_NOT_ALLOWED` | 403 | IP whitelist dışında |
+| `AUTH_PRODUCT_NOT_LICENSED` | 403 | Sanal POS modülü etkin değil |
+
+## Validasyon
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `VALIDATION_REQUIRED_FIELD` | 400 | Zorunlu alan eksik |
+| `VALIDATION_INVALID_CARD` | 400 | Kart numarası Luhn'a uymuyor |
+| `VALIDATION_INVALID_EXPIRY` | 400 | Son kullanma tarihi geçmiş veya format hatalı |
+| `VALIDATION_INVALID_CVV` | 400 | CVV format hatalı |
+| `VALIDATION_AMOUNT_TOO_LOW` | 400 | Tutar minimum altında (100 kuruş) |
+| `VALIDATION_AMOUNT_EXCEEDED` | 400 | Tutar maksimum üstünde |
+| `VALIDATION_INVALID_INSTALLMENT` | 400 | Taksit sayısı bu kart için desteklenmiyor |
+| `VALIDATION_INVALID_CURRENCY` | 400 | Para birimi desteklenmiyor |
+| `VALIDATION_INVALID_URL` | 400 | `returnUrl`/`callbackUrl` HTTPS değil |
+
+## İşlem akış kuralları
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `PAYMENT_NOT_FOUND` | 404 | Ödeme bulunamadı |
+| `PAYMENT_ALREADY_REFUNDED` | 422 | Tüm tutar zaten iade edilmiş |
+| `PAYMENT_NOT_REFUNDABLE` | 422 | Bu durumdaki ödeme iade edilemez |
+| `PAYMENT_NOT_VOIDABLE` | 422 | Bu durumdaki ödeme iptal edilemez |
+| `PAYMENT_NOT_PRE_AUTH` | 422 | Bu ödeme bir Pre-Auth değil |
+| `PAYMENT_ALREADY_CAPTURED` | 422 | Zaten capture edilmiş |
+| `REFUND_EXCEEDS_ORIGINAL` | 422 | İade tutarı kalan tutardan büyük |
+| `CAPTURE_AMOUNT_EXCEEDS_AUTH` | 422 | Capture tutarı rezervasyonu aşıyor |
+| `PRE_AUTH_EXPIRED` | 422 | 24 saatlik capture süresi aşıldı |
+| `VOID_NOT_ALLOWED_AFTER_SETTLEMENT` | 422 | Mutabakat sonrası void yapılamaz |
+| `BANK_REFUND_PERIOD_EXPIRED` | 422 | Banka iade süresi (180 gün) doldu |
+
+## 3D Secure
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `THREEDS_AUTH_FAILED` | 422 | 3DS doğrulama başarısız |
+| `THREEDS_USER_CANCELLED` | 422 | Müşteri 3DS sayfasını kapattı |
+| `THREEDS_TIMEOUT` | 422 | 3DS sayfasında zaman aşımı |
+| `THREEDS_SESSION_INVALID` | 400 | 3DS session ID geçersiz |
+
+## Hosted Checkout
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `CHECKOUT_SESSION_EXPIRED` | 422 | Oturum süresi doldu |
+| `CHECKOUT_SESSION_COMPLETED` | 409 | Oturum zaten tamamlanmış |
+| `CHECKOUT_SESSION_CANCELLED` | 422 | Müşteri oturumu iptal etti |
+
+## Idempotency
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `IDEMPOTENCY_PAYLOAD_MISMATCH` | 409 | Aynı anahtarla farklı bir payload geldi |
+| `IDEMPOTENCY_KEY_INVALID` | 400 | Anahtar formatı hatalı veya çok uzun |
+
+## Akıllı yönlendirme
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `ROUTING_NO_CONNECTOR` | 422 | Hiçbir kural eşleşmedi ve varsayılan tanımlı değil |
+| `ROUTING_NO_HEALTHY_CONNECTOR` | 503 | Tüm uygun bankalar Open haline düşmüş |
+
+## Banka tarafı (özet)
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `BANK_DECLINED` | 502 | Banka işlemi reddetti — `connector.responseCode`'a bakın |
+| `BANK_TIMEOUT` | 504 | Banka yanıt vermedi |
+| `BANK_UNREACHABLE` | 502 | Banka bağlantı hatası |
+| `CONNECTOR_DOWN` | 503 | Konnektör geçici devre dışı (Circuit Breaker) |
+
+Banka tarafı kodlarının tam listesi: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
+
+## Sistem
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `RATE_LIMIT_EXCEEDED` | 429 | İstek limitleri aşıldı |
+| `INTERNAL_ERROR` | 500 | Beklenmedik sunucu hatası — destek talebi açın |
+| `SERVICE_UNAVAILABLE` | 503 | Bakım nedeniyle geçici kullanılamıyor |

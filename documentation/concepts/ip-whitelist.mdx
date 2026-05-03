@@ -1,0 +1,86 @@
+---
+title: "IP Whitelist"
+description: "API anahtarınızı belirli IP adreslerinden gelen çağrılarla sınırlandırın."
+---
+
+Production ortamında **IP whitelist kullanmanızı şiddetle öneririz**. Whitelist, anahtarınız sızsa bile sınırlanmış IP'ler dışından kullanılmasını engeller.
+
+## Nasıl çalışır?
+
+API anahtarı oluştururken veya düzenlerken bir IP listesi tanımlarsınız. Whitelist boş bırakılırsa **tüm IP'lerden** erişim açıktır.
+
+| Whitelist durumu | Davranış |
+|---|---|
+| Boş | Tüm IP'lerden istek kabul edilir |
+| Bir veya daha fazla giriş | Yalnızca listedeki IP'lerden gelen istekler kabul edilir |
+
+Whitelist dışı bir IP'den istek gelirse `403 Forbidden` ve `AUTH_IP_NOT_ALLOWED` koduyla reddedilir.
+
+## Desteklenen formatlar
+
+| Format | Örnek | Anlam |
+|---|---|---|
+| Tek IP | `52.18.42.10` | Sadece bu IP |
+| CIDR aralığı | `52.18.42.0/24` | 256 adresli aralık |
+| IPv6 | `2a05:d018:abc::1` | IPv6 desteği |
+
+## Yapılandırma
+
+<Steps>
+  <Step title="Konsola gidin">
+    [Konsol → Ayarlar → API Anahtarları](https://dashboard.payven.com.tr/api-settings) sayfasını açın.
+  </Step>
+  <Step title="Anahtarı düzenleyin">
+    Sınırlamak istediğiniz anahtarın yanındaki **Düzenle** butonuna tıklayın.
+  </Step>
+  <Step title="IP'leri ekleyin">
+    Sunucu IP'lerinizi tek tek veya CIDR formatında ekleyin. Aynı satırda virgülle ayırabilirsiniz.
+  </Step>
+  <Step title="Kaydedin">
+    Değişiklik **anında** etkilidir.
+  </Step>
+</Steps>
+
+## Sunucunuzun IP'sini öğrenmek
+
+<CodeGroup>
+```bash cURL
+curl https://ifconfig.me
+```
+
+```javascript Node.js
+const res = await fetch("https://ifconfig.me");
+console.log(await res.text());
+```
+</CodeGroup>
+
+<Warning>
+**NAT/Load Balancer arkasındaysanız**, çıkış IP'leriniz bunlardır — uygulama sunucularınız değil. Cloud sağlayıcı NAT Gateway veya statik IP kullanın.
+</Warning>
+
+## Webhook tarafı
+
+Payven'in **size** gönderdiği webhook istekleri belirli IP havuzlarından gelir. Bu havuzu kendi güvenlik duvarınızda whitelist'leyebilirsiniz:
+
+| Ortam | IP havuzu |
+|---|---|
+| Sandbox | `52.18.42.0/24` |
+| Production | `52.16.10.0/24`, `54.78.220.0/24` |
+
+<Note>
+**Önerilen yaklaşım:** Webhook için hem IP filtresi hem de [imza doğrulama](/sanal-pos/webhooks/signature) kullanın. İmza doğrulama ana güvenlik mekanizmasıdır; IP filtresi ek katmandır.
+</Note>
+
+## Sık karşılaşılan sorunlar
+
+<AccordionGroup>
+  <Accordion title="403 AUTH_IP_NOT_ALLOWED dönüyor ama IP whitelist'te">
+    Cloud ortamlarda çıkış IP'si dinamik olabilir (örn. AWS NAT Gateway elastic IP'siz). Statik bir IP atayıp tekrar deneyin.
+  </Accordion>
+  <Accordion title="Sandbox'ta whitelist'i devre dışı bırakabilir miyim?">
+    Evet — geliştirme aşamasında sandbox anahtarınız için listeyi boş bırakabilirsiniz. Production'da ise mutlaka tanımlayın.
+  </Accordion>
+  <Accordion title="IPv6 destekleniyor mu?">
+    Evet. CIDR notasyonu da geçerlidir.
+  </Accordion>
+</AccordionGroup>

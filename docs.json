@@ -1,0 +1,289 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Payven Developer Portal",
+  "description": "Türkiye'nin lisanslı ödeme kuruluşları, bankaları ve fintek platformları için ödeme altyapısı dokümantasyonu.",
+  "colors": {
+    "primary": "#1A56DB",
+    "light": "#3B6FE8",
+    "dark": "#0F2A6B"
+  },
+  "favicon": "/favicon.svg",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
+    "href": "https://docs.payven.com.tr"
+  },
+  "appearance": {
+    "default": "dark",
+    "strict": false
+  },
+  "fonts": {
+    "heading": {
+      "family": "Inter",
+      "weight": 600
+    },
+    "body": {
+      "family": "Inter"
+    }
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Dashboard",
+        "href": "https://dashboard.payven.com.tr"
+      },
+      {
+        "label": "Durum",
+        "href": "https://status.payven.com.tr"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Konsola Git",
+      "href": "https://dashboard.payven.com.tr"
+    }
+  },
+  "footer": {
+    "socials": {
+      "linkedin": "https://www.linkedin.com/company/payven"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Dokümantasyon",
+        "groups": [
+          {
+            "group": "Başlarken",
+            "pages": [
+              "documentation/index",
+              "documentation/quickstart",
+              "documentation/architecture",
+              "documentation/account-model"
+            ]
+          },
+          {
+            "group": "Temel Kavramlar",
+            "pages": [
+              "documentation/concepts/authentication",
+              "documentation/concepts/response-format",
+              "documentation/concepts/amounts",
+              "documentation/concepts/idempotency",
+              "documentation/concepts/errors",
+              "documentation/concepts/rate-limiting",
+              "documentation/concepts/ip-whitelist",
+              "documentation/concepts/versioning",
+              "documentation/concepts/webhooks",
+              "documentation/concepts/timestamps"
+            ]
+          },
+          {
+            "group": "Güvenlik",
+            "pages": [
+              "documentation/security/pci-dss",
+              "documentation/security/api-key-best-practices",
+              "documentation/security/go-live-checklist"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Identity & Auth",
+        "groups": [
+          {
+            "group": "Genel Bakış",
+            "pages": [
+              "identity/overview"
+            ]
+          },
+          {
+            "group": "Kimlik Doğrulama",
+            "pages": [
+              "identity/auth/login",
+              "identity/auth/refresh",
+              "identity/auth/logout",
+              "identity/auth/register",
+              "identity/auth/me",
+              "identity/auth/plan"
+            ]
+          },
+          {
+            "group": "API Anahtarı Yönetimi",
+            "pages": [
+              "identity/api-keys/overview",
+              "identity/api-keys/create",
+              "identity/api-keys/rotate",
+              "identity/api-keys/revoke"
+            ]
+          },
+          {
+            "group": "Lookup Servisleri",
+            "pages": [
+              "identity/lookups/banks",
+              "identity/lookups/bins",
+              "identity/lookups/mcc-codes",
+              "identity/lookups/cities-districts"
+            ]
+          },
+          {
+            "group": "Doğrulama",
+            "pages": [
+              "identity/validation/card",
+              "identity/validation/iban"
+            ]
+          },
+          {
+            "group": "API Referansı",
+            "openapi": {
+              "source": "/api-reference/identity/openapi.json",
+              "directory": "api-reference/identity"
+            }
+          }
+        ]
+      },
+      {
+        "tab": "Sanal POS",
+        "groups": [
+          {
+            "group": "Genel Bakış",
+            "pages": [
+              "sanal-pos/overview",
+              "sanal-pos/authentication",
+              "sanal-pos/payment-object"
+            ]
+          },
+          {
+            "group": "Ödeme Akışları",
+            "pages": [
+              "sanal-pos/payments/non-3d",
+              "sanal-pos/payments/3d-secure",
+              "sanal-pos/payments/pre-auth-capture",
+              "sanal-pos/payments/hosted-checkout",
+              "sanal-pos/payments/pay-by-link",
+              "sanal-pos/payments/refund",
+              "sanal-pos/payments/void",
+              "sanal-pos/payments/installment",
+              "sanal-pos/payments/dcc"
+            ]
+          },
+          {
+            "group": "Sorgulamalar",
+            "pages": [
+              "sanal-pos/inquiries/payment-detail",
+              "sanal-pos/inquiries/transaction-list",
+              "sanal-pos/inquiries/payment-history",
+              "sanal-pos/inquiries/point-inquiry"
+            ]
+          },
+          {
+            "group": "Akıllı Yönlendirme",
+            "pages": [
+              "sanal-pos/routing/overview",
+              "sanal-pos/routing/rules",
+              "sanal-pos/routing/smart-retry",
+              "sanal-pos/routing/circuit-breaker"
+            ]
+          },
+          {
+            "group": "Mutabakat",
+            "pages": [
+              "sanal-pos/reconciliation/overview",
+              "sanal-pos/reconciliation/lifecycle"
+            ]
+          },
+          {
+            "group": "Webhook'lar",
+            "pages": [
+              "sanal-pos/webhooks/overview",
+              "sanal-pos/webhooks/events",
+              "sanal-pos/webhooks/signature",
+              "sanal-pos/webhooks/retry-policy"
+            ]
+          },
+          {
+            "group": "Backoffice",
+            "pages": [
+              "sanal-pos/backoffice/connectors",
+              "sanal-pos/backoffice/configurations",
+              "sanal-pos/backoffice/settlements",
+              "sanal-pos/backoffice/chargebacks"
+            ]
+          },
+          {
+            "group": "Test",
+            "pages": [
+              "sanal-pos/test/sandbox",
+              "sanal-pos/test/test-cards",
+              "sanal-pos/test/postman"
+            ]
+          },
+          {
+            "group": "API Referansı",
+            "openapi": {
+              "source": "/api-reference/sanal-pos/openapi.json",
+              "directory": "api-reference/sanal-pos"
+            }
+          },
+          {
+            "group": "Hata Kodları",
+            "pages": [
+              "sanal-pos/errors/overview",
+              "sanal-pos/errors/payven-codes",
+              "sanal-pos/errors/bank-codes"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Para Transferi",
+        "groups": [
+          {
+            "group": "Yakında",
+            "pages": ["resources/coming-soon"]
+          }
+        ]
+      },
+      {
+        "tab": "Fraud",
+        "groups": [
+          {
+            "group": "Yakında",
+            "pages": ["resources/coming-soon"]
+          }
+        ]
+      },
+      {
+        "tab": "Fatura Ödeme",
+        "groups": [
+          {
+            "group": "Yakında",
+            "pages": ["resources/coming-soon"]
+          }
+        ]
+      },
+      {
+        "tab": "Kaynaklar",
+        "groups": [
+          {
+            "group": "Geliştirici Araçları",
+            "pages": [
+              "resources/dashboard",
+              "resources/postman",
+              "resources/test-cards"
+            ]
+          },
+          {
+            "group": "Bilgi",
+            "pages": [
+              "resources/changelog",
+              "resources/status",
+              "resources/sla",
+              "resources/support"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

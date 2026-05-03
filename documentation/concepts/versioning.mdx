@@ -1,0 +1,78 @@
+---
+title: "Versiyonlama"
+description: "API versiyon politikası ve geriye dönük uyumluluk."
+---
+
+Payven API'leri **URL tabanlı versiyonlama** kullanır. Şu an aktif tek versiyon `v1`'dir.
+
+## URL formatı
+
+```
+https://vpos.payven.com.tr/api/v1/payments
+                                ^^^
+                            versiyon segmenti
+```
+
+## Geriye dönük uyumluluk
+
+Bir versiyon içinde aşağıdaki değişiklikler **kırıcı (breaking)** kabul edilmez ve önceden duyurulmadan yapılabilir:
+
+- Yeni opsiyonel alan eklenmesi (request veya response)
+- Yeni endpoint eklenmesi
+- Yeni opsiyonel header eklenmesi
+- Yeni hata kodu eklenmesi
+- Yeni webhook olayı eklenmesi
+- Yanıt alanlarının sıralamasının değişmesi
+- `message` alanlarındaki metin değişiklikleri
+
+İstemcinizi bu tip değişikliklere **toleranslı** yazın:
+
+<Check>Bilmediğiniz alanları yok sayın.</Check>
+<Check>Yeni hata kodlarını genel `code` prefix'i (`AUTH_*`, `VALIDATION_*`) bazında yakalayın.</Check>
+<Check>Webhook payload'unda bilmediğiniz `eventType` değerlerini yok sayın, hata fırlatmayın.</Check>
+
+## Kırıcı değişiklikler
+
+Aşağıdaki değişiklikler **kırıcı** kabul edilir ve **yalnızca yeni bir major versiyonda** yapılır:
+
+- Mevcut alanın silinmesi veya isminin değişmesi
+- Mevcut alanın tipinin değişmesi
+- Mevcut endpoint'in URL'sinin değişmesi
+- Mevcut zorunlu alanın eklenmesi
+- Yanıt yapısının yeniden organize edilmesi
+
+## Versiyon yaşam döngüsü
+
+| Aşama | Süre | Açıklama |
+|---|---|---|
+| Aktif | Süresiz | Yeni özellikler eklenir, üretimde tam destekle çalışır |
+| Deprecation | En az 12 ay | Yeni versiyon yayınlandıktan sonra uyarı süresi |
+| Sunset | — | Tamamen kapatılır (en az 12 aylık geçişten sonra) |
+
+Deprecation döneminde ilgili endpoint'ler `Deprecation` ve `Sunset` HTTP başlıkları döner:
+
+```http
+Deprecation: Sun, 01 Jan 2027 00:00:00 GMT
+Sunset:      Sun, 01 Jan 2028 00:00:00 GMT
+```
+
+## Yeni versiyon nasıl duyurulur?
+
+<Steps>
+  <Step title="Beta yayını">
+    Yeni versiyon `v2-beta` olarak duyurulur, yorum/feedback toplanır.
+  </Step>
+  <Step title="GA yayını">
+    Geri bildirim sonrası `v2` GA olarak yayına alınır. `v1` aktif kalmaya devam eder.
+  </Step>
+  <Step title="Migration rehberi">
+    Tüm kırıcı değişikliklerin listesi ve göç adımları yayınlanır. [Changelog](/resources/changelog) takip edilir.
+  </Step>
+  <Step title="Deprecation süreci">
+    `v1` deprecation süresine alınır (minimum 12 ay).
+  </Step>
+</Steps>
+
+<Tip>
+[Changelog](/resources/changelog) sayfasını izleyin ve [destek ekibinize](/resources/support) güncel iletişim kanalı (e-posta, webhook bildirim listesi) bildirin — kritik değişikliklerde önceden uyarılırsınız.
+</Tip>

@@ -1,0 +1,96 @@
+---
+title: "Mimari Genel Bakış"
+description: "Payven platformunun servis topolojisi ve entegrasyon noktaları."
+---
+
+Payven, ortak bir kimlik servisi etrafında düzenlenmiş bağımsız ürün servislerinden oluşur. Tek bir API anahtarı çiftiyle birden fazla ürünü tüketebilirsiniz.
+
+## Servis topolojisi
+
+```mermaid
+flowchart LR
+    Client["Müşteri Uygulaması"] -->|"X-API-Key + Secret"| Gateway["Payven API"]
+
+    subgraph Identity[" "]
+      direction TB
+      I["Identity & Auth"]
+    end
+
+    subgraph Products["Ürün Servisleri"]
+      direction TB
+      VPOS["Sanal POS"]
+      Transfer["Para Transferi"]
+      Fraud["Fraud Yönetimi"]
+      Invoice["Fatura Ödeme"]
+    end
+
+    Gateway --> Identity
+    Gateway --> Products
+
+    I -.->|"BIN/Bank/MCC lookup"| VPOS
+    I -.->|"BIN/IBAN validation"| Transfer
+    Fraud -.->|"risk skoru"| VPOS
+```
+
+| Servis | Sorumluluk | Auth |
+|---|---|---|
+| **Identity & Auth** | Kullanıcı ve kuruluş yönetimi, API anahtarı yaşam döngüsü, ortak referans veriler (banka, BIN, MCC, şehir) | OAuth 2.0 / OIDC tabanlı, Bearer token |
+| **Sanal POS** | Ödeme işlemleri, akıllı yönlendirme, mutabakat, webhook | API Key + Secret |
+| **Para Transferi** | Çoklu banka üzerinden FAST, EFT, havale yönlendirme | API Key + Secret |
+| **Fraud Yönetimi** | Kural motoru, kara/beyaz liste, risk skorlama | API Key + Secret |
+| **Fatura Ödeme** | Fatura oluşturma, sorgulama, tahsilat | API Key + Secret |
+
+## Kuruluş ve merchant modeli
+
+Payven üç katmanlı bir hesap yapısı kullanır:
+
+```mermaid
+flowchart TB
+    T["Kuruluş (Tenant)<br/><i>Lisanslı ödeme kuruluşu</i>"]
+    M1["Merchant 1<br/><i>Bayi / Müşteri</i>"]
+    M2["Merchant 2"]
+    M3["Merchant 3"]
+    SM1["Alt Merchant"]
+    SM2["Alt Merchant"]
+
+    T --> M1
+    T --> M2
+    T --> M3
+    M1 --> SM1
+    M1 --> SM2
+```
+
+- **Kuruluş (Tenant):** Payven'in birincil müşterisi. Lisanslı ödeme kuruluşu, banka veya büyük platform. Tüm API anahtarları ve banka konfigürasyonları bu seviyede yönetilir.
+- **Merchant:** Kuruluşa bağlı bayi veya alt müşteri. Her ödeme bir merchant adına gerçekleştirilir.
+- **Alt Merchant:** İsteğe bağlı olarak merchant ağacında ek seviye (örneğin marketplace satıcıları).
+
+Detay: [Hesap Modeli](/documentation/account-model).
+
+## İstek yaşam döngüsü
+
+```mermaid
+sequenceDiagram
+    participant App as Müşteri Uygulaması
+    participant API as Payven API
+    participant Routing as Akıllı Yönlendirme
+    participant Bank as Banka
+
+    App->>API: POST /api/v1/payments
+    API->>API: Kimlik doğrulama
+    API->>API: Idempotency kontrolü
+    API->>Routing: Konnektör seçimi (kural motoru)
+    Routing->>Bank: Banka API isteği
+    Bank-->>Routing: Yanıt
+    Routing-->>API: Sonuç
+    API-->>App: HTTP 200 + payment objesi
+    API-)App: webhook (asenkron)
+```
+
+## Ortam URL'leri
+
+| Ortam | API Base URL | Konsol |
+|---|---|---|
+| **Sandbox** | `https://vpos-sandbox.payven.com.tr` | `https://dashboard-sandbox.payven.com.tr` |
+| **Production** | `https://vpos.payven.com.tr` | `https://dashboard.payven.com.tr` |
+
+Sandbox ortamı gerçek bankaya istek göndermeden, banka yanıtlarını simüle eder. Production geçişi öncesinde [kontrol listesini](/documentation/security/go-live-checklist) tamamlayın.

@@ -1,0 +1,107 @@
+---
+title: "Kart Doğrulama"
+description: "Kart numarasının formatını doğrulayın ve banka bilgilerini çözümleyin."
+---
+
+Bu endpoint, kart numarasının **Luhn algoritması** ile geçerli olup olmadığını kontrol eder ve aynı zamanda BIN'den banka/kart bilgilerini çözümler. Tek bir çağrıyla iki işi birden yaparsınız.
+
+## Endpoint
+
+```
+POST /api/v1/validation/card
+```
+
+## İstek
+
+```bash
+curl -X POST https://identity.payven.com.tr/api/v1/validation/card \
+  -H "Authorization: Bearer ..." \
+  -H "Content-Type: application/json" \
+  -d '{ "number": "4546711234567894" }'
+```
+
+| Alan | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `number` | `string` | ✅ | Tam kart numarası (boşluksuz). Bu değer **saklanmaz**. |
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "isValid": true,
+    "luhnValid": true,
+    "bin": "454671",
+    "lastFour": "7894",
+    "maskedNumber": "454671******7894",
+    "scheme": "Visa",
+    "type": "Credit",
+    "bank": {
+      "id": "8e3f5c12-...",
+      "code": "GARANTI",
+      "name": "Garanti BBVA"
+    },
+    "program": "Bonus",
+    "country": "TR"
+  }
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `isValid` | Genel geçerlilik (Luhn + BIN bulundu) |
+| `luhnValid` | Sadece Luhn kontrolü |
+| `bin` | İlk 6 hane |
+| `lastFour` | Son 4 hane (loglarda saklanabilir) |
+| `maskedNumber` | Görüntüleme için maskeli format |
+| `scheme` | Visa / Mastercard / Troy / Amex |
+| `type` | Credit / Debit / Prepaid |
+| `bank` | Banka bilgisi (BIN'den çözümlendi) |
+| `program` | Banka kart programı (Bonus, Maximum, vb.) |
+
+<Warning>
+Kart numarası bu istekte **saklanmaz** ve sunucu loglarına yazılmaz. Yine de PCI-DSS kuralları gereği kart numarasını yalnızca güvenli kanal üzerinden iletin.
+</Warning>
+
+## Hata yanıtları
+
+```json
+{
+  "isSuccess": false,
+  "code": "VALIDATION_INVALID_CARD",
+  "message": "Kart numarası geçersiz."
+}
+```
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `400` | `VALIDATION_INVALID_CARD` | Luhn kontrolü başarısız |
+| `404` | `BIN_NOT_FOUND` | BIN katalogda bulunamadı (kart geçerli ama Türk bankası değil olabilir) |
+
+## Tipik kullanım: Inline form validasyonu
+
+```javascript
+async function validateCardOnBlur(cardNumber) {
+  const digits = cardNumber.replace(/\D/g, "");
+  if (digits.length < 13) return;
+
+  const res = await fetch("/api/validation/card", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ number: digits }),
+  });
+  const { data, isSuccess, message } = await res.json();
+
+  if (!isSuccess) {
+    showFieldError("cardNumber", message);
+    return;
+  }
+
+  showBankLogo(data.bank.code);
+  showSchemeIcon(data.scheme);
+  if (data.type === "Debit") {
+    hideInstallmentDropdown();
+  }
+}
+```

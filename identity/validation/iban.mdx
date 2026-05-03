@@ -1,0 +1,74 @@
+---
+title: "IBAN Doğrulama"
+description: "IBAN formatını doğrulayın ve banka bilgilerini çözümleyin."
+---
+
+IBAN (International Bank Account Number) formatı **mod-97** algoritmasıyla doğrulanır. Aynı zamanda banka kodu çözümlenir.
+
+## Endpoint
+
+```
+POST /api/v1/validation/iban
+```
+
+## İstek
+
+```bash
+curl -X POST https://identity.payven.com.tr/api/v1/validation/iban \
+  -H "Authorization: Bearer ..." \
+  -H "Content-Type: application/json" \
+  -d '{ "iban": "TR320010009999901234567890" }'
+```
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "isValid": true,
+    "iban": "TR320010009999901234567890",
+    "formattedIban": "TR32 0010 0099 9990 1234 5678 90",
+    "country": "TR",
+    "bank": {
+      "id": "8e3f5c12-...",
+      "code": "ZIRAAT",
+      "name": "Ziraat Bankası",
+      "branchCode": "0010"
+    }
+  }
+}
+```
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `400` | `VALIDATION_INVALID_IBAN_FORMAT` | Format yanlış (uzunluk, karakter) |
+| `400` | `VALIDATION_INVALID_IBAN_CHECKSUM` | Mod-97 checksum doğrulanamadı |
+| `400` | `VALIDATION_UNSUPPORTED_COUNTRY` | Türkiye dışı IBAN — şu an `TR` desteklenmektedir |
+
+## Tipik kullanım
+
+Para Transferi entegrasyonunda alıcı hesabı kaydederken IBAN'ı doğrularsınız:
+
+```javascript
+async function onIbanBlur(iban) {
+  const cleaned = iban.replace(/\s/g, "").toUpperCase();
+
+  const res = await fetch("/api/validation/iban", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ iban: cleaned }),
+  });
+  const { data, isSuccess, message } = await res.json();
+
+  if (!isSuccess) {
+    showError(message);
+    return;
+  }
+
+  setRecipientBank(data.bank.name);
+  setIbanFormatted(data.formattedIban);
+}
+```

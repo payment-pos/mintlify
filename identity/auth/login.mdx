@@ -1,0 +1,110 @@
+---
+title: "Login"
+description: "Kullanıcı oturumu başlatma ve access/refresh token alma."
+---
+
+Identity servisi üzerinden oturum başlatır, access ve refresh token alırsınız. Bu token'lar konsol işlemlerinde ve Identity API'sinde kullanılır.
+
+## Endpoint
+
+```
+POST /api/v1/auth/{slug}/login
+```
+
+| Path parametresi | Açıklama |
+|---|---|
+| `slug` | Kuruluşunuzun slug'ı. Platform yöneticisi iseniz `platform`. |
+
+## İstek
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://identity.payven.com.tr/api/v1/auth/acme-bank/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "user@acme-bank.com",
+    "password": "********"
+  }'
+```
+
+```javascript Node.js
+const res = await fetch(
+  "https://identity.payven.com.tr/api/v1/auth/acme-bank/login",
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: "user@acme-bank.com",
+      password: "********",
+    }),
+  }
+);
+const { data } = await res.json();
+const accessToken = data.accessToken;
+```
+
+```csharp C#
+var payload = new { username = "user@acme-bank.com", password = "********" };
+var response = await http.PostAsJsonAsync(
+    "https://identity.payven.com.tr/api/v1/auth/acme-bank/login", payload);
+var result = await response.Content.ReadFromJsonAsync<LoginResult>();
+```
+</CodeGroup>
+
+### İstek gövdesi
+
+| Alan | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `username` | `string` | ✅ | E-posta veya kullanıcı adı |
+| `password` | `string` | ✅ | Parola |
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "message": "Başarılı.",
+  "code": "200",
+  "data": {
+    "accessToken": "eyJhbGciOiJSUzI1NiIs...",
+    "refreshToken": "eyJhbGciOiJIUzUxMiIs...",
+    "expiresIn": 3600,
+    "refreshExpiresIn": 1800,
+    "tokenType": "Bearer"
+  }
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `accessToken` | Sonraki API çağrılarında `Authorization: Bearer ...` olarak gönderilir |
+| `refreshToken` | Access token süresi dolduğunda yenilemek için |
+| `expiresIn` | Access token'ın saniye cinsinden geçerlilik süresi (tipik: 3600) |
+| `refreshExpiresIn` | Refresh token'ın geçerlilik süresi (tipik: 1800) |
+| `tokenType` | Sabit: `Bearer` |
+
+## Token kullanımı
+
+Aldığınız `accessToken` değerini Identity API'sindeki tüm korumalı endpoint'lerde gönderin:
+
+```http
+GET /api/v1/me
+Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+```
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `401` | `INVALID_CREDENTIALS` | Kullanıcı adı veya parola hatalı |
+| `403` | `USER_DISABLED` | Hesap devre dışı |
+| `403` | `USER_PENDING_APPROVAL` | Onay bekliyor |
+| `404` | `TENANT_NOT_FOUND` | Slug bulunamadı |
+| `429` | `RATE_LIMIT_EXCEEDED` | Çok fazla başarısız deneme |
+
+## Güvenlik notları
+
+<Check>Login isteklerini **sadece HTTPS** üzerinden atın.</Check>
+<Check>`accessToken`'ı tarayıcıda **httpOnly cookie** veya in-memory state'te tutun, localStorage'a yazmayın.</Check>
+<Check>`refreshToken`'ı sadece sunucu tarafında saklayın.</Check>
+<Check>Başarısız login denemeleri için **account lockout** mekanizmamız vardır — 5 hatalı denemenin ardından 15 dakika bekleme süresi devreye girer.</Check>

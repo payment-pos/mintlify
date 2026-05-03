@@ -1,0 +1,77 @@
+---
+title: "Postman ve HTTP Koleksiyonları"
+description: "Hazır API koleksiyonlarını indirip dakikalar içinde denemeye başlayın."
+---
+
+Sanal POS API'sini hızlı denemek için iki koleksiyon sunuyoruz:
+
+<CardGroup cols={2}>
+  <Card title="Postman Collection" icon="download" href="https://docs.payven.com.tr/files/payven-sanalpos.postman_collection.json">
+    Postman 10+ ile uyumlu v2.1 koleksiyon. Tüm endpoint'ler, örnek payload'lar ve environment dahil.
+  </Card>
+  <Card title=".http Dosyası" icon="download" href="https://docs.payven.com.tr/files/payven-sanalpos.http">
+    VS Code REST Client, JetBrains IDE'leri ve Visual Studio için.
+  </Card>
+</CardGroup>
+
+## Postman ile başlama
+
+<Steps>
+  <Step title="Koleksiyonu indirin">
+    Yukarıdaki "Postman Collection" linkinden `.json` dosyasını indirin.
+  </Step>
+  <Step title="Postman'e import edin">
+    Postman → **Import** → dosyayı sürükle-bırak.
+  </Step>
+  <Step title="Environment'ı seçin">
+    Sağ üstteki dropdown'dan `Payven Sandbox` veya `Payven Production` environment'ını seçin.
+  </Step>
+  <Step title="Değişkenleri doldurun">
+    Environment değişkenlerine API anahtar bilgilerinizi yazın:
+    - `apiKey`: `pvk-test-...`
+    - `apiSecret`: secret değeriniz
+    - `merchantId`: merchant ID'niz
+    - `baseUrl`: sandbox veya production URL
+  </Step>
+  <Step title="Bir isteği gönderin">
+    "Quickstart" klasöründeki **Non-3D Payment** isteğini açın ve **Send** edin.
+  </Step>
+</Steps>
+
+## Koleksiyon içeriği
+
+| Klasör | İçerik |
+|---|---|
+| Quickstart | İlk Non-3D ödeme, durum sorgusu |
+| Payments | Tüm ödeme akışları |
+| Refunds | İade istekleri |
+| Webhooks | Abonelik yönetimi + test çağrısı |
+| Inquiries | Liste, detay, geçmiş |
+| Reconciliation | Mutabakat akışı |
+| Backoffice | Konnektör, konfigürasyon (Bearer auth gerektirir) |
+
+## .http dosyası ile başlama
+
+VS Code'da [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) eklentisi yüklüyse:
+
+```bash
+# Dosyayı açın
+code payven-sanalpos.http
+
+# Üst kısımdaki @apiKey, @apiSecret, @merchantId değişkenlerini doldurun
+# İstek bloğunun üstündeki "Send Request" linkine tıklayın
+```
+
+## Otomasyon ile değişken aktarma
+
+Postman içinde "Pre-request Script" ve "Tests" bölümleri kullanılarak istekler arası değer paylaşımı yapılır:
+
+```javascript
+// Tests bölümünden — paymentId'yi sonraki isteğe taşımak
+const response = pm.response.json();
+if (response.data?.id) {
+  pm.environment.set("lastPaymentId", response.data.id);
+}
+```
+
+Sonraki istekte `{{lastPaymentId}}` ile kullanın.

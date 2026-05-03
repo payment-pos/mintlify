@@ -1,0 +1,73 @@
+---
+title: "Anahtar Revoke / Silme"
+description: "Bir anahtarı pasife alma veya kalıcı silme."
+---
+
+Bir anahtarı geçici (`disable`) veya kalıcı olarak (`delete`) iptal edebilirsiniz. Her iki durumda da o anahtarla atılan tüm yeni istekler `401` ile reddedilir.
+
+## Endpoint'ler
+
+| İşlem | Endpoint | Geri alınabilir mi? |
+|---|---|---|
+| Pasife al | `PATCH /api/v1/tenants/me/api-keys/{id}` (`status: "Inactive"`) | ✅ Evet |
+| Kalıcı sil | `DELETE /api/v1/tenants/me/api-keys/{id}` | ❌ Hayır |
+
+## Pasife alma
+
+```bash
+curl -X PATCH https://identity.payven.com.tr/api/v1/tenants/me/api-keys/key_8e3f5c12 \
+  -H "Authorization: Bearer ..." \
+  -H "Content-Type: application/json" \
+  -d '{ "status": "Inactive" }'
+```
+
+Pasife alma **anında etkilidir** ama anahtarı silmez. İhtiyaç olursa tekrar aktif edebilirsiniz:
+
+```bash
+curl -X PATCH https://identity.payven.com.tr/api/v1/tenants/me/api-keys/key_8e3f5c12 \
+  -H "Authorization: Bearer ..." \
+  -H "Content-Type: application/json" \
+  -d '{ "status": "Active" }'
+```
+
+## Kalıcı silme
+
+```bash
+curl -X DELETE https://identity.payven.com.tr/api/v1/tenants/me/api-keys/key_8e3f5c12 \
+  -H "Authorization: Bearer ..."
+```
+
+```json
+{
+  "isSuccess": true,
+  "message": "API anahtarı silindi.",
+  "code": "200",
+  "data": null
+}
+```
+
+<Warning>
+Silme **geri alınamaz**. İlgili `apiKey` değeri tekrar üretilmez — yeni bir anahtar oluşturmanız gerekir.
+</Warning>
+
+## Ne zaman pasife alın, ne zaman silin?
+
+| Durum | Önerilen aksiyon |
+|---|---|
+| Anahtarın kullanılmadığını doğrulamak istiyorsunuz | **Pasife al** — birkaç hafta izleyip sonra silin |
+| Sızıntı şüphesi var | **Pasife al** sonra **sil** |
+| Geçici servis kapatılıyor | **Pasife al** |
+| Eski entegrasyon kaldırıldı | **Sil** |
+
+## Audit log
+
+Tüm anahtar yaşam döngüsü olayları konsol → **API Kayıtları → Audit** ekranında dökümlüdür:
+
+- Oluşturma
+- Güncelleme
+- Rotasyon
+- Pasife alma / aktif etme
+- Silme
+- Kullanım kayıtları (her istek için)
+
+Bu kayıtlar PCI-DSS uyumluluk denetimlerinde delil olarak kullanılabilir.

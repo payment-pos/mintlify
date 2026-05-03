@@ -1,0 +1,81 @@
+---
+title: "Taksit"
+description: "Kart programlarına göre taksitli ödeme alma."
+---
+
+Taksitli ödeme, müşterinin tutarı **eşit aylık taksitler halinde** ödediği akıştır. Hangi taksitlerin uygulanabileceği:
+
+1. **Banka kart programına** bağlıdır (Bonus, Maximum, Axess, World, vb.)
+2. **Kuruluşunuzun banka anlaşmasına** bağlıdır
+3. **Ödeme tutarına** bağlıdır (her bankanın taksit başına minimum tutarı vardır)
+
+## Talep etme
+
+Ödeme isteğine `installment` alanı ekleyerek taksit sayısını belirtirsiniz:
+
+```json
+{
+  "amount": 60000,
+  "installment": 6
+}
+```
+
+Banka taksiti destekliyorsa onaylar; desteklemiyorsa `VALIDATION_INVALID_INSTALLMENT` döner.
+
+## Müşteriye seçenekleri gösterme
+
+Müşteri kart numarasını yazdığında, BIN'e göre uygun taksit seçeneklerini göstermek istiyorsunuz. Iki yaklaşım var:
+
+<Tabs>
+  <Tab title="Hosted Checkout (kolay)">
+    [Hosted Checkout](/sanal-pos/payments/hosted-checkout) sayfası taksit seçeneklerini **otomatik olarak** doldurur. Sadece `allowedInstallments` ile sınırlama koyabilirsiniz.
+
+    ```json
+    {
+      "amount": 60000,
+      "allowedInstallments": [1, 3, 6, 9]
+    }
+    ```
+  </Tab>
+  <Tab title="Direct API (manuel)">
+    Müşteri kart numarasını yazınca BIN'e göre konsoldaki taksit tablosundan uygun seçenekleri çekersiniz.
+
+    Bu özellik şu an **konsol-only**. Public BIN+installment inquiry endpoint'i yakında yayınlanacaktır. Şimdilik kuruluş anlaşmanızdaki sabit taksit tablosunu istemcinize gömebilirsiniz.
+  </Tab>
+</Tabs>
+
+## Yanıtta taksit bilgileri
+
+```json
+{
+  "data": {
+    "id": "...",
+    "amount": 60000,
+    "installment": 6,
+    "card": {
+      "scheme": "Visa",
+      "program": "Bonus",
+      "bankName": "Garanti BBVA"
+    },
+    "connector": {
+      "code": "GarantiVPOS",
+      "responseCode": "00"
+    }
+  }
+}
+```
+
+## Taksit kuralları
+
+<Check>**Borç kartında taksit yok.** `card.type: "Debit"` olan kartlarda `installment > 1` reddedilir.</Check>
+<Check>**Yabancı kartta taksit yok.** Yurt dışı bankalarının kartları taksite uygun değildir.</Check>
+<Check>**Minimum tutar.** Her bankanın taksit başına minimum tutar şartı vardır (genelde 100 ₺).</Check>
+<Check>**Maximum taksit.** Bankaya göre değişir. Genel pratik: 12 ay.</Check>
+
+## Hata yanıtları
+
+| `code` | Anlam |
+|---|---|
+| `VALIDATION_INVALID_INSTALLMENT` | Taksit sayısı bu kart için desteklenmiyor |
+| `INSTALLMENT_NOT_ALLOWED_ON_DEBIT` | Borç kartında taksit yapılamaz |
+| `INSTALLMENT_AMOUNT_TOO_LOW` | Tutar bu taksit sayısı için minimumu karşılamıyor |

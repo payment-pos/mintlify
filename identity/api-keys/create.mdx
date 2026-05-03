@@ -1,0 +1,93 @@
+---
+title: "Yeni Anahtar Oluşturma"
+description: "Konsoldan veya API üzerinden yeni API anahtarı üretin."
+---
+
+Yeni anahtarlar konsol veya programatik olarak oluşturulabilir. Her iki durumda da `apiSecret` **yalnızca yanıtta bir kez** döner — sonradan tekrar erişilemez.
+
+## Konsoldan oluşturma
+
+<Steps>
+  <Step title="API Anahtarları sayfası">
+    Konsol → **Ayarlar → API Anahtarları**.
+  </Step>
+  <Step title="Yeni Anahtar Oluştur">
+    Sağ üstteki butona basın.
+  </Step>
+  <Step title="Bilgileri girin">
+    - **İsim**: hangi servis için kullanılacağı (örn. *"Production - Ödeme Servisi"*).
+    - **Ortam**: Sandbox veya Production.
+    - **IP Whitelist**: production için zorunlu kabul edin.
+  </Step>
+  <Step title="Secret'i kopyalayın">
+    Üretilen `apiSecret` değerini güvenli bir yere kopyalayın. **Bu pencere kapatıldıktan sonra bir daha gösterilmez.**
+  </Step>
+</Steps>
+
+## API ile oluşturma
+
+```
+POST /api/v1/tenants/me/api-keys
+```
+
+```bash
+curl -X POST https://identity.payven.com.tr/api/v1/tenants/me/api-keys \
+  -H "Authorization: Bearer ..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production - Ödeme Servisi",
+    "environment": "Production",
+    "ipWhitelist": ["52.18.42.10", "52.18.42.11/32"],
+    "expiresAt": null
+  }'
+```
+
+| Alan | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `name` | `string` | ✅ | Anahtar için açıklayıcı isim |
+| `environment` | `enum` | ✅ | `Sandbox` veya `Production` |
+| `ipWhitelist` | `string[]` | ⚠️ | IP veya CIDR listesi. Boş bırakılırsa tüm IP'ler kabul edilir. |
+| `expiresAt` | `string` (ISO-8601) | ❌ | Anahtarın otomatik pasifleşeceği tarih. Geçici anahtarlar için faydalı. |
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "code": "201",
+  "data": {
+    "id": "key_8e3f5c12",
+    "apiKey": "pvk-prod-MaVpaXii",
+    "secret": "ZQVHx6fpBJa4BMVggVR6xm9C9wrRDTmaGi5jgD7a",
+    "name": "Production - Ödeme Servisi",
+    "environment": "Production",
+    "status": "Active",
+    "ipWhitelist": ["52.18.42.10", "52.18.42.11/32"],
+    "createdAt": "2026-05-03T12:34:56Z",
+    "expiresAt": null
+  }
+}
+```
+
+<Warning>
+**`secret` alanı yalnızca bu yanıtta dönecek.** Listeleme veya detay endpoint'lerinde her zaman `null` olur. Hemen secret manager'ınıza kaydedin.
+</Warning>
+
+## Hemen kullanmaya başlama
+
+Aldığınız `apiKey` ve `secret` ile ürün servislerine istek atabilirsiniz:
+
+```bash
+curl https://vpos.payven.com.tr/api/v1/transactions \
+  -H "X-API-Key: pvk-prod-MaVpaXii" \
+  -H "X-API-Secret: ZQVHx6fpBJa4..." \
+  -H "X-Merchant-Id: 3fa85f64-..."
+```
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `403` | `PERMISSION_DENIED` | Anahtar oluşturma yetkiniz yok (TenantAdmin gerekir) |
+| `409` | `API_KEY_LIMIT_REACHED` | Plan kotanız aktif anahtar sayısı için doldu |
+| `400` | `VALIDATION_INVALID_IP` | IP whitelist formatı hatalı |

@@ -1,0 +1,83 @@
+---
+title: "İptal (Void)"
+description: "Mutabakat öncesi yapılmış bir ödemeyi tam tutarda iptal edin."
+---
+
+Void, mutabakat öncesinde **tam tutarlı** ödeme iptalidir. İade'den farkı: void işlemi banka tarafında **muhasebe hareketi yaratmaz**, ödeme hiç olmamış gibi kayıttan düşer.
+
+## Endpoint
+
+```
+POST /api/v1/payments/{paymentId}/void
+```
+
+## İstek
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-.../void \
+  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT" \
+  -H "Idempotency-Key: order-1001-void"
+```
+
+İstek gövdesi opsiyoneldir:
+
+```json
+{
+  "reason": "Stok kalmadı"
+}
+```
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "id": "8e3f5c12-...",
+    "status": "Voided",
+    "voidedAmount": 15000,
+    "connector": {
+      "responseCode": "00",
+      "responseMessage": "İptal onaylandı"
+    },
+    "voidedAt": "2026-05-03T16:00:00Z"
+  }
+}
+```
+
+## Void mu, refund mu?
+
+| Kriter | Void | Refund |
+|---|---|---|
+| Tutar | Sadece tam tutar | Tam veya kısmi |
+| Mutabakat | Öncesinde — gün içi | Öncesi veya sonrası |
+| Banka komisyonu | İade edilir | Mutabakat sonrasında çoğunlukla iade edilmez |
+| Müşteri ekstresinde | Hareket görünmez | "İade" satırı olarak görünür |
+| Süre | Genelde gün sonuna kadar (banka bağımlı) | 180 gün |
+
+**Pratik kural:** Aynı gün içinde iptal istiyorsanız ve tam tutar iade edilecekse → **void**. Diğer durumlarda → [refund](/sanal-pos/payments/refund).
+
+## Pre-Auth iptali
+
+Bir Pre-Auth (ön provizyon) henüz capture edilmemişse void ile rezervasyon serbest bırakılır:
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/payments/{preauthId}/void \
+  -H "..."
+```
+
+Detay: [Pre-Auth ve Capture](/sanal-pos/payments/pre-auth-capture).
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `PAYMENT_NOT_FOUND` | Ödeme bulunamadı |
+| `422` | `VOID_NOT_ALLOWED_AFTER_SETTLEMENT` | Mutabakat sonrası void yapılamaz — refund kullanın |
+| `422` | `PAYMENT_ALREADY_VOIDED` | Zaten iptal edilmiş |
+| `422` | `PAYMENT_NOT_VOIDABLE` | Bu durumdaki ödeme iptal edilemez |
+
+## Webhook olayları
+
+- `payment.voided` — İptal başarıyla tamamlandı
+- `payment.void.failed` — İptal banka tarafından reddedildi

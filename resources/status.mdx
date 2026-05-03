@@ -1,263 +1,34 @@
 ---
-title: API Status
-description: Real-time status of Ödeal Payment Infrastructure services and historical uptime
-icon: 'signal'
+title: "API Durum Sayfası"
+description: "Payven servislerinin gerçek zamanlı sağlık durumu."
 ---
 
-# System Status
+Tüm Payven servislerinin gerçek zamanlı durumunu kontrol etmek için:
 
-## Current Status
+[**status.payven.com.tr →**](https://status.payven.com.tr)
 
-<Check>All Systems Operational</Check>
+## İzlenen servisler
 
-Last updated: **2025-12-19 23:15:00 +03:00**
+| Servis | Açıklama |
+|---|---|
+| Identity & Auth | Kimlik doğrulama, API anahtarı yönetimi |
+| Sanal POS API | Ödeme alma, iade, sorgulamalar |
+| Sanal POS Webhook | Webhook teslim altyapısı |
+| Hosted Checkout | Müşteri tarafı ödeme sayfası |
+| Konsol | Dashboard web uygulaması |
+| Banka Konnektörleri | Her bir banka entegrasyonu için ayrı durum göstergesi |
 
----
+## Bildirim aboneliği
 
-## Service Status
+Status sayfasından e-posta veya RSS aboneliği yapabilirsiniz. Olay açıldığında ve kapandığında bildirim alırsınız.
 
-<CardGroup cols={2}>
-  <Card title="Payment API" icon="check-circle">
-    <span style="color: #10b981">● Operational</span>
-    
-    99.99% uptime (30 days)
-  </Card>
-  
-  <Card title="Webhook Delivery" icon="check-circle">
-    <span style="color: #10b981">● Operational</span>
-    
-    99.95% uptime (30 days)
-  </Card>
-  
-  <Card title="3D Secure Service" icon="check-circle">
-    <span style="color: #10b981">● Operational</span>
-    
-    99.98% uptime (30 days)
-  </Card>
-  
-  <Card title="Bank Connectors" icon="check-circle">
-    <span style="color: #10b981">● Operational</span>
-    
-    99.92% uptime (30 days)
-  </Card>
-</CardGroup>
+## Geçmiş
 
----
+90 günlük olay geçmişi durum sayfasında görüntülenir. Her olay için:
 
-## Service Components
+- Etkilenen servisler
+- Başlangıç/bitiş zamanı
+- Müşteri etkisi
+- Kök neden analizi (post-mortem, kritik olaylar için)
 
-### Core Services
-
-| Component | Status | Uptime (30d) | Latency (p95) |
-|-----------|--------|--------------|---------------|
-| Payment API | <span style="color: #10b981">● Operational</span> | 99.99% | 120ms |
-| Authentication | <span style="color: #10b981">● Operational</span> | 100% | 45ms |
-| Database (Primary) | <span style="color: #10b981">● Operational</span> | 99.99% | 8ms |
-| Database (Replica) | <span style="color: #10b981">● Operational</span> | 99.99% | 12ms |
-| Redis Cache | <span style="color: #10b981">● Operational</span> | 100% | 2ms |
-
-### Integration Services
-
-| Component | Status | Uptime (30d) | Success Rate |
-|-----------|--------|--------------|--------------|
-| İş Bankası Connector | <span style="color: #10b981">● Operational</span> | 99.95% | 99.8% |
-| Garanti BBVA Connector | <span style="color: #10b981">● Operational</span> | 99.93% | 99.7% |
-| Yapı Kredi Connector | <span style="color: #10b981">● Operational</span> | 99.91% | 99.6% |
-| Akbank Connector | <span style="color: #10b981">● Operational</span> | 99.90% | 99.5% |
-| Denizbank Connector | <span style="color: #10b981">● Operational</span> | 99.88% | 99.4% |
-| TEB Connector | <span style="color: #10b981">● Operational</span> | 99.85% | 99.3% |
-| Ziraat Bankası Connector | <span style="color: #10b981">● Operational</span> | 99.87% | 99.4% |
-
-### Supporting Services
-
-| Component | Status | Uptime (30d) |
-|-----------|--------|--------------|
-| Webhook Service | <span style="color: #10b981">● Operational</span> | 99.95% |
-| 3D Secure MPI | <span style="color: #10b981">● Operational</span> | 99.98% |
-| Exchange Rate Service | <span style="color: #10b981">● Operational</span> | 99.97% |
-| Ledger Integration | <span style="color: #10b981">● Operational</span> | 99.92% |
-| Email Service | <span style="color: #10b981">● Operational</span> | 99.85% |
-
----
-
-## Performance Metrics
-
-### API Response Times (Last 24 Hours)
-
-| Endpoint | p50 | p95 | p99 |
-|----------|-----|-----|-----|
-| POST /v1/payments | 95ms | 180ms | 320ms |
-| GET /v1/payments/:id | 42ms | 85ms | 150ms |
-| POST /v1/payments/:id/process | 1.2s | 2.8s | 4.5s |
-| POST /v1/merchants | 180ms | 350ms | 580ms |
-| GET /v1/transactions | 65ms | 140ms | 240ms |
-
-### Success Rates (Last 24 Hours)
-
-- **Payment Creation**: 99.97%
-- **Payment Processing**: 98.45% (includes card declines)
-- **3D Secure**: 99.89%
-- **Refunds**: 99.92%
-- **Webhook Delivery**: 99.78%
-
----
-
-## Incident History
-
-### December 2025
-
-<Accordion title="No incidents to report" icon="check-circle">
-All systems operated normally throughout December 2025.
-</Accordion>
-
-### November 2025
-
-<Accordion title="Webhook Delivery Delay - Nov 15, 2025" icon="exclamation-triangle">
-
-**Status**: Resolved
-
-**Duration**: 45 minutes (14:30 - 15:15 UTC+3)
-
-**Impact**: Webhook deliveries were delayed by 5-10 minutes. No webhooks were lost.
-
-**Root Cause**: RabbitMQ message broker experienced memory pressure due to a sudden spike in traffic.
-
-**Resolution**: Scaled up RabbitMQ cluster and implemented better memory management.
-
-**Prevention**: Added auto-scaling triggers and improved monitoring alerts.
-
-</Accordion>
-
-### October 2025
-
-<Accordion title="Database Performance Degradation - Oct 8, 2025" icon="exclamation-triangle">
-
-**Status**: Resolved
-
-**Duration**: 2 hours (09:00 - 11:00 UTC+3)
-
-**Impact**: API response times increased by 2-3x. No data loss.
-
-**Root Cause**: Long-running analytics query caused table locks.
-
-**Resolution**: Killed long-running query and optimized analytics queries to use read replicas.
-
-**Prevention**: Implemented query timeout limits and separated analytics workload.
-
-</Accordion>
-
----
-
-## Scheduled Maintenance
-
-<Info>
-All scheduled maintenance is performed during low-traffic hours (02:00 - 04:00 UTC+3) with advance notice.
-</Info>
-
-### Upcoming Maintenance
-
-No maintenance currently scheduled.
-
-### Recent Maintenance
-
-- **Dec 10, 2025** - Database upgrade (02:00-03:15 UTC+3) - Completed Successfully
-- **Nov 20, 2025** - Certificate renewal (02:00-02:30 UTC+3) - Completed Successfully
-- **Oct 15, 2025** - Infrastructure migration (02:00-05:00 UTC+3) - Completed Successfully
-
----
-
-## Service Level Agreement (SLA)
-
-Our commitment to uptime and reliability:
-
-| Service Tier | Uptime Guarantee | Monthly Credit |
-|--------------|------------------|----------------|
-| Production | 99.9% | 10% per 0.1% below |
-| Premium | 99.95% | 15% per 0.05% below |
-| Enterprise | 99.99% | 25% per 0.01% below |
-
-**Response Time SLA**
-- P0 (Critical): 15 minutes
-- P1 (High): 1 hour
-- P2 (Medium): 4 hours
-- P3 (Low): 24 hours
-
----
-
-## Subscribe to Status Updates
-
-Get notified about incidents and maintenance:
-
-<CardGroup cols={3}>
-  <Card title="Email Alerts" icon="envelope">
-    [Subscribe](mailto:status@odeal.com?subject=Subscribe)
-  </Card>
-  
-  <Card title="SMS Alerts" icon="message">
-    Contact support to enable
-  </Card>
-  
-  <Card title="Webhook" icon="code">
-    Configure in dashboard
-  </Card>
-</CardGroup>
-
-## Status API
-
-Programmatically check system status:
-
-```bash
-curl https://api.odeal.com/v1/status
-```
-
-```json
-{
-  "status": "operational",
-  "services": {
-    "api": "operational",
-    "database": "operational",
-    "webhooks": "operational",
-    "3ds": "operational"
-  },
-  "metrics": {
-    "uptime30d": 0.9999,
-    "avgLatencyMs": 120,
-    "successRate": 0.9997
-  },
-  "lastUpdated": "2025-12-19T23:15:00+03:00"
-}
-```
-
----
-
-## Geographic Availability
-
-Our API is served from multiple regions for optimal performance:
-
-| Region | Location | Status | Latency (avg) |
-|--------|----------|--------|---------------|
-| Primary | Istanbul, Turkey | <span style="color: #10b981">● Active</span> | 15ms (TR) |
-| Failover | Frankfurt, Germany | <span style="color: #10b981">● Standby</span> | 45ms (TR) |
-| DR Site | London, UK | <span style="color: #10b981">● Standby</span> | 65ms (TR) |
-
----
-
-## Need Help?
-
-<CardGroup cols={2}>
-  <Card title="Support Center" icon="headset" href="/resources/support">
-    Get help from our team
-  </Card>
-  
-  <Card title="Report an Issue" icon="flag" href="/resources/support#report-issue">
-    Report service issues
-  </Card>
-  
-  <Card title="Documentation" icon="book" href="/">
-    Browse documentation
-  </Card>
-  
-  <Card title="Changelog" icon="clock" href="/resources/changelog">
-    View recent changes
-  </Card>
-</CardGroup>
+bilgileri sunulur.

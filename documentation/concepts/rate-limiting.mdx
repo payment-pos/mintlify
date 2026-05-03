@@ -1,0 +1,90 @@
+---
+title: "Rate Limiting"
+description: "İstek limitleri, başlıklar ve aşım davranışı."
+---
+
+Payven, tüm API'lerinde **kuruluş seviyesinde** istek limitleri uygular. Bu limitler abuse engelleme ve adil kaynak paylaşımı içindir.
+
+## Limitler
+
+Limitler planınıza göre değişir. Tipik değerler:
+
+| Plan | Saniyedeki istek (RPS) | Burst |
+|---|---|---|
+| Sandbox | 50 | 100 |
+| Standart | 200 | 400 |
+| Yüksek hacim | 1000+ | Anlaşmalı |
+
+Aktif planınızı [Konsol → Plan ve Kullanım](https://dashboard.payven.com.tr/my-plan) ekranından görebilirsiniz.
+
+## Yanıt başlıkları
+
+Her API yanıtı, mevcut kotanızı bildiren başlıklar döner:
+
+```http
+X-RateLimit-Limit:      200
+X-RateLimit-Remaining:  187
+X-RateLimit-Reset:      1714742400
+```
+
+| Başlık | Açıklama |
+|---|---|
+| `X-RateLimit-Limit` | Saniyedeki maksimum istek sayısı |
+| `X-RateLimit-Remaining` | Bu pencerede kalan istek hakkı |
+| `X-RateLimit-Reset` | Limitin sıfırlanacağı Unix timestamp |
+
+## Limit aşımı
+
+Kotanız aşıldığında `429 Too Many Requests` döner:
+
+```json
+{
+  "isSuccess": false,
+  "code": "RATE_LIMIT_EXCEEDED",
+  "message": "İstek limiti aşıldı. Lütfen biraz sonra tekrar deneyin."
+}
+```
+
+Yanıtta ek olarak `Retry-After` başlığı bulunur — bu süre kadar (saniye) bekleyip yeniden deneyebilirsiniz.
+
+```http
+Retry-After: 1
+```
+
+## Önerilen istemci davranışı
+
+<CodeGroup>
+```csharp C#
+async Task<HttpResponseMessage> SendWithBackoff(HttpRequestMessage request)
+{
+    while (true)
+    {
+        var response = await http.SendAsync(request);
+        if (response.StatusCode != (HttpStatusCode)429) return response;
+
+        var retryAfter = response.Headers.RetryAfter?.Delta
+                         ?? TimeSpan.FromSeconds(1);
+        await Task.Delay(retryAfter);
+    }
+}
+```
+
+```javascript Node.js
+async function sendWithBackoff(url, options) {
+  while (true) {
+    const res = await fetch(url, options);
+    if (res.status !== 429) return res;
+    const retry = parseInt(res.headers.get("Retry-After") ?? "1", 10);
+    await new Promise((r) => setTimeout(r, retry * 1000));
+  }
+}
+```
+</CodeGroup>
+
+## Webhook teslimi rate limit'inden muaftır
+
+Sizin endpoint'inize Payven'in gönderdiği webhook çağrıları bu limitlere dahil **değildir** — ayrı bir teslim mekanizmasına tabidir. Detay: [Webhook Yeniden Deneme](/sanal-pos/webhooks/retry-policy).
+
+## Limit artırma talebi
+
+Yüksek hacim ihtiyacınız varsa [destek ekibimize](/resources/support) ulaşın. Tipik onboarding 1-2 iş günü sürer.

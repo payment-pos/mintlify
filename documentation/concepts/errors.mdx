@@ -1,0 +1,155 @@
+---
+title: "Hata Yönetimi"
+description: "Hata kodları, retry stratejisi ve sorun giderme."
+---
+
+Payven hata yanıtları **tek bir yapıda** döner — HTTP kodu kategoriyi, `code` alanı ise hatanın detayını verir.
+
+## Hata yapısı
+
+```json
+{
+  "isSuccess": false,
+  "message": "Tutar 100 kuruşun altında olamaz.",
+  "code": "VALIDATION_AMOUNT_TOO_LOW",
+  "data": null,
+  "errors": [
+    { "field": "amount", "message": "Tutar 100 kuruşun altında olamaz." }
+  ]
+}
+```
+
+## HTTP kategorileri
+
+| HTTP | Kategori | Retry uygun mu? |
+|---|---|---|
+| `400` | İstek formatı veya validasyon hatası | ❌ Düzeltmeden tekrarlamayın |
+| `401` | Kimlik doğrulama hatası | ❌ |
+| `403` | Yetki/lisans hatası | ❌ |
+| `404` | Kayıt bulunamadı | ❌ |
+| `409` | Çakışma | ❌ |
+| `422` | İş kuralı ihlali | ❌ |
+| `429` | Rate limit aşıldı | ✅ Backoff ile |
+| `5xx` | Sunucu hatası | ✅ Backoff ile |
+| Timeout | Ağ veya gateway timeout | ✅ Idempotency-Key ile |
+
+## Yaygın hata kodları
+
+### Kimlik doğrulama
+| Kod | Anlam |
+|---|---|
+| `AUTH_MISSING_KEY` | API anahtarı header'ı eksik |
+| `AUTH_INVALID_KEY` | Anahtar geçersiz veya pasif |
+| `AUTH_INVALID_SECRET` | Secret hatalı |
+| `AUTH_MERCHANT_REQUIRED` | Merchant header'ı eksik |
+| `AUTH_IP_NOT_ALLOWED` | İstek IP'si izin listesinde değil |
+| `AUTH_PRODUCT_NOT_LICENSED` | Ürün planınızda etkin değil |
+
+### Validasyon
+| Kod | Anlam |
+|---|---|
+| `VALIDATION_AMOUNT_TOO_LOW` | Tutar 100 kuruşun altında |
+| `VALIDATION_AMOUNT_EXCEEDED` | Tutar maksimum limiti aşıyor |
+| `VALIDATION_INVALID_CARD` | Kart numarası formatı geçersiz (Luhn) |
+| `VALIDATION_INVALID_EXPIRY` | Son kullanma tarihi geçersiz |
+| `VALIDATION_INVALID_INSTALLMENT` | Taksit sayısı bu kart için desteklenmiyor |
+| `VALIDATION_INVALID_CURRENCY` | Para birimi desteklenmiyor |
+
+### İşlem
+| Kod | Anlam |
+|---|---|
+| `PAYMENT_NOT_FOUND` | İşlem bulunamadı |
+| `PAYMENT_ALREADY_REFUNDED` | İşlem zaten iade edilmiş |
+| `PAYMENT_NOT_REFUNDABLE` | İşlem iade edilemez durumda |
+| `REFUND_EXCEEDS_ORIGINAL` | İade tutarı orijinali aşıyor |
+| `VOID_NOT_ALLOWED_AFTER_SETTLEMENT` | Mutabakat sonrası iptal yapılamaz |
+| `CAPTURE_AMOUNT_EXCEEDS_AUTH` | Çekim tutarı ön provizyonu aşıyor |
+
+### Yönlendirme ve banka
+| Kod | Anlam |
+|---|---|
+| `ROUTING_NO_CONNECTOR` | Hiçbir konnektör koşullara uymadı |
+| `CONNECTOR_DOWN` | Hedef konnektör geçici olarak devre dışı |
+| `BANK_DECLINED` | Banka işlemi reddetti — `connector.responseCode` alanına bakın |
+| `BANK_TIMEOUT` | Banka yanıt vermedi |
+
+### Diğer
+| Kod | Anlam |
+|---|---|
+| `IDEMPOTENCY_PAYLOAD_MISMATCH` | Aynı anahtar farklı bir payload için kullanılmış |
+| `RATE_LIMIT_EXCEEDED` | İstek limiti aşıldı |
+| `WEBHOOK_INVALID_URL` | Webhook URL'i HTTPS değil veya erişilemez |
+
+<Note>
+Bu liste **özettir**. Tam hata kataloğu ve banka yanıt kodları için: [Sanal POS → Hata Kodları](/sanal-pos/errors/overview) ve [Konsol → Hata Kodları](https://dashboard.payven.com.tr/connector-error-codes).
+</Note>
+
+## Retry stratejisi
+
+Geçici hatalar için **exponential backoff** önerilir:
+
+```
+1. deneme: hemen
+2. deneme: 1 saniye sonra
+3. deneme: 2 saniye sonra
+4. deneme: 4 saniye sonra
+5. deneme: 8 saniye sonra
+```
+
+<CodeGroup>
+```csharp C#
+async Task<T> RetryAsync<T>(Func<Task<HttpResponseMessage>> call, int maxAttempts = 5)
+{
+    for (int attempt = 0; attempt < maxAttempts; attempt++)
+    {
+        var response = await call();
+
+        if (response.IsSuccessStatusCode)
+            return await response.Content.ReadFromJsonAsync<T>();
+
+        var statusCode = (int)response.StatusCode;
+        var isRetryable = statusCode >= 500 || statusCode == 429;
+
+        if (!isRetryable || attempt == maxAttempts - 1)
+            response.EnsureSuccessStatusCode();
+
+        await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+    }
+    throw new InvalidOperationException("unreachable");
+}
+```
+
+```javascript Node.js
+async function retry(fn, maxAttempts = 5) {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const res = await fn();
+      if (res.ok) return res.json();
+      const retryable = res.status >= 500 || res.status === 429;
+      if (!retryable || i === maxAttempts - 1) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    } catch (err) {
+      if (i === maxAttempts - 1) throw err;
+    }
+    await new Promise((r) => setTimeout(r, 2 ** i * 1000));
+  }
+}
+```
+</CodeGroup>
+
+<Tip>
+Yeniden denerken mutlaka **aynı `Idempotency-Key`** ile gönderin. Böylece aynı işlem iki kez gerçekleşmez.
+</Tip>
+
+## Müşteriye gösterme
+
+`message` alanı son kullanıcıya gösterilebilecek nitelikte yazılır. Yine de hassas durumlarda (örn. fraud reddi) genel bir hata mesajı göstermek daha güvenlidir:
+
+```javascript
+const userMessage = (error) => {
+  if (error.code.startsWith("VALIDATION_")) return error.message;
+  if (error.code.startsWith("BANK_")) return "Bankanız işlemi onaylamadı.";
+  return "İşleminiz gerçekleştirilemedi. Lütfen tekrar deneyin.";
+};
+```

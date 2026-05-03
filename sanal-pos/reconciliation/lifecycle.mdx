@@ -1,0 +1,125 @@
+---
+title: "Mutabakat Yaşam Döngüsü"
+description: "Bir mutabakat oturumunun başlatılmasından sonlandırılmasına tüm aşamalar."
+---
+
+Bu sayfa bir mutabakat oturumunun her aşamasını ve API çağrılarını detaylandırır.
+
+## 1. Başlatma
+
+Mutabakat genellikle **gün sonunda otomatik** çalışır (banka raporlarının gelmesinden sonra, tipik olarak 02:00-04:00 arası). Manuel başlatmak için:
+
+```bash
+POST /api/v1/reconciliations/start
+{ "date": "2026-05-03" }
+```
+
+## 2. Karşılaştırma
+
+Payven, gün boyu kaydedilen tüm `Captured`, `Refunded`, `Voided` hareketleri her bankanın gün sonu raporuyla eşleştirir. Bu aşamada `status: InProgress`'tir.
+
+## 3. İnceleme
+
+Tamamlanınca status `WaitingForReview` olur. Detayları çekin:
+
+```bash
+GET /api/v1/reconciliations/{id}/details?status=Discrepancy&pageSize=50
+```
+
+```json
+{
+  "data": {
+    "items": [
+      {
+        "id": "det_8e3f5c12",
+        "type": "AmountMismatch",
+        "paymentId": "8e3f5c12-...",
+        "payvenAmount": 15000,
+        "bankAmount": 14750,
+        "difference": 250,
+        "currency": "TRY",
+        "connectorCode": "GarantiVPOS",
+        "bankReference": "BANK-REF-789",
+        "status": "Open"
+      }
+    ],
+    "totalCount": 12
+  }
+}
+```
+
+## 4. Tutarsızlıkları çözme
+
+Her tutarsızlık için bir **resolution** atanır:
+
+```bash
+POST /api/v1/reconciliations/{id}/details/{detailId}/resolve
+{
+  "resolution": "BankIsCorrect",
+  "note": "Banka 250 ₺ komisyon kesti, kayıt güncellendi"
+}
+```
+
+| Resolution | Anlam |
+|---|---|
+| `PayvenIsCorrect` | Payven kaydı doğru, banka tarafında düzeltme bekleniyor |
+| `BankIsCorrect` | Banka doğru, Payven kaydı revize edilir |
+| `Investigate` | Daha sonra incelenecek (askıda) |
+| `Ignore` | Tutarsızlık göz ardı edilir |
+
+Toplu çözüm için `bulk-resolve` kullanın.
+
+## 5. Finalize
+
+Tüm tutarsızlıklar çözülünce mutabakat finalize edilir:
+
+```bash
+POST /api/v1/reconciliations/{id}/finalize
+```
+
+```json
+{
+  "data": {
+    "status": "Finalized",
+    "totalTransactions": 1247,
+    "matchedCount": 1235,
+    "discrepancyCount": 12,
+    "totalAmount": 187435000,
+    "settledAt": "2026-05-04T08:23:11Z"
+  }
+}
+```
+
+Finalize sonrası:
+
+- İlgili payment'ların status'u `Captured` → `Settled` olarak güncellenir.
+- `settlementDate` alanı dolar.
+- Konsoldaki "Settlement" raporlarına dahil edilir.
+
+## 6. Webhook'lar
+
+| Olay | Tetiklenme |
+|---|---|
+| `reconciliation.created` | Mutabakat başlatıldı |
+| `reconciliation.discrepancy` | Tutarsızlık tespit edildi |
+| `reconciliation.completed` | Mutabakat finalize edildi |
+
+Bu olaylara abone olarak finansal ekibinizi otomatik bilgilendirebilirsiniz.
+
+## Geriye dönük inceleme
+
+Geçmiş mutabakatları sorgulamak için:
+
+```bash
+GET /api/v1/reconciliations?from=2026-04-01&to=2026-04-30
+```
+
+## SLA
+
+| Aşama | Tipik süre |
+|---|---|
+| Başlatma → Karşılaştırma tamamlanma | 5-30 dk (işlem hacmine bağlı) |
+| Karşılaştırma → Tutarsızlıkların listelenmesi | Anlık |
+| Otomatik finalize (tutarsızlık yoksa) | Otomatik, anlık |
+
+Tutarsızlık varsa finalize **manuel** olarak yapılır — operatör çözümleri girene kadar `WaitingForReview` statüsünde bekler.

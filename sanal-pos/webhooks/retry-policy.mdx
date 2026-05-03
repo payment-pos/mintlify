@@ -1,0 +1,89 @@
+---
+title: "Yeniden Deneme Politikası"
+description: "Webhook teslimi başarısız olduğunda Payven'in yeniden deneme davranışı."
+---
+
+Endpoint'iniz `2xx` HTTP kodu dönmezse Payven, olayı **otomatik olarak yeniden gönderir**. Toplamda 6 deneme yapılır (1 ilk + 5 yeniden), ardından olay başarısız işaretlenir.
+
+## Deneme planı
+
+| Deneme | Bekleme süresi (önceki denemeden sonra) |
+|---|---|
+| 1 (ilk) | hemen |
+| 2 | 1 dakika |
+| 3 | 5 dakika |
+| 4 | 30 dakika |
+| 5 | 2 saat |
+| 6 | 24 saat |
+
+Toplam yaklaşık **27 saatlik** pencere içinde 6 deneme yapılır.
+
+## Hangi yanıtlar başarılı kabul edilir?
+
+| Durum | Sonuç |
+|---|---|
+| HTTP 200, 201, 202, 204 | ✅ Başarılı, yeniden deneme yapılmaz |
+| HTTP 3xx redirect | ⚠️ Takip edilmez, başarısız sayılır — webhook URL'iniz redirect içermesin |
+| HTTP 4xx | ❌ Başarısız, yeniden denenir (genelde sizin tarafta hata) |
+| HTTP 5xx | ❌ Başarısız, yeniden denenir |
+| Timeout (5 sn) | ❌ Başarısız, yeniden denenir |
+| Bağlantı hatası | ❌ Başarısız, yeniden denenir |
+
+## Endpoint'iniz çok yavaşsa
+
+Payven her teslim için **5 saniye** timeout uygular. Bu sürenin altında 2xx dönmeniz gerekir. Pratik öneri:
+
+```javascript
+app.post("/webhooks/payven", async (req, res) => {
+  // 1. İmzayı doğrula (hızlı)
+  if (!verifySignature(...)) return res.status(401).end();
+
+  // 2. Olayı kuyruğa at (hızlı)
+  await queue.enqueue(req.body);
+
+  // 3. Hemen 200 dön
+  res.status(200).end();
+
+  // 4. Asıl iş arka planda işlenir
+});
+```
+
+Ağır işleri (DB yazma, başka API'lere çağrı, e-posta gönderme) kuyruğa atın.
+
+## Tüm denemeler başarısız olursa
+
+6 deneme sonrası teslim **başarısız** olarak işaretlenir. Bu olay konsoldaki **Webhook Teslim Kayıtları** ekranında "Failed" olarak görünür.
+
+İki seçeneğiniz var:
+
+<Tabs>
+  <Tab title="Manuel yeniden deneme">
+    Konsoldaki Teslim Kayıtları ekranından ilgili olayı bulup **Yeniden Gönder** butonuyla manuel tekrar isteyebilirsiniz.
+  </Tab>
+  <Tab title="Polling ile yakalama">
+    Mutabakat veya rapor zamanı `/transactions` endpoint'ini sorgulayıp eksik kalmış işlemleri tespit edebilirsiniz.
+
+    ```bash
+    GET /api/v1/transactions?from=2026-05-03T00:00:00Z&to=2026-05-03T23:59:59Z
+    ```
+  </Tab>
+</Tabs>
+
+## Sıralama garantisi
+
+Webhook'lar **sıralı teslim edilmez**. `payment.failed` olayı `payment.created`'tan önce gelebilir.
+
+İstemcinizi olayların **herhangi bir sırada** gelebileceğine göre yazın. `data.status` alanına bakın, olay tipine değil.
+
+## Idempotency
+
+Yeniden denemeler sırasında aynı `evt.id` ile birden fazla istek gelir. İşleme mantığınız idempotent olmalı:
+
+```javascript
+async function handleWebhook(evt) {
+  const exists = await db.events.findOne({ id: evt.id });
+  if (exists) return; // zaten işlendi
+  await db.events.insert({ id: evt.id, body: evt });
+  await applyBusinessLogic(evt);
+}
+```

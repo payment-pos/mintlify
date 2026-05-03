@@ -1,0 +1,54 @@
+---
+title: "Konnektörler"
+description: "Banka tipi tanımlarını listeleyin ve yetenek matrisini görüntüleyin."
+---
+
+**Konnektör**, Payven'in bir bankaya nasıl bağlandığını tanımlayan tip katmanıdır. Bir konnektör tipi (örn. *GarantiVPOS*, *AkbankNestpay*, *VakifbankPosnet*) **kendisi credential içermez** — bunu [Konfigürasyonlar](/sanal-pos/backoffice/configurations) yapar.
+
+## Endpoint
+
+```
+GET /api/v1/connectors
+```
+
+JWT Bearer auth gerektirir (Backoffice).
+
+## Yanıt
+
+```json
+{
+  "data": {
+    "items": [
+      {
+        "code": "GarantiVPOS",
+        "displayName": "Garanti BBVA Sanal POS",
+        "bankCode": "GARANTI",
+        "capabilities": {
+          "non3D": true,
+          "threeDS": true,
+          "preAuth": true,
+          "capture": true,
+          "refund": true,
+          "void": true,
+          "installment": true,
+          "pointInquiry": true,
+          "dcc": true,
+          "recurring": false,
+          "tokenization": false
+        },
+        "supportedCurrencies": ["TRY", "USD", "EUR", "GBP"],
+        "maxInstallment": 12,
+        "logoUrl": "https://cdn.payven.com.tr/banks/garanti.svg"
+      }
+    ]
+  }
+}
+```
+
+## Yetenek matrisi
+
+Konsol → **Konnektör Yetenek Matrisi** ekranında tüm konnektörlerin yetenekleri tek bir tabloda gösterilir. Yeni bir banka entegrasyonu yaparken hangi özelliklerin destekleneceğini buradan kontrol edebilirsiniz.
+
+## Yeni banka talebi
+
+Listede olmayan bir banka için entegrasyon talebinde bulunmak için [destek ekibine](/resources/support) yazın. Yeni konnektör geliştirme süresi tipik olarak 4-8 hafta arasıdır.

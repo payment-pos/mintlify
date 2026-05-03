@@ -1,0 +1,54 @@
+---
+title: "Şehir ve İlçe"
+description: "Türkiye il ve ilçe listesi — onboarding adres formları için."
+---
+
+İl ve ilçe lookup'ları, merchant onboarding ve adres formlarında dropdown doldurmak için kullanılır.
+
+## Şehirler
+
+```
+GET /api/v1/lookups/cities
+```
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "items": [
+      { "id": "...", "code": "34", "name": "İstanbul" },
+      { "id": "...", "code": "06", "name": "Ankara" },
+      { "id": "...", "code": "35", "name": "İzmir" }
+    ]
+  }
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `code` | Plaka kodu (`34`, `06`, ...) |
+| `name` | Türkçe isim |
+
+## İlçeler
+
+```
+GET /api/v1/lookups/districts?cityId={cityId}
+```
+
+İlçeleri **şehir bazında** çekersiniz. Tüm ilçeleri tek seferde almak yerine seçilen şehre göre lazy-load önerilir.
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "items": [
+      { "id": "...", "name": "Kadıköy", "cityId": "..." },
+      { "id": "...", "name": "Beşiktaş", "cityId": "..." }
+    ]
+  }
+}
+```
+
+## Caching
+
+Bu liste **çok nadir** değişir (yeni ilçe atanması nadirdir). 7 günlük cache uygulayabilirsiniz.

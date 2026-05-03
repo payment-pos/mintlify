@@ -1,0 +1,68 @@
+---
+title: "Puan Sorgulama"
+description: "Bonus, Maximum, World gibi banka programlarının puan bakiyesini sorgulayın."
+---
+
+Türk bankalarının kart programları (Bonus, Maximum, Axess, World, Paraf, CardFinans, Wings...) müşteriye **puan biriktirme** sunar. Bu endpoint, kart bazında puan bakiyesi sorgulamak için kullanılır.
+
+<Note>
+Tüm bankalar puan sorgu API'si sunmaz. Bankaya özgü destek için konsoldaki **Konnektör Yetenek Matrisi** ekranını kontrol edin.
+</Note>
+
+## Endpoint
+
+```
+POST /api/v1/payments/{paymentId}/point-inquiry
+```
+
+Mevcut bir ödemeye bağlı kart için puan sorgular. Genellikle **3DS init sonrası** ve **ödeme tamamlanmadan önce** çağrılır — müşteriye "X puanınız var, kullanmak ister misiniz?" akışı için.
+
+## İstek
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-.../point-inquiry \
+  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT"
+```
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "paymentId": "8e3f5c12-...",
+    "available": true,
+    "balance": 12500,
+    "currency": "TRY",
+    "program": "Bonus",
+    "bankCode": "GARANTI"
+  }
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `available` | Bu kart için puan sorgusu desteklendi mi? |
+| `balance` | Mevcut puan bakiyesi (kuruş cinsinden, TRY karşılığı) |
+| `program` | Banka programı |
+
+## Puan kullanma
+
+Puan sorgu sonrası ödeme isteğinde `usePoints` alanı doldurabilirsiniz:
+
+```json
+{
+  "amount": 15000,
+  "usePoints": 5000,
+  "card": { ... }
+}
+```
+
+İşlem tamamlandığında `5000` puan düşülür, müşteri kalan `10000` kuruşu öder.
+
+## Hata yanıtları
+
+| `code` | Anlam |
+|---|---|
+| `POINT_INQUIRY_NOT_SUPPORTED` | Bu banka/program puan sorguyu desteklemiyor |
+| `POINT_INQUIRY_FAILED` | Banka tarafından hata döndü |

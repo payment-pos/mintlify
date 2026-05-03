@@ -1,0 +1,84 @@
+---
+title: "Plan ve Kullanım (/me/plan)"
+description: "Kuruluşunuzun aktif planı, kotaları ve gerçek zamanlı kullanım metrikleri."
+---
+
+`/me/plan` endpoint'i; aktif planınızı, etkin ürünleri ve gerçek zamanlı kullanım sayaçlarınızı döner.
+
+## Endpoint
+
+```
+GET /api/v1/me/plan
+```
+
+## İstek
+
+```bash
+curl https://identity.payven.com.tr/api/v1/me/plan \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+```
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "plan": {
+      "id": "plan_standard",
+      "name": "Standart",
+      "price": 999900,
+      "currency": "TRY",
+      "billingCycle": "Monthly",
+      "renewsAt": "2026-06-01T00:00:00Z"
+    },
+    "usage": {
+      "monthlyTransactions": 12450,
+      "monthlyTransactionsLimit": 100000,
+      "rps": 47,
+      "rpsLimit": 200,
+      "activeMerchants": 18,
+      "activeMerchantsLimit": 50,
+      "activeApiKeys": 4,
+      "activeApiKeysLimit": 10
+    },
+    "features": [
+      {
+        "code": "sanalpos",
+        "name": "Sanal POS",
+        "category": "Module",
+        "enabled": true
+      },
+      {
+        "code": "para-transferi",
+        "name": "Para Transferi",
+        "category": "Module",
+        "enabled": true
+      },
+      {
+        "code": "fraud",
+        "name": "Fraud Yönetimi",
+        "category": "Module",
+        "enabled": false,
+        "available": true
+      }
+    ]
+  }
+}
+```
+
+## Kota uyarıları
+
+Kotanın **%80**'ini geçtiğinizde otomatik bir webhook olayı gönderilir:
+
+| Olay | Açıklama |
+|---|---|
+| `plan.usage.warning` | Bir kota %80 seviyesini geçti |
+| `plan.usage.critical` | Bir kota %95 seviyesini geçti |
+| `plan.usage.exceeded` | Bir kota aşıldı, ilgili istekler reddedilmeye başlandı |
+
+Detay: [Webhook Olayları](/sanal-pos/webhooks/events).
+
+## Plan yükseltme
+
+Kotanız yetmiyorsa konsoldaki **Plan ve Kullanım** ekranından yükseltme talebi açabilir veya doğrudan [destek ekibine](/resources/support) yazabilirsiniz.

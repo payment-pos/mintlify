@@ -1,0 +1,122 @@
+---
+title: "API Yanıt Formatı"
+description: "Tüm Payven API yanıtlarında kullanılan standart yapı."
+---
+
+Payven API'sinin **tüm yanıtları** ortak bir zarf içinde döner. Bu yapı; başarı durumu, mesaj, kod ve veri alanlarından oluşur.
+
+## Standart yanıt yapısı
+
+```json
+{
+  "isSuccess": true,
+  "message": "Başarılı.",
+  "code": "200",
+  "data": { ... }
+}
+```
+
+| Alan | Tip | Açıklama |
+|---|---|---|
+| `isSuccess` | `boolean` | İşlemin başarılı olup olmadığı. Bu alan, HTTP durum kodundan **bağımsız** olarak nihai başarı sonucunu belirtir. |
+| `message` | `string` | Türkçe açıklama mesajı. Müşteriye gösterilebilir. |
+| `code` | `string` | Payven hata/başarı kodu. HTTP koduyla aynı olabilir veya domain-spesifik bir kod (örn. `PAYMENT_INSUFFICIENT_FUNDS`). |
+| `data` | `object` veya `null` | Endpoint'e özgü yanıt payload'u. Hata durumlarında `null` gelir. |
+
+## Sayfalı liste yanıtı
+
+Liste döndüren endpoint'ler `data` alanında sayfalama bilgisi de taşır:
+
+```json
+{
+  "isSuccess": true,
+  "message": "Başarılı.",
+  "code": "200",
+  "data": {
+    "items": [
+      { "id": "...", "amount": 15000 },
+      { "id": "...", "amount": 25000 }
+    ],
+    "pageNumber": 1,
+    "pageSize": 25,
+    "totalCount": 248,
+    "totalPages": 10,
+    "hasPreviousPage": false,
+    "hasNextPage": true
+  }
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `items` | Geçerli sayfadaki kayıtlar. |
+| `pageNumber` | Geçerli sayfa numarası (1-tabanlı). |
+| `pageSize` | Sayfa başına kayıt sayısı. |
+| `totalCount` | Toplam kayıt sayısı. |
+| `totalPages` | Toplam sayfa sayısı. |
+| `hasPreviousPage` / `hasNextPage` | Önceki/sonraki sayfa olup olmadığı. |
+
+## Hata yanıtı
+
+Hata durumunda `isSuccess: false` döner ve `data` boş olur. Validasyon hataları için ek `errors` alanı bulunabilir:
+
+```json
+{
+  "isSuccess": false,
+  "message": "Tutar 100 kuruşun altında olamaz.",
+  "code": "VALIDATION_AMOUNT_TOO_LOW",
+  "data": null,
+  "errors": [
+    {
+      "field": "amount",
+      "message": "Tutar 100 kuruşun altında olamaz."
+    }
+  ]
+}
+```
+
+Hata kodlarının tam listesi: [Hata Yönetimi](/documentation/concepts/errors).
+
+## HTTP durum kodları
+
+Payven, REST standartlarına uygun HTTP kodları kullanır:
+
+| Kod | Anlam |
+|---|---|
+| `200` | Başarılı (senkron işlem tamamlandı) |
+| `201` | Yeni kayıt oluşturuldu |
+| `202` | İstek alındı, asenkron işleniyor (örn. 3D Secure init) |
+| `400` | İstek formatı hatalı veya validasyon hatası |
+| `401` | Kimlik doğrulama hatası |
+| `403` | Yetki yok |
+| `404` | Kayıt bulunamadı |
+| `409` | Çakışma (örn. idempotency-key zaten kullanılmış) |
+| `422` | İş kuralı ihlali (örn. iade tutarı orijinali aşıyor) |
+| `429` | Rate limit aşıldı |
+| `5xx` | Sunucu hatası — yeniden deneyebilirsiniz |
+
+<Note>
+**Önemli:** Bir HTTP `200` her zaman ödeme **başarılı** demek değildir. Banka tarafında reddedilen bir ödeme de HTTP `200` ile dönebilir; bu durumda yanıttaki `data.status` alanına bakın. Asıl başarı kararını `data.status` ve `isSuccess` belirler.
+</Note>
+
+## Tarih ve zaman
+
+Tüm tarih alanları **ISO-8601** formatında ve **UTC** zaman diliminde döner:
+
+```
+2026-05-03T12:34:56.789Z
+```
+
+İstek gönderirken de UTC kullanmanız önerilir. Yerel zaman göndermek istiyorsanız offset belirtin: `2026-05-03T15:34:56+03:00`.
+
+## Tutarlar
+
+Tüm tutarlar **kuruş** cinsinden, tam sayı (`integer`) olarak gönderilir ve dönülür.
+
+| Görünen tutar | API değeri |
+|---|---|
+| 1,00 ₺ | `100` |
+| 150,00 ₺ | `15000` |
+| 1.999,99 ₺ | `199999` |
+
+Detay: [Tutarlar ve Para Birimleri](/documentation/concepts/amounts).

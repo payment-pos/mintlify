@@ -1,0 +1,75 @@
+---
+title: "İşlem Geçmişi"
+description: "Bir ödeme üzerinde gerçekleşen tüm aksiyonların kronolojik kaydı."
+---
+
+Bir ödemenin yaşam döngüsünde gerçekleşen tüm aksiyonları (oluşturma, 3DS, capture, iade, void, fraud kontrolleri, retry'lar, webhook teslimleri) zaman damgalı liste olarak çekin.
+
+## Endpoint
+
+```
+GET /api/v1/payments/{paymentId}/history
+```
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "items": [
+      {
+        "timestamp": "2026-05-03T12:34:56Z",
+        "type": "PaymentCreated",
+        "actor": "API",
+        "details": { "externalId": "ORDER-1001", "amount": 15000 }
+      },
+      {
+        "timestamp": "2026-05-03T12:34:57Z",
+        "type": "RoutingDecision",
+        "details": { "ruleName": "Bonus → Garanti", "configurationId": "cfg_garanti_001" }
+      },
+      {
+        "timestamp": "2026-05-03T12:34:58Z",
+        "type": "ConnectorRequest",
+        "details": { "connectorCode": "GarantiVPOS", "duration": 821, "responseCode": "00" }
+      },
+      {
+        "timestamp": "2026-05-03T12:34:58Z",
+        "type": "PaymentSucceeded",
+        "details": { "authCode": "123456" }
+      },
+      {
+        "timestamp": "2026-05-03T12:34:59Z",
+        "type": "WebhookDelivered",
+        "details": { "url": "https://api.example.com/webhooks/payven", "statusCode": 200 }
+      }
+    ]
+  }
+}
+```
+
+## Kayıt tipleri
+
+| Tip | Anlam |
+|---|---|
+| `PaymentCreated` | Ödeme oluşturuldu |
+| `ThreeDSInitialized` | 3DS init |
+| `ThreeDSAuthenticated` / `ThreeDSFailed` | 3DS sonucu |
+| `RoutingDecision` | Hangi kurala göre hangi konnektör seçildi |
+| `ConnectorRequest` | Bankaya istek atıldı |
+| `ConnectorRetry` | Smart Retry uygulandı |
+| `FraudEvaluation` | Fraud motoru kararı |
+| `PaymentSucceeded` / `PaymentFailed` | Final sonuç |
+| `RefundIssued` / `RefundSucceeded` / `RefundFailed` | İade akışı |
+| `Voided` | İptal |
+| `WebhookDelivered` / `WebhookFailed` | Webhook teslim sonucu |
+| `Settled` | Mutabakat sonrası kapanış |
+
+## Tipik kullanım
+
+- **Müşteri destek:** Müşteri "ödeme gerçekleşti ama göremiyorum" derken neyin ne zaman olduğunu net görmek.
+- **Debug:** Smart Retry ne zaman devreye girdi, hangi banka hata verdi.
+- **Audit:** Bir ödemenin tüm aksiyonlarının tarihçesi.
+
+Tüm bu bilgiler konsoldaki **İşlem Detayı → Timeline** sekmesinde görsel olarak da gösterilir.

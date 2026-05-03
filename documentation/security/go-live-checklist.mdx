@@ -1,0 +1,103 @@
+---
+title: "Production Geçiş Kontrol Listesi"
+description: "Sandbox'tan production'a geçmeden önce tamamlanması gereken adımlar."
+---
+
+Bu sayfa, **canlıya geçmeden önce** entegrasyonunuzda kontrol etmeniz gereken her şeyi tek bir yerde toplar. Tüm maddeleri ✅ olarak işaretledikten sonra production geçişi için [destek ekibine](/resources/support) bildirin.
+
+## 1. Hesap ve yapılandırma
+
+<Checkbox> Production konsoluna giriş yapabilen en az **iki yetkili kullanıcı** vardır. </Checkbox>
+<Checkbox> Kuruluşunuzun **plan ve kotaları** beklenen işlem hacmini karşılıyor. </Checkbox>
+<Checkbox> Production merchant tanımları (vergi bilgileri, iletişim, banka profilleri) eksiksiz girilmiştir. </Checkbox>
+<Checkbox> Banka konfigürasyonları (credential, endpoint, store key) production değerleriyle güncellenmiştir. </Checkbox>
+<Checkbox> Akıllı yönlendirme kurallarınız production'da test edilmiştir. </Checkbox>
+
+## 2. API anahtarı güvenliği
+
+<Checkbox> Production API anahtarı **secret manager'da** saklanır, kaynak kodda **yoktur**. </Checkbox>
+<Checkbox> **IP whitelist** tanımlanmıştır — yalnızca production sunucularınızdan istek atılabilir. </Checkbox>
+<Checkbox> Geliştiriciler production anahtarına **doğrudan erişemez** — sadece servis hesabı kullanılır. </Checkbox>
+<Checkbox> Sandbox ve production anahtarları **ayrı secret store'larda** saklanır. </Checkbox>
+<Checkbox> Anahtar rotasyon prosedürü dokümante edilmiş, sorumlular belirlenmiştir. </Checkbox>
+
+## 3. Loglama ve gözlem
+
+<Checkbox> İstek/yanıt loglarında **kart numarası, CVV, API secret görünmüyor**. </Checkbox>
+<Checkbox> Tüm Payven çağrıları için **correlation ID** ile izleme yapılabiliyor. </Checkbox>
+<Checkbox> Hata oranı ve latency için **alarm** kurulmuştur (örn. 5xx oranı %1'i geçerse uyarı). </Checkbox>
+<Checkbox> Log saklama süresi yasal gereksinimlerinizi karşılıyor (genelde minimum 1 yıl). </Checkbox>
+
+## 4. Hata yönetimi
+
+<Checkbox> İstemci tarafı kodu **HTTP 4xx ve 5xx**'i farklı yönetiyor. </Checkbox>
+<Checkbox> `5xx` ve timeout durumlarında **idempotency-key ile retry** uygulanıyor. </Checkbox>
+<Checkbox> `429 Rate Limit` durumunda `Retry-After` başlığına uyuluyor. </Checkbox>
+<Checkbox> Bilinmeyen hata kodları **default fallback** ile yönetiliyor (uygulama crash etmiyor). </Checkbox>
+<Checkbox> Müşteriye gösterilen hata mesajları **anlaşılır** ve teknik detay sızdırmıyor. </Checkbox>
+
+## 5. Webhook
+
+<Checkbox> Webhook endpoint'iniz **HTTPS** üzerinde çalışıyor. </Checkbox>
+<Checkbox> İmza doğrulaması (`X-Payven-Signature`) uygulanıyor. </Checkbox>
+<Checkbox> Endpoint **5 saniyenin altında** yanıt veriyor (ağır iş kuyruğa atılıyor). </Checkbox>
+<Checkbox> Aynı `eventId` ile gelen olaylar **idempotent** işleniyor. </Checkbox>
+<Checkbox> Webhook teslim hataları izleniyor; production konsoldaki **Webhook Teslim Kayıtları** düzenli kontrol ediliyor. </Checkbox>
+<Checkbox> Payven webhook IP havuzları kendi güvenlik duvarınızda whitelist'lenmiştir. </Checkbox>
+
+## 6. Ödeme akışları
+
+<Checkbox> **Non-3D ödeme** akışı production benzeri kart ile sandbox'ta test edilmiştir. </Checkbox>
+<Checkbox> **3D Secure** akışında callback ve hata senaryoları test edilmiştir. </Checkbox>
+<Checkbox> **İade** ve **iptal** akışları test edilmiştir. </Checkbox>
+<Checkbox> **Taksit** seçenekleri için BIN bazlı doğrulama yapılmaktadır. </Checkbox>
+<Checkbox> **Hosted Checkout** kullanıyorsanız, `returnUrl` ve `callbackUrl` HTTPS'tir. </Checkbox>
+<Checkbox> Ödeme **timeout** durumunda kullanıcıya doğru mesaj gösteriliyor. </Checkbox>
+
+## 7. Mutabakat ve raporlama
+
+<Checkbox> **Mutabakat** akışı sandbox'ta test edilmiş, sonuçlar muhasebe sürecine entegre edilmiştir. </Checkbox>
+<Checkbox> Gün sonu / dönem sonu raporları otomatik üretiliyor. </Checkbox>
+<Checkbox> Eksik/hatalı kayıt durumlarında **uyarı mekanizması** vardır. </Checkbox>
+
+## 8. PCI-DSS ve uyumluluk
+
+<Checkbox> Kart bilgileri sunucularınızda **saklanmıyor**. </Checkbox>
+<Checkbox> Hangi PCI-DSS SAQ formuna tabi olduğunuzu biliyorsunuz. </Checkbox>
+<Checkbox> Loglarda kart numarası veya CVV görünmediği **otomatik test ile** doğrulanmıştır. </Checkbox>
+<Checkbox> KVKK / GDPR yükümlülükleriniz değerlendirilmiştir. </Checkbox>
+
+## 9. Operasyonel hazırlık
+
+<Checkbox> **24/7 izleme** ve **on-call** süreciniz tanımlıdır. </Checkbox>
+<Checkbox> Sorun durumunda Payven destek ekibine ulaşılacak iletişim kanalları biliniyor. </Checkbox>
+<Checkbox> **Rollback planı** yazılıdır — production'da sorun çıkarsa nasıl geri dönüleceği bellidir. </Checkbox>
+<Checkbox> İlk gün için **gradual rollout** stratejisi vardır (örn. trafiğin %10'u, sonra %50, sonra %100). </Checkbox>
+
+## 10. Müşteri deneyimi
+
+<Checkbox> Ödeme formu mobilde test edilmiştir. </Checkbox>
+<Checkbox> Kart numarası alanında **inline format** (4'lü gruplama, BIN bazlı kart birliği logosu) vardır. </Checkbox>
+<Checkbox> 3D Secure yönlendirmesi sonrası **dönüş URL'si** doğru çalışıyor. </Checkbox>
+<Checkbox> Hata durumunda kullanıcı **bir sonraki adıma yönlendiriliyor** (sepete dönüş, başka kart deneme). </Checkbox>
+
+---
+
+## Production'a geçiş
+
+Tüm maddeler tamamlandıysa:
+
+<Steps>
+  <Step title="Destek ekibine yazın">
+    "Production'a geçişe hazırız" konusu ile [destek talebi](/resources/support) açın. Test sonuçlarınızı, üye işyeri listesini ve beklenen ilk gün hacmi paylaşın.
+  </Step>
+  <Step title="Production anahtarı oluşturun">
+    Onay alındığında konsoldan production anahtarı üretin ve secret manager'a yazın.
+  </Step>
+  <Step title="Gradual rollout">
+    İlk birkaç saat trafiğin küçük bir bölümünü production'a yönlendirin, metrik ve hata oranlarını izleyin.
+  </Step>
+  <Step title="Tam geçiş">
+    Sorun yoksa trafiği %100 production'a taşıyın. İlk 48 saat yakın izleme önerilir.
+  </Step>
+</Steps>

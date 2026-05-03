@@ -1,0 +1,112 @@
+---
+title: "Kimlik Doğrulama"
+description: "API Key + Secret ile sunucu-sunucu kimlik doğrulama."
+---
+
+Payven, **iki ayrı kimlik doğrulama modeli** kullanır:
+
+| Model | Kullanım | Header'lar |
+|---|---|---|
+| **API Key + Secret** | Sunucu-sunucu ürün API çağrıları (Sanal POS, Para Transferi, Fraud, Fatura Ödeme) | `X-API-Key`, `X-API-Secret`, `X-Merchant-Id` veya `X-External-Merchant-Id` |
+| **Bearer Token (OAuth 2.0)** | Identity servisi ve konsol işlemleri | `Authorization: Bearer <jwt>` |
+
+Bu sayfa **API Key** modelini açıklar. Bearer token akışı için [Identity → Login](/identity/auth/login) sayfasına bakın.
+
+## Header'lar
+
+Her ürün API isteğinde aşağıdaki header'lar zorunludur:
+
+```http
+X-API-Key:           pvk-prod-XXXXXXXX
+X-API-Secret:        <gizli imza anahtarı>
+X-Merchant-Id:       3fa85f64-5717-4562-b3fc-2c963f66afa6
+Content-Type:        application/json
+```
+
+Alternatif olarak `X-Merchant-Id` yerine `X-External-Merchant-Id` kullanılabilir:
+
+```http
+X-External-Merchant-Id: M-IST-001
+```
+
+İki merchant header'ından **biri** zorunludur. İkisi birden gönderilirse `X-Merchant-Id` öncelikli olur.
+
+## API anahtarı oluşturma
+
+Anahtar oluşturma yalnızca konsol üzerinden mümkündür:
+
+<Steps>
+  <Step title="Konsola giriş yapın">
+    [dashboard.payven.com.tr](https://dashboard.payven.com.tr) adresinden hesabınıza giriş yapın.
+  </Step>
+  <Step title="API Anahtarları sayfasına gidin">
+    **Ayarlar → API Anahtarları** menüsünü açın.
+  </Step>
+  <Step title="Yeni anahtar oluşturun">
+    **Yeni Anahtar Oluştur** butonuna basın, ortamı seçin (sandbox/production) ve isim girin.
+  </Step>
+  <Step title="Secret değerini kopyalayın">
+    Üretilen `apiSecret` **yalnızca bir kez** gösterilir. Güvenli bir secret yönetim aracına (HashiCorp Vault, AWS Secrets Manager, Azure Key Vault) kaydedin.
+  </Step>
+</Steps>
+
+<Warning>
+**Secret kaybedilirse:** Yeni bir anahtar üretip eskiyi pasife alın. Eski anahtar üzerinden devam eden işlemler etkilenmez.
+</Warning>
+
+## Anahtarın yetkileri
+
+Bir API anahtarı, oluşturulduğu kuruluşa bağlı **tüm merchant'lar adına** işlem yapabilir. Her istekte `X-Merchant-Id` ile hangi merchant adına işlem yapıldığı belirtilir.
+
+| Plan özelliği | Anahtarın etkilediği |
+|---|---|
+| Aktif ürünler | Anahtar yalnızca planda etkin ürünleri çağırabilir |
+| Saniyedeki istek limiti | Tüm anahtarlar arasında paylaşılan kuruluş kotası |
+| IP whitelist | Anahtar bazında ayarlanabilir |
+
+## IP whitelist
+
+Bir anahtarı yalnızca belirli IP adreslerinden çağrılacak şekilde kısıtlayabilirsiniz. Whitelist boş bırakılırsa tüm IP'lerden erişim açıktır.
+
+Detay: [IP Whitelist](/documentation/concepts/ip-whitelist).
+
+## Anahtar rotasyonu
+
+Düzenli rotasyon güvenlik açısından önemlidir. Önerilen yaklaşım:
+
+<Steps>
+  <Step title="Yeni anahtar oluşturun">
+    Mevcut anahtarı silmeden önce yeni bir anahtar üretin.
+  </Step>
+  <Step title="Servisinizi yeni anahtarla deploy edin">
+    Eski ve yeni anahtar **eş zamanlı** çalışır.
+  </Step>
+  <Step title="Eski anahtarın kullanımını izleyin">
+    Konsol → API Kayıtları ekranından eski anahtara gelen istek olup olmadığını kontrol edin.
+  </Step>
+  <Step title="Eski anahtarı pasife alın">
+    Trafik tamamen kesildiğinde eski anahtarı silin.
+  </Step>
+</Steps>
+
+## Hatalı kimlik doğrulama yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `401` | `AUTH_MISSING_KEY` | `X-API-Key` header'ı eksik |
+| `401` | `AUTH_INVALID_KEY` | Anahtar bulunamadı veya pasif |
+| `401` | `AUTH_INVALID_SECRET` | Secret eşleşmiyor |
+| `401` | `AUTH_MERCHANT_REQUIRED` | Merchant header'ı eksik |
+| `403` | `AUTH_IP_NOT_ALLOWED` | İstek IP'si whitelist dışında |
+| `403` | `AUTH_PRODUCT_NOT_LICENSED` | Çağrılan ürün planda etkin değil |
+| `429` | `RATE_LIMIT_EXCEEDED` | İstek limitleri aşıldı |
+
+Tam hata kataloğu: [Hata Yönetimi](/documentation/concepts/errors).
+
+## Güvenlik kuralları
+
+<Check>API çağrılarınızı **yalnızca sunucu tarafından** yapın. `apiSecret` değerini istemci kodlarına (tarayıcı, mobil uygulama) **asla** gömmeyin.</Check>
+<Check>Anahtarları kaynak kod deposuna commit etmeyin. `.env` dosyalarını `.gitignore`'a ekleyin.</Check>
+<Check>Production ve sandbox anahtarlarını ayrı tutun.</Check>
+<Check>HTTPS dışında istek atmayın — HTTP istekleri reddedilir.</Check>
+<Check>Anahtarları en az **6 ayda bir** rotasyona alın.</Check>

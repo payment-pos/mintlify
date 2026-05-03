@@ -1,0 +1,45 @@
+---
+title: "Hata Kodları — Genel Bakış"
+description: "Sanal POS'a özgü hata kodları ve çözüm yaklaşımları."
+---
+
+Hata kodları iki kategoriye ayrılır:
+
+| Kategori | Kaynak | Örnek |
+|---|---|---|
+| **Payven kodları** | Payven validasyon, iş kuralı, akış kontrolü | `VALIDATION_INVALID_CARD`, `IDEMPOTENCY_PAYLOAD_MISMATCH` |
+| **Banka kodları** | İşlemi gerçekleştiren banka | `00` (başarı), `51` (yetersiz bakiye), `54` (kart süresi dolmuş) |
+
+Yanıttaki `code` ve `connector.responseCode` alanları hangi kategoriden geldiğini gösterir.
+
+## Detay sayfaları
+
+<CardGroup cols={2}>
+  <Card title="Payven Hata Kodları" icon="bug" href="/sanal-pos/errors/payven-codes">
+    Validasyon, idempotency, fraud, routing kodları.
+  </Card>
+  <Card title="Banka Yanıt Kodları" icon="building-columns" href="/sanal-pos/errors/bank-codes">
+    Bankaların döndürdüğü ISO 8583 standardı kodlar.
+  </Card>
+</CardGroup>
+
+## Tam liste
+
+Sürekli güncellenen tam liste **konsoldaki Hata Kodları** ekranındadır:
+
+[dashboard.payven.com.tr/connector-error-codes](https://dashboard.payven.com.tr/connector-error-codes)
+
+Bu ekran, her bankanın özel kod açıklamalarını ve önerilen kullanıcı mesajlarını da içerir.
+
+## Hata yönetimi prensibi
+
+| Durum | Yapılacak |
+|---|---|
+| `VALIDATION_*` | İsteği düzeltip yeniden gönderin |
+| `AUTH_*` | API anahtarınızı kontrol edin, IP whitelist'i kontrol edin |
+| `RATE_LIMIT_EXCEEDED` | Backoff ile yeniden deneyin |
+| `BANK_DECLINED` | Müşteriye banka mesajını ileterek başka kart denemesini önerin |
+| `BANK_TIMEOUT` | Smart Retry zaten devreye girer; istemci tarafında ek bir şey yapmayın |
+| `5xx` | İdempotency-Key ile yeniden deneyin |
+
+Detay: [Hata Yönetimi (Documentation)](/documentation/concepts/errors).

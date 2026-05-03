@@ -1,0 +1,116 @@
+---
+title: "BIN Sorgulama"
+description: "Kart numarasının ilk 6-8 hanesinden banka, kart birliği ve tipi öğrenin."
+---
+
+**BIN** (Bank Identification Number), kart numarasının ilk 6-8 hanesidir. Bu sayılar bankayı, kart birliğini (Visa, Mastercard, Troy) ve kart tipini (kredi/banka) tanımlar.
+
+Identity servisi tüm Türk bankalarının BIN aralıklarını içerir. Checkout sırasında müşteriye dinamik olarak banka logosu, taksit seçenekleri ve kart kampanyaları göstermek için kullanılır.
+
+## Endpoint
+
+```
+GET /api/v1/lookups/bankbins
+```
+
+## İstek
+
+```bash
+curl "https://identity.payven.com.tr/api/v1/lookups/bankbins?bin=454671" \
+  -H "Authorization: Bearer ..."
+```
+
+| Query parametresi | Tip | Açıklama |
+|---|---|---|
+| `bin` | `string` | 6-8 haneli BIN |
+| `bankId` | `uuid` | Belirli bir bankanın BIN'lerini listele |
+| `pageNumber` / `pageSize` | `int` | Sayfalama |
+
+## Yanıt
+
+```json
+{
+  "isSuccess": true,
+  "data": {
+    "items": [
+      {
+        "id": "...",
+        "binStart": "454671",
+        "binEnd": "454671",
+        "bankId": "8e3f5c12-...",
+        "bankCode": "GARANTI",
+        "bankName": "Garanti BBVA",
+        "cardScheme": "Visa",
+        "cardType": "Credit",
+        "cardProgram": "Bonus",
+        "country": "TR",
+        "isCommercial": false,
+        "logoUrl": "https://cdn.payven.com.tr/cards/visa.svg"
+      }
+    ]
+  }
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `binStart`, `binEnd` | Aralık başlangıç/bitiş BIN'i |
+| `cardScheme` | `Visa`, `Mastercard`, `Troy`, `Amex` |
+| `cardType` | `Credit`, `Debit`, `Prepaid` |
+| `cardProgram` | Banka programı: `Bonus`, `Maximum`, `Axess`, `World`, `Paraf`, `CardFinans`, `Wings`, vb. |
+| `isCommercial` | Kurumsal kart mı? |
+
+## Internal endpoint (composer-to-composer)
+
+Backend servisleriniz arasında düşük gecikmeli BIN çözümleme için `internal` namespace'ini kullanabilirsiniz:
+
+```
+GET /api/v1/internal/lookups/bankbins/resolve?bin=454671
+```
+
+Bu endpoint kuruluş kapsamında yetkilendirme **yapmaz** — yalnızca güvenli ağ içinden çağrılmalıdır.
+
+## Sık kullanılan bir desen: Çığır açan checkout
+
+Müşteri kart numarası alanına yazarken, ilk 6 hane tamamlandığında tetikleyin:
+
+<CodeGroup>
+```javascript Node.js (frontend yardımcı endpoint)
+// Backend tarafı endpoint:
+app.get("/api/bin/:bin", authenticate, async (req, res) => {
+  const { bin } = req.params;
+  const lookup = await fetch(
+    `${IDENTITY_BASE}/lookups/bankbins?bin=${bin}`,
+    { headers: { Authorization: `Bearer ${getServiceToken()}` } }
+  );
+  const { data } = await lookup.json();
+  res.json(data.items[0] ?? null);
+});
+```
+</CodeGroup>
+
+```javascript
+// Frontend
+async function onCardNumberChange(value) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length < 6) return;
+  const bin = digits.slice(0, 6);
+
+  const response = await fetch(`/api/bin/${bin}`);
+  const card = await response.json();
+  if (card) {
+    showBankLogo(card.bankCode);
+    loadInstallmentOptions(bin, currentAmount);
+  }
+}
+```
+
+## Toplu import (admin)
+
+Kuruluş yöneticisi yeni BIN aralıkları toplu olarak yükleyebilir:
+
+```
+POST /api/v1/lookups/bankbins/import
+```
+
+Multipart form-data ile Excel veya CSV dosyası gönderilir. Format: `binStart, binEnd, bankCode, cardScheme, cardType, cardProgram`. Hatalı satırlar yanıtta detaylı dönülür.

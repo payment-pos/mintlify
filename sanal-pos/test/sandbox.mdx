@@ -1,0 +1,63 @@
+---
+title: "Sandbox Ortamı"
+description: "Production'a benzer şekilde davranan, gerçek bankaya istek atmayan test ortamı."
+---
+
+Sandbox ortamı, production ile **birebir aynı API**'yi sunar — fakat istekler gerçek bankaya gitmez, banka yanıtları **simüle** edilir.
+
+## URL
+
+```
+https://vpos-sandbox.payven.com.tr
+```
+
+## Sandbox anahtarı oluşturma
+
+Konsola sandbox modunda giriş yaparak (sağ üstte ortam değiştirme switch'i) anahtar oluşturun. Sandbox anahtarları `pvk-test-...` prefix'i ile başlar.
+
+## Production'dan farklılıklar
+
+| Özellik | Production | Sandbox |
+|---|---|---|
+| Gerçek banka isteği | ✅ | ❌ — simüle edilir |
+| Gerçek 3DS sayfası | ✅ | ❌ — Payven'in test sayfası |
+| Para hareketi | ✅ | ❌ |
+| Webhook teslimi | ✅ | ✅ (gerçek HTTP isteği) |
+| Mutabakat | ✅ — gerçek banka raporu | ✅ — simüle edilmiş rapor |
+| Rate limit | Plan'a göre | 50 RPS |
+
+## Banka yanıtlarını kontrol etme
+
+Sandbox'ta hangi yanıtın döneceğini **kart numarası** üzerinden kontrol edebilirsiniz. Her test kartı belirli bir banka yanıtı simüle eder:
+
+| Senaryo | Test kart numarası |
+|---|---|
+| Başarılı Non-3D | `4546711234567894` |
+| Başarılı 3DS | `5400637000000005` |
+| Yetersiz bakiye | `4111111111111111` |
+| 3DS başarısız | `4900200000000007` |
+| Banka timeout | `4242424242424242` |
+
+Tam liste: [Test Kartları](/sanal-pos/test/test-cards).
+
+## Sandbox geçişi
+
+Sandbox'tan production'a geçerken:
+
+<Steps>
+  <Step title="Production anahtarı oluşturun">
+    Konsoldan production ortamı seçip yeni anahtar üretin.
+  </Step>
+  <Step title="Base URL'i değiştirin">
+    `vpos-sandbox.payven.com.tr` → `vpos.payven.com.tr`.
+  </Step>
+  <Step title="Webhook endpoint'inizi production URL ile kaydedin">
+    Production webhook abonelikleri farklı `secret` ile gelir — secret manager'ınızı güncelleyin.
+  </Step>
+  <Step title="Production test kartlarını gerçek kartlara çevirin">
+    Test kart numaralarını koddan kaldırın, gerçek kartla bir test ödemesi yapın.
+  </Step>
+  <Step title="Go-Live Checklist'i tamamlayın">
+    [Production geçişi kontrol listesi](/documentation/security/go-live-checklist).
+  </Step>
+</Steps>
