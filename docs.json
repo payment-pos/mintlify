@@ -57,7 +57,7 @@
           {
             "group": "Başlarken",
             "pages": [
-              "documentation/index",
+              "index",
               "documentation/quickstart",
               "documentation/architecture",
               "documentation/account-model"
