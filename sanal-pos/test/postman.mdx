@@ -27,16 +27,24 @@ Sanal POS API'sini hızlı denemek için iki koleksiyon sunuyoruz:
     Sağ üstteki dropdown'dan `Payven Sandbox` veya `Payven Production` environment'ını seçin.
   </Step>
   <Step title="Değişkenleri doldurun">
-    Environment değişkenlerine API anahtar bilgilerinizi yazın:
-    - `apiKey`: `pvk-test-...`
-    - `apiSecret`: secret değeriniz
-    - `merchantId`: merchant ID'niz
-    - `baseUrl`: sandbox veya production URL
+    Environment değişkenlerine kimlik bilgilerinizi yazın:
+    - `client_id`: `pvk_test_...` veya `pvk_live_...`
+    - `client_secret`: secret değeriniz
+    - `slug`: tenant slug'ınız (örn. `payven`)
+    - `identity_base_url`: `https://identity-sandbox.payven.com.tr` veya `https://identity.payven.com.tr`
+    - `vpos_base_url`: `https://vpos-sandbox.payven.com.tr` veya `https://vpos.payven.com.tr`
+  </Step>
+  <Step title="Token alın (otomatik)">
+    Koleksiyonun **Pre-request Script**'i ilk istekten önce Identity'den JWT alır ve `{{access_token}}` değişkenine yazar; expiry geldiğinde otomatik refresh.
   </Step>
   <Step title="Bir isteği gönderin">
     "Quickstart" klasöründeki **Non-3D Payment** isteğini açın ve **Send** edin.
   </Step>
 </Steps>
+
+<Note>
+**Beta erişim:** Postman koleksiyonu yayın hazırlığı sürüyor. Erken erişim için [destek ekibimize](/resources/support) yazın.
+</Note>
 
 ## Koleksiyon içeriği
 
@@ -67,11 +75,32 @@ code payven-sanalpos.http
 Postman içinde "Pre-request Script" ve "Tests" bölümleri kullanılarak istekler arası değer paylaşımı yapılır:
 
 ```javascript
-// Tests bölümünden — paymentId'yi sonraki isteğe taşımak
+// Tests bölümünden — transaction_id'yi sonraki isteğe taşımak
 const response = pm.response.json();
-if (response.data?.id) {
-  pm.environment.set("lastPaymentId", response.data.id);
+if (response.transaction_id) {
+  pm.environment.set("last_transaction_id", response.transaction_id);
 }
 ```
 
-Sonraki istekte `{{lastPaymentId}}` ile kullanın.
+Sonraki istekte `{{last_transaction_id}}` ile kullanın.
+
+```javascript
+// Pre-request script — token cache + auto-refresh
+const expiry = parseInt(pm.environment.get("token_expires_at") || "0", 10);
+if (Date.now() >= expiry - 60_000) {
+  pm.sendRequest({
+    url: pm.environment.get("identity_base_url")
+       + "/api/v1/auth/" + pm.environment.get("slug") + "/token",
+    method: "POST",
+    header: { "Content-Type": "application/json" },
+    body: { mode: "raw", raw: JSON.stringify({
+      client_id:     pm.environment.get("client_id"),
+      client_secret: pm.environment.get("client_secret"),
+    })},
+  }, (err, res) => {
+    const data = res.json();
+    pm.environment.set("access_token", data.access_token);
+    pm.environment.set("token_expires_at", String(Date.now() + data.expires_in * 1000));
+  });
+}
+```

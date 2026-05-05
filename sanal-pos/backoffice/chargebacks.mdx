@@ -1,82 +1,139 @@
 ---
 title: "Chargeback (Ters İbraz) Yönetimi"
-description: "Müşteri bankası tarafından açılan ters ibraz dosyalarını izleyin."
+description: "Müşteri bankası tarafından açılan ters ibraz dosyalarını izleyin ve yönetin."
 ---
 
 Chargeback, kart sahibinin bankasına başvurarak işlemi reddetmesi durumunda **bankanın size karşı açtığı geri alma talebidir**. Cevap vermez veya kaybederseniz tutar hesabınızdan çekilir.
 
+<Note>
+Şu anda Payven chargeback **kayıt + status takibi** destekler — ham yanıt evrakının
+bankaya iletimi konnektör + banka iş süreçleri üzerinden gerçekleştirilir.
+Programatik "respond + evidence upload" akışı yol haritasındadır.
+</Note>
+
 ## Endpoint'ler
 
+```http
+GET    /api/v1/chargebacks                  # Liste (sayfalı)
+GET    /api/v1/chargebacks/{id}             # Tek chargeback detayı
+POST   /api/v1/chargebacks                  # Manuel chargeback kaydı (banka tarafından bildirilen)
+PUT    /api/v1/chargebacks/{id}/status      # Durum güncelle
 ```
-GET /api/v1/chargebacks
-GET /api/v1/chargebacks/{id}
-POST /api/v1/chargebacks/{id}/respond
-```
+
+JWT Bearer auth gerektirir.
 
 ## Liste
 
 ```bash
-curl https://vpos.payven.com.tr/api/v1/chargebacks?status=NeedsResponse \
-  -H "Authorization: Bearer $TOKEN"
+curl "https://vpos.payven.com.tr/api/v1/chargebacks?status=open&page=1&page_size=20" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
 ```json
 {
-  "data": {
-    "items": [
-      {
-        "id": "cb_8e3f5c12",
-        "paymentId": "8e3f5c12-...",
-        "amount": 15000,
-        "currency": "TRY",
-        "reasonCode": "4837",
-        "reasonDescription": "İşlem yetkisiz",
-        "openedAt": "2026-05-15T10:00:00Z",
-        "responseDeadline": "2026-05-22T23:59:59Z",
-        "status": "NeedsResponse"
-      }
-    ]
-  }
+  "items": [
+    {
+      "id":                  "9f3d2b8e-...",
+      "transaction_id":      "8e3f5c12-...",
+      "merchant_id":         "3fa85f64-...",
+      "amount":              15000,
+      "currency":            "TRY",
+      "reason_code":         "4837",
+      "reason_description":  "İşlem yetkisiz",
+      "opened_at":           "2026-05-15T10:00:00.000+00:00",
+      "response_deadline":   "2026-05-22T23:59:59.000+00:00",
+      "status":              "open",
+      "bank_reference":      "CB-GAR-789",
+      "remarks":             null,
+      "created":             "2026-05-15T10:30:00.000+00:00"
+    }
+  ],
+  "page":              1,
+  "total_pages":       1,
+  "total_count":       3,
+  "has_previous_page": false,
+  "has_next_page":     false
 }
 ```
 
-## Statüler
+## `status` değerleri
 
 | Status | Anlam |
 |---|---|
-| `NeedsResponse` | Bankaya yanıt vermeniz gerekiyor |
-| `Responded` | Yanıt gönderildi, banka kararı bekleniyor |
-| `Won` | Lehinize karara bağlandı |
-| `Lost` | Aleyhinize karara bağlandı, tutar düşüldü |
-| `Withdrawn` | Müşteri çekildi |
+| `open` | Bankaya yanıt verilmesi bekleniyor |
+| `responded` | Yanıt gönderildi, banka kararı bekleniyor |
+| `won` | Lehinize karara bağlandı, tutar kalır |
+| `lost` | Aleyhinize karara bağlandı, tutar düşüldü |
+| `withdrawn` | Müşteri talebini geri çekti |
 
-## Yanıt verme
+## Manuel chargeback kaydı
+
+Banka chargeback bildirimini Payven dışından (e-posta, banka portalı) aldıysanız sisteme manuel kaydedebilirsiniz:
 
 ```bash
-POST /api/v1/chargebacks/{id}/respond
-{
-  "narrative": "Müşteri ürünü teslim aldı. Kargo takip no: ...",
-  "evidenceUrls": [
-    "https://files.example.com/teslimat.pdf",
-    "https://files.example.com/yazismalar.pdf"
-  ]
-}
+curl -X POST https://vpos.payven.com.tr/api/v1/chargebacks \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: cb-bank-ref-789" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transaction_id":     "8e3f5c12-...",
+    "amount":             15000,
+    "currency":           "TRY",
+    "reason_code":        "4837",
+    "reason_description": "İşlem yetkisiz",
+    "opened_at":          "2026-05-15T10:00:00+00:00",
+    "response_deadline":  "2026-05-22T23:59:59+00:00",
+    "bank_reference":     "CB-GAR-789"
+  }'
 ```
 
-| Alan | Açıklama |
+## Status güncelleme
+
+Bankaya yanıt gönderdikten veya banka kararını öğrendikten sonra:
+
+```bash
+curl -X PUT https://vpos.payven.com.tr/api/v1/chargebacks/9f3d2b8e.../status \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status":   "responded",
+    "remarks":  "Müşteri ile yazışmalar + kargo teslim fişi banka portalına yüklendi (REF: ABC-123)"
+  }'
+```
+
+`remarks` alanı operatör notları için kalıcı saklanır — audit/dispute süreci için kritik.
+
+## Reason kodları (Visa/Mastercard)
+
+Sık karşılaşılan kodlar:
+
+| Kod | Açıklama (Visa/MC) |
 |---|---|
-| `narrative` | Müşterinin iddiasına karşı açıklamanız |
-| `evidenceUrls` | Kanıt belgeleri (teslimat fişi, yazışmalar, IP logları) |
+| `4837` | İşlem yetkisiz (No Cardholder Authorization) |
+| `4855` | Mal/hizmet teslim edilmedi |
+| `4853` | Mal/hizmet kalitesinde sorun |
+| `4863` | Cardholder Does Not Recognize |
+| `4870` | Sahtecilik şüphesi (chip/non-chip) |
+| `4880` | Yetkisiz tekrar tahsilat |
+
+Tam liste için banka anlaşma dokümanlarınıza veya kart şeması sözlüğüne (Visa Reason Codes / MC Chargeback Reason Codes) bakın.
 
 ## Süre kısıtı
 
-Chargeback'lere **7 gün** içinde yanıt vermelisiniz. Süreyi geçirirseniz banka otomatik olarak müşteri lehine karar verir ve tutar düşülür.
+Chargeback'lere genellikle **7 gün** içinde yanıt verilmesi beklenir (banka anlaşmanıza göre değişir). Süreyi geçirirseniz banka çoğu durumda otomatik müşteri lehine karar verir.
 
-## Önleme
+## Önleme prensipleri
 
-Chargeback'leri en aza indirmek için:
+<Check>**3D Secure kullanın** — başarılı 3DS sonrası chargeback sorumluluğu bankaya geçer (özellikle 4837 kategorisi için kritik).</Check>
+<Check>**Müşteri iletişim kayıtlarını saklayın** — yazışmalar, sipariş onayı, teslim kanıtı.</Check>
+<Check>**Net merchant adı** — kart ekstresinde müşterinin tanıyacağı isim kullanın (`Acme Magaza` yerine `XYZ Bilgi Tek` müşteriyi şüpheye düşürür).</Check>
+<Check>**Hızlı iade politikası** — müşteri sizden iade alabilse chargeback açmaz; en pratik chargeback önleme yolu.</Check>
+<Check>**Fraud kuralları** — yüksek riskli işlemleri önceden işaretleyin: bkz. [Fraud](/fraud/overview).</Check>
 
-<Check>**3D Secure kullanın** — chargeback sorumluluğu bankaya geçer.</Check>
-<Check>**Müşteri iletişim kayıtlarını saklayın.**</Check>
-<Check>**Net açıklama yapın** — kart ekstresinde müşterinin tanıyacağı bir merchant adı kullanın.</Check>
-<Check>**Hızlı iade politikası uygulayın** — müşteri sizden iade alabilse chargeback açmaz.</Check>
+## Yol haritası
+
+- **Programatik evidence upload** — `POST /chargebacks/{id}/evidence` (PDF/JPG attach)
+- **Webhook event'i** — `chargeback.created`, `chargeback.resolved` (şu an public webhook event listesinde yok)
+- **Visa/MC reason kodu kataloğu** — konsoldan açıklama görüntüleme
+
+Güncellemeler için: [Changelog](/resources/changelog).

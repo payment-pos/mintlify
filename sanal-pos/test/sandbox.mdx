@@ -11,9 +11,15 @@ Sandbox ortamı, production ile **birebir aynı API**'yi sunar — fakat istekle
 https://vpos-sandbox.payven.com.tr
 ```
 
-## Sandbox anahtarı oluşturma
+## Sandbox kimlik bilgileri
 
-Konsola sandbox modunda giriş yaparak (sağ üstte ortam değiştirme switch'i) anahtar oluşturun. Sandbox anahtarları `pvk-test-...` prefix'i ile başlar.
+Konsolu sandbox modunda açıp **Ayarlar → API Anahtarları** ekranından `client_id` + `client_secret` çifti üretin. Sandbox client ID'leri `pvk_test_...` prefix'i ile başlar; production'dan ayrıdır.
+
+Identity'den JWT alma akışı [Kimlik Doğrulama](/documentation/concepts/authentication) sayfasında. Sandbox token endpoint'i:
+
+```
+https://identity-sandbox.payven.com.tr/api/v1/auth/{slug}/token
+```
 
 ## Production'dan farklılıklar
 
@@ -40,24 +46,23 @@ Sandbox'ta hangi yanıtın döneceğini **kart numarası** üzerinden kontrol ed
 
 Tam liste: [Test Kartları](/sanal-pos/test/test-cards).
 
-## Sandbox geçişi
-
-Sandbox'tan production'a geçerken:
+## Sandbox → production geçişi
 
 <Steps>
-  <Step title="Production anahtarı oluşturun">
-    Konsoldan production ortamı seçip yeni anahtar üretin.
+  <Step title="Production credentials">
+    Konsoldan production ortamı seçip yeni `client_id` + `client_secret` üretin (`pvk_live_...`).
   </Step>
-  <Step title="Base URL'i değiştirin">
-    `vpos-sandbox.payven.com.tr` → `vpos.payven.com.tr`.
+  <Step title="Base URL'leri değiştirin">
+    Identity: `identity-sandbox.payven.com.tr` → `identity.payven.com.tr`<br/>
+    Sanal POS: `vpos-sandbox.payven.com.tr` → `vpos.payven.com.tr`
   </Step>
-  <Step title="Webhook endpoint'inizi production URL ile kaydedin">
+  <Step title="Webhook abonelikleri">
     Production webhook abonelikleri farklı `secret` ile gelir — secret manager'ınızı güncelleyin.
   </Step>
-  <Step title="Production test kartlarını gerçek kartlara çevirin">
-    Test kart numaralarını koddan kaldırın, gerçek kartla bir test ödemesi yapın.
+  <Step title="Test kartları kaldırın">
+    Test kart numaralarını koddan kaldırın, ilk production işleminizi gerçek kartla yapın.
   </Step>
-  <Step title="Go-Live Checklist'i tamamlayın">
-    [Production geçişi kontrol listesi](/documentation/security/go-live-checklist).
+  <Step title="Go-Live Checklist">
+    [Production geçişi kontrol listesi](/documentation/security/go-live-checklist) — IP whitelist, sırlar, rate limit, monitoring.
   </Step>
 </Steps>

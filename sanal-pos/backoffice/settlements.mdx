@@ -3,60 +3,106 @@ title: "Settlement Kayıtları"
 description: "Banka tarafından yapılan gün sonu transferi kayıtları."
 ---
 
-Settlement, Payven'in bilgi taşıdığı banka **gün sonu transferi** kayıtlarıdır. Banka, gün boyunca tahsil ettiği tutarı sizin hesabınıza aktarırken ürettiği özet kayıttır.
+Settlement, Payven'in tuttuğu **banka gün sonu transferi** kayıtlarıdır. Banka, gün boyunca tahsil ettiği tutarı sizin hesabınıza aktarırken ürettiği özet kayıttır.
 
-## Endpoint
+## Endpoint'ler
 
+```http
+GET    /api/v1/settlements              # Liste (sayfalı)
+GET    /api/v1/settlements/{id}         # Tek settlement detayı
+POST   /api/v1/settlements              # Manuel settlement oluştur (operasyonel)
+PUT    /api/v1/settlements/{id}/status  # Durum güncelle (Settled/Disputed/Resolved)
 ```
-GET /api/v1/settlements
+
+JWT Bearer auth gerektirir.
+
+## Liste
+
+```bash
+curl "https://vpos.payven.com.tr/api/v1/settlements?page=1&page_size=20&start_date=2026-05-01T00:00:00Z&end_date=2026-05-31T23:59:59Z" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-JWT Bearer auth gerektirir (Backoffice).
-
-## Sorgu parametreleri
-
-| Parametre | Açıklama |
-|---|---|
-| `from` / `to` | Tarih aralığı |
-| `connectorCode` | Belirli bir banka |
-| `currency` | Para birimi |
-| `status` | `Pending`, `Settled`, `Disputed` |
-
-## Yanıt
+Yanıt — sayfalı liste:
 
 ```json
 {
-  "data": {
-    "items": [
-      {
-        "id": "stl_8e3f5c12",
-        "date": "2026-05-03",
-        "connectorCode": "GarantiVPOS",
-        "currency": "TRY",
-        "grossAmount": 187435000,
-        "commission": 6747260,
-        "netAmount": 180687740,
-        "transactionCount": 1247,
-        "status": "Settled",
-        "bankReference": "STL-2026-05-03-789"
-      }
-    ]
-  }
+  "items": [
+    {
+      "id":                          "8e3f5c12-...",
+      "merchant_id":                 "3fa85f64-...",
+      "connector_configuration_id":  "cfg-garanti-001",
+      "connector_code":              "nestpay",
+      "settlement_date":             "2026-05-04",
+      "currency":                    "TRY",
+      "gross_amount":                187435000,
+      "commission_amount":           6747260,
+      "net_amount":                  180687740,
+      "transaction_count":           1247,
+      "status":                      "settled",
+      "bank_reference":              "STL-2026-05-04-789",
+      "created":                     "2026-05-04T08:23:11.000+00:00"
+    }
+  ],
+  "page":              1,
+  "total_pages":       3,
+  "total_count":       62,
+  "has_previous_page": false,
+  "has_next_page":     true
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `grossAmount` | Brüt tahsilat (kuruş) |
-| `commission` | Banka komisyonu |
-| `netAmount` | Sizin hesabınıza aktarılan net tutar |
-| `transactionCount` | Bu settlement'a dahil işlem sayısı |
-| `bankReference` | Bankanın referans numarası |
+| `gross_amount` | Brüt tahsilat (kuruş) |
+| `commission_amount` | Banka komisyonu |
+| `net_amount` | Sizin hesabınıza aktarılan net tutar |
+| `transaction_count` | Bu settlement'a dahil işlem sayısı |
+| `bank_reference` | Bankanın referans numarası |
+| `status` | `pending`, `settled`, `disputed`, `resolved` |
 
-## Detay endpoint'i
+## Status değişikliği
+
+Bir settlement durumunu güncellemek için (örn. tutarsızlık tespiti):
 
 ```bash
-GET /api/v1/settlements/{id}/transactions
+curl -X PUT https://vpos.payven.com.tr/api/v1/settlements/8e3f5c12.../status \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status":   "disputed",
+    "remarks":  "Tutar bankadan eksik geldi — destek talebi açıldı"
+  }'
 ```
 
-Bu settlement'a dahil tüm işlemleri listeler. Mutabakatla birlikte muhasebe için kritik veridir.
+## Manuel settlement oluşturma
+
+Banka API entegrasyonu olmayan konnektörler için manuel settlement giriş:
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/settlements \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: stl-garanti-2026-05-04" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "merchant_id":                "3fa85f64-...",
+    "connector_configuration_id": "cfg-garanti-001",
+    "settlement_date":            "2026-05-04",
+    "currency":                   "TRY",
+    "gross_amount":               187435000,
+    "commission_amount":          6747260,
+    "net_amount":                 180687740,
+    "transaction_count":          1247,
+    "bank_reference":             "STL-2026-05-04-789"
+  }'
+```
+
+## Mutabakat ile ilişki
+
+Bir settlement, mutabakat tamamlandıktan sonra ilgili işlemlerin `settlement_date` alanına yazılır. Detaylı akış: [Mutabakat Yaşam Döngüsü](/sanal-pos/reconciliation/lifecycle).
+
+## Yol haritası
+
+- **`GET /settlements/{id}/transactions`** — bir settlement'a dahil tüm işlemleri sayfalı listele
+- **CSV/XLSX export endpoint** — programatik rapor indirme
+- **Connector-spesifik banka API entegrasyonu** — manuel girişten otomatik fetch'e geçiş
