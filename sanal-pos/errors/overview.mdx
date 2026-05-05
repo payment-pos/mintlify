@@ -7,7 +7,7 @@ Hata kodları iki kategoriye ayrılır:
 
 | Kategori | Kaynak | Örnek |
 |---|---|---|
-| **Payven kodları** | Payven validasyon, iş kuralı, akış kontrolü | `VALIDATION_INVALID_CARD`, `IDEMPOTENCY_PAYLOAD_MISMATCH` |
+| **Payven kodları** | Payven validasyon, iş kuralı, akış kontrolü | `VALIDATION_INVALID_CARD`, `idempotency_key_in_use` |
 | **Banka kodları** | İşlemi gerçekleştiren banka | `00` (başarı), `51` (yetersiz bakiye), `54` (kart süresi dolmuş) |
 
 Yanıttaki `code` ve `connector.responseCode` alanları hangi kategoriden geldiğini gösterir.

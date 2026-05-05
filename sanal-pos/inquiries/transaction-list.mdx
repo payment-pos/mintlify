@@ -27,7 +27,7 @@ GET /api/v1/transactions
 | `searchTerm` | string | İşlem ID, sipariş ID, kart son 4 hane veya müşteri e-postasında arama |
 | `sortBy` | enum | `createdAt`, `amount` |
 | `sortDirection` | enum | `asc`, `desc` |
-| `pageNumber` / `pageSize` | int | Sayfalama (max 100) |
+| `page`        / `pageSize` | int | Sayfalama (max 100) |
 
 ## İstek
 
@@ -54,7 +54,7 @@ curl "https://vpos.payven.com.tr/api/v1/transactions?from=2026-05-01T00:00:00Z&t
         "createdAt": "2026-05-03T12:34:56Z"
       }
     ],
-    "pageNumber": 1,
+    "page": 1,
     "pageSize": 50,
     "totalCount": 1247,
     "totalPages": 25

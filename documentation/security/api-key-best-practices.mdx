@@ -1,22 +1,30 @@
 ---
-title: "API Anahtarı En İyi Uygulamaları"
-description: "Anahtar yönetimi, sızıntı önleme ve operasyonel güvenlik."
+title: "Credentials (Kimlik Bilgileri) En İyi Uygulamaları"
+description: "OAuth client_secret yönetimi, sızıntı önleme ve operasyonel güvenlik."
 ---
 
-API anahtarınız, kuruluşunuz adına işlem yapma yetkisidir. Aşağıdaki kurallara uymak sızıntı riskini ve sızıntı sonrası etkiyi minimuma indirir.
+Payven API'lerine erişim **OAuth 2.0 client credentials** akışı ile sağlanır:
+`client_id` + `client_secret` → access token (JWT). `client_secret`, kuruluşunuz adına işlem yapma yetkisidir.
+Aşağıdaki kurallara uymak sızıntı riskini ve sızıntı sonrası etkiyi minimuma indirir.
+
+<Note>
+Daha önceki API key + secret modeli artık desteklenmemektedir. Auth akışı için bkz.
+[Authentication](/documentation/concepts/authentication).
+</Note>
 
 ## Kuralname
 
-<Check>**Asla kaynak kodda tutmayın** — anahtarları `.env`, secret manager veya environment variable olarak yönetin.</Check>
-<Check>**Asla istemcide tutmayın** — tarayıcı, mobil uygulama veya desktop client'a göndermeyin. Tüm Payven çağrıları sunucu tarafından yapılmalı.</Check>
-<Check>**Asla loglara yazmayın** — log framework'ünüzde request/response loglama açıksa anahtar header'larını maskeleyin.</Check>
-<Check>**Asla destek ekibine paylaşmayın** — Payven destek ekibi sizden anahtarınızı **istemez**.</Check>
-<Check>**Sandbox ve production'ı ayırın** — farklı anahtarlar, farklı secret store'lar.</Check>
-<Check>**IP whitelist tanımlayın** — production anahtarları için zorunlu kabul edin.</Check>
+<Check>**Asla kaynak kodda tutmayın** — `client_secret`'ı `.env`, secret manager veya environment variable olarak yönetin.</Check>
+<Check>**Asla istemcide tutmayın** — tarayıcı, mobil uygulama veya desktop client'a göndermeyin. Token alma sunucu tarafında yapılmalı; istemciye yalnızca kısa ömürlü access token gider.</Check>
+<Check>**Asla loglara yazmayın** — log framework'ünüzde request/response loglama açıksa `Authorization` header'ı ile `client_secret` body alanını maskeleyin.</Check>
+<Check>**Asla destek ekibine paylaşmayın** — Payven destek ekibi sizden `client_secret` istemez.</Check>
+<Check>**Sandbox ve production'ı ayırın** — farklı client'lar, farklı secret store'lar.</Check>
+<Check>**IP whitelist tanımlayın** — production client'ları için zorunlu kabul edin (Identity tarafında enforce edilir).</Check>
 <Check>**Düzenli rotasyon** — minimum 6 ayda bir, sızıntı şüphesinde anında.</Check>
 <Check>**Audit logları izleyin** — konsoldaki API kayıtları ekranından beklenmeyen istek varsa hemen tepki verin.</Check>
+<Check>**Token cache uygulayın** — her istek öncesi yeni token almayın; access token süresi dolmadan (60sn margin) refresh edin.</Check>
 
-## Anahtar saklama önerileri
+## Saklama önerileri
 
 | Ortam | Önerilen secret store |
 |---|---|
@@ -27,49 +35,49 @@ API anahtarınız, kuruluşunuz adına işlem yapma yetkisidir. Aşağıdaki kur
 | On-premise | HashiCorp Vault |
 | Geliştirme | `.env` (commit edilmez) + `direnv` veya `dotenv` |
 
-## Çoklu anahtar stratejisi
+## Çoklu client stratejisi
 
-Tek bir anahtarla çalışmak yerine **işlevlere göre ayrılmış** anahtarlar oluşturmanız önerilir:
+Tek bir client'la çalışmak yerine **işlevlere göre ayrılmış** client'lar oluşturmanız önerilir:
 
-| Anahtar | Kullanım |
+| Client | Kullanım |
 |---|---|
-| `payments-prod` | Sadece ödeme alma servisinde kullanılan production anahtarı |
-| `reporting-prod` | Sadece raporlama job'larında kullanılan, daha kısıtlı IP whitelist'li anahtar |
-| `dev-team-sandbox` | Geliştirici ekibinin paylaştığı sandbox anahtarı |
+| `payments-prod` | Sadece ödeme alma servisinde kullanılan production client'ı |
+| `reporting-prod` | Sadece raporlama job'larında kullanılan, daha kısıtlı IP whitelist'li client |
+| `dev-team-sandbox` | Geliştirici ekibinin paylaştığı sandbox client'ı |
 
-Avantajlar: Bir anahtar sızdığında etki alanı sınırlı kalır, audit'lerde hangi servisin ne yaptığını ayırt etmek kolaylaşır.
+Avantajlar: Bir `client_secret` sızdığında etki alanı sınırlı kalır, audit'lerde hangi servisin ne yaptığını ayırt etmek kolaylaşır.
 
 ## Rotasyon prosedürü
 
 Sıfır kesinti ile rotasyon:
 
 <Steps>
-  <Step title="Yeni anahtar üretin">
-    Konsol → API Anahtarları → **Yeni Anahtar Oluştur**. Mevcut anahtarı **silmeyin**.
+  <Step title="Yeni client veya secret üretin">
+    Konsol → API Anahtarları → **Yeni Client Oluştur** (veya mevcut client için **Secret Rotate**). Mevcut secret'ı **silmeyin** — Keycloak iki secret'ı da geçici olarak kabul eder.
   </Step>
-  <Step title="Yeni anahtarı secret store'a yazın">
+  <Step title="Yeni secret'ı secret store'a yazın">
     Production secret manager'ında yeni değeri kaydedin.
   </Step>
   <Step title="Servisinizi yeniden deploy edin">
-    Yeni anahtar ile başlayan servis pod/instance'ları çalışmaya başlasın. Eski olanlar hâlâ eski anahtarla çalışıyor — ikisi de geçerli.
+    Yeni secret ile başlayan servis pod/instance'ları çalışmaya başlasın. Eski olanlar hâlâ eski secret'la çalışıyor — geçiş penceresinde ikisi de geçerli.
   </Step>
   <Step title="Audit log'u izleyin">
-    Konsol → API Kayıtları ekranında eski anahtara gelen istek olup olmadığını izleyin. Trafik sıfıra inene dek bekleyin.
+    Konsol → API Kayıtları ekranında eski secret'a gelen istek olup olmadığını izleyin. Trafik sıfıra inene dek bekleyin.
   </Step>
-  <Step title="Eski anahtarı pasife alın">
-    Trafik tamamen kesildiğinde eski anahtarı silin.
+  <Step title="Eski secret'ı pasife alın">
+    Trafik tamamen kesildiğinde eski secret'ı revoke edin.
   </Step>
 </Steps>
 
 ## Sızıntı şüphesinde acil müdahale
 
-Anahtarınızın sızdığını düşündüğünüz an aşağıdaki adımları **paralel** uygulayın:
+`client_secret`'ınızın sızdığını düşündüğünüz an aşağıdaki adımları **paralel** uygulayın:
 
 <Steps>
-  <Step title="Anahtarı hemen pasife alın">
-    Konsoldan anahtarı **silin** veya pasife çekin. Süreç anlıktır.
+  <Step title="Secret'ı hemen revoke edin">
+    Konsoldan client'ı **pasife çekin** veya secret'ı rotate edin. Süreç anlıktır.
   </Step>
-  <Step title="Yeni anahtar üretip servisinizi rotasyona alın">
+  <Step title="Yeni secret üretip servisinizi rotasyona alın">
     Yukarıdaki adımları hızlandırılmış şekilde uygulayın.
   </Step>
   <Step title="Audit log incelemesi">
@@ -90,7 +98,7 @@ public class SensitiveHeaderRedactor : DelegatingHandler
 {
     private static readonly string[] SensitiveHeaders =
     {
-        "X-API-Secret", "X-API-Key", "Authorization"
+        "Authorization"
     };
 
     protected override async Task<HttpResponseMessage> SendAsync(
@@ -112,7 +120,7 @@ public class SensitiveHeaderRedactor : DelegatingHandler
 
 ```javascript Node.js
 function redactSensitive(headers) {
-  const sensitive = ["x-api-secret", "x-api-key", "authorization"];
+  const sensitive = ["authorization"];
   const safe = {};
   for (const [k, v] of Object.entries(headers)) {
     safe[k] = sensitive.includes(k.toLowerCase()) ? "***REDACTED***" : v;
@@ -120,10 +128,19 @@ function redactSensitive(headers) {
   return safe;
 }
 
+// Token alma isteklerinde body'deki client_secret'ı da maskelemeyi unutmayın
+function redactBody(body) {
+  if (typeof body !== "object" || body === null) return body;
+  const safe = { ...body };
+  if (safe.client_secret) safe.client_secret = "***REDACTED***";
+  if (safe.refresh_token) safe.refresh_token = "***REDACTED***";
+  return safe;
+}
+
 logger.info("payven request", {
   url,
   headers: redactSensitive(headers),
-  body,
+  body: redactBody(body),
 });
 ```
 </CodeGroup>

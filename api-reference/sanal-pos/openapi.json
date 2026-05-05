@@ -23,7 +23,7 @@
         ],
         "parameters": [
           {
-            "name": "page_number",
+            "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -205,7 +205,7 @@
             }
           },
           {
-            "name": "page_number",
+            "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -618,7 +618,7 @@
         ],
         "parameters": [
           {
-            "name": "page_number",
+            "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -1598,7 +1598,7 @@
             }
           },
           {
-            "name": "page_number",
+            "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -2541,7 +2541,7 @@
         ],
         "parameters": [
           {
-            "name": "page_number",
+            "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -3253,6 +3253,50 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/internal/fraud/alert-resolved": {
+      "post": {
+        "tags": [
+          "FraudCallback"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AlertResolvedNotification"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AlertResolvedNotification"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AlertResolvedNotification"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [ ]
       }
     },
     "/api/v1/health/live": {
@@ -4476,7 +4520,7 @@
       }
     },
     "/api/v1/payments/{transaction_id}/query": {
-      "post": {
+      "get": {
         "tags": [
           "Payments"
         ],
@@ -4489,39 +4533,34 @@
               "type": "string",
               "format": "uuid"
             }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/QueryTransactionRequest"
-                  }
-                ]
-              }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/QueryTransactionRequest"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/QueryTransactionRequest"
-                  }
-                ]
+          },
+          {
+            "name": "transaction_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "extra_properties",
+            "in": "query",
+            "style": "deepObject",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
               }
             }
           }
-        },
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -4731,7 +4770,7 @@
       }
     },
     "/api/v1/payments/{transaction_id}/history": {
-      "post": {
+      "get": {
         "tags": [
           "Payments"
         ],
@@ -4744,39 +4783,34 @@
               "type": "string",
               "format": "uuid"
             }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/QueryOrderHistoryRequest"
-                  }
-                ]
-              }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/QueryOrderHistoryRequest"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/QueryOrderHistoryRequest"
-                  }
-                ]
+          },
+          {
+            "name": "transaction_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "order_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "extra_properties",
+            "in": "query",
+            "style": "deepObject",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
               }
             }
           }
-        },
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -5956,7 +5990,7 @@
             }
           },
           {
-            "name": "page_number",
+            "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -6920,7 +6954,7 @@
         ],
         "parameters": [
           {
-            "name": "page_number",
+            "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -7143,18 +7177,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/v2/settings/info": {
-      "get": {
-        "tags": [
-          "Settings"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
           }
         }
       }
@@ -7541,7 +7563,7 @@
             }
           },
           {
-            "name": "page_number",
+            "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -8251,7 +8273,7 @@
             }
           },
           {
-            "name": "page_number",
+            "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -10156,7 +10178,7 @@
             }
           },
           {
-            "name": "page_number",
+            "name": "page",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -10201,6 +10223,33 @@
   },
   "components": {
     "schemas": {
+      "AlertResolvedNotification": {
+        "type": "object",
+        "properties": {
+          "decision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "external_txn_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "resolution": {
+            "type": "string",
+            "nullable": true
+          },
+          "reviewed_by": {
+            "type": "string",
+            "nullable": true
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ApiRequestLogDto": {
         "allOf": [
           {
@@ -10329,7 +10378,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -10697,7 +10746,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -10875,7 +10924,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -11230,7 +11279,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -11417,7 +11466,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -13372,48 +13421,6 @@
         },
         "additionalProperties": { }
       },
-      "QueryOrderHistoryRequest": {
-        "type": "object",
-        "properties": {
-          "transaction_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "order_id": {
-            "type": "string",
-            "nullable": true
-          },
-          "extra_properties": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "QueryTransactionRequest": {
-        "type": "object",
-        "properties": {
-          "transaction_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "order_id": {
-            "type": "string",
-            "nullable": true
-          },
-          "extra_properties": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
       "RecentFailedTransactionDto": {
         "type": "object",
         "properties": {
@@ -13529,7 +13536,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -13697,7 +13704,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -13927,7 +13934,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -14256,7 +14263,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -14524,7 +14531,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -14659,7 +14666,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -14859,7 +14866,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -15306,7 +15313,7 @@
             },
             "nullable": true
           },
-          "page_number": {
+          "page": {
             "type": "integer",
             "format": "int32"
           },
@@ -16412,6 +16419,9 @@
     },
     {
       "name": "Dashboard"
+    },
+    {
+      "name": "FraudCallback"
     },
     {
       "name": "Health"

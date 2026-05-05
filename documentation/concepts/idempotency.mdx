@@ -20,7 +20,7 @@ Idempotency-Key: 8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6
 |---|---|
 | Format | UUID v4 önerilir, herhangi bir string kabul edilir |
 | Maksimum uzunluk | 128 karakter |
-| Saklama süresi | 24 saat |
+| Saklama süresi | Ödeme (Sanal POS `POST /payments`): **24 saat**. Diğer yazma endpoint'leri: **3 dakika** (cache TTL). |
 | Eşsiz olma kapsamı | Aynı API anahtarı + endpoint kombinasyonu içinde |
 
 ## Örnek senaryolar
@@ -46,15 +46,21 @@ Idempotency-Key: 8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6
 
     ```json
     {
-      "isSuccess": false,
-      "code": "IDEMPOTENCY_PAYLOAD_MISMATCH",
-      "message": "Bu idempotency anahtarı farklı bir istek için kullanılmış."
+      "type": "https://docs.payven.com.tr/errors/idempotency_key_in_use",
+      "title": "Idempotency-Key conflict",
+      "status": 409,
+      "code": "idempotency_key_in_use",
+      "detail": "Idempotency-Key was previously used with a different request body."
     }
     ```
+
+    Yanıt `Content-Type: application/problem+json` (RFC 9457) formatındadır.
+    Aynı anahtarla **aynı body** tekrar gönderilirse Payven cached yanıtı döner ve
+    `Idempotent-Replayed: true` header'ı ekler.
   </Accordion>
 
-  <Accordion title="24 saat sonrası">
-    1. 24 saat önce `ABC123` anahtarıyla bir ödeme yapılmış.
+  <Accordion title="TTL süresi sonrası">
+    1. Saklama süresi geçmiş bir anahtar (ödemeler için 24 saat, diğer endpoint'ler için 3 dakika sonra).
     2. Aynı anahtar tekrar kullanılırsa **yeni** bir işlem oluşturulur (eski kayıt silinmiş).
   </Accordion>
 </AccordionGroup>
