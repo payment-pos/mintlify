@@ -34,27 +34,16 @@ stateDiagram-v2
 
 ## Konfigürasyon
 
-Her banka konfigürasyonu için ayarlanabilir:
+Circuit Breaker parametreleri konnektör konfigürasyonunda saklanır ve konsoldan yönetilir. Tipik varsayılanlar:
 
-```json
-{
-  "configurationId": "cfg_garanti_001",
-  "circuitBreaker": {
-    "enabled": true,
-    "errorThresholdPercentage": 50,
-    "minimumRequestVolume": 20,
-    "rollingWindowSeconds": 60,
-    "openStateDurationSeconds": 300
-  }
-}
-```
+| Parametre | Varsayılan | Açıklama |
+|---|---|---|
+| Hata oranı eşiği | %50 | Bu oranın aşılması Open'a yol açar |
+| Minimum istek hacmi | 20 | Eşiğin değerlendirilmesi için minimum istek sayısı |
+| Rolling pencere | 60 sn | Hata oranı hesaplama penceresi |
+| Open kalma süresi | 300 sn (5 dk) | Half-Open'a geçmeden önce bekleme |
 
-| Alan | Açıklama |
-|---|---|
-| `errorThresholdPercentage` | Hata oranı eşiği (varsayılan: 50%) |
-| `minimumRequestVolume` | Eşiğin değerlendirilmesi için minimum istek sayısı (varsayılan: 20) |
-| `rollingWindowSeconds` | Hata oranı hesaplama penceresi (varsayılan: 60 sn) |
-| `openStateDurationSeconds` | Open halde kalma süresi (varsayılan: 300 sn) |
+Konnektör başına özelleştirme için: **Konsol → Konnektörler → [Konfigürasyon]** ekranı veya `PUT /api/v1/connector-configurations/{id}` endpoint'i.
 
 ## Açılma kriteri
 
@@ -72,31 +61,38 @@ Bekleme süresi dolunca breaker "HalfOpen" haline geçer. Sonraki birkaç istek 
 - Test başarılı → Closed haline döner, normal çalışmaya devam eder.
 - Test başarısız → tekrar Open haline döner.
 
-## Müşteri etkisi
+## İstek üzerindeki etkisi
 
 Banka Open haldeyken o bankaya yönlendirilecek istekler:
 
-- Eğer kuralda **fallback** tanımlanmışsa → fallback konnektöre yönlendirilir.
-- Fallback yoksa → işlem `ROUTING_NO_HEALTHY_CONNECTOR` ile reddedilir.
+- Routing kuralında **`fallback_connector_config_id`** tanımlanmışsa → doğrudan fallback konnektöre gider, birinci konnektör hiç denenmez (timeout süresi kaybedilmez)
+- Fallback yoksa → işlem `connector_unavailable` (`PV_CONNECTOR_NOT_FOUND` benzeri) ile reddedilir
+- Karşılayan başka kural varsa engine onu değerlendirmeye devam eder
+
+## Sağlık endpoint'i
+
+Konnektörün anlık sağlık durumunu API üzerinden kontrol edebilirsiniz:
+
+```bash
+curl https://vpos.payven.com.tr/api/v1/connector-configurations/{id}/health \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+Yanıt; mevcut hali (`closed`/`open`/`half_open`), son rolling penceredeki başarı/hata oranını, ortalama yanıt süresini ve son durum değişiklik zamanını döner.
 
 ## İzleme
 
-Breaker durumunu konsoldaki **Konnektör Sağlık Paneli** ekranından takip edebilirsiniz. Her bankanın:
+Breaker durumunu konsoldaki **Konnektör Sağlık Paneli** ekranından takip edebilirsiniz:
 
-- Mevcut hali (Closed/Open/HalfOpen)
+- Mevcut hali (Closed / Open / HalfOpen)
 - Son rolling window'daki başarı/hata oranı
 - Ortalama yanıt süresi
 - Hangi tarihte Open'a düştüğü
+- Spark-line trend grafikleri
 
-bilgileri görüntülenir.
+## Yol haritası
 
-## Olay bildirimi
-
-Breaker hal değişiklikleri webhook ile de iletilebilir:
-
-| Olay | Tetiklenme |
-|---|---|
-| `connector.circuit.opened` | Banka Open haline geçti |
-| `connector.circuit.closed` | Banka Closed haline döndü |
-
-Bu olaylar **opsiyonel** abonelikteler — varsayılan olarak gönderilmez. Aboneliğinizde `events: ["connector.circuit.*"]` tanımlayarak alın.
+- **Connector health webhook event'leri** (`connector.circuit.opened` / `closed`) — şu an public webhook event listesinde yok, planlamada
+- **Konnektör başına özel circuit breaker konfig UI'ı** (varsayılan ayarlar yerine merchant-spesifik)
+- **Manuel devreden çıkarma** — bakım pencereleri için konnektörü manuel Open'a alma
+- **Bağlantı testleri** — konfigürasyon sırasında **Test Et** ile sağlık doğrulama

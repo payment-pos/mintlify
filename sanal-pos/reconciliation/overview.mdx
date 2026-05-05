@@ -1,90 +1,177 @@
 ---
 title: "Mutabakat — Genel Bakış"
-description: "Banka gün sonu hareketlerini Payven kayıtlarıyla eşleştirin."
+description: "Banka gün sonu hareketlerini Payven kayıtlarıyla eşleştirin, tutarsızlıkları yönetin."
 ---
 
-Mutabakat (reconciliation), bir gün boyunca yapılan tüm ödeme/iade hareketlerinin **banka gün sonu kayıtlarıyla eşleştirilmesi** sürecidir. Tutarsızlıkları tespit eder, gelir muhasebesini netleştirir.
+Mutabakat (reconciliation), bir dönemde yapılan tüm ödeme/iade hareketlerinin **banka kayıtlarıyla eşleştirilmesi** sürecidir. Tutarsızlıkları (eksik kayıt, tutar farkı, durum farkı) tespit edip operatörün karar vermesini bekler; nihai onayla gelir muhasebenize netlik kazandırır.
+
+## Kapsam ve dönem
+
+Bir mutabakat **kapsam** ve **dönem** olarak sınırlanır:
+
+| Boyut | Değerler |
+|---|---|
+| `scope` | `connector` (banka konfigürasyonu bazında) veya `merchant` (alt-merchant bazında) |
+| `period` | `daily`, `monthly`, `yearly`, `custom` |
+| `period_start`, `period_end` | UTC zaman damgaları (`custom` için zorunlu, diğerleri otomatik hesaplanır) |
+
+## Endpoint'ler
+
+```http
+POST   /api/v1/reconciliations/start                              # Mutabakat başlat
+GET    /api/v1/reconciliations                                    # Liste (sayfalı)
+GET    /api/v1/reconciliations/{id}                               # Tek mutabakat detayı (özet + tüm satırlar)
+GET    /api/v1/reconciliations/{id}/details                       # Sadece satırlar (sayfalı)
+POST   /api/v1/reconciliations/{id}/details/{detail_id}/resolve   # Tek tutarsızlığı çöz
+POST   /api/v1/reconciliations/{id}/details/bulk-resolve          # Toplu çözüm
+POST   /api/v1/reconciliations/{id}/finalize                      # Mutabakatı kapat (Settled olarak işaretle)
+POST   /api/v1/reconciliations/{id}/cancel                        # Mutabakatı iptal et
+```
 
 ## Süreç
 
 ```mermaid
 flowchart LR
-    A[Gün İçi İşlemler] --> B[Gün Sonu]
-    B --> C[POST /reconciliations/start]
-    C --> D[Banka Hareketleriyle Karşılaştır]
-    D --> E{Tutarsızlık?}
-    E -->|Hayır| F[Finalize]
-    E -->|Evet| G[Resolve / Manual Review]
-    G --> F
-    F --> H[Settled işlemler güncellenir]
+    A[Banka CSV/API] --> B[POST /reconciliations/start<br/>bank_transactions: []]
+    B --> C[Eşleştirme motoru]
+    C --> D{Tutarsızlık?}
+    D -->|Hayır| E[Tüm satırlar matched]
+    D -->|Evet| F[orphan_db / orphan_bank /<br/>amount_mismatch / status_mismatch]
+    F --> G[Operatör resolve eder]
+    G --> H[POST /finalize]
+    E --> H
+    H --> I[İlgili işlemler<br/>'settled' olur]
 ```
-
-## Endpoint'ler
-
-| İşlem | Endpoint |
-|---|---|
-| Mutabakat başlat | `POST /api/v1/reconciliations/start` |
-| Liste | `GET /api/v1/reconciliations` |
-| Detay | `GET /api/v1/reconciliations/{id}` |
-| Hareket detayı | `GET /api/v1/reconciliations/{id}/details` |
-| Tek tutarsızlığı çöz | `POST /api/v1/reconciliations/{id}/details/{detailId}/resolve` |
-| Toplu çöz | `POST /api/v1/reconciliations/{id}/details/bulk-resolve` |
-| Finalize | `POST /api/v1/reconciliations/{id}/finalize` |
-| İptal | `POST /api/v1/reconciliations/{id}/cancel` |
 
 ## Mutabakat başlatma
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/start \
-  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: recon-garanti-2026-05-03" \
   -H "Content-Type: application/json" \
   -d '{
-    "date": "2026-05-03",
-    "connectorConfigurationIds": ["cfg_garanti_001", "cfg_akbank_001"]
+    "scope":               "connector",
+    "connector_config_id": "cfg_garanti_prod-001",
+    "period":              "daily",
+    "period_start":        "2026-05-03T00:00:00+00:00",
+    "bank_transactions": [
+      {
+        "bank_transaction_id": "GAR-AUTH-789-001",
+        "amount":              15000,
+        "status":              "approved",
+        "transaction_date":    "2026-05-03T12:34:58+00:00",
+        "auth_code":           "123456"
+      }
+    ]
   }'
 ```
 
+| Alan | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `scope` | enum | ✅ | `connector` veya `merchant` |
+| `connector_config_id` | UUID | scope=connector | Hangi konnektör konfigürasyonu için |
+| `merchant_id` | UUID | scope=merchant | Hangi alt-merchant için |
+| `period` | enum | ✅ | `daily`, `monthly`, `yearly`, `custom` |
+| `period_start` | datetime | ✅ | Dönem başlangıcı (UTC) |
+| `period_end` | datetime | period=custom | Dönem sonu — `custom` için zorunlu |
+| `bank_transactions[]` | array | ❌ | Banka satır listesi. Boş bırakılırsa sadece DB tarafı ile çalışılır (banka veriden bağımsız Payven self-reconciliation). |
+
+### `bank_transactions[]` satır yapısı
+
 | Alan | Açıklama |
 |---|---|
-| `date` | Mutabakat günü (UTC) |
-| `connectorConfigurationIds` | Hangi konnektörler dahil — boş bırakılırsa hepsi |
+| `bank_transaction_id` | Banka tarafındaki işlem ID (Payven `provider_transaction_id` ile eşleştirilir) |
+| `amount` | Tutar (kuruş) |
+| `status` | Banka tarafından dönen durum: `approved`, `completed`, `declined`, `failed`, `refunded`, `voided`, `pending` |
+| `transaction_date` | Banka tarafı işlem zamanı |
+| `merchant_external_id` | Opsiyonel — merchant scope'ta yardımcı eşleştirme |
+| `auth_code` | Opsiyonel — fallback eşleştirme anahtarı |
 
 ## Yanıt
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "id": "rec_8e3f5c12",
-    "date": "2026-05-03",
-    "status": "InProgress",
-    "totalTransactions": 1247,
-    "matchedCount": 0,
-    "discrepancyCount": 0,
-    "createdAt": "2026-05-04T03:00:00Z"
-  }
+  "id":                       "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "scope":                    "connector",
+  "connector_config_id":      "cfg_garanti_prod-001",
+  "connector_config_name":    "Garanti VPOS Production",
+  "merchant_id":              null,
+  "merchant_name":            null,
+  "bank_code":                "GARANTI",
+  "period":                   "daily",
+  "period_start":             "2026-05-03T00:00:00.000+00:00",
+  "period_end":               "2026-05-03T23:59:59.999+00:00",
+  "reconciliation_date":      "2026-05-04",
+  "total_db_transactions":    1247,
+  "total_bank_transactions":  1245,
+  "matched_count":            1240,
+  "amount_mismatch_count":    2,
+  "status_mismatch_count":    1,
+  "orphan_db_count":          5,
+  "orphan_bank_count":        3,
+  "resolved_count":           0,
+  "ignored_count":            0,
+  "total_db_amount":          18705000,
+  "total_bank_amount":        18675000,
+  "overall_status":           "open",
+  "finalized_at":             null,
+  "finalized_by":             null,
+  "notes":                    null,
+  "created":                  "2026-05-04T03:00:00.000+00:00",
+  "details": [
+    {
+      "id":                "9f3d2b8e-...",
+      "reconciliation_id": "8e3f5c12-...",
+      "transaction_id":    "abc-...",
+      "bank_transaction_id": "GAR-AUTH-789-001",
+      "db_amount":         15000,
+      "bank_amount":       14990,
+      "db_status":         "completed",
+      "bank_status":       "approved",
+      "discrepancy":       "amount_mismatch",
+      "detail_status":     "open",
+      "resolution_action": null,
+      "adjusted_amount":   null,
+      "applied_status":    null,
+      "resolved_at":       null,
+      "resolved_by":       null,
+      "remarks":           null
+    }
+  ]
 }
 ```
 
-## Statüler
+## `overall_status` değerleri
 
-| Status | Anlam |
+| Değer | Anlam |
 |---|---|
-| `InProgress` | Karşılaştırma sürüyor |
-| `WaitingForReview` | Tutarsızlıklar var, kullanıcı incelemesi bekleniyor |
-| `Finalized` | Tamamlandı |
-| `Cancelled` | İptal edildi |
+| `open` | Aktif — tüm satırlar eşleştirilmiş ama henüz finalize edilmedi |
+| `pending_review` | Tutarsızlıklar var, operatör çözmesi bekleniyor |
+| `finalized` | Tamamlandı — ilgili işlemler `settled` olarak işaretlendi |
+| `cancelled` | İptal edildi |
 
-## Tutarsızlık tipleri
+## `discrepancy` tipleri
 
-| Tip | Açıklama |
+| Tip | Anlam |
 |---|---|
-| `OnlyInPayven` | Payven kaydı var, banka kaydı yok |
-| `OnlyInBank` | Banka kaydı var, Payven kaydı yok |
-| `AmountMismatch` | İki tarafta da var ama tutarlar uyuşmuyor |
-| `StatusMismatch` | Statü farklı (örn. Payven'de Success, banka'da iptal) |
-| `DuplicateInBank` | Bankada aynı işlem birden fazla kez |
+| `matched` | İki tarafta da var, tutar + durum uyumlu — işlem yok |
+| `amount_mismatch` | İki tarafta var ama tutarlar farklı |
+| `status_mismatch` | İki tarafta var, tutar aynı ama durum farklı (örn. Payven'de `completed`, banka'da `voided`) |
+| `orphan_db` | Sadece Payven tarafında — bankada yok |
+| `orphan_bank` | Sadece bankada — Payven tarafında yok |
 
-## Detaylar ve çözüm
+## Yaşam döngüsü ve çözüm akışı
 
-Detay: [Mutabakat Yaşam Döngüsü](/sanal-pos/reconciliation/lifecycle).
+Tutarsızlıkları çözme + finalize için: [Mutabakat Yaşam Döngüsü](/sanal-pos/reconciliation/lifecycle).
+
+## Settlement raporları
+
+Mutabakat finalize olduğunda ilgili işlemler için `settlement_date` doldurulur. Settlement endpoint'leri ile günlük settlement raporlarını çekebilirsiniz:
+
+```http
+GET /api/v1/settlements                    # Liste (sayfalı)
+GET /api/v1/settlements/{id}               # Tek settlement detayı
+POST /api/v1/settlements                   # Yeni settlement (manuel)
+GET /api/v1/settlements/{id}/status        # Durum sorgusu
+```

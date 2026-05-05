@@ -5,7 +5,7 @@
     "version": "1.0"
   },
   "paths": {
-    "/api/v{version}/internal/fraud/evaluate": {
+    "/api/v1/internal/fraud/evaluate": {
       "post": {
         "tags": [
           "InternalFraud"
@@ -22,14 +22,6 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -99,7 +91,7 @@
         "security": []
       }
     },
-    "/api/v{version}/internal/fraud/finalize": {
+    "/api/v1/internal/fraud/finalize": {
       "post": {
         "tags": [
           "InternalFraud"
@@ -108,14 +100,6 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -168,7 +152,7 @@
         "security": []
       }
     },
-    "/api/v{version}/platform/fraud/alerts": {
+    "/api/v1/platform/fraud/alerts": {
       "get": {
         "tags": [
           "PlatformFraudAlerts"
@@ -233,14 +217,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -267,7 +243,7 @@
         }
       }
     },
-    "/api/v{version}/platform/fraud/alerts/{id}/approve": {
+    "/api/v1/platform/fraud/alerts/{id}/approve": {
       "post": {
         "tags": [
           "PlatformFraudAlerts"
@@ -285,14 +261,6 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -361,7 +329,7 @@
         }
       }
     },
-    "/api/v{version}/platform/fraud/alerts/{id}/reject": {
+    "/api/v1/platform/fraud/alerts/{id}/reject": {
       "post": {
         "tags": [
           "PlatformFraudAlerts"
@@ -379,14 +347,6 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -455,7 +415,7 @@
         }
       }
     },
-    "/api/v{version}/platform/fraud/blacklist": {
+    "/api/v1/platform/fraud/blacklist": {
       "get": {
         "tags": [
           "PlatformFraudBlacklist"
@@ -504,14 +464,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -545,14 +497,6 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -621,7 +565,7 @@
         }
       }
     },
-    "/api/v{version}/platform/fraud/blacklist/{id}": {
+    "/api/v1/platform/fraud/blacklist/{id}": {
       "delete": {
         "tags": [
           "PlatformFraudBlacklist"
@@ -634,14 +578,6 @@
             "schema": {
               "type": "string",
               "format": "uuid"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -672,7 +608,7 @@
         }
       }
     },
-    "/api/v{version}/platform/fraud/rules": {
+    "/api/v1/platform/fraud/rules": {
       "get": {
         "tags": [
           "PlatformFraudRules"
@@ -736,14 +672,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -777,14 +705,6 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -853,7 +773,7 @@
         }
       }
     },
-    "/api/v{version}/platform/fraud/rules/{id}": {
+    "/api/v1/platform/fraud/rules/{id}": {
       "patch": {
         "tags": [
           "PlatformFraudRules"
@@ -866,14 +786,6 @@
             "schema": {
               "type": "string",
               "format": "uuid"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -952,14 +864,6 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -989,7 +893,7 @@
         }
       }
     },
-    "/api/v{version}/fraud/alerts": {
+    "/api/v1/fraud/alerts": {
       "get": {
         "tags": [
           "TenantFraudAlerts"
@@ -1054,14 +958,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -1088,7 +984,7 @@
         }
       }
     },
-    "/api/v{version}/fraud/alerts/{id}/approve": {
+    "/api/v1/fraud/alerts/{id}/approve": {
       "post": {
         "tags": [
           "TenantFraudAlerts"
@@ -1106,14 +1002,6 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -1182,7 +1070,7 @@
         }
       }
     },
-    "/api/v{version}/fraud/alerts/{id}/reject": {
+    "/api/v1/fraud/alerts/{id}/reject": {
       "post": {
         "tags": [
           "TenantFraudAlerts"
@@ -1200,14 +1088,6 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -1276,7 +1156,7 @@
         }
       }
     },
-    "/api/v{version}/fraud/blacklist": {
+    "/api/v1/fraud/blacklist": {
       "get": {
         "tags": [
           "TenantFraudBlacklist"
@@ -1325,14 +1205,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -1366,14 +1238,6 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -1442,7 +1306,7 @@
         }
       }
     },
-    "/api/v{version}/fraud/blacklist/{id}": {
+    "/api/v1/fraud/blacklist/{id}": {
       "delete": {
         "tags": [
           "TenantFraudBlacklist"
@@ -1455,14 +1319,6 @@
             "schema": {
               "type": "string",
               "format": "uuid"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -1493,7 +1349,7 @@
         }
       }
     },
-    "/api/v{version}/fraud/logs": {
+    "/api/v1/fraud/logs": {
       "get": {
         "tags": [
           "TenantFraudLogs"
@@ -1574,14 +1430,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -1628,7 +1476,7 @@
         }
       }
     },
-    "/api/v{version}/fraud/merchants/{merchant_id}/policy": {
+    "/api/v1/fraud/merchants/{merchant_id}/policy": {
       "get": {
         "tags": [
           "TenantFraudMerchantPolicies"
@@ -1636,14 +1484,6 @@
         "parameters": [
           {
             "name": "merchant_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
             "in": "path",
             "required": true,
             "schema": {
@@ -1681,14 +1521,6 @@
         "parameters": [
           {
             "name": "merchant_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
             "in": "path",
             "required": true,
             "schema": {
@@ -1739,7 +1571,7 @@
         }
       }
     },
-    "/api/v{version}/fraud/rules": {
+    "/api/v1/fraud/rules": {
       "get": {
         "tags": [
           "TenantFraudRules"
@@ -1803,14 +1635,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -1844,14 +1668,6 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
             "schema": {
               "type": "string"
             }
@@ -1920,7 +1736,7 @@
         }
       }
     },
-    "/api/v{version}/fraud/rules/{id}": {
+    "/api/v1/fraud/rules/{id}": {
       "patch": {
         "tags": [
           "TenantFraudRules"
@@ -1933,14 +1749,6 @@
             "schema": {
               "type": "string",
               "format": "uuid"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -2018,14 +1826,6 @@
             "schema": {
               "type": "string",
               "format": "uuid"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
             }
           }
         ],

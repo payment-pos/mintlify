@@ -3,123 +3,176 @@ title: "Mutabakat Yaşam Döngüsü"
 description: "Bir mutabakat oturumunun başlatılmasından sonlandırılmasına tüm aşamalar."
 ---
 
-Bu sayfa bir mutabakat oturumunun her aşamasını ve API çağrılarını detaylandırır.
+Bu sayfa bir mutabakat oturumunun her aşamasını ve API çağrılarını detaylandırır. Endpoint listesi ve request/response şekli için: [Mutabakat Genel Bakış](/sanal-pos/reconciliation/overview).
 
 ## 1. Başlatma
 
-Mutabakat genellikle **gün sonunda otomatik** çalışır (banka raporlarının gelmesinden sonra, tipik olarak 02:00-04:00 arası). Manuel başlatmak için:
+Mutabakat genellikle **gün sonunda planlı** çalışır (banka raporlarının gelmesinden sonra, tipik olarak 02:00-04:00 arası). Manuel başlatma için:
 
 ```bash
-POST /api/v1/reconciliations/start
-{ "date": "2026-05-03" }
+curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/start \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: recon-garanti-2026-05-03" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "scope":               "connector",
+    "connector_config_id": "cfg_garanti_prod-001",
+    "period":              "daily",
+    "period_start":        "2026-05-03T00:00:00+00:00",
+    "bank_transactions":   [...]
+  }'
 ```
+
+`bank_transactions` boş gönderilirse Payven sadece kendi DB tarafında self-reconciliation yapar (banka verisinden bağımsız bir doğrulama). Banka CSV/XLS dosyasını parse edip satırları doldurmak müşteri tarafının sorumluluğundadır — yol haritasında bu adım için Payven tarafında parser/import endpoint'i planlanıyor.
 
 ## 2. Karşılaştırma
 
-Payven, gün boyu kaydedilen tüm `Captured`, `Refunded`, `Voided` hareketleri her bankanın gün sonu raporuyla eşleştirir. Bu aşamada `status: InProgress`'tir.
+Payven gün boyu kaydedilen `completed`, `refunded`, `voided` hareketleri banka satırlarıyla eşleştirir. Eşleştirme anahtarları:
+
+- **Birincil:** `provider_transaction_id` ↔ `bank_transaction_id`
+- **Yedek:** `auth_code` ↔ `auth_code` (aynı banka içinde)
+- **Merchant scope'unda:** `merchant_external_id` ile filtreleme
+
+Karşılaştırma sırasında her satır şu kategorilerden birine düşer:
+
+| Kategori | Tetikleyici |
+|---|---|
+| `matched` | İki tarafta var, tutar + durum uyumlu |
+| `amount_mismatch` | Tutarlar uyuşmuyor (banka komisyonu kesmişse tipik) |
+| `status_mismatch` | Tutar aynı ama durum farklı (örn. Payven `completed`, banka `voided`) |
+| `orphan_db` | Sadece Payven'de var |
+| `orphan_bank` | Sadece bankada var |
 
 ## 3. İnceleme
 
-Tamamlanınca status `WaitingForReview` olur. Detayları çekin:
+Mutabakat detayını veya sadece tutarsızlıkları çekin:
 
 ```bash
-GET /api/v1/reconciliations/{id}/details?status=Discrepancy&pageSize=50
+# Tüm satırlar (sayfalı)
+curl "https://vpos.payven.com.tr/api/v1/reconciliations/8e3f5c12.../details?page=1&page_size=50&detail_status=open" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
+
+Yanıt — sayfalı `ReconciliationDetailDto` listesi:
 
 ```json
 {
-  "data": {
-    "items": [
-      {
-        "id": "det_8e3f5c12",
-        "type": "AmountMismatch",
-        "paymentId": "8e3f5c12-...",
-        "payvenAmount": 15000,
-        "bankAmount": 14750,
-        "difference": 250,
-        "currency": "TRY",
-        "connectorCode": "GarantiVPOS",
-        "bankReference": "BANK-REF-789",
-        "status": "Open"
-      }
-    ],
-    "totalCount": 12
-  }
+  "items": [
+    {
+      "id":                  "9f3d2b8e-...",
+      "reconciliation_id":   "8e3f5c12-...",
+      "transaction_id":      "abc-...",
+      "bank_transaction_id": "GAR-AUTH-789-001",
+      "db_amount":           15000,
+      "bank_amount":         14750,
+      "db_status":           "completed",
+      "bank_status":         "approved",
+      "discrepancy":         "amount_mismatch",
+      "detail_status":       "open",
+      "resolution_action":   null,
+      "adjusted_amount":     null,
+      "applied_status":      null,
+      "resolved_at":         null,
+      "resolved_by":         null,
+      "remarks":             null
+    }
+  ],
+  "page":              1,
+  "total_pages":       1,
+  "total_count":       12,
+  "has_previous_page": false,
+  "has_next_page":     false
 }
 ```
 
 ## 4. Tutarsızlıkları çözme
 
-Her tutarsızlık için bir **resolution** atanır:
+### Tek satır
 
 ```bash
-POST /api/v1/reconciliations/{id}/details/{detailId}/resolve
-{
-  "resolution": "BankIsCorrect",
-  "note": "Banka 250 ₺ komisyon kesti, kayıt güncellendi"
-}
+curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/8e3f5c12.../details/9f3d2b8e.../resolve \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resolution_action": "accept_bank",
+    "adjusted_amount":   14750,
+    "applied_status":    "completed",
+    "remarks":           "Banka 250 kuruş komisyon kesti, Payven tarafında net tutar revize edildi"
+  }'
 ```
 
-| Resolution | Anlam |
+| Alan | Açıklama |
 |---|---|
-| `PayvenIsCorrect` | Payven kaydı doğru, banka tarafında düzeltme bekleniyor |
-| `BankIsCorrect` | Banka doğru, Payven kaydı revize edilir |
-| `Investigate` | Daha sonra incelenecek (askıda) |
-| `Ignore` | Tutarsızlık göz ardı edilir |
+| `resolution_action` | `accept_bank` (banka doğru), `accept_payven` (Payven doğru), `investigate` (askıya al), `ignore` (göz ardı) |
+| `adjusted_amount` | `accept_bank` ise revize tutar (Payven kaydı bu değere çekilir) |
+| `applied_status` | Yeni durum (örn. `voided` ↔ `completed` eşleşmemesi durumunda) |
+| `remarks` | Operatör notu — audit için kalıcı saklanır |
 
-Toplu çözüm için `bulk-resolve` kullanın.
+### Toplu çözüm
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/8e3f5c12.../details/bulk-resolve \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "detail_ids":        ["9f3d2b8e-...", "abc123-...", "def456-..."],
+    "resolution_action": "accept_bank",
+    "remarks":           "Banka komisyon kesintisi — toplu kabul"
+  }'
+```
 
 ## 5. Finalize
 
-Tüm tutarsızlıklar çözülünce mutabakat finalize edilir:
+Tüm tutarsızlıklar çözüldükten sonra:
 
 ```bash
-POST /api/v1/reconciliations/{id}/finalize
-```
-
-```json
-{
-  "data": {
-    "status": "Finalized",
-    "totalTransactions": 1247,
-    "matchedCount": 1235,
-    "discrepancyCount": 12,
-    "totalAmount": 187435000,
-    "settledAt": "2026-05-04T08:23:11Z"
-  }
-}
+curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/8e3f5c12.../finalize \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "notes": "Mayıs 3 günü mutabakat tamamlandı" }'
 ```
 
 Finalize sonrası:
 
-- İlgili payment'ların status'u `Captured` → `Settled` olarak güncellenir.
-- `settlementDate` alanı dolar.
-- Konsoldaki "Settlement" raporlarına dahil edilir.
+- `overall_status: "finalized"`, `finalized_at` doldurulur
+- İlgili işlemlerin `settlement_date` alanı doldurulur — `transaction.status` `completed` → ekstra olarak `settled` rozeti
+- Operatör kullanıcı kimliği `finalized_by` alanında saklanır
 
-## 6. Webhook'lar
+## 6. İptal
 
-| Olay | Tetiklenme |
-|---|---|
-| `reconciliation.created` | Mutabakat başlatıldı |
-| `reconciliation.discrepancy` | Tutarsızlık tespit edildi |
-| `reconciliation.completed` | Mutabakat finalize edildi |
-
-Bu olaylara abone olarak finansal ekibinizi otomatik bilgilendirebilirsiniz.
-
-## Geriye dönük inceleme
-
-Geçmiş mutabakatları sorgulamak için:
+Henüz finalize edilmemiş bir mutabakatı iptal etmek için:
 
 ```bash
-GET /api/v1/reconciliations?from=2026-04-01&to=2026-04-30
+curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/8e3f5c12.../cancel \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "reason": "Yanlış konnektör seçildi, yeni session açılacak" }'
 ```
 
-## SLA
+İptal mutabakat durumunu `cancelled` yapar. İlgili işlemler etkilenmez.
+
+## Tipik süreler
 
 | Aşama | Tipik süre |
 |---|---|
 | Başlatma → Karşılaştırma tamamlanma | 5-30 dk (işlem hacmine bağlı) |
-| Karşılaştırma → Tutarsızlıkların listelenmesi | Anlık |
-| Otomatik finalize (tutarsızlık yoksa) | Otomatik, anlık |
+| Otomatik finalize (tüm satırlar `matched`) | Anlık |
+| Manuel inceleme (tutarsızlıklar varsa) | Operatör süresine bağlı |
 
-Tutarsızlık varsa finalize **manuel** olarak yapılır — operatör çözümleri girene kadar `WaitingForReview` statüsünde bekler.
+Tutarsızlık varsa finalize **manuel** olarak yapılır — operatör çözümleri girene kadar `pending_review` statüsünde bekler.
+
+## Geriye dönük inceleme
+
+```bash
+curl "https://vpos.payven.com.tr/api/v1/reconciliations?period_start_from=2026-04-01T00:00:00Z&period_start_to=2026-04-30T23:59:59Z&page=1&page_size=50" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+## Yol haritası
+
+- **Banka CSV import** — Payven tarafında banka raporu dosyasını parse eden endpoint
+- **Otomatik scheduled reconciliation** — günlük cron + slack/email bildirimi
+- **Reconciliation webhook event'leri** — `reconciliation.discrepancy_detected`, `reconciliation.finalized` (şu an public webhook event listesinde yok)
+- **Connector-spesifik banka raporu API entegrasyonları** — manuel CSV upload yerine otomatik fetch
+
+Güncellemeler için: [Changelog](/resources/changelog).

@@ -3,18 +3,19 @@ title: "Smart Retry"
 description: "Geçici banka hatasında işlemi otomatik olarak alternatif konnektöre yönlendirin."
 ---
 
-Smart Retry, **birinci tercih banka geçici hata** verdiğinde, müşteriden yeniden bilgi almaksızın işlemi alternatif konnektöre yönlendiren mekanizmadır.
+Smart Retry, **birinci tercih konnektör geçici hata** verdiğinde işlemi alternatif konnektöre yönlendiren mekanizmadır. Müşteriden yeniden bilgi almaz; routing kuralında tanımlı `fallback_connector_config_id` üzerinden ikinci denemeyi yapar.
 
 ## Hangi durumlarda devreye girer?
 
 | Banka yanıtı | Smart Retry uygulanır mı? |
 |---|---|
-| Başarılı (`responseCode: 00`) | ❌ İhtiyaç yok |
-| Yetersiz bakiye, şüpheli işlem | ❌ Müşteri kaynaklı, retry sonuç değiştirmez |
+| Başarılı (`provider_error_code: "00"`) | ❌ İhtiyaç yok |
+| Yetersiz bakiye, expired card, fraud | ❌ Müşteri/kart kaynaklı — retry sonuç değiştirmez |
 | Limit aşımı, kart blokajı | ❌ Müşteri kaynaklı |
-| Geçici banka hatası (5xx, timeout) | ✅ Alternatif konnektöre yönlendirilir |
-| Banka sistem bakımı | ✅ Yönlendirilir |
-| Bağlantı hatası | ✅ Yönlendirilir |
+| Banka HTTP 5xx | ✅ Alternatif konnektöre yönlendirilir |
+| Banka timeout (`PV_TIMEOUT`) | ✅ Yönlendirilir |
+| Bağlantı / TLS hatası | ✅ Yönlendirilir |
+| Connector circuit breaker açık | ✅ Yönlendirilir |
 
 Genel kural: **kart sahibi kaynaklı reddetmeler retry edilmez**, **banka altyapısı kaynaklı geçici sorunlar retry edilir**.
 
@@ -22,92 +23,107 @@ Genel kural: **kart sahibi kaynaklı reddetmeler retry edilmez**, **banka altyap
 
 ```mermaid
 sequenceDiagram
-    participant Server
+    participant App as Sunucunuz
     participant Engine as Routing Engine
-    participant Bank1 as Garanti
-    participant Bank2 as Akbank
+    participant Bank1 as Birinci tercih
+    participant Bank2 as Fallback konnektör
 
-    Server->>Engine: POST /payments
-    Engine->>Bank1: 1. tercih (Garanti)
-    Bank1-->>Engine: HTTP 503
-    Note over Engine: Retryable hata!<br/>Fallback'e geç
-    Engine->>Bank2: 2. tercih (Akbank)
-    Bank2-->>Engine: HTTP 200, başarılı
-    Engine-->>Server: Payment objesi (Akbank ile başarılı)
+    App->>Engine: POST /payments
+    Engine->>Bank1: target_connector_config_id
+    Bank1-->>Engine: HTTP 503 / timeout
+    Note over Engine: Geçici hata → fallback'e geç
+    Engine->>Bank2: fallback_connector_config_id
+    Bank2-->>Engine: HTTP 200 — başarılı
+    Engine-->>App: PaymentOperationResult
+    Note over Engine: TransactionHistory:<br/>2 satır kaydedilir<br/>(her deneme bir history)
 ```
 
 ## Kural konfigürasyonu
 
-[Routing kuralında](/sanal-pos/routing/rules) `fallbacks` belirleyerek hangi alternatif konnektörlerin denemesini tanımlayın:
+[Routing kuralında](/sanal-pos/routing/rules) `fallback_connector_config_id` alanını doldurun:
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name":                          "Bonus → Garanti, fallback Akbank",
+    "priority":                      10,
+    "is_active":                     true,
+    "card_brand_filter":             "bonus",
+    "min_amount":                    100,
+    "max_amount":                    20000000,
+    "target_connector_config_id":    "cfg_garanti_prod-001",
+    "fallback_connector_config_id":  "cfg_akbank_prod-001",
+    "weight":                        70,
+    "success_rate":                  99.2,
+    "average_response_time_ms":      850,
+    "cost_score":                    80
+  }'
+```
+
+`fallback_connector_config_id` boş bırakılırsa o kural için Smart Retry devreye girmez — birinci tercih başarısız olursa işlem `failed` olur.
+
+## Yanıt davranışı
+
+Müşteri tarafından bakıldığında Smart Retry **görünmez** — tek bir başarılı `PaymentOperationResult` döner:
 
 ```json
 {
-  "name": "Bonus kartlar — Garanti, fallback Akbank",
-  "connectors": [
-    { "configurationId": "cfg_garanti_001", "weight": 100 }
-  ],
-  "fallbacks": [
-    { "configurationId": "cfg_akbank_001", "priority": 1 },
-    { "configurationId": "cfg_isbank_001", "priority": 2 }
-  ],
-  "smartRetry": {
-    "enabled": true,
-    "maxAttempts": 3
+  "transaction_id":      "8e3f5c12-...",
+  "status":              "completed",
+  "is_success":          true,
+  "message":             "Onaylandı",
+  "extra_properties": {
+    "processed_at":            "2026-05-03T12:34:58.123+00:00",
+    "auth_code":               "789012",
+    "host_reference":          "AKBANK-REF-456",
+    "provider_transaction_id": "..."
   }
 }
 ```
 
-| Alan | Açıklama |
-|---|---|
-| `smartRetry.enabled` | Smart Retry açık mı? |
-| `smartRetry.maxAttempts` | Toplam deneme sayısı (varsayılan 3) |
+Hangi konnektörün başarılı olduğunu işlem detayında (`GET /transactions/{id}`) → `connector_code` ve `connector_configuration_id` alanlarından görebilirsiniz. Tüm denemelerin geçmişi [İşlem Geçmişi (Timeline)](/sanal-pos/inquiries/payment-history) üzerinden çekilir — her başarısız+başarılı deneme ayrı bir `TransactionHistory` kaydı olur.
 
-## Yanıtta retry geçmişi
+## Banka sağlığı + Smart Retry
 
-Smart Retry uygulandığında payment objesinde bir retry geçmişi alanı döner:
+Smart Retry tek başına çalışmaz; **Circuit Breaker** ile birlikte hareket eder:
 
-```json
-{
-  "data": {
-    "id": "8e3f5c12-...",
-    "status": "Success",
-    "connector": {
-      "code": "AkbankNestpay",
-      "configurationId": "cfg_akbank_001"
-    },
-    "retryHistory": [
-      {
-        "attempt": 1,
-        "configurationId": "cfg_garanti_001",
-        "responseCode": "503",
-        "errorType": "BankUnreachable",
-        "duration": 5012
-      },
-      {
-        "attempt": 2,
-        "configurationId": "cfg_akbank_001",
-        "responseCode": "00",
-        "duration": 821
-      }
-    ]
-  }
-}
-```
+- Banka hata oranı eşiği aşarsa Circuit Breaker açılır → o konnektör yönlendirme havuzundan **çıkar**
+- Yeni gelen istekler **doğrudan** fallback konnektöre gider (birinci denemeden sırasında değil, kuralda)
+- Sağlık geri gelince Circuit Breaker yarı-açık → kapalı → konnektör yine ana havuzda
+
+Detay: [Circuit Breaker](/sanal-pos/routing/circuit-breaker).
 
 ## Performans etkisi
 
-Toplam istek süresi, denenen konnektörlerin toplamıdır. Pratik etki:
+Toplam istek süresi, denenen konnektörlerin toplamı + transition overhead'idir:
 
-- Tek deneme: ~1-2 sn
-- 1 retry: ~3-5 sn (ilkinde 5 sn timeout + 2 sn ikinci deneme)
-- 2 retry: ~7-10 sn
+- Tek başarılı deneme: ~1-2 sn
+- 1 retry sonrası başarı: ~3-7 sn (birinci timeout + ikinci başarılı)
+- Timeout sonrası fallback: ~5-10 sn
 
-İstemcinizin timeout'unu yeterince yüksek ayarlayın (önerilen: 30 sn).
+İstemcinizin HTTP timeout'unu yeterince yüksek ayarlayın — **30 saniye** önerilir.
 
 ## Idempotency korunur
 
-Smart Retry sırasında aynı `Idempotency-Key` ile birden fazla deneme yapılır — Payven tarafında bu garanti edilir. Sizin tarafınızda bir şey yapmanız gerekmez.
+Smart Retry sırasında aynı `Idempotency-Key` Payven tarafında korunur. Birinci konnektöre giderken Payven tarafı, fallback'e giderken yine korunur — `Idempotency-Key` zaten Payven cache + DB'sinde tutulur. Sizin tarafınızda bir şey yapmanız gerekmez.
 
-## Banka komisyon farkı
+<Note>
+**Banka komisyon farkı:** birinci ve fallback konnektörün komisyon oranları farklı olabilir. Smart Retry'a düşmüş işlemleri raporlarken `connector_code` üzerinden hangi konnektörün başarılı olduğunu görüp komisyon hesaplamanızı buna göre yapın.
+</Note>
 
-Birinci ve ikinci konnektörün komisyon oranları farklı olabilir. Smart Retry'a düşmüş işlemleri raporlarken bu farkı dikkate alın. `retryHistory` alanından hangi konnektörün başarılı olduğunu görebilirsiniz.
+## Yapılandırma sınırları
+
+| Parametre | Varsayılan |
+|---|---|
+| Retry sayısı | 1 (birinci tercih + fallback) |
+| Birinci tercih timeout | 30 sn |
+| Fallback timeout | 30 sn |
+
+İleri seviye senaryolar (çoklu fallback, exponential backoff arasında) için yol haritası:
+- Çoklu `fallback_chain` desteği
+- İstek başına timeout konfigürasyonu
+- Retry kararı için ML tabanlı sinyaller (banka sağlığı + geçmiş başarı)
+
+Güncellemeler için: [Changelog](/resources/changelog).
