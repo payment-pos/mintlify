@@ -1,112 +1,442 @@
 ---
 title: "Kimlik Doğrulama"
-description: "API Key + Secret ile sunucu-sunucu kimlik doğrulama."
+description: "Keycloak OAuth 2.0 üzerinden JWT Bearer token ile API erişimi."
 ---
 
-Payven, **iki ayrı kimlik doğrulama modeli** kullanır:
+Payven tüm public API'lerinde **OAuth 2.0 + JWT Bearer** kullanır. Token'ı **Identity** servisinden alır, ürün API'lerine `Authorization: Bearer <token>` header'ı ile gidersiniz.
 
-| Model | Kullanım | Header'lar |
+| Akış | Kullanım | Grant type |
 |---|---|---|
-| **API Key + Secret** | Sunucu-sunucu ürün API çağrıları (Sanal POS, Para Transferi, Fraud, Fatura Ödeme) | `X-API-Key`, `X-API-Secret`, `X-Merchant-Id` veya `X-External-Merchant-Id` |
-| **Bearer Token (OAuth 2.0)** | Identity servisi ve konsol işlemleri | `Authorization: Bearer <jwt>` |
+| **Server-to-server (B2B)** | Backend entegrasyonları, otomasyonlar | `client_credentials` |
+| **Portal kullanıcı** | İnsan kullanıcılar (dashboard.payven.com.tr) | `password` |
 
-Bu sayfa **API Key** modelini açıklar. Bearer token akışı için [Identity → Login](/identity/auth/login) sayfasına bakın.
+Bu sayfa **server-to-server** (B2B) akışını anlatır. Portal kullanıcı login akışı için [Identity → Login](/identity/auth/login).
 
-## Header'lar
+## Akış (özet)
 
-Her ürün API isteğinde aşağıdaki header'lar zorunludur:
+```mermaid
+sequenceDiagram
+    participant App as Sizin Backend
+    participant Id as Identity (identity.payven.com.tr)
+    participant API as Ürün API (vpos / paratransferi / ...)
 
-```http
-X-API-Key:           pvk-prod-XXXXXXXX
-X-API-Secret:        <gizli imza anahtarı>
-X-Merchant-Id:       3fa85f64-5717-4562-b3fc-2c963f66afa6
-Content-Type:        application/json
+    App->>Id: POST /auth/{slug}/token<br/>{ client_id, client_secret }
+    Id-->>App: { access_token, refresh_token, expires_in }
+    Note over App: access_token cache'le<br/>5 dakika geçerli
+
+    App->>API: POST /payments<br/>Authorization: Bearer <access_token>
+    API-->>App: 201 Created
+
+    Note over App: 5dk sonra access_token yakın expiry
+    App->>Id: POST /auth/{slug}/refresh<br/>{ refresh_token }
+    Id-->>App: { access_token (yeni), refresh_token (yeni) }
 ```
 
-Alternatif olarak `X-Merchant-Id` yerine `X-External-Merchant-Id` kullanılabilir:
+## 1. Adım — Token al
 
-```http
-X-External-Merchant-Id: M-IST-001
+`POST https://identity.payven.com.tr/api/v1/auth/{slug}/token`
+
+`{slug}` = tenant slug'ınız (örn. `payven`, `tenant-abc`). Onboarding sırasında size verilir.
+
+```bash
+curl https://identity.payven.com.tr/api/v1/auth/payven/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_id": "pvk_live_xxxxxxxxxxxxxxxxxxxx",
+    "client_secret": "YOUR_CLIENT_SECRET"
+  }'
 ```
 
-İki merchant header'ından **biri** zorunludur. İkisi birden gönderilirse `X-Merchant-Id` öncelikli olur.
+**Yanıt** (`200 OK`):
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiI...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiI...",
+  "expires_in": 300,
+  "refresh_expires_in": 0,
+  "token_type": "Bearer",
+  "scope": "openid profile email"
+}
+```
 
-## API anahtarı oluşturma
+| Alan | Anlamı |
+|---|---|
+| `access_token` | API çağrılarında kullanacağınız JWT |
+| `refresh_token` | Access token expire olunca yenisini almak için |
+| `expires_in` | Access token kaç saniye geçerli (**300s = 5 dakika**) |
+| `refresh_expires_in` | Refresh token süresi (`0` = idle timeout uygulanır, bkz. tablo aşağıda) |
+| `token_type` | Daima `Bearer` |
 
-Anahtar oluşturma yalnızca konsol üzerinden mümkündür:
+## 2. Adım — API'yi çağır
 
-<Steps>
-  <Step title="Konsola giriş yapın">
-    [dashboard.payven.com.tr](https://dashboard.payven.com.tr) adresinden hesabınıza giriş yapın.
-  </Step>
-  <Step title="API Anahtarları sayfasına gidin">
-    **Ayarlar → API Anahtarları** menüsünü açın.
-  </Step>
-  <Step title="Yeni anahtar oluşturun">
-    **Yeni Anahtar Oluştur** butonuna basın, ortamı seçin (sandbox/production) ve isim girin.
-  </Step>
-  <Step title="Secret değerini kopyalayın">
-    Üretilen `apiSecret` **yalnızca bir kez** gösterilir. Güvenli bir secret yönetim aracına (HashiCorp Vault, AWS Secrets Manager, Azure Key Vault) kaydedin.
-  </Step>
-</Steps>
+```bash
+curl https://vpos.payven.com.tr/api/v1/payments \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiI..." \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: pay-2026-05-05-abc123" \
+  -d '{
+    "amount": 10000,
+    "currency": "TRY",
+    "card_number": "4111111111111111",
+    "expiry_month": 12,
+    "expiry_year": 2030,
+    "cvv": "123",
+    "installment": 1
+  }'
+```
+
+## 3. Adım — Token yenile
+
+Access token expire olduğunda (`expires_in` süresi geçince) yenisini almak için `refresh_token` ile:
+
+```bash
+curl https://identity.payven.com.tr/api/v1/auth/payven/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refresh_token": "eyJhbGciOiJIUzI1NiI..."
+  }'
+```
+
+Yanıt yine `access_token` + (rotated) `refresh_token` döner.
+
+## Token süreleri
+
+Mevcut Keycloak realm config'ine göre:
+
+| Token | Süre | Anlam |
+|---|---|---|
+| **Access token** | **5 dakika** (300s) | API isteklerinde kullanılır. Süre dolunca refresh ile yenilenir. |
+| **SSO oturum (idle)** | 30 dakika | 30dk hareketsiz kalan oturum kapanır. |
+| **SSO oturum (max)** | 10 saat | Mutlak üst sınır — refresh edilse bile 10 saat sonra yeniden login. |
+| **Offline / Refresh idle** | **30 gün** | Refresh token 30 gün hareketsiz kalırsa expire olur. Düzenli kullanımda refresh otomatik rotate olur, expire olmaz. |
+
+<Note>
+**Pratik öneri:** Access token'ı **expiry'sine 60 saniye kala** yenileyin (clock-skew + network latency için margin). Aşağıdaki SDK örnekleri bunu otomatik yapar.
+</Note>
 
 <Warning>
-**Secret kaybedilirse:** Yeni bir anahtar üretip eskiyi pasife alın. Eski anahtar üzerinden devam eden işlemler etkilenmez.
+**Token cache** — `access_token`'ı her API çağrısında yeniden almayın. Identity rate limit'leri var (login endpoint'i dakikada 10 IP başına). Token'ı bellekte tutup expire olana kadar yeniden kullanın.
 </Warning>
 
-## Anahtarın yetkileri
+## SDK örnekleri (auto-refresh)
 
-Bir API anahtarı, oluşturulduğu kuruluşa bağlı **tüm merchant'lar adına** işlem yapabilir. Her istekte `X-Merchant-Id` ile hangi merchant adına işlem yapıldığı belirtilir.
+<CodeGroup>
+```javascript Node.js
+class PayvenClient {
+  constructor({ slug, clientId, clientSecret, identityBaseUrl }) {
+    this.slug = slug;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.identityBaseUrl = identityBaseUrl;
+    this.accessToken = null;
+    this.refreshToken = null;
+    this.expiresAt = 0;
+  }
 
-| Plan özelliği | Anahtarın etkilediği |
-|---|---|
-| Aktif ürünler | Anahtar yalnızca planda etkin ürünleri çağırabilir |
-| Saniyedeki istek limiti | Tüm anahtarlar arasında paylaşılan kuruluş kotası |
-| IP whitelist | Anahtar bazında ayarlanabilir |
+  async getToken() {
+    // 60sn margin ile cache'den dön
+    if (this.accessToken && Date.now() < this.expiresAt - 60_000) {
+      return this.accessToken;
+    }
 
-## IP whitelist
+    if (this.refreshToken) {
+      const refreshed = await this.refresh();
+      if (refreshed) return this.accessToken;
+    }
 
-Bir anahtarı yalnızca belirli IP adreslerinden çağrılacak şekilde kısıtlayabilirsiniz. Whitelist boş bırakılırsa tüm IP'lerden erişim açıktır.
+    // İlk giriş
+    const res = await fetch(`${this.identityBaseUrl}/api/v1/auth/${this.slug}/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: this.clientId, client_secret: this.clientSecret }),
+    });
+    if (!res.ok) throw new Error(`Token alınamadı: ${res.status}`);
+    const data = await res.json();
+    this.accessToken = data.access_token;
+    this.refreshToken = data.refresh_token;
+    this.expiresAt = Date.now() + data.expires_in * 1000;
+    return this.accessToken;
+  }
 
-Detay: [IP Whitelist](/documentation/concepts/ip-whitelist).
+  async refresh() {
+    const res = await fetch(`${this.identityBaseUrl}/api/v1/auth/${this.slug}/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: this.refreshToken }),
+    });
+    if (!res.ok) {
+      this.refreshToken = null;
+      return false;
+    }
+    const data = await res.json();
+    this.accessToken = data.access_token;
+    this.refreshToken = data.refresh_token;
+    this.expiresAt = Date.now() + data.expires_in * 1000;
+    return true;
+  }
 
-## Anahtar rotasyonu
+  async call(productBaseUrl, path, init = {}) {
+    const token = await this.getToken();
+    return fetch(productBaseUrl + path, {
+      ...init,
+      headers: {
+        ...(init.headers ?? {}),
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+}
+```
 
-Düzenli rotasyon güvenlik açısından önemlidir. Önerilen yaklaşım:
+```python Python
+import time
+import httpx
 
-<Steps>
-  <Step title="Yeni anahtar oluşturun">
-    Mevcut anahtarı silmeden önce yeni bir anahtar üretin.
-  </Step>
-  <Step title="Servisinizi yeni anahtarla deploy edin">
-    Eski ve yeni anahtar **eş zamanlı** çalışır.
-  </Step>
-  <Step title="Eski anahtarın kullanımını izleyin">
-    Konsol → API Kayıtları ekranından eski anahtara gelen istek olup olmadığını kontrol edin.
-  </Step>
-  <Step title="Eski anahtarı pasife alın">
-    Trafik tamamen kesildiğinde eski anahtarı silin.
-  </Step>
-</Steps>
+class PayvenClient:
+    def __init__(self, slug: str, client_id: str, client_secret: str, identity_base_url: str):
+        self.slug = slug
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.identity_base_url = identity_base_url
+        self.access_token: str | None = None
+        self.refresh_token: str | None = None
+        self.expires_at: float = 0
 
-## Hatalı kimlik doğrulama yanıtları
+    def get_token(self) -> str:
+        if self.access_token and time.time() < self.expires_at - 60:
+            return self.access_token
+        if self.refresh_token and self._refresh():
+            return self.access_token  # type: ignore[return-value]
+        r = httpx.post(
+            f"{self.identity_base_url}/api/v1/auth/{self.slug}/token",
+            json={"client_id": self.client_id, "client_secret": self.client_secret},
+        )
+        r.raise_for_status()
+        data = r.json()
+        self.access_token = data["access_token"]
+        self.refresh_token = data["refresh_token"]
+        self.expires_at = time.time() + data["expires_in"]
+        return self.access_token  # type: ignore[return-value]
 
-| HTTP | `code` | Anlam |
-|---|---|---|
-| `401` | `AUTH_MISSING_KEY` | `X-API-Key` header'ı eksik |
-| `401` | `AUTH_INVALID_KEY` | Anahtar bulunamadı veya pasif |
-| `401` | `AUTH_INVALID_SECRET` | Secret eşleşmiyor |
-| `401` | `AUTH_MERCHANT_REQUIRED` | Merchant header'ı eksik |
-| `403` | `AUTH_IP_NOT_ALLOWED` | İstek IP'si whitelist dışında |
-| `403` | `AUTH_PRODUCT_NOT_LICENSED` | Çağrılan ürün planda etkin değil |
-| `429` | `RATE_LIMIT_EXCEEDED` | İstek limitleri aşıldı |
+    def _refresh(self) -> bool:
+        r = httpx.post(
+            f"{self.identity_base_url}/api/v1/auth/{self.slug}/refresh",
+            json={"refresh_token": self.refresh_token},
+        )
+        if r.status_code != 200:
+            self.refresh_token = None
+            return False
+        data = r.json()
+        self.access_token = data["access_token"]
+        self.refresh_token = data["refresh_token"]
+        self.expires_at = time.time() + data["expires_in"]
+        return True
+```
+
+```csharp C#
+public class PayvenClient
+{
+    private readonly HttpClient _http;
+    private readonly string _slug, _clientId, _clientSecret, _identityBase;
+    private string? _accessToken, _refreshToken;
+    private DateTimeOffset _expiresAt;
+    private readonly SemaphoreSlim _lock = new(1, 1);
+
+    public PayvenClient(string slug, string clientId, string clientSecret, string identityBaseUrl)
+    {
+        _slug = slug; _clientId = clientId; _clientSecret = clientSecret; _identityBase = identityBaseUrl;
+        _http = new HttpClient();
+    }
+
+    public async Task<string> GetTokenAsync(CancellationToken ct = default)
+    {
+        await _lock.WaitAsync(ct);
+        try
+        {
+            if (_accessToken is not null && DateTimeOffset.UtcNow < _expiresAt.AddSeconds(-60))
+                return _accessToken;
+
+            if (_refreshToken is not null && await TryRefreshAsync(ct))
+                return _accessToken!;
+
+            var resp = await _http.PostAsJsonAsync(
+                $"{_identityBase}/api/v1/auth/{_slug}/token",
+                new { client_id = _clientId, client_secret = _clientSecret }, ct);
+            resp.EnsureSuccessStatusCode();
+            var data = await resp.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken: ct);
+            _accessToken = data!.access_token;
+            _refreshToken = data.refresh_token;
+            _expiresAt = DateTimeOffset.UtcNow.AddSeconds(data.expires_in);
+            return _accessToken;
+        }
+        finally { _lock.Release(); }
+    }
+
+    private async Task<bool> TryRefreshAsync(CancellationToken ct)
+    {
+        var resp = await _http.PostAsJsonAsync(
+            $"{_identityBase}/api/v1/auth/{_slug}/refresh",
+            new { refresh_token = _refreshToken }, ct);
+        if (!resp.IsSuccessStatusCode) { _refreshToken = null; return false; }
+        var data = await resp.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken: ct);
+        _accessToken = data!.access_token;
+        _refreshToken = data.refresh_token;
+        _expiresAt = DateTimeOffset.UtcNow.AddSeconds(data.expires_in);
+        return true;
+    }
+
+    private record TokenResponse(string access_token, string refresh_token, int expires_in);
+}
+```
+
+```php PHP
+<?php
+class PayvenClient {
+    private string $slug; private string $clientId; private string $clientSecret;
+    private string $identityBase; private ?string $accessToken = null;
+    private ?string $refreshToken = null; private int $expiresAt = 0;
+
+    public function __construct(string $slug, string $clientId, string $clientSecret, string $identityBase) {
+        $this->slug = $slug; $this->clientId = $clientId;
+        $this->clientSecret = $clientSecret; $this->identityBase = $identityBase;
+    }
+
+    public function getToken(): string {
+        if ($this->accessToken && time() < $this->expiresAt - 60) return $this->accessToken;
+        if ($this->refreshToken && $this->refresh()) return $this->accessToken;
+        $resp = $this->post("/api/v1/auth/{$this->slug}/token", [
+            'client_id' => $this->clientId, 'client_secret' => $this->clientSecret,
+        ]);
+        $this->accessToken = $resp['access_token'];
+        $this->refreshToken = $resp['refresh_token'];
+        $this->expiresAt = time() + $resp['expires_in'];
+        return $this->accessToken;
+    }
+
+    private function refresh(): bool {
+        try {
+            $resp = $this->post("/api/v1/auth/{$this->slug}/refresh",
+                ['refresh_token' => $this->refreshToken]);
+            $this->accessToken = $resp['access_token'];
+            $this->refreshToken = $resp['refresh_token'];
+            $this->expiresAt = time() + $resp['expires_in'];
+            return true;
+        } catch (Exception $e) { $this->refreshToken = null; return false; }
+    }
+
+    private function post(string $path, array $body): array {
+        $ch = curl_init($this->identityBase . $path);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS => json_encode($body),
+        ]);
+        $body = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+        if ($code !== 200) throw new Exception("Token request failed: $code");
+        return json_decode($body, true);
+    }
+}
+```
+
+```go Go
+package payven
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "sync"
+    "time"
+)
+
+type Client struct {
+    Slug, ClientID, ClientSecret, IdentityBase string
+    accessToken, refreshToken string
+    expiresAt time.Time
+    mu sync.Mutex
+}
+
+type tokenResponse struct {
+    AccessToken  string `json:"access_token"`
+    RefreshToken string `json:"refresh_token"`
+    ExpiresIn    int    `json:"expires_in"`
+}
+
+func (c *Client) GetToken() (string, error) {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    if c.accessToken != "" && time.Now().Before(c.expiresAt.Add(-60*time.Second)) {
+        return c.accessToken, nil
+    }
+    if c.refreshToken != "" {
+        if err := c.refresh(); err == nil {
+            return c.accessToken, nil
+        }
+    }
+    body, _ := json.Marshal(map[string]string{
+        "client_id": c.ClientID, "client_secret": c.ClientSecret,
+    })
+    return c.fetchToken(fmt.Sprintf("%s/api/v1/auth/%s/token", c.IdentityBase, c.Slug), body)
+}
+
+func (c *Client) refresh() error {
+    body, _ := json.Marshal(map[string]string{"refresh_token": c.refreshToken})
+    _, err := c.fetchToken(fmt.Sprintf("%s/api/v1/auth/%s/refresh", c.IdentityBase, c.Slug), body)
+    if err != nil { c.refreshToken = "" }
+    return err
+}
+
+func (c *Client) fetchToken(url string, body []byte) (string, error) {
+    resp, err := http.Post(url, "application/json", bytes.NewReader(body))
+    if err != nil { return "", err }
+    defer resp.Body.Close()
+    if resp.StatusCode != 200 { return "", fmt.Errorf("token: %d", resp.StatusCode) }
+    var data tokenResponse
+    if err := json.NewDecoder(resp.Body).Decode(&data); err != nil { return "", err }
+    c.accessToken = data.AccessToken
+    c.refreshToken = data.RefreshToken
+    c.expiresAt = time.Now().Add(time.Duration(data.ExpiresIn) * time.Second)
+    return c.accessToken, nil
+}
+```
+</CodeGroup>
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam | Çözüm |
+|---|---|---|---|
+| `401` | `invalid_credentials` | `client_id` / `client_secret` yanlış | Konsoldan kimlik bilgilerini doğrulayın |
+| `401` | `invalid_token` | `access_token` geçersiz veya expire | Refresh akışını çalıştırın |
+| `401` | `token_expired` | Access token süresi geçti | Refresh edin |
+| `401` | `invalid_refresh_token` | Refresh token expire / revoke | Yeni `client_credentials` ile baştan token alın |
+| `403` | `realm_suspended` | Tenant askıya alınmış | Müşteri ilişkileriniz ile iletişime geçin |
+| `404` | `realm_not_found` | `{slug}` geçersiz | Onboarding'de verilen slug'ı kontrol edin |
+| `429` | `rate_limit_exceeded` | Token endpoint'ine çok istek | `Retry-After` header'ına uyun, token cache'leyin |
 
 Tam hata kataloğu: [Hata Yönetimi](/documentation/concepts/errors).
 
-## Güvenlik kuralları
+## Güvenlik
 
-<Check>API çağrılarınızı **yalnızca sunucu tarafından** yapın. `apiSecret` değerini istemci kodlarına (tarayıcı, mobil uygulama) **asla** gömmeyin.</Check>
-<Check>Anahtarları kaynak kod deposuna commit etmeyin. `.env` dosyalarını `.gitignore`'a ekleyin.</Check>
-<Check>Production ve sandbox anahtarlarını ayrı tutun.</Check>
-<Check>HTTPS dışında istek atmayın — HTTP istekleri reddedilir.</Check>
-<Check>Anahtarları en az **6 ayda bir** rotasyona alın.</Check>
+<Check>**`client_secret` server-side saklanır** — frontend kodunuza, mobil uygulamanıza, public repo'ya **asla** koymayın.</Check>
+<Check>**Token cache'i bellek-içi** — disk'e yazmayın; restart sonrası yeniden token alın.</Check>
+<Check>**HTTPS zorunlu** — HTTP istekleri reddedilir.</Check>
+<Check>**Token rotasyonu** — refresh otomatik yapar; manuel rotation gerekmez. Şüpheli durumda Identity'den ilgili client'ın secret'ını rotate edin.</Check>
+<Check>**Loglarda maskele** — `access_token` ve `refresh_token` değerlerini log'lara yazmayın.</Check>
+
+## SSS
+
+<AccordionGroup>
+  <Accordion title="Stripe gibi tek 'sk_live_xxx' secret'la çağıramaz mıyım?">
+    Hayır — Payven OAuth 2.0 Client Credentials standardını kullanır. İki adımda olsa da, SDK'lar bu adımı sizin için saklar. Yukarıdaki örneklerde `client.call(...)` tek bir çağrı.
+  </Accordion>
+  <Accordion title="Token süresini uzatabilir miyim?">
+    Şu an config sabittir (5dk access, 30 gün refresh idle). Daha uzun süre ihtiyacı için müşteri başarısı ekibine ulaşın — `offline_access` scope ile expire olmayan refresh token tahsis edilebilir.
+  </Accordion>
+  <Accordion title="Birden fazla servisi tek token'la çağırabilir miyim?">
+    Evet — Identity'den alınan JWT, planınızdaki tüm aktif ürünlerde geçerlidir. Sanal POS, Para Transferi, Fraud — hepsi aynı token'la çağrılır.
+  </Accordion>
+  <Accordion title="Test (sandbox) ortamı?">
+    Sandbox endpoint'leri ayrı bir tenant slug ile yayında: `https://identity-sandbox.payven.com.tr` ve `https://vpos-sandbox.payven.com.tr`. Sandbox client_id'leri canlıdan ayrıdır, üretim parasıyla işlem yapılmaz.
+  </Accordion>
+</AccordionGroup>
