@@ -1,119 +1,141 @@
 ---
 title: "DCC (Dynamic Currency Conversion)"
-description: "Yabancı kart sahibine işlemi kendi para biriminde gösterme."
+description: "Yabancı kart sahibine işlem tutarını kart para biriminde sunma."
 ---
 
-DCC, yabancı kart sahibine **kendi kart para biriminde** işlem tutarını gösteren akıştır. Müşteri TRY veya kendi para birimi (USD, EUR, GBP) arasında seçim yapar.
+DCC (Dynamic Currency Conversion), yabancı kart sahibine **kendi kart para biriminde** işlem tutarını gösteren akıştır. Müşteri TRY veya kart para birimi (USD, EUR, GBP) arasında seçim yapar.
 
 <Note>
-DCC özelliği kuruluşunuzun banka anlaşmasında etkin olmalıdır. Detay için [destek ekibinize](/resources/support) danışın.
+DCC özelliği kuruluşunuzun banka anlaşmasında etkin olmalıdır ve **DCC'yi destekleyen
+konnektör** üzerinden işlem geçmelidir. Etkinlik durumu için [destek ekibinize](/resources/support)
+danışın.
 </Note>
 
 ## Akış
 
 ```mermaid
 sequenceDiagram
-    participant Server
+    participant App as Sunucunuz
     participant Payven
     participant Bank
 
-    Server->>Payven: POST /payments (currency=TRY)
-    Payven->>Payven: BIN'den kartın para birimini tespit et
+    App->>Payven: POST /payments (currency=TRY)
+    Payven->>Payven: Yabancı BIN tespiti
     Payven->>Bank: DCC kuru sorgu
-    Bank-->>Payven: Önerilen kur ve tutar
-    Payven-->>Server: DCC teklif (offerId, USD tutarı)
-    Note over Server: Müşteriye seçim sun:<br/>TRY veya USD?
-    Server->>Payven: POST /payments/{id}/dcc/confirm
-    Payven->>Bank: Seçilen para birimiyle authorize
-    Bank-->>Payven: Onay
-    Payven-->>Server: Sonuç
+    Bank-->>Payven: Önerilen kur ve alternatif tutar
+    Payven-->>App: PaymentOperationResult<br/>(status: dcc_pending,<br/>extra_properties.dcc_*)
+    Note over App: Müşteriye seçim sun:<br/>TRY mi, kart para birimi mi?
+    App->>Payven: POST /payments/{id}/dcc/confirm<br/>{ accept_dcc: true|false }
+    Payven->>Bank: Seçilen para birimiyle otorizasyon
+    Bank-->>Payven: Onay/Red
+    Payven-->>App: PaymentOperationResult (final)
 ```
 
 ## 1. İlk istek (TRY tutarıyla)
 
-Normal `POST /payments` veya `POST /payments/3d/init` isteği yapın. Yanıtta DCC teklifi gelirse:
+Standart `POST /payments` veya `POST /payments/3d/init` isteği yapın. Payven yabancı BIN tespit eder ve DCC teklifi varsa yanıtta `extra_properties` içinde döner:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "id": "8e3f5c12-...",
-    "status": "DccPending",
-    "amount": 15000,
-    "currency": "TRY",
-    "dcc": {
-      "offerId": "dcc_8e3f5c12",
-      "alternativeCurrency": "USD",
-      "alternativeAmount": 480,
-      "exchangeRate": 31.25,
-      "markup": 3.5,
-      "expiresAt": "2026-05-03T12:40:00Z"
-    }
+  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":              "dcc_pending",
+  "is_success":          true,
+  "message":             "DCC teklifi hazır",
+  "error_code":          null,
+  "provider_error_code": null,
+  "extra_properties": {
+    "dcc_alternative_currency": "USD",
+    "dcc_alternative_amount":   "480",
+    "dcc_exchange_rate":        "31.25",
+    "dcc_markup_percent":       "3.5",
+    "dcc_offer_expires_at":     "2026-05-03T12:40:00.000+00:00",
+    "processed_at":             "2026-05-03T12:35:00.123+00:00"
   }
 }
-```
-
-## 2. Müşteriye seçim sun
-
-UI'da iki seçenek gösterin:
-
-```
-☐ Türk Lirası ile öde:    150,00 ₺
-☑ Kendi para biriminizle: 4,80 USD  (kur: 31.25)
-```
-
-## 3. Seçimi onayla
-
-```
-POST /api/v1/payments/{paymentId}/dcc/confirm
-```
-
-```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-.../dcc/confirm \
-  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "offerId": "dcc_8e3f5c12",
-    "useAlternativeCurrency": true
-  }'
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `offerId` | İlk yanıttaki teklif kimliği |
-| `useAlternativeCurrency` | `true` = USD ile öde, `false` = TRY ile öde |
+| `dcc_alternative_currency` | Kart para birimi (USD, EUR, GBP) |
+| `dcc_alternative_amount` | Bu para biriminde gösterilecek tutar (kart cinsi alt birimi: cent / penny) |
+| `dcc_exchange_rate` | Uygulanacak çapraz kur |
+| `dcc_markup_percent` | Banka tarafından eklenen marj (% olarak) |
+| `dcc_offer_expires_at` | Teklifin geçerlilik süresi (genellikle 5 dakika) |
 
-## Yanıt
+## 2. Müşteriye seçim sun
+
+Müşteriye iki seçeneği şeffaf şekilde gösterin (PCI-DSS DCC kuralı zorunluluğu):
+
+```
+☐ Türk Lirası ile öde:    150,00 ₺
+☐ Kart para biriminizle:    4,80 USD  (kur: 31,25 — %3,5 marj dahil)
+```
+
+<Warning>
+**PCI-DSS DCC kuralı:** Müşteriye **iki seçenek** sunulmalı, **varsayılan TRY** olmalı, kur ve markup açıkça belirtilmelidir. Aksi durumda kart şeması cezai yaptırım uygulayabilir.
+</Warning>
+
+## 3. Seçimi onayla
+
+```http
+POST /api/v1/payments/{transaction_id}/dcc/confirm
+```
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/dcc/confirm \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: order-1001-dcc-confirm" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accept_dcc": true
+  }'
+```
+
+| Alan | Tip | Açıklama |
+|---|---|---|
+| `accept_dcc` | bool | `true` → kart para birimi ile öde; `false` → orijinal TRY ile öde |
+
+## Final yanıt
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "id": "8e3f5c12-...",
-    "status": "Success",
-    "amount": 480,
-    "currency": "USD",
-    "dcc": {
-      "offerId": "dcc_8e3f5c12",
-      "originalAmount": 15000,
-      "originalCurrency": "TRY",
-      "exchangeRate": 31.25
-    }
+  "transaction_id":      "8e3f5c12-...",
+  "status":              "completed",
+  "is_success":          true,
+  "message":             "Onaylandı",
+  "error_code":          null,
+  "provider_error_code": null,
+  "extra_properties": {
+    "processed_at":      "2026-05-03T12:38:01.234+00:00",
+    "auth_code":         "123456",
+    "host_reference":    "PAYVEN-REF-789",
+    "dcc_charged_currency": "USD",
+    "dcc_charged_amount":   "480",
+    "dcc_original_amount":  "15000",
+    "dcc_original_currency": "TRY",
+    "dcc_exchange_rate":    "31.25"
   }
 }
 ```
 
-## Önemli kurallar
+## Kurallar
 
-<Check>**Kullanıcı kararı zorunludur.** PCI-DSS DCC kuralı: müşteriye iki seçenek sunulmalı, varsayılan **TRY** olmalı.</Check>
-<Check>**Kuru ve markup'ı net göster.** Müşteriye uygulanan kur açık şekilde gösterilmeli.</Check>
-<Check>**Teklif süresi kısadır.** Genellikle 5 dakika. Süresi dolmuş teklifle confirm `DCC_OFFER_EXPIRED` döner.</Check>
-<Check>**Yerel kart için DCC önerilmez.** Türk bankası kartında DCC otomatik kapalıdır — `dcc` alanı dönmez.</Check>
+<Check>**Müşteri kararı zorunludur.** Default seçenek **TRY** olmalı; müşteri açıkça kart para birimini seçmeli.</Check>
+<Check>**Kuru ve markup'ı net göster.** Müşteriye uygulanan kur ve marj kartlı işlemde mutlaka görünür olmalı.</Check>
+<Check>**Teklif süresi kısadır.** Genellikle 5 dakika. Süresi dolmuş teklifle confirm `422 dcc_offer_expired` döner.</Check>
+<Check>**Yerel kart için DCC önerilmez.** Türk bankası kartında DCC otomatik kapalıdır — `extra_properties` içinde DCC alanları gelmez.</Check>
 
 ## Hata yanıtları
 
-| `code` | Anlam |
-|---|---|
-| `DCC_NOT_AVAILABLE` | Kuruluşunuz için DCC etkin değil |
-| `DCC_OFFER_EXPIRED` | Teklif süresi doldu |
-| `DCC_INVALID_OFFER` | Teklif kimliği yanlış veya başka bir ödemeye ait |
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `payment_not_found` | İşlem bulunamadı |
+| `422` | `dcc_not_available` | Kuruluşunuz veya kart için DCC etkin değil |
+| `422` | `dcc_offer_expired` | Teklif süresi doldu — yeni `POST /payments` ile baştan başlayın |
+| `422` | `dcc_invalid_state` | İşlem `dcc_pending` durumunda değil |
+
+Hata zarfı RFC 9457 problem+json formatındadır.
+
+## Konnektör desteği
+
+DCC, banka konnektörüne özgü bir özelliktir — her banka desteklemez. Aktif olduğu konnektörler için konsoldan **Konnektörler** ekranına bakın veya [destek ekibimize](/resources/support) ulaşın.

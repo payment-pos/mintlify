@@ -1,141 +1,165 @@
 ---
 title: "Idempotency"
-description: "Aynı isteği güvenle tekrar atabilmek için idempotency-key kullanımı."
+description: "Aynı isteği güvenle tekrar göndermek için Idempotency-Key kullanımı."
 ---
 
-Ağ kesintisi, timeout veya istemci tarafı hata durumlarında bir isteği iki kez göndermiş olabilirsiniz. **Idempotency**, aynı işlemin **iki kez gerçekleştirilmemesini** garanti eder.
+Ağ kesintisi, timeout veya istemci tarafı hata durumlarında bir isteği iki kez göndermiş olabilirsiniz. **Idempotency**, aynı işlemin iki kez gerçekleştirilmemesini garanti eder.
 
 ## Nasıl çalışır?
 
-Yazma işlemi yapan tüm endpoint'ler (`POST`, `PUT`, `PATCH`, `DELETE`) bir `Idempotency-Key` header'ı kabul eder. Aynı anahtarla gönderilen ikinci istek, ilk yanıtın **birebir aynısını** döner — yeni bir işlem başlatmaz.
+Yazma işlemi yapan tüm `POST` endpoint'leri `Idempotency-Key` header'ını kabul eder. Aynı anahtarla gönderilen ikinci istek, **ilk yanıtın birebir aynısını** döner — yeni bir işlem oluşmaz.
 
 ```http
 POST /api/v1/payments
-Idempotency-Key: 8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6
+Authorization: Bearer eyJhbGc...
+Idempotency-Key: order-1001-payment
 ```
 
-## Anahtar gereksinimleri
+Replay edilen yanıtlarda Payven `Idempotent-Replayed: true` header'ını ekler:
+
+```http
+HTTP/1.1 200 OK
+Idempotent-Replayed: true
+```
+
+## Anahtar kuralları
 
 | Kural | Değer |
 |---|---|
-| Format | UUID v4 önerilir, herhangi bir string kabul edilir |
+| Format | UUID v4 önerilir; herhangi bir string kabul edilir |
 | Maksimum uzunluk | 128 karakter |
-| Saklama süresi | Ödeme (Sanal POS `POST /payments`): **24 saat**. Diğer yazma endpoint'leri: **3 dakika** (cache TTL). |
-| Eşsiz olma kapsamı | Aynı API anahtarı + endpoint kombinasyonu içinde |
+| Saklama süresi | **Ödeme endpoint'leri** (`POST /payments` ve `/payments/...`): **24 saat**. Diğer yazma endpoint'leri: **3 dakika** (cache TTL). |
+| Eşsiz olma kapsamı | Tenant + endpoint kombinasyonu içinde |
+| Body değişikliği | Aynı anahtarla **farklı** body → `409 idempotency_key_in_use` |
 
-## Örnek senaryolar
+<Note>
+Anahtar tenant düzeyinde scope'lanır — farklı bir tenant aynı anahtarla başka bir
+işlem oluşturabilir, bu beklenen davranıştır.
+</Note>
+
+## Senaryolar
 
 <AccordionGroup>
   <Accordion title="Başarılı istek + tekrar deneme">
-    1. İstemci `POST /payments` isteği gönderir, `Idempotency-Key: ABC123`.
-    2. Payven işlemi başarıyla gerçekleştirir, `200 OK` döner.
-    3. İstemci timeout aldığını sanıp aynı isteği aynı anahtarla tekrar gönderir.
-    4. Payven, yeni bir ödeme oluşturmaz; **ilk yanıtın aynısını** döner.
+    1. İstemci `POST /payments` gönderir, `Idempotency-Key: order-1001-payment`.
+    2. Payven işlemi başarıyla yapar, `200 OK` döner.
+    3. İstemci network timeout aldığını sanıp aynı isteği aynı anahtarla tekrar gönderir.
+    4. Payven yeni ödeme oluşturmaz; ilk yanıtı döner ve `Idempotent-Replayed: true` header'ı ekler.
   </Accordion>
 
   <Accordion title="Eşzamanlı tekrar istek">
     1. İki istek aynı anda atılır, ikisinde de `Idempotency-Key: ABC123`.
-    2. Birinci istek işlenmeye başlar.
-    3. İkinci istek, ilkinin tamamlanmasını bekler ve **aynı yanıtı** alır.
+    2. Birinci istek işlenmeye başlar — cache'e eklenir.
+    3. İkinci istek cache'e ulaştığında ilk yanıt henüz hazırsa onu döner; değilse (race) backend'in deduplication mantığı devreye girer.
   </Accordion>
 
   <Accordion title="Aynı anahtar farklı payload ile">
-    1. İstemci `Idempotency-Key: ABC123` ile `15000` kuruş ödeme atar.
-    2. Aynı anahtarla `25000` kuruş ödeme atar.
-    3. Payven `409 Conflict` döner — anahtar zaten farklı bir payload için kullanılmış.
+    1. İstemci `Idempotency-Key: ABC123` ile `15000` kuruşluk ödeme atar.
+    2. Aynı anahtarla `25000` kuruşluk ödeme atar.
+    3. Payven `409 Conflict` döner — anahtar farklı body için kullanılmış:
 
     ```json
     {
-      "type": "https://docs.payven.com.tr/errors/idempotency_key_in_use",
-      "title": "Idempotency-Key conflict",
+      "type":   "https://docs.payven.com.tr/errors/idempotency_key_in_use",
+      "title":  "Idempotency-Key conflict",
       "status": 409,
-      "code": "idempotency_key_in_use",
+      "code":   "idempotency_key_in_use",
       "detail": "Idempotency-Key was previously used with a different request body."
     }
     ```
 
-    Yanıt `Content-Type: application/problem+json` (RFC 9457) formatındadır.
-    Aynı anahtarla **aynı body** tekrar gönderilirse Payven cached yanıtı döner ve
-    `Idempotent-Replayed: true` header'ı ekler.
+    Çözüm: ya farklı bir anahtar kullanın, ya da bilinçli retry için aynı body'yi gönderin.
   </Accordion>
 
   <Accordion title="TTL süresi sonrası">
-    1. Saklama süresi geçmiş bir anahtar (ödemeler için 24 saat, diğer endpoint'ler için 3 dakika sonra).
-    2. Aynı anahtar tekrar kullanılırsa **yeni** bir işlem oluşturulur (eski kayıt silinmiş).
+    1. Saklama süresi dolmuş bir anahtar (ödemeler için 24 saat, diğer endpoint'ler için 3 dakika).
+    2. Aynı anahtar tekrar kullanılırsa **yeni** bir işlem oluşur — cache temizlenmiş.
+    3. Bu nedenle uzun süreli retry mantığında her seferinde anahtar üretmek değil, üst seviye iş kimliğini (örn. `order_id`) anahtar olarak kullanmak daha güvenlidir.
   </Accordion>
 </AccordionGroup>
 
 ## Önerilen kullanım
 
+İstemci tarafında **yüksek seviye iş kimliğini** anahtar olarak kullanın. Böylece aynı sipariş için yapılan tüm tekrar denemeler aynı işleme yönlendirilir.
+
+```text
+Idempotency-Key: order-2026-001-payment
+Idempotency-Key: order-2026-001-refund-1
+```
+
 <CodeGroup>
 ```csharp C#
-var idempotencyKey = Guid.NewGuid().ToString();
+var idempotencyKey = $"order-{order.Id}-payment";
 
-// Retry policy ile birlikte
-for (int attempt = 0; attempt < 3; attempt++)
+var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/payments")
 {
-    try
-    {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/payments");
-        request.Headers.Add("Idempotency-Key", idempotencyKey);
-        request.Content = JsonContent.Create(payload);
-        var response = await http.SendAsync(request);
-        return await response.Content.ReadFromJsonAsync<ApiResponse>();
-    }
-    catch (HttpRequestException) when (attempt < 2)
-    {
-        await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
-    }
-}
+    Content = JsonContent.Create(payload)
+};
+request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+request.Headers.Add("Idempotency-Key", idempotencyKey);
+
+// Network timeout / 5xx durumunda aynı request'i tekrar gönder.
+var response = await SendWithRetryAsync(() => CloneRequest(request));
 ```
 
 ```javascript Node.js
-import { randomUUID } from "crypto";
+const idempotencyKey = `order-${order.id}-payment`;
 
-const idempotencyKey = randomUUID();
+await retry(() =>
+  fetch("https://vpos.payven.com.tr/api/v1/payments", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Idempotency-Key": idempotencyKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  }),
+);
+```
 
-async function postWithRetry(url, body, maxAttempts = 3) {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Idempotency-Key": idempotencyKey,
-          "X-API-Key": process.env.PAYVEN_KEY,
-          "X-API-Secret": process.env.PAYVEN_SECRET,
-          "X-Merchant-Id": process.env.PAYVEN_MERCHANT,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) return res.json();
-      if (res.status >= 500) throw new Error("server-error");
-      return res.json();
-    } catch (err) {
-      if (attempt === maxAttempts - 1) throw err;
-      await new Promise((r) => setTimeout(r, 2 ** attempt * 1000));
-    }
-  }
-}
+```python Python
+import httpx
+
+idempotency_key = f"order-{order.id}-payment"
+
+await retry(lambda: client.post(
+    "/api/v1/payments",
+    json=payload,
+    headers={
+        "Authorization": f"Bearer {access_token}",
+        "Idempotency-Key": idempotency_key,
+    },
+))
 ```
 </CodeGroup>
 
-<Tip>
-**Önerilen kural:** Üst seviye iş kimliğinizi (örn. `orderId`) idempotency anahtarı olarak kullanın. Böylece aynı sipariş için yapılan tüm tekrar denemeler aynı işleme yönlendirilir.
+## Hangi endpoint'lerde kullanın
 
-```
-Idempotency-Key: order-2026-001-payment
-```
-</Tip>
-
-## Hangi endpoint'lerde zorunlu?
-
-| Endpoint kategorisi | Idempotency kullanımı |
+| Kategori | Idempotency |
 |---|---|
-| Ödeme oluşturma (`POST /payments`) | **Önerilir** |
-| 3D init (`POST /payments/3d/init`) | **Önerilir** |
-| İade (`POST /payments/{id}/refund`) | **Zorunlu** |
-| İptal (`POST /payments/{id}/void`) | **Zorunlu** |
-| Capture (`POST /payments/{id}/capture`) | **Zorunlu** |
-| Webhook abonelik oluşturma | Opsiyonel |
-| Liste/sorgu (`GET`) endpoint'leri | İhtiyaç yok |
+| `POST /api/v1/payments` (Non-3D ödeme) | **Önerilir** |
+| `POST /api/v1/payments/3d/init` (3DS init) | **Önerilir** |
+| `POST /api/v1/payments/{id}/refund` (İade) | **Zorunlu öneri** — aynı tutarın iki kez iade edilmesini engeller |
+| `POST /api/v1/payments/{id}/void` (İptal) | **Zorunlu öneri** |
+| `POST /api/v1/payments/{id}/capture` (Capture) | **Zorunlu öneri** |
+| `POST /api/v1/checkout/sessions` (Hosted checkout) | Önerilir |
+| `POST /api/v1/transfers/...` (Para transferi) | **Zorunlu öneri** |
+| `POST /api/v1/webhooks` (Webhook subscription) | Opsiyonel |
+| `GET` istekleri | İhtiyaç yok — `GET` zaten doğal idempotent |
+
+## Sınırlar ve dikkat
+
+<Warning>
+**`Idempotency-Key`'i mantıksız geniş ölçekte kullanmayın.** Saatler önceki bir
+işlemin yanıtını "replay" amacıyla almak için anahtar saklamak yerine, gerçek
+durumu **`GET /api/v1/payments/{id}`** ile sorgulayın. Idempotency-Key sadece
+**istemci taraflı tekrar gönderim** korumasıdır, kalıcı bir "transaction lookup"
+mekanizması değildir.
+</Warning>
+
+<Tip>
+Refund ve void gibi hassas işlemleri **deterministik anahtar** ile gönderin
+(örn. `refund-{transaction_id}-{slot}`) — operatörün UI'da iki kez butona basması
+durumunda da sadece tek iade oluşur.
+</Tip>

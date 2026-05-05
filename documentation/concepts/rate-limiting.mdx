@@ -13,7 +13,7 @@ Limitler planınıza göre değişir. Tipik değerler:
 |---|---|---|
 | Sandbox | 50 | 100 |
 | Standart | 200 | 400 |
-| Yüksek hacim | 1000+ | Anlaşmalı |
+| Yüksek hacim | Anlaşmalı | Anlaşmalı |
 
 Aktif planınızı [Konsol → Plan ve Kullanım](https://dashboard.payven.com.tr/my-plan) ekranından görebilirsiniz.
 
@@ -35,20 +35,22 @@ X-RateLimit-Reset:      1714742400
 
 ## Limit aşımı
 
-Kotanız aşıldığında `429 Too Many Requests` döner:
+Kotanız aşıldığında `429 Too Many Requests` döner. Yanıt RFC 9457 problem+json formatındadır ve `Retry-After` header'ı kaç saniye bekleyeceğinizi belirtir:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Content-Type: application/problem+json
+Retry-After: 1
+```
 
 ```json
 {
-  "isSuccess": false,
-  "code": "RATE_LIMIT_EXCEEDED",
-  "message": "İstek limiti aşıldı. Lütfen biraz sonra tekrar deneyin."
+  "type":   "https://docs.payven.com.tr/errors/rate_limit_exceeded",
+  "title":  "Rate limit exceeded",
+  "status": 429,
+  "code":   "rate_limit_exceeded",
+  "detail": "İstek limiti aşıldı. Lütfen biraz sonra tekrar deneyin."
 }
-```
-
-Yanıtta ek olarak `Retry-After` başlığı bulunur — bu süre kadar (saniye) bekleyip yeniden deneyebilirsiniz.
-
-```http
-Retry-After: 1
 ```
 
 ## Önerilen istemci davranışı

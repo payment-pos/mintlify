@@ -3,66 +3,98 @@ title: "Puan Sorgulama"
 description: "Bonus, Maximum, World gibi banka programlarının puan bakiyesini sorgulayın."
 ---
 
-Türk bankalarının kart programları (Bonus, Maximum, Axess, World, Paraf, CardFinans, Wings...) müşteriye **puan biriktirme** sunar. Bu endpoint, kart bazında puan bakiyesi sorgulamak için kullanılır.
+Türk bankalarının kart programları (Bonus, Maximum, Axess, World, Paraf, Cardfinans, Wings) müşteriye **puan biriktirme** sunar. Bu endpoint, kart bazında puan bakiyesi sorgulamak için kullanılır.
 
 <Note>
-Tüm bankalar puan sorgu API'si sunmaz. Bankaya özgü destek için konsoldaki **Konnektör Yetenek Matrisi** ekranını kontrol edin.
+Tüm bankalar puan sorgu API'si sunmaz. Şu anda **HalkBank VPOS** üzerinde aktiftir. Diğer konnektörler için destek genişlemektedir — güncel matris için konsoldaki **Konnektörler** ekranına bakın.
 </Note>
 
 ## Endpoint
 
-```
-POST /api/v1/payments/{paymentId}/point-inquiry
+```http
+POST /api/v1/payments/{transaction_id}/point-inquiry
 ```
 
-Mevcut bir ödemeye bağlı kart için puan sorgular. Genellikle **3DS init sonrası** ve **ödeme tamamlanmadan önce** çağrılır — müşteriye "X puanınız var, kullanmak ister misiniz?" akışı için.
+Mevcut bir ödeme/3DS init kaydına bağlı kart için puan sorgular. Genellikle 3DS init sonrası, otorizasyon öncesi çağrılır — müşteriye "X puanınız var, kullanmak ister misiniz?" akışı için.
 
 ## İstek
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-.../point-inquiry \
-  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT"
+curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/point-inquiry \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "extra_properties": {}
+  }'
 ```
+
+| Alan | Tip | Açıklama |
+|---|---|---|
+| `extra_properties` | object | Konnektör-spesifik ek alanlar (genelde boş) |
 
 ## Yanıt
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "paymentId": "8e3f5c12-...",
-    "available": true,
-    "balance": 12500,
-    "currency": "TRY",
-    "program": "Bonus",
-    "bankCode": "GARANTI"
+  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":              "pending",
+  "is_success":          true,
+  "message":             "Puan bakiyesi sorgulandı",
+  "error_code":          null,
+  "provider_error_code": null,
+  "extra_properties": {
+    "processed_at":              "2026-05-03T12:34:57.123+00:00",
+    "point_balance":             "12500",
+    "point_program":             "Bonus",
+    "point_currency":            "TRY",
+    "max_usable_points":         "12500"
   }
 }
 ```
 
-| Alan | Açıklama |
+| `extra_properties` alanı | Açıklama |
 |---|---|
-| `available` | Bu kart için puan sorgusu desteklendi mi? |
-| `balance` | Mevcut puan bakiyesi (kuruş cinsinden, TRY karşılığı) |
-| `program` | Banka programı |
+| `point_balance` | Mevcut puan bakiyesi (kuruş cinsinden TRY karşılığı) |
+| `point_program` | Banka programı (Bonus, Maximum, Axess, World, Paraf, vb.) |
+| `point_currency` | Birim (genellikle TRY) |
+| `max_usable_points` | Bu işlemde kullanılabilecek maksimum puan |
 
-## Puan kullanma
+<Note>
+Konnektöre göre alan isimleri değişebilir — `point_balance` her konnektörde
+garanti değildir. Yanıt schema'sını **`extra_properties` altındaki gerçek
+anahtarlarla** çalışın; gelmeyen alanları boş varsayın.
+</Note>
 
-Puan sorgu sonrası ödeme isteğinde `usePoints` alanı doldurabilirsiniz:
+## Puan kullanarak ödeme
+
+Şu an puan kullanımı **konnektöre özgü** bir akıştır — `CreatePaymentRequest.extra_properties` ile aktarılır:
 
 ```json
 {
-  "amount": 15000,
-  "usePoints": 5000,
-  "card": { ... }
+  "amount":         { "amount": 15000, "currency": "TRY" },
+  "installment":    1,
+  "card":           { ... },
+  "extra_properties": {
+    "use_points":   "5000"
+  }
 }
 ```
 
-İşlem tamamlandığında `5000` puan düşülür, müşteri kalan `10000` kuruşu öder.
+Banka talebi onaylarsa kalan tutar (10.000 kuruş) karttan çekilir, 5.000 puan düşülür. Top-level standart bir `use_points` alanı yol haritasındadır.
 
 ## Hata yanıtları
 
-| `code` | Anlam |
-|---|---|
-| `POINT_INQUIRY_NOT_SUPPORTED` | Bu banka/program puan sorguyu desteklemiyor |
-| `POINT_INQUIRY_FAILED` | Banka tarafından hata döndü |
+| HTTP | `error_code` | Anlam |
+|---|---|---|
+| `200` (gövdede `is_success: false`) | `POINT_INQUIRY_NOT_SUPPORTED` | Bu konnektör puan sorgusu desteklemiyor |
+| `200` (gövdede `is_success: false`) | `POINT_INQUIRY_FAILED` | Banka puan sorgusunu reddetti |
+| `200` (gövdede `is_success: false`) | `POINT_INQUIRY_EXCEPTION` | Sorgu sırasında exception |
+| `404` | `PV_TRANSACTION_NOT_FOUND` | İşlem bulunamadı |
+
+## Konnektör desteği matrisi
+
+| Konnektör | Point Inquiry | Notlar |
+|---|---|---|
+| HalkBank VPOS | ✅ | Paraf programı |
+| NestPay (genel) | ⚠️ Konfigürasyon-bağlı | Banka anlaşmasına göre |
+| Diğer konnektörler | ❌ | Yol haritasında |

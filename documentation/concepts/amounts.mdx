@@ -93,4 +93,4 @@ Yabancı para biriminde işlem için kullanılan **DCC (Dynamic Currency Convers
 | Maksimum tek işlem tutarı | Plan ve banka anlaşmanıza göre değişir |
 | Kısmi iade tutarı | Orijinal işlem tutarını aşamaz |
 
-İhlal durumunda `VALIDATION_AMOUNT_TOO_LOW`, `VALIDATION_AMOUNT_EXCEEDED` veya `REFUND_EXCEEDS_ORIGINAL` hatası döner.
+İhlal durumunda `invalid_amount` veya `refund_exceeds_original` kodu ile `422 Unprocessable Entity` döner. Tüm hata zarfı RFC 9457 problem+json formatındadır — bkz. [Hata Yönetimi](/documentation/concepts/errors).

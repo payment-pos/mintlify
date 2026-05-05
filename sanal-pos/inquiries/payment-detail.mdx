@@ -1,40 +1,83 @@
 ---
 title: "Ödeme Detayı"
-description: "Tek bir ödemenin tam durumunu sorgulayın."
+description: "Tek bir ödemenin son durumunu ve banka yanıt detaylarını sorgulayın."
 ---
 
-Bir ödemenin **mevcut** durumunu ve tüm bağlam bilgilerini çekmek için kullanılır.
+Bir ödemenin **mevcut** durumunu ve banka tarafından dönen detayları çekmek için kullanılır.
 
 ## Endpoint
 
+```http
+GET /api/v1/payments/{transaction_id}
 ```
-GET /api/v1/payments/{paymentId}
-```
+
+`transaction_id` parametresi UUID formatındadır — `POST /payments` veya `POST /payments/3d/init` çağrılarının yanıtında dönen kimlik.
 
 ## İstek
 
 ```bash
-curl https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-... \
-  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT"
-```
-
-`paymentId` yerine `externalId` ile sorgulamak için:
-
-```bash
-curl "https://vpos.payven.com.tr/api/v1/payments?externalId=ORDER-1001" \
-  -H "..."
+curl https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6 \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
 ## Yanıt
 
-Tam payment objesi döner. Yapı için: [Payment Objesi](/sanal-pos/payment-object).
+`PaymentStatus` (genişletilmiş `PaymentOperationResult`) döner:
+
+```json
+{
+  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":              "completed",
+  "is_success":          true,
+  "message":             "Onaylandı",
+  "error_code":          null,
+  "provider_error_code": null,
+  "extra_properties": {
+    "processed_at":            "2026-05-03T12:34:58.123+00:00",
+    "auth_code":               "123456",
+    "host_reference":          "PAYVEN-REF-789",
+    "provider_transaction_id": "9f3d2b8e-..."
+  },
+  "amount":      15000,
+  "currency":    "TRY",
+  "is_3d_secure": false,
+  "created":     "2026-05-03T12:34:56.789+00:00",
+  "basket_id":   "BASKET-2026-001"
+}
+```
+
+Tam alan referansı: [Payment Objesi](/sanal-pos/payment-object).
 
 ## Tipik kullanım
 
-- 3DS akışı sonrası `returnUrl`'de sunucu tarafında durumu doğrulamak.
-- Webhook gelmemiş bir ödemenin son durumunu sorgulamak.
-- Müşteri destek talebinde geçmiş bir işlemi incelemek.
+- **3DS akışı sonrası `return_url`'de** — sunucu tarafında final durumu doğrulamak (URL parametreleri güvenilmez)
+- **Webhook gelmemiş bir ödeme** için son durumu öğrenmek
+- **Müşteri destek talebinde** geçmiş bir işlemi incelemek
+- **Durum geçişi sonrası** (örn. iade, capture) güncel durum sorgusu
 
-<Tip>
-**Polling kullanmayın.** Webhook entegre edin. Eğer webhook gelmezse yeniden gönderme istemek için konsoldaki **Webhook Teslim Kayıtları** ekranını kullanın.
-</Tip>
+<Warning>
+**Polling kullanmayın.** Yüksek hacimli senaryolarda her ödeme için periyodik
+`GET` çağrısı yapmayın — bunun yerine [webhook](/sanal-pos/webhooks/overview)
+entegre edin. Webhook gelmemişse konsoldan **Webhook Teslim Logları** ekranıyla
+manuel replay tetikleyebilirsiniz.
+</Warning>
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `PV_TRANSACTION_NOT_FOUND` | Verilen `transaction_id` bulunamadı veya bu merchant'a ait değil |
+| `403` | `forbidden` | Yetki yok |
+
+Hata zarfı RFC 9457 problem+json formatındadır.
+
+## Sonraki adımlar
+
+<CardGroup cols={2}>
+  <Card title="İşlem Listesi" icon="list" href="/sanal-pos/inquiries/transaction-list">
+    Sayfalı liste + filtreleme.
+  </Card>
+  <Card title="İşlem Geçmişi" icon="clock-rotate-left" href="/sanal-pos/inquiries/payment-history">
+    Bir işlemin durum geçişi timeline'ı.
+  </Card>
+</CardGroup>

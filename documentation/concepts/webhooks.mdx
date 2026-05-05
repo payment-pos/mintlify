@@ -26,7 +26,7 @@ sequenceDiagram
     participant Net as Internet
     participant You as Sizin Endpoint'iniz
 
-    Note over Payven: Olay tetiklenir<br/>(payment.succeeded)
+    Note over Payven: Olay tetiklenir<br/>(payment.completed)
     Payven->>Net: POST /webhooks/payven
     Net->>You: HTTP isteği
     You-->>Net: HTTP 200 (≤ 5sn içinde)
@@ -50,14 +50,14 @@ Webhook endpoint'iniz aşağıdaki kurallara uymalıdır:
 POST /webhooks/payven HTTP/1.1
 Host: example.com
 Content-Type: application/json
-X-Payven-Event: payment.succeeded
+X-Payven-Event: payment.completed
 X-Payven-Delivery: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 X-Payven-Signature: sha256=4f1d8c92ab7e3...
 X-Payven-Timestamp: 1714742400
 
 {
   "id": "evt_8e3f5c12",
-  "type": "payment.succeeded",
+  "type": "payment.completed",
   "created_at": "2026-05-03T12:34:56Z",
   "data": { ... }
 }
@@ -65,7 +65,7 @@ X-Payven-Timestamp: 1714742400
 
 | Header | Açıklama |
 |---|---|
-| `X-Payven-Event` | Olay tipi (örn. `payment.succeeded`) |
+| `X-Payven-Event` | Olay tipi (örn. `payment.completed`) |
 | `X-Payven-Delivery` | Teslim kimliği — debug için kullanılır |
 | `X-Payven-Signature` | HMAC-SHA256 imza |
 | `X-Payven-Timestamp` | İmzalanan Unix zaman damgası |
@@ -100,13 +100,11 @@ Webhook abonelikleri her ürün için ayrı tanımlanır. Sanal POS örneği:
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/webhooks \
-  -H "X-API-Key: pvk-prod-XXXX" \
-  -H "X-API-Secret: YOUR_SECRET" \
-  -H "X-Merchant-Id: 3fa85f64-..." \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://example.com/webhooks/payven",
-    "events": ["payment.succeeded", "payment.failed", "refund.succeeded"]
+    "url":    "https://example.com/webhooks/payven",
+    "events": ["payment.completed", "payment.failed", "refund.completed"]
   }'
 ```
 

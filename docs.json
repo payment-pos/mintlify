@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Payven Developer Portal",
-  "description": "Türkiye'nin lisanslı ödeme kuruluşları, bankaları ve fintek platformları için ödeme altyapısı dokümantasyonu.",
+  "description": "Türkiye'nin finansal teknoloji altyapısı. Tek API ile sanal POS, para transferi, fraud, mutabakat, fatura ödeme.",
   "colors": {
     "primary": "#1A56DB",
     "light": "#3B6FE8",
@@ -19,24 +19,14 @@
     "strict": false
   },
   "fonts": {
-    "heading": {
-      "family": "Inter",
-      "weight": 600
-    },
-    "body": {
-      "family": "Inter"
-    }
+    "heading": { "family": "Inter", "weight": 600 },
+    "body": { "family": "Inter" }
   },
   "navbar": {
     "links": [
-      {
-        "label": "Dashboard",
-        "href": "https://dashboard.payven.com.tr"
-      },
-      {
-        "label": "Durum",
-        "href": "https://status.payven.com.tr"
-      }
+      { "label": "Konsol", "href": "https://dashboard.payven.com.tr" },
+      { "label": "Durum", "href": "/resources/status" },
+      { "label": "Changelog", "href": "/resources/changelog" }
     ],
     "primary": {
       "type": "button",
@@ -52,10 +42,10 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "Dokümantasyon",
+        "tab": "Başlarken",
         "groups": [
           {
-            "group": "Başlarken",
+            "group": "Tanışın",
             "pages": [
               "index",
               "documentation/quickstart",
@@ -89,56 +79,20 @@
         ]
       },
       {
-        "tab": "Identity & Auth",
+        "tab": "Akışlar",
         "groups": [
           {
             "group": "Genel Bakış",
-            "pages": [
-              "identity/overview"
-            ]
-          },
+            "pages": ["flows/overview"]
+          }
+        ]
+      },
+      {
+        "tab": "Recipes",
+        "groups": [
           {
-            "group": "Kimlik Doğrulama",
-            "pages": [
-              "identity/auth/login",
-              "identity/auth/refresh",
-              "identity/auth/logout",
-              "identity/auth/register",
-              "identity/auth/me",
-              "identity/auth/plan"
-            ]
-          },
-          {
-            "group": "API Anahtarı Yönetimi",
-            "pages": [
-              "identity/api-keys/overview",
-              "identity/api-keys/create",
-              "identity/api-keys/rotate",
-              "identity/api-keys/revoke"
-            ]
-          },
-          {
-            "group": "Lookup Servisleri",
-            "pages": [
-              "identity/lookups/banks",
-              "identity/lookups/bins",
-              "identity/lookups/mcc-codes",
-              "identity/lookups/cities-districts"
-            ]
-          },
-          {
-            "group": "Doğrulama",
-            "pages": [
-              "identity/validation/card",
-              "identity/validation/iban"
-            ]
-          },
-          {
-            "group": "API Referansı",
-            "openapi": {
-              "source": "/api-reference/identity/openapi.json",
-              "directory": "api-reference/identity"
-            }
+            "group": "Başlarken",
+            "pages": ["recipes/overview"]
           }
         ]
       },
@@ -219,13 +173,6 @@
             ]
           },
           {
-            "group": "API Referansı",
-            "openapi": {
-              "source": "/api-reference/sanal-pos/openapi.json",
-              "directory": "api-reference/sanal-pos"
-            }
-          },
-          {
             "group": "Hata Kodları",
             "pages": [
               "sanal-pos/errors/overview",
@@ -239,8 +186,8 @@
         "tab": "Para Transferi",
         "groups": [
           {
-            "group": "Yakında",
-            "pages": ["resources/coming-soon"]
+            "group": "Genel Bakış",
+            "pages": ["para-transferi/overview"]
           }
         ]
       },
@@ -248,17 +195,86 @@
         "tab": "Fraud",
         "groups": [
           {
-            "group": "Yakında",
-            "pages": ["resources/coming-soon"]
+            "group": "Genel Bakış",
+            "pages": ["fraud/overview"]
           }
         ]
       },
       {
-        "tab": "Fatura Ödeme",
+        "tab": "Identity & Auth",
         "groups": [
           {
-            "group": "Yakında",
-            "pages": ["resources/coming-soon"]
+            "group": "Genel Bakış",
+            "pages": ["identity/overview"]
+          },
+          {
+            "group": "Kimlik Doğrulama",
+            "pages": [
+              "identity/auth/login",
+              "identity/auth/refresh",
+              "identity/auth/logout",
+              "identity/auth/register",
+              "identity/auth/me",
+              "identity/auth/plan"
+            ]
+          },
+          {
+            "group": "API Anahtarı Yönetimi",
+            "pages": [
+              "identity/api-keys/overview",
+              "identity/api-keys/create",
+              "identity/api-keys/rotate",
+              "identity/api-keys/revoke"
+            ]
+          },
+          {
+            "group": "Lookup Servisleri",
+            "pages": [
+              "identity/lookups/banks",
+              "identity/lookups/bins",
+              "identity/lookups/mcc-codes",
+              "identity/lookups/cities-districts"
+            ]
+          },
+          {
+            "group": "Doğrulama",
+            "pages": [
+              "identity/validation/card",
+              "identity/validation/iban"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Referansı",
+        "groups": [
+          {
+            "group": "Sanal POS",
+            "openapi": {
+              "source": "/api-reference/sanal-pos/openapi.json",
+              "directory": "api-reference/sanal-pos"
+            }
+          },
+          {
+            "group": "Para Transferi",
+            "openapi": {
+              "source": "/api-reference/transfer/openapi.json",
+              "directory": "api-reference/transfer"
+            }
+          },
+          {
+            "group": "Fraud",
+            "openapi": {
+              "source": "/api-reference/fraud/openapi.json",
+              "directory": "api-reference/fraud"
+            }
+          },
+          {
+            "group": "Identity",
+            "openapi": {
+              "source": "/api-reference/identity/openapi.json",
+              "directory": "api-reference/identity"
+            }
           }
         ]
       },
@@ -270,7 +286,8 @@
             "pages": [
               "resources/dashboard",
               "resources/postman",
-              "resources/test-cards"
+              "resources/test-cards",
+              "resources/sdk-roadmap"
             ]
           },
           {

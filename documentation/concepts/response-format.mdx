@@ -1,122 +1,189 @@
 ---
 title: "API Yanıt Formatı"
-description: "Tüm Payven API yanıtlarında kullanılan standart yapı."
+description: "Payven API yanıt zarfı, sayfalama ve tarih/tutar konvansiyonları."
 ---
 
-Payven API'sinin **tüm yanıtları** ortak bir zarf içinde döner. Bu yapı; başarı durumu, mesaj, kod ve veri alanlarından oluşur.
+Payven API'leri **REST + HTTP semantiği** üzerinde çalışır: HTTP durum kodu başarıyı, yanıt gövdesi veriyi taşır. Hata gövdeleri [RFC 9457 — Problem Details](https://www.rfc-editor.org/rfc/rfc9457) standardına uyar.
 
-## Standart yanıt yapısı
+## Başarılı yanıt
+
+Başarılı bir istek için **gövde doğrudan kaynak nesnesidir** — sarmalayıcı yoktur.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
 
 ```json
 {
-  "isSuccess": true,
-  "message": "Başarılı.",
-  "code": "200",
-  "data": { ... }
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status": "completed",
+  "is_success": true,
+  "message": "Onaylandı",
+  "error_code": null,
+  "provider_error_code": null,
+  "extra_properties": {
+    "processed_at": "2026-05-03T12:34:58.123+00:00",
+    "auth_code": "123456",
+    "host_reference": "PAYVEN-REF-789"
+  }
 }
 ```
 
-| Alan | Tip | Açıklama |
-|---|---|---|
-| `isSuccess` | `boolean` | İşlemin başarılı olup olmadığı. Bu alan, HTTP durum kodundan **bağımsız** olarak nihai başarı sonucunu belirtir. |
-| `message` | `string` | Türkçe açıklama mesajı. Müşteriye gösterilebilir. |
-| `code` | `string` | Payven hata/başarı kodu. HTTP koduyla aynı olabilir veya domain-spesifik bir kod (örn. `PAYMENT_INSUFFICIENT_FUNDS`). |
-| `data` | `object` veya `null` | Endpoint'e özgü yanıt payload'u. Hata durumlarında `null` gelir. |
+<Note>
+Tüm property isimleri **snake_case**, enum değerleri **snake_case** olarak yazılır
+(`status: "completed"`, `operation_type: "pre_auth"`). Bu kural hem istek hem yanıt
+gövdeleri, hem de query parametreleri için geçerlidir.
+</Note>
 
-## Sayfalı liste yanıtı
+## Hata yanıtı (RFC 9457)
 
-Liste döndüren endpoint'ler `data` alanında sayfalama bilgisi de taşır:
+Hata durumlarında gövde `application/problem+json` MIME tipindedir:
+
+```http
+HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/problem+json
+```
 
 ```json
 {
-  "isSuccess": true,
-  "message": "Başarılı.",
-  "code": "200",
-  "data": {
-    "items": [
-      { "id": "...", "amount": 15000 },
-      { "id": "...", "amount": 25000 }
-    ],
-    "page": 1,
-    "pageSize": 25,
-    "totalCount": 248,
-    "totalPages": 10,
-    "hasPreviousPage": false,
-    "hasNextPage": true
-  }
+  "type":           "https://docs.payven.com.tr/errors/refund_exceeds_original",
+  "title":          "İade tutarı orijinali aşıyor",
+  "status":         422,
+  "code":           "refund_exceeds_original",
+  "detail":         "Toplam iade tutarı orijinal tutarı (15000 kuruş) aşamaz.",
+  "instance":       "/api/v1/payments/8e3f5c12-.../refund",
+  "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `items` | Geçerli sayfadaki kayıtlar. |
-| `page`        | Geçerli sayfa numarası (1-tabanlı). |
-| `pageSize` | Sayfa başına kayıt sayısı. |
-| `totalCount` | Toplam kayıt sayısı. |
-| `totalPages` | Toplam sayfa sayısı. |
-| `hasPreviousPage` / `hasNextPage` | Önceki/sonraki sayfa olup olmadığı. |
+| `type` | Hata tipinin kanonik URI'si — dokümantasyon linki olarak da çalışır |
+| `title` | Kısa, insan-okur başlık (Türkçe) |
+| `status` | HTTP status kodu (gövdede yinelenir; HTTP header ile aynı) |
+| `code` | Programatik hata kodu (snake_case). `type` URI'sinin son segmenti |
+| `detail` | Bu özel duruma ilişkin açıklayıcı mesaj |
+| `instance` | Hatanın oluştuğu kaynak yolu |
+| `correlation_id` | İstek zinciri kimliği — destek talebinde paylaşın (yanıt header'ı `X-Correlation-Id` ile aynı) |
 
-## Hata yanıtı
+Tam hata kodu kataloğu: [Hata Yönetimi](/documentation/concepts/errors).
 
-Hata durumunda `isSuccess: false` döner ve `data` boş olur. Validasyon hataları için ek `errors` alanı bulunabilir:
+## Sayfalı liste yanıtı
+
+Liste döndüren `GET` endpoint'leri sabit bir sayfalama zarfı kullanır:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
 
 ```json
 {
-  "isSuccess": false,
-  "message": "Tutar 100 kuruşun altında olamaz.",
-  "code": "VALIDATION_AMOUNT_TOO_LOW",
-  "data": null,
-  "errors": [
-    {
-      "field": "amount",
-      "message": "Tutar 100 kuruşun altında olamaz."
-    }
-  ]
+  "items": [
+    { "id": "...", "amount": 15000 },
+    { "id": "...", "amount": 25000 }
+  ],
+  "page":               1,
+  "total_pages":        10,
+  "total_count":        248,
+  "has_previous_page":  false,
+  "has_next_page":      true
 }
 ```
 
-Hata kodlarının tam listesi: [Hata Yönetimi](/documentation/concepts/errors).
+| Alan | Açıklama |
+|---|---|
+| `items` | Geçerli sayfadaki kayıtlar |
+| `page` | Geçerli sayfa numarası (1-tabanlı) |
+| `total_pages` | Toplam sayfa sayısı |
+| `total_count` | Toplam kayıt sayısı |
+| `has_previous_page` / `has_next_page` | Önceki/sonraki sayfa var mı |
+
+<Note>
+İstek tarafında `page` ve `page_size` query parametreleri kullanılır (`page_size`
+varsayılan 25, üst sınır 100). Yanıtta `page_size` döndürülmez — istek değerini siz
+zaten biliyorsunuz.
+</Note>
+
+İstek örneği:
+
+```http
+GET /api/v1/transactions?page=2&page_size=50&search_term=ORDER-100
+```
+
+Liste endpoint'lerinde ortak query parametreleri:
+
+| Parametre | Tip | Varsayılan | Açıklama |
+|---|---|---|---|
+| `page` | int | `1` | Sayfa numarası (1-tabanlı) |
+| `page_size` | int | `25` | Sayfa başı kayıt (1–100) |
+| `search_term` | string | `null` | Adı/kodu içerinde arama (≤ 100 karakter) |
+| `include_inactive` | bool | `false` | Pasif kayıtları da getir |
 
 ## HTTP durum kodları
 
-Payven, REST standartlarına uygun HTTP kodları kullanır:
+| Kod | Anlam | Hata gövdesi MIME |
+|---|---|---|
+| `200 OK` | Başarılı senkron işlem | `application/json` |
+| `201 Created` | Yeni kayıt oluşturuldu | `application/json` |
+| `202 Accepted` | İstek alındı, asenkron işlenecek (3D init, hosted checkout, vb.) | `application/json` |
+| `204 No Content` | Başarılı ama gövde dönmüyor (logout, void onayı, vb.) | — |
+| `400 Bad Request` | Geçersiz istek (eksik alan, JSON parse) | `application/problem+json` |
+| `401 Unauthorized` | Auth eksik / geçersiz / expire | `application/problem+json` |
+| `403 Forbidden` | Yetki yok / lisans yok / merchant pasif | `application/problem+json` |
+| `404 Not Found` | Kaynak bulunamadı | `application/problem+json` |
+| `409 Conflict` | Çakışma (idempotency key farklı body, durum geçişi geçersiz) | `application/problem+json` |
+| `422 Unprocessable Entity` | İş kuralı ihlali (validasyon, kuralsız iade) | `application/problem+json` |
+| `429 Too Many Requests` | Rate limit aşıldı (`Retry-After` header gönderilir) | `application/problem+json` |
+| `5xx` | Sunucu hatası — exponential backoff ile retry edin | `application/problem+json` |
 
-| Kod | Anlam |
+<Warning>
+**HTTP `200` her zaman ödeme başarılı demek değildir.** Gateway'e ulaşmış ama bankada
+reddedilen bir işlem `200` ile dönüp gövdesinde `is_success: false` ve `error_code:
+"bank_declined"` taşıyabilir. Asıl başarı kararını yanıttaki `is_success` ve `status`
+alanlarına bakarak verin.
+</Warning>
+
+## Standart yanıt header'ları
+
+| Header | Açıklama |
 |---|---|
-| `200` | Başarılı (senkron işlem tamamlandı) |
-| `201` | Yeni kayıt oluşturuldu |
-| `202` | İstek alındı, asenkron işleniyor (örn. 3D Secure init) |
-| `400` | İstek formatı hatalı veya validasyon hatası |
-| `401` | Kimlik doğrulama hatası |
-| `403` | Yetki yok |
-| `404` | Kayıt bulunamadı |
-| `409` | Çakışma (örn. idempotency-key zaten kullanılmış) |
-| `422` | İş kuralı ihlali (örn. iade tutarı orijinali aşıyor) |
-| `429` | Rate limit aşıldı |
-| `5xx` | Sunucu hatası — yeniden deneyebilirsiniz |
-
-<Note>
-**Önemli:** Bir HTTP `200` her zaman ödeme **başarılı** demek değildir. Banka tarafında reddedilen bir ödeme de HTTP `200` ile dönebilir; bu durumda yanıttaki `data.status` alanına bakın. Asıl başarı kararını `data.status` ve `isSuccess` belirler.
-</Note>
+| `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Hata gövdesindeki `correlation_id` ile aynı değer |
+| `X-RateLimit-Limit` / `X-RateLimit-Remaining` / `X-RateLimit-Reset` | Rate limit durumu — bkz. [Rate Limiting](/documentation/concepts/rate-limiting) |
+| `Retry-After` | Yalnız `429` yanıtında — kaç saniye sonra tekrar denemeniz gerektiği |
+| `Idempotent-Replayed` | Yalnız idempotent replay'lerde — yanıt cache'den döndüyse `true`. Bkz. [Idempotency](/documentation/concepts/idempotency) |
 
 ## Tarih ve zaman
 
-Tüm tarih alanları **ISO-8601** formatında ve **UTC** zaman diliminde döner:
+Tüm tarih alanları **ISO 8601** formatında ve **UTC offset**'i ile döner. Backend `DateTimeOffset` kullanır:
 
 ```
-2026-05-03T12:34:56.789Z
+2026-05-03T12:34:56.789+00:00
 ```
 
-İstek gönderirken de UTC kullanmanız önerilir. Yerel zaman göndermek istiyorsanız offset belirtin: `2026-05-03T15:34:56+03:00`.
+İstek tarafında lokal offset göndermek serbesttir; Payven UTC'ye normalize eder:
+
+```
+2026-05-03T15:34:56.789+03:00
+```
+
+Detay: [Zaman Damgaları](/documentation/concepts/timestamps).
 
 ## Tutarlar
 
-Tüm tutarlar **kuruş** cinsinden, tam sayı (`integer`) olarak gönderilir ve dönülür.
+Tüm para tutarları **kuruş** cinsinden, tam sayı (`integer`/`long`):
 
 | Görünen tutar | API değeri |
 |---|---|
 | 1,00 ₺ | `100` |
 | 150,00 ₺ | `15000` |
 | 1.999,99 ₺ | `199999` |
+
+Tutar nesneleri her zaman `currency` ile birlikte taşınır:
+
+```json
+{ "amount": 15000, "currency": "TRY" }
+```
 
 Detay: [Tutarlar ve Para Birimleri](/documentation/concepts/amounts).

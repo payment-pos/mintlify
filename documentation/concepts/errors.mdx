@@ -1,155 +1,254 @@
 ---
 title: "Hata Yönetimi"
-description: "Hata kodları, retry stratejisi ve sorun giderme."
+description: "Payven hata zarfı (RFC 9457), HTTP kategorileri, hata kodları ve retry stratejisi."
 ---
 
-Payven hata yanıtları **tek bir yapıda** döner — HTTP kodu kategoriyi, `code` alanı ise hatanın detayını verir.
+Payven hata yanıtları [RFC 9457 — Problem Details for HTTP APIs](https://www.rfc-editor.org/rfc/rfc9457) standardına uyar. Tüm hata gövdeleri `application/problem+json` MIME tipindedir; HTTP durum kodu kategoriyi, gövdedeki `code` alanı ise hatanın programatik tipini belirtir.
 
-## Hata yapısı
+## Hata zarfı
+
+```http
+HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/problem+json
+X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
+```
 
 ```json
 {
-  "isSuccess": false,
-  "message": "Tutar 100 kuruşun altında olamaz.",
-  "code": "VALIDATION_AMOUNT_TOO_LOW",
-  "data": null,
+  "type":           "https://docs.payven.com.tr/errors/refund_exceeds_original",
+  "title":          "İade tutarı orijinali aşıyor",
+  "status":         422,
+  "code":           "refund_exceeds_original",
+  "detail":         "Toplam iade tutarı orijinal tutarı (15000 kuruş) aşamaz.",
+  "instance":       "/api/v1/payments/8e3f5c12-.../refund",
+  "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
+}
+```
+
+| Alan | Zorunlu | Açıklama |
+|---|---|---|
+| `type` | ✅ | Hata tipinin kanonik URI'si. Aynı zamanda dokümantasyon linki olarak çalışır. |
+| `title` | ✅ | Kısa, insan-okur başlık (Türkçe). |
+| `status` | ✅ | HTTP status kodu (header ile aynı değer, gövdede yinelenir). |
+| `code` | ✅ | Programatik hata kodu (`snake_case`). `type` URI'sinin son segmenti. |
+| `detail` | — | Bu özel duruma ilişkin açıklayıcı mesaj. |
+| `instance` | — | Hatanın oluştuğu kaynak yolu. |
+| `correlation_id` | — | İstek zinciri kimliği. Yanıt header'ı `X-Correlation-Id` ile aynı. Destek talebinde paylaşın. |
+
+## HTTP kategorileri
+
+| HTTP | Kategori | Örnek `code` | Retry |
+|---|---|---|---|
+| `400` Bad Request | Geçersiz JSON, eksik alan, format hatası | `bad_request`, `invalid_json` | ❌ Düzeltmeden tekrarlamayın |
+| `401` Unauthorized | Token yok, geçersiz, expire | `unauthorized`, `invalid_token`, `token_expired` | ❌ Yeniden token alın |
+| `403` Forbidden | Yetki yok, lisans yok, merchant pasif | `forbidden`, `merchant_inactive`, `product_not_licensed` | ❌ |
+| `404` Not Found | Kaynak bulunamadı | `resource_not_found`, `payment_not_found` | ❌ |
+| `409` Conflict | Idempotency çakışması, durum geçişi geçersiz | `conflict`, `idempotency_key_in_use`, `invalid_state_transition` | ❌ |
+| `422` Unprocessable Entity | İş kuralı veya validasyon ihlali | `validation_failed`, `refund_exceeds_original`, `bank_declined` | ❌ |
+| `429` Too Many Requests | Rate limit aşıldı (`Retry-After` header gönderilir) | `rate_limit_exceeded` | ✅ Backoff |
+| `500/502/503` | Sunucu / bağlantı hatası | `internal_server_error`, `bad_gateway`, `service_unavailable` | ✅ Backoff |
+| Network timeout | Ağ veya gateway timeout | — | ✅ Idempotency-Key ile |
+
+<Note>
+**HTTP `200` her zaman ödeme başarılı demek değildir.** Banka tarafında reddedilen bir
+işlem `200` ile dönüp gövdesinde `is_success: false`, `error_code: "bank_declined"`,
+`provider_error_code: "51"` (yetersiz bakiye) taşıyabilir. Asıl başarı kararını
+yanıttaki `is_success` ve `status` alanlarına bakarak verin.
+</Note>
+
+## Yaygın hata kodları
+
+### Kimlik doğrulama / yetki
+
+| `code` | HTTP | Anlam |
+|---|---|---|
+| `unauthorized` | 401 | `Authorization` header eksik |
+| `invalid_token` | 401 | JWT geçersiz veya tampere edilmiş |
+| `token_expired` | 401 | Access token süresi doldu — refresh edin |
+| `invalid_credentials` | 401 | `client_id` / `client_secret` yanlış |
+| `invalid_refresh_token` | 401 | Refresh token expire / revoke edilmiş |
+| `realm_not_found` | 404 | Auth endpoint'inde `{slug}` geçersiz |
+| `realm_suspended` | 403 | Tenant askıya alınmış |
+| `forbidden` | 403 | Bu rol bu kaynağı göremez |
+| `merchant_inactive` | 403 | Belirtilen merchant pasif |
+| `merchant_not_found` | 403 | `X-Merchant-Id` / `X-External-Merchant-Id` çözümlenemedi |
+| `product_not_licensed` | 403 | Modül planınızda etkin değil |
+| `ip_not_allowed` | 403 | İstek IP'si izin listesinde değil |
+
+### İstek formatı / validasyon
+
+| `code` | HTTP | Anlam |
+|---|---|---|
+| `bad_request` | 400 | Genel istek hatası |
+| `invalid_json` | 400 | Gövde geçersiz JSON |
+| `validation_failed` | 422 | FluentValidation kuralı ihlali — `errors[]` ile alan listesi |
+| `invalid_amount` | 422 | Tutar pozitif değil veya minimum altında |
+| `invalid_currency` | 422 | Para birimi desteklenmiyor (`TRY` dışı için kapalı) |
+| `invalid_card` | 422 | Kart numarası Luhn checksum'ı geçmiyor |
+| `invalid_expiry` | 422 | Son kullanma tarihi geçmiş veya format yanlış |
+| `invalid_installment` | 422 | Taksit sayısı bu BIN için desteklenmiyor |
+| `invalid_iban` | 422 | IBAN checksum'ı geçmiyor |
+
+Validasyon hatalarında alan-bazlı detay `errors[]` array'inde döner:
+
+```json
+{
+  "type":   "https://docs.payven.com.tr/errors/validation_failed",
+  "title":  "Validasyon hatası",
+  "status": 422,
+  "code":   "validation_failed",
+  "detail": "1 alan geçersiz",
   "errors": [
-    { "field": "amount", "message": "Tutar 100 kuruşun altında olamaz." }
+    {
+      "field":   "amount.amount",
+      "code":    "below_minimum",
+      "message": "Tutar 100 kuruşun altında olamaz."
+    }
   ]
 }
 ```
 
-## HTTP kategorileri
+### Ödeme / işlem kuralları
 
-| HTTP | Kategori | Retry uygun mu? |
+| `code` | HTTP | Anlam |
 |---|---|---|
-| `400` | İstek formatı veya validasyon hatası | ❌ Düzeltmeden tekrarlamayın |
-| `401` | Kimlik doğrulama hatası | ❌ |
-| `403` | Yetki/lisans hatası | ❌ |
-| `404` | Kayıt bulunamadı | ❌ |
-| `409` | Çakışma | ❌ |
-| `422` | İş kuralı ihlali | ❌ |
-| `429` | Rate limit aşıldı | ✅ Backoff ile |
-| `5xx` | Sunucu hatası | ✅ Backoff ile |
-| Timeout | Ağ veya gateway timeout | ✅ Idempotency-Key ile |
-
-## Yaygın hata kodları
-
-### Kimlik doğrulama
-| Kod | Anlam |
-|---|---|
-| `AUTH_MISSING_KEY` | API anahtarı header'ı eksik |
-| `AUTH_INVALID_KEY` | Anahtar geçersiz veya pasif |
-| `AUTH_INVALID_SECRET` | Secret hatalı |
-| `AUTH_MERCHANT_REQUIRED` | Merchant header'ı eksik |
-| `AUTH_IP_NOT_ALLOWED` | İstek IP'si izin listesinde değil |
-| `AUTH_PRODUCT_NOT_LICENSED` | Ürün planınızda etkin değil |
-
-### Validasyon
-| Kod | Anlam |
-|---|---|
-| `VALIDATION_AMOUNT_TOO_LOW` | Tutar 100 kuruşun altında |
-| `VALIDATION_AMOUNT_EXCEEDED` | Tutar maksimum limiti aşıyor |
-| `VALIDATION_INVALID_CARD` | Kart numarası formatı geçersiz (Luhn) |
-| `VALIDATION_INVALID_EXPIRY` | Son kullanma tarihi geçersiz |
-| `VALIDATION_INVALID_INSTALLMENT` | Taksit sayısı bu kart için desteklenmiyor |
-| `VALIDATION_INVALID_CURRENCY` | Para birimi desteklenmiyor |
-
-### İşlem
-| Kod | Anlam |
-|---|---|
-| `PAYMENT_NOT_FOUND` | İşlem bulunamadı |
-| `PAYMENT_ALREADY_REFUNDED` | İşlem zaten iade edilmiş |
-| `PAYMENT_NOT_REFUNDABLE` | İşlem iade edilemez durumda |
-| `REFUND_EXCEEDS_ORIGINAL` | İade tutarı orijinali aşıyor |
-| `VOID_NOT_ALLOWED_AFTER_SETTLEMENT` | Mutabakat sonrası iptal yapılamaz |
-| `CAPTURE_AMOUNT_EXCEEDS_AUTH` | Çekim tutarı ön provizyonu aşıyor |
+| `payment_not_found` | 404 | İşlem bulunamadı |
+| `payment_already_refunded` | 422 | Tüm tutar zaten iade edilmiş |
+| `payment_not_refundable` | 422 | Mevcut durumda iade yapılamaz |
+| `refund_exceeds_original` | 422 | İade tutarı orijinali aşıyor |
+| `void_not_allowed_after_settlement` | 422 | Mutabakat sonrası iptal yapılamaz |
+| `capture_amount_exceeds_authorization` | 422 | Çekim tutarı ön provizyonu aşıyor |
+| `invalid_state_transition` | 409 | Durum geçişi izin verilmiyor (örn. `Failed` → `Captured`) |
+| `duplicate_external_id` | 409 | Aynı `external_id` ile başka işlem zaten var |
 
 ### Yönlendirme ve banka
-| Kod | Anlam |
-|---|---|
-| `ROUTING_NO_CONNECTOR` | Hiçbir konnektör koşullara uymadı |
-| `CONNECTOR_DOWN` | Hedef konnektör geçici olarak devre dışı |
-| `BANK_DECLINED` | Banka işlemi reddetti — `connector.responseCode` alanına bakın |
-| `BANK_TIMEOUT` | Banka yanıt vermedi |
 
-### Diğer
-| Kod | Anlam |
-|---|---|
-| `idempotency_key_in_use` | Aynı anahtar farklı bir payload için kullanılmış |
-| `RATE_LIMIT_EXCEEDED` | İstek limiti aşıldı |
-| `WEBHOOK_INVALID_URL` | Webhook URL'i HTTPS değil veya erişilemez |
+| `code` | HTTP | Anlam |
+|---|---|---|
+| `routing_no_match` | 422 | Hiçbir konnektör koşullara uymadı |
+| `connector_unavailable` | 503 | Hedef konnektör geçici olarak devre dışı (circuit breaker açık) |
+| `bank_declined` | 422 | Banka işlemi reddetti — `provider_error_code` bankadan dönen kod |
+| `bank_timeout` | 504 | Banka yanıt vermedi (Smart Retry tetiklenmiş olabilir) |
+| `fraud_blocked` | 422 | Fraud kuralı tetiklendi (`fraud.decision: "block"`) |
+| `fraud_review_required` | 422 | Manuel inceleme bekliyor |
 
-<Note>
-Bu liste **özettir**. Tam hata kataloğu ve banka yanıt kodları için: [Sanal POS → Hata Kodları](/sanal-pos/errors/overview) ve [Konsol → Hata Kodları](https://dashboard.payven.com.tr/connector-error-codes).
-</Note>
+### Idempotency / rate limit
+
+| `code` | HTTP | Anlam |
+|---|---|---|
+| `idempotency_key_in_use` | 409 | Aynı `Idempotency-Key` farklı body için kullanılmış |
+| `rate_limit_exceeded` | 429 | İstek limiti aşıldı (`Retry-After` header'ına uyun) |
+
+Banka yanıt kodlarının ve konnektör hata mesajlarının tam listesi: [Sanal POS → Hata Kodları](/sanal-pos/errors/overview).
 
 ## Retry stratejisi
 
-Geçici hatalar için **exponential backoff** önerilir:
+Sadece **geçici hatalar** için retry uygun: `429`, `5xx`, network timeout. **Idempotent olmayan** işlemleri retry ederken mutlaka aynı `Idempotency-Key` kullanın — yoksa aynı işlem birden fazla yapılır.
+
+Önerilen pattern: **exponential backoff + jitter**.
 
 ```
 1. deneme: hemen
-2. deneme: 1 saniye sonra
-3. deneme: 2 saniye sonra
-4. deneme: 4 saniye sonra
-5. deneme: 8 saniye sonra
+2. deneme: ~1 sn sonra
+3. deneme: ~2 sn sonra
+4. deneme: ~4 sn sonra
+5. deneme: ~8 sn sonra (üst limit)
 ```
 
 <CodeGroup>
 ```csharp C#
-async Task<T> RetryAsync<T>(Func<Task<HttpResponseMessage>> call, int maxAttempts = 5)
+async Task<HttpResponseMessage> SendWithRetryAsync(
+    Func<HttpRequestMessage> requestFactory,
+    int maxAttempts = 5,
+    CancellationToken ct = default)
 {
-    for (int attempt = 0; attempt < maxAttempts; attempt++)
+    var rng = new Random();
+    for (int attempt = 0; ; attempt++)
     {
-        var response = await call();
+        var response = await _http.SendAsync(requestFactory(), ct);
+        if (response.IsSuccessStatusCode) return response;
 
-        if (response.IsSuccessStatusCode)
-            return await response.Content.ReadFromJsonAsync<T>();
+        var status = (int)response.StatusCode;
+        var retryable = status == 429 || status >= 500;
+        if (!retryable || attempt >= maxAttempts - 1) return response;
 
-        var statusCode = (int)response.StatusCode;
-        var isRetryable = statusCode >= 500 || statusCode == 429;
-
-        if (!isRetryable || attempt == maxAttempts - 1)
-            response.EnsureSuccessStatusCode();
-
-        await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+        var delaySec = Math.Pow(2, attempt);
+        if (response.Headers.RetryAfter?.Delta is { } ra) delaySec = ra.TotalSeconds;
+        var jitter = rng.NextDouble() * 0.5;
+        await Task.Delay(TimeSpan.FromSeconds(delaySec + jitter), ct);
     }
-    throw new InvalidOperationException("unreachable");
 }
 ```
 
 ```javascript Node.js
-async function retry(fn, maxAttempts = 5) {
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      const res = await fn();
-      if (res.ok) return res.json();
-      const retryable = res.status >= 500 || res.status === 429;
-      if (!retryable || i === maxAttempts - 1) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-    } catch (err) {
-      if (i === maxAttempts - 1) throw err;
-    }
-    await new Promise((r) => setTimeout(r, 2 ** i * 1000));
+async function retry(makeRequest, { maxAttempts = 5 } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await makeRequest();
+    if (res.ok) return res;
+
+    const retryable = res.status === 429 || res.status >= 500;
+    if (!retryable || attempt >= maxAttempts - 1) return res;
+
+    const retryAfter = Number(res.headers.get("retry-after"));
+    const baseSec = Number.isFinite(retryAfter) ? retryAfter : 2 ** attempt;
+    const jitter = Math.random() * 0.5;
+    await new Promise((r) => setTimeout(r, (baseSec + jitter) * 1000));
   }
 }
+```
+
+```python Python
+import asyncio, random
+
+async def retry(make_request, max_attempts: int = 5):
+    for attempt in range(max_attempts):
+        res = await make_request()
+        if 200 <= res.status_code < 300:
+            return res
+
+        retryable = res.status_code == 429 or res.status_code >= 500
+        if not retryable or attempt == max_attempts - 1:
+            return res
+
+        retry_after = res.headers.get("retry-after")
+        base = float(retry_after) if retry_after else 2 ** attempt
+        await asyncio.sleep(base + random.random() * 0.5)
 ```
 </CodeGroup>
 
 <Tip>
-Yeniden denerken mutlaka **aynı `Idempotency-Key`** ile gönderin. Böylece aynı işlem iki kez gerçekleşmez.
+Tekrar denerken **aynı `Idempotency-Key`** ile gönderin. Aynı işlemin iki kez
+oluşmasını engeller. Bkz. [Idempotency](/documentation/concepts/idempotency).
 </Tip>
 
 ## Müşteriye gösterme
 
-`message` alanı son kullanıcıya gösterilebilecek nitelikte yazılır. Yine de hassas durumlarda (örn. fraud reddi) genel bir hata mesajı göstermek daha güvenlidir:
+`detail` alanı son kullanıcıya gösterilebilir nitelikte yazılır. Yine de hassas durumlarda (fraud, fraud-review, banka tarafı reddi) genel bir mesajla geçiştirmek daha güvenlidir:
 
 ```javascript
-const userMessage = (error) => {
-  if (error.code.startsWith("VALIDATION_")) return error.message;
-  if (error.code.startsWith("BANK_")) return "Bankanız işlemi onaylamadı.";
-  return "İşleminiz gerçekleştirilemedi. Lütfen tekrar deneyin.";
-};
+function userMessage(problem) {
+  switch (problem.code) {
+    case "validation_failed":
+      return problem.detail;
+    case "bank_declined":
+    case "fraud_blocked":
+    case "fraud_review_required":
+      return "İşleminiz onaylanmadı. Farklı bir kart deneyebilirsiniz.";
+    case "rate_limit_exceeded":
+      return "Şu an çok fazla istek alıyoruz. Lütfen kısa bir süre sonra tekrar deneyin.";
+    default:
+      return "İşleminiz gerçekleştirilemedi. Lütfen tekrar deneyin.";
+  }
+}
+```
+
+## Destek talebi açarken
+
+Her hata yanıtında dönen **`correlation_id`** değerini paylaşın — log zincirini saniyeler içinde bulabiliriz. Yanıt header'ındaki `X-Correlation-Id` ile gövdedeki `correlation_id` aynı değerdir.
+
+```text
+Konu:   Refund 422 — refund_exceeds_original
+Detay:  correlation_id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
+        instance:       /api/v1/payments/8e3f5c12-.../refund
+        zaman:          2026-05-05T14:23:11+03:00
 ```

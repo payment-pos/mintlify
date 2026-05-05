@@ -5,166 +5,215 @@ description: "Müşteri doğrulaması ile chargeback riskini azaltan ödeme akı
 
 3D Secure, kart sahibinin işlemi onaylamasını isteyen ek bir güvenlik katmanıdır. Başarılı 3DS doğrulaması durumunda **chargeback sorumluluğu bankaya geçer**. Tüketici e-ticaret işlemlerinde **şiddetle önerilir**.
 
-## Akışın özeti
+## Akış (özet)
 
 ```mermaid
 sequenceDiagram
     participant Browser
-    participant Server as Sunucunuz
+    participant App as Sunucunuz
     participant Payven
     participant Bank as Banka
 
-    Browser->>Server: Sepeti onayla
-    Server->>Payven: POST /payments/3d/init
-    Payven-->>Server: redirectUrl + paymentId
-    Server-->>Browser: redirectUrl'e yönlendir
+    Browser->>App: Sepet onayı
+    App->>Payven: POST /payments/3d/init
+    Payven-->>App: redirect_url + transaction_id
+    App-->>Browser: redirect_url'e yönlendir
     Browser->>Bank: 3DS sayfası
-    Bank-->>Browser: SMS/biometrik doğrulama
-    Browser->>Payven: POST /payments/3d/callback (form post)
-    Payven->>Bank: Kart bilgileriyle authorize
-    Bank-->>Payven: Onay/Red
-    Payven->>Browser: returnUrl'e yönlendir
-    Browser->>Server: returnUrl
-    Server->>Payven: GET /payments/{id}
-    Payven-->>Server: Final durum
+    Bank-->>Browser: SMS / mobil onay / biometrik
+    Browser->>Payven: POST /payments/3d/callback (form-post)
+    Payven->>Bank: Otorizasyon (Complete3DSPayment)
+    Bank-->>Payven: Onay / Red
+    Payven-->>Browser: return_url'e yönlendir
+    Browser->>App: return_url
+    App->>Payven: GET /payments/{id}
+    Payven-->>App: Final durum (PaymentStatus)
+    Payven-)App: webhook (asenkron)
 ```
 
 ## 1. Adım — 3DS Init
 
-```
+```http
 POST /api/v1/payments/3d/init
 ```
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/payments/3d/init \
-  -H "X-API-Key: $KEY" \
-  -H "X-API-Secret: $SECRET" \
-  -H "X-Merchant-Id: $MERCHANT" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Idempotency-Key: order-1001-payment" \
   -H "Content-Type: application/json" \
   -d '{
-    "externalId": "ORDER-1001",
-    "amount": 15000,
-    "currency": "TRY",
-    "installment": 1,
+    "external_id":    "ORDER-1001",
+    "amount":         { "amount": 15000, "currency": "TRY" },
+    "installment":    1,
+    "operation_type": "sale",
     "card": {
-      "holderName": "Test Kullanici",
-      "number": "4546711234567894",
-      "expireMonth": "12",
-      "expireYear": "2030",
-      "cvv": "000"
+      "holder_name":  "Test Kullanici",
+      "number":       "4546711234567894",
+      "expire_month": "12",
+      "expire_year":  "2030",
+      "cvv":          "000"
     },
-    "callbackUrl": "https://api.example.com/webhooks/3d-callback",
-    "returnUrl": "https://example.com/odeme/sonuc",
+    "callback_url": "https://api.example.com/webhooks/3d-callback",
+    "return_url":   "https://example.com/odeme/sonuc",
     "buyer": {
-      "id": "cust-001",
-      "email": "musteri@example.com",
-      "ip": "85.105.10.10"
+      "id":         "cust-001",
+      "email":      "musteri@example.com",
+      "ip_address": "85.105.10.10"
     }
   }'
 ```
 
-| Alan | Açıklama |
-|---|---|
-| `callbackUrl` | 3DS sonrası bankanın form-post yapacağı endpoint. **Sunucu tarafı** olmalı. |
-| `returnUrl` | Müşterinin son olarak yönlendirileceği URL. Genellikle frontend sayfası. |
-| Diğer alanlar | [Non-3D ile aynı](/sanal-pos/payments/non-3d). |
+| Alan | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `external_id`, `amount`, `installment`, `card`, `buyer`, `billing_address`, `shipping_address`, `basket_items` | — | — | [Non-3D](/sanal-pos/payments/non-3d) ile aynı |
+| `operation_type` | enum | ❌ | `sale` (varsayılan) veya `pre_auth` |
+| `callback_url` | url | ✅ | Bankanın 3DS sonrası form-post yapacağı endpoint. **Sunucu tarafında** Payven'in `/3d/callback` endpoint'ini kullanmanız önerilir; bu alanı yalnızca özel akışlarda kendi endpoint'inizle override edin. |
+| `return_url` | url | ✅ | Müşterinin son olarak yönlendirileceği URL. Genellikle frontend sayfası. |
+| `cancel_url` | url | ❌ | Müşteri 3DS sayfasını iptal ederse yönlendirileceği URL |
 
 ### Yanıt
 
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "id": "8e3f5c12-...",
-    "externalId": "ORDER-1001",
-    "status": "Pending3D",
-    "redirect": {
-      "method": "GET",
-      "url": "https://3ds.example-bank.com/auth?token=abc123"
-    }
+  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":              "pending_3ds",
+  "is_success":          true,
+  "message":             "3DS yönlendirme başlatıldı",
+  "error_code":          null,
+  "provider_error_code": null,
+  "extra_properties": {
+    "redirect_url":     "https://3ds.example-bank.com/auth?token=abc123",
+    "redirect_method":  "GET",
+    "external_id":      "ORDER-1001"
   }
 }
 ```
 
-Müşteriyi `redirect.url`'e **HTTP 302** ile yönlendirin (veya tarayıcıda `window.location.href` ile).
+`extra_properties.redirect_url`'e müşteriyi **HTTP 302** ile yönlendirin (veya tarayıcıda `window.location.href`).
 
-## 2. Adım — 3DS Sayfasında Doğrulama
+## 2. Adım — 3DS sayfasında doğrulama
 
-Müşteri bankanın 3DS sayfasında SMS, mobil uygulama veya biometrik onay sağlar. Bu adım **Payven kapsamı dışındadır** — banka kendi sürecini yürütür.
+Müşteri bankanın 3DS sayfasında SMS, mobil uygulama veya biometrik onay sağlar. **Payven kapsamı dışındadır** — banka kendi sürecini yürütür.
 
 ## 3. Adım — Callback (Banka → Payven)
 
-Banka, 3DS sonucunu Payven'e iletir. Bu kısım otomatik gerçekleşir, müdahale gerektirmez.
+Banka, 3DS sonucunu Payven'e form-post ile iletir (`POST /payments/3d/callback`). Bu kısım otomatik gerçekleşir, müdahale gerektirmez. Payven, callback'i alır → bankaya `Complete3DSPayment` (otorizasyon) gönderir → işlem son durumuna gelir.
 
-## 4. Adım — Return URL (Payven → Tarayıcı)
+## 4. Adım — Return URL (Payven → tarayıcı)
 
-Payven, müşteriyi `returnUrl` adresine yönlendirir. URL'ye query parametresi olarak `paymentId` ve `status` eklenir:
+Payven, müşteriyi `return_url` adresine yönlendirir. URL'ye query parametresi olarak `transaction_id` ve `status` eklenir:
 
 ```
-https://example.com/odeme/sonuc?paymentId=8e3f5c12-...&status=Success
+https://example.com/odeme/sonuc?transaction_id=8e3f5c12-...&status=completed
 ```
 
 <Warning>
-`returnUrl`'deki query parametreleri **güvenilmez** — kullanıcı tarafından manipüle edilebilir. Mutlaka aşağıdaki adımla durumu sunucu tarafından doğrulayın.
+`return_url`'deki query parametreleri **güvenilmez** — kullanıcı tarafından manipüle edilebilir. Final durumu mutlaka sunucu tarafında [GET /payments/{id}](/sanal-pos/inquiries/payment-detail) ile doğrulayın.
 </Warning>
 
-## 5. Adım — Sunucu Tarafında Durum Doğrulama
+## 5. Adım — Sunucu tarafında final durum sorgusu
 
-```
-GET /api/v1/payments/{id}
+```http
+GET /api/v1/payments/{transaction_id}
 ```
 
 ```bash
-curl https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-... \
-  -H "X-API-Key: $KEY" \
-  -H "X-API-Secret: $SECRET" \
-  -H "X-Merchant-Id: $MERCHANT"
+curl https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6 \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-Yanıt, Non-3D ile aynı [payment objesi](/sanal-pos/payment-object) yapısındadır. Final durum için `status` alanına bakın:
+Yanıt [`PaymentStatus`](/sanal-pos/payment-object#paymentstatus) yapısındadır:
+
+```json
+{
+  "transaction_id":      "8e3f5c12-...",
+  "status":              "completed",
+  "is_success":          true,
+  "message":             "Onaylandı",
+  "error_code":          null,
+  "provider_error_code": null,
+  "extra_properties": {
+    "processed_at":            "2026-05-03T12:34:58.123+00:00",
+    "auth_code":               "654321",
+    "host_reference":          "PAYVEN-REF-790",
+    "provider_transaction_id": "9f3d2b8e-..."
+  },
+  "amount":      15000,
+  "currency":    "TRY",
+  "is_3d_secure": true,
+  "created":     "2026-05-03T12:34:56.789+00:00",
+  "basket_id":   "BASKET-2026-001"
+}
+```
+
+Final durumu `status` alanından okuyun:
 
 | `status` | Anlam |
 |---|---|
-| `Success` | Ödeme başarılı, sipariş tamamlanabilir |
-| `Failed` | 3DS başarısız veya banka reddetti |
-| `Pending3D` | Henüz tamamlanmadı (callback bekleniyor) |
+| `completed` | Sale akışı — ödeme başarıyla tamamlandı |
+| `authorized` | PreAuth akışı — ön provizyon alındı, `/capture` çağrılması bekleniyor |
+| `failed` | 3DS başarısız veya banka reddetti — `error_code` ve `provider_error_code` inceleyin |
+| `pending_3ds` | Hâlâ tamamlanmadı (callback gelmemiş, müşteri 3DS sayfasını kapatmış olabilir) |
 
 ## Frictionless vs Challenge
 
-3D Secure 2.0'da banka iki moda karar verir:
+3D Secure 2.x'te banka iki moddan birine karar verir:
 
 | Mod | Anlam |
 |---|---|
-| **Frictionless** | Banka kart sahibini doğrulamak için müşteriye soru sormaz; risk skoruna güvenir. Akış 1-2 saniyedir. |
-| **Challenge** | Banka SMS, mobil uygulama veya biometrik doğrulama ister. |
+| **Frictionless** | Banka kart sahibini doğrulamak için müşteriye soru sormaz; risk skoruna güvenir. Akış 1-2 saniyedir, kullanıcı redirect'i fark etmeyebilir. |
+| **Challenge** | Banka SMS, mobil uygulama veya biometrik doğrulama ister. Kullanıcı 30sn-2dk arası ek adım yapar. |
 
-Hangisinin uygulanacağını **banka belirler** — siz etkileyemezsiniz. Yanıttaki `threeDS.protocolVersion` ve `threeDS.eci` alanları akışın türünü gösterir.
+Hangisinin uygulanacağını **banka belirler** — istemci olarak etkileyemezsiniz. ECI / CAVV / 3DS protokol versiyonu gibi alanlar şu an `extra_properties` içinde döner; ileride üst seviye `three_ds.*` alanı olarak yapısal olarak verilecektir (bkz. [Payment Objesi → Yol Haritası](/sanal-pos/payment-object#yol-haritasi)).
 
 ## Hata senaryoları
 
-| Senaryo | `status` | `code` |
+| Senaryo | `status` | `error_code` |
 |---|---|---|
-| Müşteri 3DS sayfasını kapattı | `Failed` | `THREEDS_USER_CANCELLED` |
-| 3DS doğrulaması başarısız | `Failed` | `THREEDS_AUTH_FAILED` |
-| 3DS timeout | `Failed` | `THREEDS_TIMEOUT` |
-| Banka 3DS sonrası reddetti | `Failed` | `BANK_DECLINED` |
+| Müşteri 3DS sayfasını iptal etti / kapattı | `failed` | `three_ds_user_cancelled` |
+| 3DS doğrulaması başarısız (yanlış SMS, vb.) | `failed` | `three_ds_authentication_failed` |
+| 3DS timeout (banka yanıt vermedi) | `failed` | `three_ds_timeout` |
+| 3DS başarılı ama banka otorizasyonu reddetti | `failed` | `bank_declined` (+ `provider_error_code`) |
+| Callback gelmediyse — return_url'e ulaşılamadı | `pending_3ds` | — (sonradan webhook ile temizlenir) |
 
-## Önemli: Webhook ile asenkron sonucu yakala
+## Webhook ile asenkron yakalama
 
-`returnUrl`'e yönlendirme **müşteri tarafıdır** — müşteri tarayıcıyı kapatırsa sonucu kaçırırsınız. Webhook entegre edin:
+`return_url`'e yönlendirme **müşteri tarayıcısı** üzerinden çalışır — müşteri tarayıcıyı kapatırsa sonucu kaçırırsınız. Webhook entegre edin:
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/webhooks \
-  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{
-    "url": "https://api.example.com/webhooks/payven",
-    "events": ["payment.succeeded", "payment.failed"]
+    "url":    "https://api.example.com/webhooks/payven",
+    "events": ["payment.completed", "payment.failed", "3ds.completed", "3ds.failed"]
   }'
 ```
 
 Detay: [Webhook Genel Bakış](/sanal-pos/webhooks/overview).
 
-## Test ortamında
+## Test ortamı
 
-Sandbox 3DS sayfasında banka simülasyonu çalışır. Test kartlarına ve şifrelerine [Test Kartları](/sanal-pos/test/test-cards) sayfasından bakın.
+Sandbox 3DS sayfasında banka simülasyonu çalışır. Test kart numaralarına, şifrelere ve frictionless/challenge tetikleyen senaryolara [Test Kartları](/sanal-pos/test/test-cards) sayfasından bakın.
+
+## Sonraki adımlar
+
+<CardGroup cols={2}>
+  <Card title="Pre-Auth → Capture" icon="lock-keyhole" href="/sanal-pos/payments/pre-auth-capture">
+    3DS başarılı sonrası iki aşamalı çekim.
+  </Card>
+  <Card title="Hosted Checkout" icon="window-maximize" href="/sanal-pos/payments/hosted-checkout">
+    PCI-DSS yükünü minimize eden Payven barındırmalı sayfa.
+  </Card>
+  <Card title="Webhook İmza Doğrulama" icon="shield-check" href="/sanal-pos/webhooks/signature">
+    Asenkron olayları güvenle işleyin.
+  </Card>
+  <Card title="İade İşlemi" icon="rotate-left" href="/sanal-pos/payments/refund">
+    Tam veya kısmi iade.
+  </Card>
+</CardGroup>

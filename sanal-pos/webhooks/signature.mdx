@@ -3,287 +3,274 @@ title: "İmza Doğrulama"
 description: "Gelen webhook isteklerinin Payven'den geldiğini HMAC-SHA256 ile doğrulayın."
 ---
 
-Webhook endpoint'iniz internete açıktır — tarafınıza gelen isteklerin **gerçekten Payven'den geldiğini** kanıtlamak için HMAC-SHA256 imzasını doğrulamak şarttır. Aksi halde sahte istekler gönderilebilir.
+Payven her webhook isteğinde **HMAC-SHA256 imza** gönderir. Bu imza, isteğin gerçekten Payven'den geldiğini ve gövdesinin değiştirilmediğini garanti eder. Public webhook endpoint'inizi açıyorsanız imza doğrulama **zorunludur**.
 
-## İmza üretimi
+## İmza algoritması
 
-Payven, her webhook isteğinde imzayı şu şekilde hesaplar:
+Payven her istekte iki header gönderir:
 
-```
-imza = HMAC_SHA256(
-  secret,
-  timestamp + "." + httpBody
-)
-
-X-Payven-Signature: sha256=<hex(imza)>
-X-Payven-Timestamp: <unix-timestamp>
+```http
+X-Payven-Timestamp: 1714742400
+X-Payven-Signature: sha256=4f1d8c92ab7e3bcf9a2e1c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f
 ```
 
-| Bileşen | Açıklama |
-|---|---|
-| `secret` | Webhook abonelik oluştururken aldığınız `whsec_...` değeri |
-| `timestamp` | İsteğin gönderildiği Unix epoch saniyesi |
-| `httpBody` | İstek gövdesinin tam binary içeriği (parse edilmemiş ham string) |
+İmza şu formülle üretilir:
 
-## Doğrulama adımları
+```
+imzalanacak_string = "<X-Payven-Timestamp>" + "." + "<istek_gövdesinin_raw_string'i>"
+hmac               = HMAC_SHA256(subscription.secret, imzalanacak_string)
+beklenen_imza      = "sha256=" + hex(hmac).lower()
+```
 
-<Steps>
-  <Step title="Header'ları okuyun">
-    `X-Payven-Signature` ve `X-Payven-Timestamp` başlıklarını alın.
-  </Step>
-  <Step title="Replay saldırılarına karşı timestamp'i kontrol edin">
-    `now - timestamp > 5 dk` ise reddedin (eski isteğin tekrarı olabilir).
-  </Step>
-  <Step title="İmzayı yeniden hesaplayın">
-    `HMAC_SHA256(secret, timestamp + "." + body)` hesaplayın.
-  </Step>
-  <Step title="Sabit zamanlı karşılaştırma">
-    Hesapladığınız imzayla `X-Payven-Signature` değerini **timing-safe** karşılaştırın.
-  </Step>
-  <Step title="Geçerse işleyin">
-    Aynı zamanda 5 saniyenin altında `2xx` döndürün; ağır iş kuyruğa atılsın.
-  </Step>
-</Steps>
+Sizin tarafınızda bu üç adımı uygulayıp `X-Payven-Signature` header'ı ile karşılaştırırsınız:
 
-## Kod örnekleri
+1. Timestamp'in **5 dakika içinde** olduğunu kontrol edin (replay koruması)
+2. Body'i **string olarak** (parse etmeden) HMAC-SHA256 ile imzalayın
+3. Sonucu sabit zamanlı (constant-time) karşılaştırma ile doğrulayın
+
+<Warning>
+**Body'i parse etmeden imzalayın.** JSON.parse() + JSON.stringify() döngüsü
+property sırasını değiştirip imzayı bozar. Raw string'i mutlaka middleware'den
+önce okuyun.
+</Warning>
+
+## Örnek implementasyonlar
 
 <CodeGroup>
-```csharp C#
-using System.Security.Cryptography;
-using System.Text;
-
-public class PayvenWebhookValidator
-{
-    private const int ToleranceSeconds = 300;
-
-    public bool Verify(string secret, string timestamp, string body, string signatureHeader)
-    {
-        // 1. Replay koruması
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        if (Math.Abs(now - long.Parse(timestamp)) > ToleranceSeconds)
-            return false;
-
-        // 2. İmza hesapla
-        var payload = $"{timestamp}.{body}";
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
-        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
-        var expected = "sha256=" + Convert.ToHexString(hash).ToLowerInvariant();
-
-        // 3. Sabit zamanlı karşılaştırma
-        return CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(expected),
-            Encoding.UTF8.GetBytes(signatureHeader));
-    }
-}
-
-[HttpPost("/webhooks/payven")]
-public async Task<IActionResult> Receive()
-{
-    using var reader = new StreamReader(Request.Body);
-    var body = await reader.ReadToEndAsync();
-
-    var timestamp = Request.Headers["X-Payven-Timestamp"].ToString();
-    var signature = Request.Headers["X-Payven-Signature"].ToString();
-
-    if (!_validator.Verify(_secret, timestamp, body, signature))
-        return Unauthorized();
-
-    var evt = JsonSerializer.Deserialize<WebhookEvent>(body);
-    await _queue.EnqueueAsync(evt); // ağır iş asenkron
-    return Ok();
-}
-```
-
-```javascript Node.js
+```javascript Node.js (Express)
 import crypto from "crypto";
 import express from "express";
 
 const app = express();
 
-// Body'yi raw string olarak almak şart
-app.post(
-  "/webhooks/payven",
-  express.raw({ type: "application/json" }),
-  async (req, res) => {
-    const timestamp = req.header("X-Payven-Timestamp");
-    const signature = req.header("X-Payven-Signature");
-    const body = req.body.toString("utf8");
+// IMPORTANT: imza için ham body gerekir, JSON parse edilmeden saklayın
+app.use("/webhooks/payven", express.raw({ type: "application/json" }));
 
-    if (!verify(WEBHOOK_SECRET, timestamp, body, signature)) {
-      return res.status(401).end();
-    }
+app.post("/webhooks/payven", (req, res) => {
+  const signature = req.header("x-payven-signature");
+  const timestamp = req.header("x-payven-timestamp");
+  const body = req.body.toString("utf8");
 
-    const event = JSON.parse(body);
-    await queue.enqueue(event);
-    res.status(200).end();
-  }
-);
-
-function verify(secret, timestamp, body, signatureHeader) {
+  // 1. Timestamp 5 dakika içinde mi?
   const now = Math.floor(Date.now() / 1000);
-  if (Math.abs(now - parseInt(timestamp, 10)) > 300) return false;
+  if (Math.abs(now - parseInt(timestamp, 10)) > 300) {
+    return res.status(401).send("Timestamp out of tolerance");
+  }
 
-  const payload = `${timestamp}.${body}`;
-  const hmac = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-  const expected = `sha256=${hmac}`;
+  // 2. İmzayı hesapla
+  const expected =
+    "sha256=" +
+    crypto
+      .createHmac("sha256", process.env.PAYVEN_WEBHOOK_SECRET)
+      .update(`${timestamp}.${body}`)
+      .digest("hex");
 
-  return crypto.timingSafeEqual(
-    Buffer.from(expected, "utf8"),
-    Buffer.from(signatureHeader, "utf8")
-  );
-}
+  // 3. Sabit zamanlı karşılaştır
+  const sigBuf = Buffer.from(signature ?? "", "utf8");
+  const expBuf = Buffer.from(expected, "utf8");
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return res.status(401).send("Invalid signature");
+  }
+
+  const event = JSON.parse(body);
+  console.log("Verified event:", event.type, event.id);
+  res.status(200).end();
+});
 ```
 
-```go Go
-package webhook
+```python Python (FastAPI)
+import hmac, hashlib, time
+from fastapi import FastAPI, Request, HTTPException
 
-import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
-	"io"
-	"net/http"
-	"strconv"
-	"time"
-)
+app = FastAPI()
+PAYVEN_WEBHOOK_SECRET = "whsec_..."
 
-const ToleranceSeconds = 300
+@app.post("/webhooks/payven")
+async def webhook(request: Request):
+    body = await request.body()
+    signature = request.headers.get("x-payven-signature", "")
+    timestamp = request.headers.get("x-payven-timestamp", "0")
 
-func Verify(secret, timestamp, body, signatureHeader string) bool {
-	ts, err := strconv.ParseInt(timestamp, 10, 64)
-	if err != nil {
-		return false
-	}
-	if abs(time.Now().Unix()-ts) > ToleranceSeconds {
-		return false
-	}
+    # 1. Timestamp 5 dakika içinde mi?
+    if abs(int(time.time()) - int(timestamp)) > 300:
+        raise HTTPException(401, "Timestamp out of tolerance")
 
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(timestamp + "." + body))
-	expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
-
-	return hmac.Equal([]byte(expected), []byte(signatureHeader))
-}
-
-func Handler(secret string, queue Queue) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		ts := r.Header.Get("X-Payven-Timestamp")
-		sig := r.Header.Get("X-Payven-Signature")
-
-		if !Verify(secret, ts, string(body), sig) {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		queue.Enqueue(body)
-		w.WriteHeader(http.StatusOK)
-	}
-}
-
-func abs(x int64) int64 {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-```
-
-```php PHP
-<?php
-function payvenVerify(string $secret, string $timestamp, string $body, string $signatureHeader): bool {
-    $now = time();
-    if (abs($now - (int)$timestamp) > 300) return false;
-
-    $payload  = $timestamp . '.' . $body;
-    $expected = 'sha256=' . hash_hmac('sha256', $payload, $secret);
-
-    return hash_equals($expected, $signatureHeader);
-}
-
-// Kullanım
-$body      = file_get_contents('php://input');
-$timestamp = $_SERVER['HTTP_X_PAYVEN_TIMESTAMP'] ?? '';
-$signature = $_SERVER['HTTP_X_PAYVEN_SIGNATURE'] ?? '';
-
-if (!payvenVerify($secret, $timestamp, $body, $signature)) {
-    http_response_code(401);
-    exit;
-}
-
-$event = json_decode($body, true);
-// queue işle
-http_response_code(200);
-```
-
-```python Python
-import hmac
-import hashlib
-import time
-
-TOLERANCE_SECONDS = 300
-
-def verify(secret: str, timestamp: str, body: bytes, signature_header: str) -> bool:
-    try:
-        if abs(int(time.time()) - int(timestamp)) > TOLERANCE_SECONDS:
-            return False
-    except ValueError:
-        return False
-
-    payload = f"{timestamp}.".encode() + body
+    # 2. İmzayı hesapla
+    payload = f"{timestamp}.{body.decode('utf-8')}".encode("utf-8")
     expected = "sha256=" + hmac.new(
-        secret.encode(),
+        PAYVEN_WEBHOOK_SECRET.encode("utf-8"),
         payload,
         hashlib.sha256,
     ).hexdigest()
 
-    return hmac.compare_digest(expected, signature_header)
+    # 3. Sabit zamanlı karşılaştır
+    if not hmac.compare_digest(signature, expected):
+        raise HTTPException(401, "Invalid signature")
 
+    event = await request.json()
+    return {"received": event["id"]}
+```
 
-# Flask örneği
-from flask import Flask, request, abort
+```csharp C# (ASP.NET Core)
+using System.Security.Cryptography;
+using System.Text;
+using Microsoft.AspNetCore.Mvc;
 
-app = Flask(__name__)
+[ApiController]
+[Route("webhooks/payven")]
+public class WebhookController : ControllerBase
+{
+    private const string Secret = "whsec_...";
 
-@app.post("/webhooks/payven")
-def handle():
-    timestamp = request.headers.get("X-Payven-Timestamp", "")
-    signature = request.headers.get("X-Payven-Signature", "")
-    body = request.get_data()
+    [HttpPost]
+    public async Task<IActionResult> Receive()
+    {
+        var signature = Request.Headers["X-Payven-Signature"].ToString();
+        var timestamp = Request.Headers["X-Payven-Timestamp"].ToString();
 
-    if not verify(WEBHOOK_SECRET, timestamp, body, signature):
-        abort(401)
+        // 1. Timestamp 5 dakika içinde mi?
+        if (!long.TryParse(timestamp, out var ts)
+            || Math.Abs(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - ts) > 300)
+        {
+            return Unauthorized("Timestamp out of tolerance");
+        }
 
-    queue.enqueue(body)
-    return "", 200
+        // 2. Body'i string olarak oku
+        Request.EnableBuffering();
+        using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
+        var body = await reader.ReadToEndAsync();
+        Request.Body.Position = 0;
+
+        // 3. İmzayı hesapla
+        var payload = $"{timestamp}.{body}";
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(Secret));
+        var hashHex = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)))
+            .ToLowerInvariant();
+        var expected = $"sha256={hashHex}";
+
+        // 4. Sabit zamanlı karşılaştır
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(signature),
+                Encoding.UTF8.GetBytes(expected)))
+        {
+            return Unauthorized("Invalid signature");
+        }
+
+        // İşle...
+        return Ok();
+    }
+}
+```
+
+```go Go
+package main
+
+import (
+    "crypto/hmac"
+    "crypto/sha256"
+    "encoding/hex"
+    "io"
+    "net/http"
+    "strconv"
+    "time"
+)
+
+const secret = "whsec_..."
+
+func handleWebhook(w http.ResponseWriter, r *http.Request) {
+    signature := r.Header.Get("X-Payven-Signature")
+    timestamp := r.Header.Get("X-Payven-Timestamp")
+
+    // 1. Timestamp 5 dakika içinde mi?
+    ts, err := strconv.ParseInt(timestamp, 10, 64)
+    if err != nil || abs(time.Now().Unix()-ts) > 300 {
+        http.Error(w, "Timestamp out of tolerance", http.StatusUnauthorized)
+        return
+    }
+
+    // 2. Body'i oku
+    body, _ := io.ReadAll(r.Body)
+
+    // 3. İmzayı hesapla
+    mac := hmac.New(sha256.New, []byte(secret))
+    mac.Write([]byte(timestamp + "." + string(body)))
+    expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+
+    // 4. Sabit zamanlı karşılaştır
+    if !hmac.Equal([]byte(signature), []byte(expected)) {
+        http.Error(w, "Invalid signature", http.StatusUnauthorized)
+        return
+    }
+
+    w.WriteHeader(http.StatusOK)
+}
+
+func abs(x int64) int64 { if x < 0 { return -x }; return x }
+```
+
+```php PHP
+<?php
+$secret = getenv("PAYVEN_WEBHOOK_SECRET");
+
+$signature = $_SERVER["HTTP_X_PAYVEN_SIGNATURE"] ?? "";
+$timestamp = $_SERVER["HTTP_X_PAYVEN_TIMESTAMP"] ?? "0";
+$body      = file_get_contents("php://input");
+
+// 1. Timestamp 5 dakika içinde mi?
+if (abs(time() - intval($timestamp)) > 300) {
+    http_response_code(401);
+    exit("Timestamp out of tolerance");
+}
+
+// 2. İmzayı hesapla
+$payload  = $timestamp . "." . $body;
+$expected = "sha256=" . hash_hmac("sha256", $payload, $secret);
+
+// 3. Sabit zamanlı karşılaştır
+if (!hash_equals($expected, $signature)) {
+    http_response_code(401);
+    exit("Invalid signature");
+}
+
+$event = json_decode($body, true);
+http_response_code(200);
 ```
 </CodeGroup>
 
-## Yaygın hatalar
+## Önemli detaylar
 
-<AccordionGroup>
-  <Accordion title="İmza doğrulanamıyor: framework body'yi değiştirmiş olabilir">
-    Body'yi mutlaka **raw bytes** olarak okuyun. Express'te `express.json()` middleware'i body'yi parse edip yeniden serialize ettiği için imza bozulur. `express.raw()` kullanın.
-
-    ASP.NET'te otomatik model binding aynı sorunu yaratır — `[FromBody]` yerine `Request.Body` stream'i okuyun.
-  </Accordion>
-  <Accordion title="Timestamp tolerance neden 5 dakika?">
-    Sunucu saatleri arasında küçük sapmalar (NTP gecikmesi) ve ağ gecikmesi olabilir. 5 dakika makul bir tolerans. Daha sıkı (örn. 1 dk) yapabilirsiniz; daha gevşek (örn. 1 saat) yapmayın — replay riski artar.
-  </Accordion>
-  <Accordion title="Signature header karşılaştırma neden timing-safe olmalı?">
-    Normal `==` karşılaştırması karakter karakter yapılır ve eşleşmeyen ilk karakterde durur. Saldırgan, doğru karakteri bulduğunda yanıt süresinin biraz uzadığını ölçerek imzayı brute-force keşfedebilir. Timing-safe karşılaştırma her zaman aynı sürede çalışır.
-  </Accordion>
-  <Accordion title="Birden fazla webhook abonem var, hangi secret hangisi?">
-    Her aboneliğin **kendi secret'ı** vardır. Hangi abonelikten geldiğini ayırt etmek için `X-Payven-Webhook-Id` başlığına bakın ve eşleşen secret'ı kullanın.
-  </Accordion>
-</AccordionGroup>
+<Check>**Body'i raw olarak okuyun.** Express'te `express.raw({ type: "application/json" })`, ASP.NET'te `Request.EnableBuffering()` + StreamReader. Framework'ün otomatik JSON parser'ını **bypass edin** veya parse'tan önce raw bytes'ı kaydedin.</Check>
+<Check>**Timestamp toleransı 5 dakika** (`±300 saniye`). Daha gevşek tolerance replay attack riski yaratır.</Check>
+<Check>**Sabit zamanlı karşılaştırma** kullanın (`crypto.timingSafeEqual`, `hmac.compare_digest`, `CryptographicOperations.FixedTimeEquals`, `hash_equals`). `==` ile karşılaştırma timing attack açığı yaratır.</Check>
+<Check>**Secret'ı environment variable** olarak saklayın, public repo'ya commit etmeyin.</Check>
+<Check>**Ham UTF-8 byte'larıyla imzalayın.** Pretty-print, BOM, satır sonu farklılıkları imzayı kıracaktır.</Check>
 
 ## Secret rotasyonu
 
-Sızıntı şüphesinde:
+Bir webhook subscription'ın secret'ını rotasyonu için:
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/webhooks/wh_8e3f5c12/rotate-secret \
-  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT"
+curl -X POST https://vpos.payven.com.tr/api/v1/webhooks/8e3f5c12-.../rotate-secret \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-Yeni secret döner. Eski secret **anında geçersiz** olur — sıfır kesintiyle rotasyon için iki ayrı abonelik kullanın.
+Yanıt yeni secret'ı döner. **Eski secret 24 saat boyunca geçerli kalır** — bu sürede her iki secret ile imzalanmış istekler kabul edilir, böylece zero-downtime geçiş yaparsınız:
+
+```javascript
+// Geçiş döneminde her iki secret'ı dene
+const valid =
+  verify(body, signature, oldSecret) ||
+  verify(body, signature, newSecret);
+```
+
+## İmza bozuk geliyorsa
+
+| Sorun | Çözüm |
+|---|---|
+| Body parse + re-stringify ediliyor | `app.use(express.raw())` veya raw body capture middleware ekleyin |
+| Timestamp drift > 5 dakika | Sunucu saatinizi NTP ile senkronize edin |
+| Boşluk / satır sonu fark | Body'i `Buffer` veya `bytes` olarak saklayın, `string` dönüşümlerinde encoding belirtin (`utf8`) |
+| Secret yanlış | Konsoldan `whsec_` ile başlayan değeri tam olarak kopyaladığınızdan emin olun |
+| `X-Payven-Signature` boş | Reverse proxy header strip yapıyor olabilir — Nginx config'de `proxy_pass_request_headers on` |
+
+Hâlâ çözemediğiniz durumda `X-Payven-Delivery-Id` ile birlikte [destek ekibimize](/resources/support) yazın.

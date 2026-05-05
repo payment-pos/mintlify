@@ -86,29 +86,25 @@ Yönlendirilen banka geçici hata verirse istek **otomatik olarak** alternatif k
 
 ## Kuralları yönetme
 
-Kurallar konsoldan veya API üzerinden yönetilir:
+Kurallar konsoldan veya API üzerinden yönetilir. **İki kural seti** vardır:
 
-```bash
-GET    /api/v1/routing-rules           # Liste
-POST   /api/v1/routing-rules           # Yeni kural
-PUT    /api/v1/routing-rules/{id}      # Güncelleme
-DELETE /api/v1/routing-rules/{id}      # Silme
-PATCH  /api/v1/routing-rules/{id}/activate
-PATCH  /api/v1/routing-rules/{id}/deactivate
-POST   /api/v1/routing-rules/resolve   # Bir koşula hangi kural uygulanır?
+- **`/routing-rules`** — gelişmiş kompozit-skor motoru (BIN + tutar + taksit + sağlık + ağırlık)
+- **`/simple-routing-rules`** — basit "şu koşulda şu konnektör" kuralları (yeni başlayanlar için)
+
+```http
+GET    /api/v1/routing-rules                       # Liste (sayfalı)
+GET    /api/v1/routing-rules/{id}                  # Tek kural detayı
+POST   /api/v1/routing-rules                       # Yeni kural
+PUT    /api/v1/routing-rules/{id}                  # Güncelleme
+DELETE /api/v1/routing-rules/{id}                  # Silme
+POST   /api/v1/routing-rules/bulk-delete           # Toplu silme
+POST   /api/v1/routing-rules/{id}/activate
+POST   /api/v1/routing-rules/{id}/deactivate
+PATCH  /api/v1/routing-rules/{id}/score            # Skor güncelleme
 ```
+
+`simple-routing-rules` aynı CRUD pattern'i + `bulk-delete`, `activate`, `deactivate` aksiyonları ile kullanılır.
 
 ## Simülasyon
 
-Production'a uygulamadan önce kuralları test ortamında simüle edin:
-
-```bash
-POST /api/v1/routing-rules/resolve
-{
-  "amount": 60000,
-  "installment": 9,
-  "card": { "binNumber": "454671", "scheme": "Visa" }
-}
-```
-
-Yanıt, bu işlemin **hangi kurala düşeceği** ve **hangi konnektörün seçileceği** bilgisini döner.
+Bir işlemin hangi kurala düşeceğini önceden görmek için **konsoldaki Routing Simulator** ekranı kullanılır. Public bir `/resolve` endpoint'i yol haritasındadır — yayınlandığında [Changelog](/resources/changelog) üzerinden duyurulur.

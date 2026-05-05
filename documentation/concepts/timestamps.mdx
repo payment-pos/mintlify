@@ -8,15 +8,17 @@ Payven, tüm tarih-zaman alanlarında **ISO-8601** formatını ve **UTC** zaman 
 ## Format
 
 ```
-2026-05-03T12:34:56.789Z
+2026-05-03T12:34:56.789+00:00
 ```
+
+Payven backend `DateTimeOffset` kullanır ve serileştirme `O` formatındadır — yani `Z` yerine her zaman `+HH:mm` offset'i yazılır. Hem `Z` hem de `+00:00` aynı zamanı temsil eder; istek tarafında ikisini de kabul ederiz.
 
 | Bölüm | Anlam |
 |---|---|
 | `2026-05-03` | Tarih (yıl-ay-gün) |
 | `T` | Tarih ve saat ayırıcısı |
 | `12:34:56.789` | Saat:dakika:saniye.milisaniye |
-| `Z` | UTC zaman dilimi (offset = +00:00) |
+| `+00:00` | UTC offset (gönderirken `Z` de kabul edilir) |
 
 ## Yerel saat gönderme
 
@@ -34,9 +36,9 @@ Tüm yanıtlardaki tarih alanları UTC olarak döner:
 
 ```json
 {
-  "id": "8e3f5c12-...",
-  "createdAt": "2026-05-03T12:34:56.789Z",
-  "updatedAt": "2026-05-03T12:35:01.234Z"
+  "id":         "8e3f5c12-...",
+  "created_at": "2026-05-03T12:34:56.789+00:00",
+  "updated_at": "2026-05-03T12:35:01.234+00:00"
 }
 ```
 

@@ -14,7 +14,7 @@ API anahtarı oluştururken veya düzenlerken bir IP listesi tanımlarsınız. W
 | Boş | Tüm IP'lerden istek kabul edilir |
 | Bir veya daha fazla giriş | Yalnızca listedeki IP'lerden gelen istekler kabul edilir |
 
-Whitelist dışı bir IP'den istek gelirse `403 Forbidden` ve `AUTH_IP_NOT_ALLOWED` koduyla reddedilir.
+Whitelist dışı bir IP'den istek gelirse `403 Forbidden` ve `ip_not_allowed` koduyla reddedilir (RFC 9457 problem+json).
 
 ## Desteklenen formatlar
 
@@ -60,21 +60,16 @@ console.log(await res.text());
 
 ## Webhook tarafı
 
-Payven'in **size** gönderdiği webhook istekleri belirli IP havuzlarından gelir. Bu havuzu kendi güvenlik duvarınızda whitelist'leyebilirsiniz:
-
-| Ortam | IP havuzu |
-|---|---|
-| Sandbox | `52.18.42.0/24` |
-| Production | `52.16.10.0/24`, `54.78.220.0/24` |
+Payven'in **size** gönderdiği webhook istekleri sabit IP havuzlarından çıkar. Güncel havuz listesini almak için [destek ekibimize](/resources/support) ulaşın — değişikliklerde önceden e-posta ile bildirilir.
 
 <Note>
-**Önerilen yaklaşım:** Webhook için hem IP filtresi hem de [imza doğrulama](/sanal-pos/webhooks/signature) kullanın. İmza doğrulama ana güvenlik mekanizmasıdır; IP filtresi ek katmandır.
+**Önerilen yaklaşım:** Webhook tarafında **birincil güvenlik mekanizması imza doğrulamadır**, IP filtresi değildir. [HMAC-SHA256 imza doğrulama](/sanal-pos/webhooks/signature) kurun; IP filtresi yalnızca isteğe bağlı ek katman olarak değerlendirin.
 </Note>
 
 ## Sık karşılaşılan sorunlar
 
 <AccordionGroup>
-  <Accordion title="403 AUTH_IP_NOT_ALLOWED dönüyor ama IP whitelist'te">
+  <Accordion title="403 ip_not_allowed dönüyor ama IP whitelist'te">
     Cloud ortamlarda çıkış IP'si dinamik olabilir (örn. AWS NAT Gateway elastic IP'siz). Statik bir IP atayıp tekrar deneyin.
   </Accordion>
   <Accordion title="Sandbox'ta whitelist'i devre dışı bırakabilir miyim?">

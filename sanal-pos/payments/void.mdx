@@ -3,44 +3,47 @@ title: "İptal (Void)"
 description: "Mutabakat öncesi yapılmış bir ödemeyi tam tutarda iptal edin."
 ---
 
-Void, mutabakat öncesinde **tam tutarlı** ödeme iptalidir. İade'den farkı: void işlemi banka tarafında **muhasebe hareketi yaratmaz**, ödeme hiç olmamış gibi kayıttan düşer.
+Void, mutabakat öncesinde **tam tutarlı** ödeme iptalidir. İade'den (refund) farkı: void işlemi banka tarafında **muhasebe hareketi yaratmaz**, ödeme hiç olmamış gibi kayıttan düşer. Müşterinin kart ekstresinde işlem **görünmez**.
 
 ## Endpoint
 
-```
-POST /api/v1/payments/{paymentId}/void
+```http
+POST /api/v1/payments/{transaction_id}/void
 ```
 
 ## İstek
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-.../void \
-  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT" \
-  -H "Idempotency-Key: order-1001-void"
+curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/void \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: order-1001-void" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reason": "Stok kalmadı"
+  }'
 ```
 
-İstek gövdesi opsiyoneldir:
+| Alan | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `reason` | string | ❌ | İptal sebebi (raporlama için) |
+| `extra_properties` | object | ❌ | Konnektör-spesifik özel alanlar |
+
+İstek gövdesi tamamen opsiyoneldir — sadece header'lar yeterlidir.
+
+## Başarılı yanıt
 
 ```json
 {
-  "reason": "Stok kalmadı"
-}
-```
-
-## Yanıt
-
-```json
-{
-  "isSuccess": true,
-  "data": {
-    "id": "8e3f5c12-...",
-    "status": "Voided",
-    "voidedAmount": 15000,
-    "connector": {
-      "responseCode": "00",
-      "responseMessage": "İptal onaylandı"
-    },
-    "voidedAt": "2026-05-03T16:00:00Z"
+  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":              "voided",
+  "is_success":          true,
+  "message":             "İptal onaylandı",
+  "error_code":          null,
+  "provider_error_code": null,
+  "extra_properties": {
+    "processed_at":            "2026-05-03T16:00:01.234+00:00",
+    "host_reference":          "VOID-REF-789",
+    "provider_transaction_id": "VOID-9f3d2b8e"
   }
 }
 ```
@@ -49,21 +52,26 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-.../void \
 
 | Kriter | Void | Refund |
 |---|---|---|
-| Tutar | Sadece tam tutar | Tam veya kısmi |
+| Tutar | Yalnız tam tutar | Tam veya kısmi |
 | Mutabakat | Öncesinde — gün içi | Öncesi veya sonrası |
-| Banka komisyonu | İade edilir | Mutabakat sonrasında çoğunlukla iade edilmez |
+| Banka komisyonu | Yansımaz | Mutabakat sonrasında çoğunlukla yansır |
 | Müşteri ekstresinde | Hareket görünmez | "İade" satırı olarak görünür |
-| Süre | Genelde gün sonuna kadar (banka bağımlı) | 180 gün |
+| Süre | Genelde gün sonuna kadar (banka bağımlı) | 180 güne kadar |
 
-**Pratik kural:** Aynı gün içinde iptal istiyorsanız ve tam tutar iade edilecekse → **void**. Diğer durumlarda → [refund](/sanal-pos/payments/refund).
+**Pratik kural:** Aynı gün içinde, **tam tutar** iade edilecekse → **void**. Diğer durumlarda → [refund](/sanal-pos/payments/refund).
+
+<Note>
+**Pratikte tek endpoint yeterli:** Hangi yöntemin uygun olduğunu Payven banka durumuna göre otomatik karar verir. `/refund` çağırdığınızda mutabakat öncesi ise void, sonrası ise refund satırı oluşur. Yine de "kesin void" istiyorsanız bu endpoint'i kullanın.
+</Note>
 
 ## Pre-Auth iptali
 
-Bir Pre-Auth (ön provizyon) henüz capture edilmemişse void ile rezervasyon serbest bırakılır:
+Henüz capture edilmemiş bir Pre-Auth (ön provizyon) bu endpoint ile iptal edilebilir — rezervasyon serbest bırakılır:
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/payments/{preauthId}/void \
-  -H "..."
+curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-.../void \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: hotel-1001-void"
 ```
 
 Detay: [Pre-Auth ve Capture](/sanal-pos/payments/pre-auth-capture).
@@ -72,12 +80,18 @@ Detay: [Pre-Auth ve Capture](/sanal-pos/payments/pre-auth-capture).
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `PAYMENT_NOT_FOUND` | Ödeme bulunamadı |
-| `422` | `VOID_NOT_ALLOWED_AFTER_SETTLEMENT` | Mutabakat sonrası void yapılamaz — refund kullanın |
-| `422` | `PAYMENT_ALREADY_VOIDED` | Zaten iptal edilmiş |
-| `422` | `PAYMENT_NOT_VOIDABLE` | Bu durumdaki ödeme iptal edilemez |
+| `404` | `payment_not_found` | İşlem bulunamadı |
+| `422` | `void_not_allowed_after_settlement` | Mutabakat sonrası void yapılamaz — `/refund` kullanın |
+| `422` | `payment_already_voided` | İşlem zaten iptal edilmiş |
+| `422` | `payment_not_voidable` | Bu durumdaki işlem iptal edilemez (örn. başarısız, iade edilmiş) |
+| `422` | `bank_declined` | Banka iptal isteğini reddetti — yanıttaki `provider_error_code`'a bakın |
+
+Hata zarfı RFC 9457 problem+json formatındadır. Detay: [Hata Yönetimi](/documentation/concepts/errors).
 
 ## Webhook olayları
 
-- `payment.voided` — İptal başarıyla tamamlandı
-- `payment.void.failed` — İptal banka tarafından reddedildi
+| Olay | Açıklama |
+|---|---|
+| `void.completed` | İptal başarıyla tamamlandı (`data.status: "voided"`) |
+
+Detay: [Webhook Olayları](/sanal-pos/webhooks/events).

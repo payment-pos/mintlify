@@ -1,157 +1,155 @@
 ---
 title: "Payment Objesi"
-description: "Tüm ödeme yanıtlarında dönen alanların referansı."
+description: "Sanal POS ödeme yanıtlarında dönen alanların referansı."
 ---
 
-Payment objesi, bir ödemenin **mevcut durumunu ve geçmişini** tek bir yapıda taşır. Her ödeme oluşturma, sorgulama ve aksiyon endpoint'inden bu yapı döner.
+Payment objesi, bir ödemenin **mevcut durumu** ve banka tarafından dönen detayları tek bir yapıda taşır. İki varyantı vardır:
 
-## Tam yapı
+- **`PaymentOperationResult`** — yazma operasyonlarında (`POST /payments`, `/refund`, `/void`, `/capture`) döner
+- **`PaymentStatus`** — sorgulama operasyonunda (`GET /payments/{id}`) döner; `PaymentOperationResult` üzerine ek alanlar koyar
+
+## PaymentOperationResult
+
+Yazma endpoint'lerinden dönen temel yapı:
 
 ```json
 {
-  "id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "externalId": "ORDER-1001",
-  "merchantId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "status": "Success",
-  "operationType": "Sale",
-  "amount": 15000,
-  "capturedAmount": 15000,
-  "refundedAmount": 0,
-  "currency": "TRY",
-  "installment": 1,
-  "use3D": false,
-  "card": {
-    "holderName": "Test Kullanici",
-    "binNumber": "454671",
-    "lastFourDigits": "7894",
-    "scheme": "Visa",
-    "type": "Credit",
-    "program": "Bonus",
-    "bankCode": "GARANTI",
-    "bankName": "Garanti BBVA"
-  },
-  "connector": {
-    "code": "GarantiVPOS",
-    "configurationId": "...",
-    "responseCode": "00",
-    "responseMessage": "Onaylandı",
-    "hostReference": "PAYVEN-REF-789",
-    "authCode": "123456",
-    "transactionId": "9f3d2b8e-..."
-  },
-  "threeDS": null,
-  "fraud": {
-    "score": 12,
-    "decision": "Allow",
-    "rulesTriggered": []
-  },
-  "metadata": {
-    "campaignId": "summer-2026"
-  },
-  "createdAt": "2026-05-03T12:34:56Z",
-  "completedAt": "2026-05-03T12:34:58Z",
-  "settlementDate": null
+  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":              "completed",
+  "is_success":          true,
+  "message":             "Onaylandı",
+  "error_code":          null,
+  "provider_error_code": null,
+  "extra_properties": {
+    "processed_at":            "2026-05-03T12:34:58.123+00:00",
+    "receipt_id":              "RCPT-20260503-0001",
+    "external_id":             "ORDER-1001",
+    "provider_transaction_id": "9f3d2b8e-...",
+    "auth_code":               "123456",
+    "host_reference":          "PAYVEN-REF-789"
+  }
 }
 ```
 
-## Alanlar
-
-### Tanımlayıcılar
 | Alan | Tip | Açıklama |
 |---|---|---|
-| `id` | UUID | Payven tarafından atanan benzersiz ödeme kimliği |
-| `externalId` | string | Sizin sisteminizdeki sipariş/işlem kimliği. Tekrarlanan ödemeler için tekil olmalı |
-| `merchantId` | UUID | İşlemin hangi merchant adına yapıldığı |
+| `transaction_id` | UUID | Payven tarafından atanan benzersiz işlem kimliği. Sorgulama / aksiyon endpoint'lerinde URL parametresi olarak kullanılır. |
+| `status` | enum | İşlemin mevcut durumu — bkz. [Status değerleri](#status-degerleri) |
+| `is_success` | bool | İşlemin başarı/başarısızlığı. **HTTP 200 olsa bile bu alan `false` olabilir** (örn. banka reddi). |
+| `message` | string \| null | Banka veya Payven tarafından dönen açıklama (insan-okur, Türkçe) |
+| `error_code` | string \| null | Hata kodu — başarısız işlemlerde dolar (snake_case). Örn. `bank_declined`, `insufficient_funds` |
+| `provider_error_code` | string \| null | Bankanın orijinal yanıt kodu (Visa/MC/banka spec'i, örn. `51` = yetersiz bakiye) |
+| `extra_properties` | object \| null | Banka-spesifik ek alanlar — anahtarları konnektöre göre değişir |
 
-### Durum
-| Alan | Tip | Değerler |
+### `extra_properties` içeriği
+
+Tüm konnektörler aşağıdaki anahtarları doldurmaya çalışır (banka desteklemiyorsa boş string olur):
+
+| Anahtar | Açıklama |
+|---|---|
+| `processed_at` | Banka tarafında işlem tamamlanma zamanı (ISO-8601) |
+| `receipt_id` | Banka makbuz numarası |
+| `external_id` | Sizin sisteminizdeki sipariş kimliği (istek body'sindeki `external_id` echo edilir) |
+| `provider_transaction_id` | Bankadaki işlem kimliği (banka log'larında arama için) |
+| `auth_code` | 6 haneli onay kodu (Visa/MC için) |
+| `host_reference` | Bankadaki kalıcı referans numarası |
+
+Konnektöre özgü ek alanlar (HalkBank `tax_certificate_no`, NestPay `xid`, vb.) aynı sözlükte döner. Hangi alanların doldurulduğunu test ortamında görerek doğrulamanız önerilir.
+
+## PaymentStatus
+
+`GET /api/v1/payments/{transaction_id}` ile sorgulamada `PaymentOperationResult` üzerine **ek alanlar** koyar:
+
+```json
+{
+  "transaction_id":      "8e3f5c12-...",
+  "status":              "completed",
+  "is_success":          true,
+  "message":             "Onaylandı",
+  "error_code":          null,
+  "provider_error_code": null,
+  "extra_properties":    { ... },
+
+  "amount":      15000,
+  "currency":    "TRY",
+  "is_3d_secure": false,
+  "created":     "2026-05-03T12:34:56.789+00:00",
+  "basket_id":   "BASKET-2026-001"
+}
+```
+
+| Ek alan | Tip | Açıklama |
 |---|---|---|
-| `status` | enum | `Created`, `Pending3D`, `Authenticated`, `Authorized`, `Captured`, `Success`, `Failed`, `Voided`, `Refunded`, `PartiallyRefunded`, `Settled` |
-| `operationType` | enum | `Sale` (varsayılan), `PreAuth`, `Capture`, `Refund`, `Void` |
+| `amount` | int (kuruş) | İşlem tutarı |
+| `currency` | string | `TRY`, `USD`, `EUR`, `GBP` |
+| `is_3d_secure` | bool | İşlem 3D Secure ile mi yapıldı |
+| `created` | datetime | İşlemin Payven tarafında oluşturulma zamanı |
+| `basket_id` | string \| null | İstek body'sinden gelen sepet kimliği |
 
-`status` değerlerinin akışı için: [Sanal POS Genel Bakış](/sanal-pos/overview).
+## Status değerleri
 
-### Tutar
-| Alan | Tip | Açıklama |
+| `status` | Anlam | Sonraki adım |
 |---|---|---|
-| `amount` | int (kuruş) | İlk yetkilendirilen tutar |
-| `capturedAmount` | int | Çekilen tutar (Pre-Auth + Capture senaryosu için < `amount` olabilir) |
-| `refundedAmount` | int | İade edilen toplam tutar |
-| `currency` | enum | `TRY`, `USD`, `EUR`, `GBP` |
-| `installment` | int | Taksit sayısı (1 = peşin) |
-
-### Kart bilgileri
-| Alan | Tip | Açıklama |
-|---|---|---|
-| `card.holderName` | string | Kart üzerindeki isim |
-| `card.binNumber` | string | İlk 6 hane |
-| `card.lastFourDigits` | string | Son 4 hane |
-| `card.scheme` | enum | `Visa`, `Mastercard`, `Troy`, `Amex` |
-| `card.type` | enum | `Credit`, `Debit`, `Prepaid` |
-| `card.program` | string | Banka programı (Bonus, Maximum, Axess, ...) |
-| `card.bankCode`, `bankName` | string | BIN'den çözümlenen banka |
-
-<Note>
-Payven kart numarasının tamamını **saklamaz** ve yanıtta dönmez. Yalnızca BIN ve son 4 hane referans için döndürülür.
-</Note>
-
-### Konnektör (banka) bilgileri
-| Alan | Açıklama |
-|---|---|
-| `connector.code` | İşlemi gerçekleştiren konnektörün kodu (örn. `GarantiVPOS`, `AkbankNestpay`) |
-| `connector.responseCode` | Bankadan dönen yanıt kodu (`00` = başarı) |
-| `connector.responseMessage` | Bankadan dönen mesaj |
-| `connector.hostReference` | Bankadaki referans numarası |
-| `connector.authCode` | 6 haneli onay kodu |
-| `connector.transactionId` | Bankadaki işlem kimliği |
-
-### 3D Secure (sadece 3DS işlemlerde)
-| Alan | Açıklama |
-|---|---|
-| `threeDS.status` | `Y`, `N`, `U`, `A` (3DS sonucu) |
-| `threeDS.eci` | Electronic Commerce Indicator (`05`, `06`, vb.) |
-| `threeDS.cavv` | Cardholder Authentication Verification Value |
-| `threeDS.xid` | Transaction ID (3DS spec) |
-| `threeDS.protocolVersion` | `1.0`, `2.1`, `2.2` |
-
-### Fraud
-| Alan | Açıklama |
-|---|---|
-| `fraud.score` | 0-100 arası risk skoru |
-| `fraud.decision` | `Allow`, `Review`, `Block` |
-| `fraud.rulesTriggered[]` | Tetiklenen fraud kuralları |
-
-### Metadata
-`metadata` alanı **sizin tanımladığınız** anahtar-değer çiftleridir. 50 anahtara kadar, her değer max 500 karakter. Raporlama ve filtreleme için kullanışlıdır.
-
-### Tarihler
-| Alan | Açıklama |
-|---|---|
-| `createdAt` | Ödemenin oluşturulduğu zaman (UTC) |
-| `completedAt` | Banka onayı geldiği zaman |
-| `settlementDate` | Mutabakata dahil edildiği gün (gün sonunda doldurulur) |
-
-## Status diyagramı
+| `pending` | İşlem oluşturuldu, banka yanıtı bekleniyor | Asenkron — webhook veya `GET` ile takip |
+| `pending_3ds` | 3D Secure init aşamasında | Müşteriyi bankaya yönlendirin |
+| `authenticated_3ds` | 3DS başarılı, şimdi otorizasyon yapılacak | Otomatik — backend `/3d/complete` çağırır |
+| `authorized` | Banka onayladı, ön provizyon (PreAuth) | `/capture` ile çekim yapın |
+| `completed` | İşlem tamamlandı (Sale) | İade/iptal yapılabilir |
+| `failed` | Banka reddetti veya teknik hata | `error_code` + `provider_error_code` inceleyin |
+| `voided` | İptal edildi | — |
+| `refunded` | Tüm tutar iade edildi | — |
+| `partially_refunded` | Kısmi iade yapıldı | Kalan tutar yine iade edilebilir |
+| `settled` | Mutabakata dahil edildi (gün sonu) | — |
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Created
-    Created --> Pending3D: 3DS init
-    Created --> Authorized: Non-3D başarılı
-    Pending3D --> Authenticated: 3DS Y/A
-    Pending3D --> Failed: 3DS N/U
-    Authenticated --> Authorized: Banka onayı
-    Authorized --> Captured: capture
-    Authorized --> Success: instant settle
-    Authorized --> Voided: void
-    Captured --> Success
-    Captured --> Refunded: full refund
-    Captured --> PartiallyRefunded: partial refund
-    PartiallyRefunded --> Refunded
-    Success --> Settled: gün sonu
-    Captured --> Settled
-    Refunded --> [*]
-    Voided --> [*]
-    Failed --> [*]
-    Settled --> [*]
+    [*] --> pending
+    pending --> pending_3ds: 3DS init
+    pending --> authorized: Non-3D / PreAuth
+    pending --> completed: Non-3D Sale
+    pending_3ds --> authenticated_3ds: 3DS Y/A
+    pending_3ds --> failed: 3DS N/U
+    authenticated_3ds --> authorized: PreAuth
+    authenticated_3ds --> completed: Sale
+    authorized --> completed: capture
+    authorized --> voided: void
+    completed --> refunded: tam iade
+    completed --> partially_refunded: kısmi iade
+    partially_refunded --> refunded: kalan iade
+    completed --> settled: gün sonu
+    refunded --> [*]
+    voided --> [*]
+    failed --> [*]
+    settled --> [*]
 ```
+
+## Hata yanıtları
+
+İşlem reddi / iş kuralı ihlali durumunda Payven [RFC 9457 problem+json](/documentation/concepts/errors) zarfı döner. Banka tarafı reddinde HTTP `200` ile birlikte `is_success: false` ve `error_code: "bank_declined"` da gelebilir — başarı kararını sadece HTTP koduna değil, gövdeye de bakarak verin:
+
+```json
+{
+  "transaction_id":      "8e3f5c12-...",
+  "status":              "failed",
+  "is_success":          false,
+  "message":             "Yetersiz bakiye",
+  "error_code":          "bank_declined",
+  "provider_error_code": "51",
+  "extra_properties":    { "processed_at": "2026-05-03T12:34:58.123+00:00" }
+}
+```
+
+`provider_error_code` banka tarafından dönen orijinal koddur. Tam liste: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
+
+## Yol haritası — zenginleştirilmiş alanlar
+
+Aşağıdaki sub-objeler ileride yanıta eklenecektir (kontrat genişlemesi, kırıcı değil):
+
+- **`card`** — `bin_number`, `last_four_digits`, `scheme` (`visa`/`mastercard`/`troy`/`amex`), `type` (`credit`/`debit`/`prepaid`), `program` (`bonus`/`maximum`/`axess`/`paraf`/`world`), `bank_code`, `bank_name`
+- **`connector`** — `code`, `configuration_id` — şu an `extra_properties` içinde
+- **`three_ds`** — `protocol_version` (`1.0`/`2.1`/`2.2`), `cavv`, `eci`, `xid`, `result` (`Y`/`N`/`U`/`A`)
+- **`fraud`** — `score` (0-100), `decision` (`allow`/`review`/`block`), `rules_triggered[]`
+- **`metadata`** — sizin tanımladığınız anahtar-değer çiftleri (max 50 anahtar)
+- **`captured_amount`**, **`refunded_amount`**, **`completed_at`**, **`settlement_date`**
+
+Geçişin tarihi [Changelog](/resources/changelog) üzerinden duyurulacaktır. Şu an bu alanların ekvivalanları `extra_properties` veya ayrı endpoint'lerle elde edilebilir.

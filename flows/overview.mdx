@@ -1,0 +1,89 @@
+---
+title: "Akışlar"
+description: "Uçtan uca senaryolar, sequence diagram'ları ve hata yönetimi."
+---
+
+**Akışlar** bölümü, Payven üzerinde gerçek hayat senaryolarını uçtan uca anlatır. Tek tek endpoint'ler yerine **bir iş hedefini gerçekleştirmek için kaç çağrı, hangi sırayla, nereye gönderilir** sorusuna cevap verir.
+
+Her akış sayfası şunları içerir:
+
+- **Mermaid sequence diagram'ı** — adımların görsel akışı
+- **Adım adım açıklama** — istek/yanıt örnekleriyle
+- **Hata senaryoları** — her adımda olası hatalar ve kurtarma stratejisi
+- **Idempotency anahtarı önerileri** — yeniden gönderim güvenliği için
+- **Webhook eşleşmeleri** — asenkron yakalama
+
+## Ödeme akışları
+
+<CardGroup cols={2}>
+  <Card title="Non-3D Sale" icon="credit-card" href="/sanal-pos/payments/non-3d">
+    Kart bilgileriyle tek isteklik ödeme. B2B kapalı devre senaryolar için.
+  </Card>
+  <Card title="3D Secure 2.x" icon="shield-check" href="/sanal-pos/payments/3d-secure">
+    Müşteri doğrulamalı tüketici ödemesi. Chargeback sorumluluğu bankaya geçer.
+  </Card>
+  <Card title="Pre-Auth + Capture" icon="lock-keyhole" href="/sanal-pos/payments/pre-auth-capture">
+    Tutarı önce bloke et, sonra (kısmi) çek. Otel/araç kiralama/marketplace.
+  </Card>
+  <Card title="Hosted Checkout" icon="window-maximize" href="/sanal-pos/payments/hosted-checkout">
+    Payven barındırmalı ödeme sayfası. PCI yükünü SAQ-A seviyesine indirir.
+  </Card>
+  <Card title="Pay-by-Link" icon="link" href="/sanal-pos/payments/pay-by-link">
+    Tek kullanımlık ödeme linki. SMS / e-posta / WhatsApp üzerinden.
+  </Card>
+  <Card title="İade Yaşam Döngüsü" icon="rotate-left" href="/sanal-pos/payments/refund">
+    Mutabakat öncesi void, sonrası refund. Çoklu kısmi iade.
+  </Card>
+</CardGroup>
+
+## Asenkron akışlar
+
+<CardGroup cols={2}>
+  <Card title="Webhook Teslimi" icon="bell" href="/sanal-pos/webhooks/overview">
+    Olay → imzalı POST → 2xx, 6 deneme retry, manuel replay.
+  </Card>
+  <Card title="Smart Retry" icon="arrows-rotate" href="/sanal-pos/routing/smart-retry">
+    Banka geçici arızasında işlem otomatik alternatif konnektöre yönlendirilir.
+  </Card>
+  <Card title="Circuit Breaker" icon="bolt-slash" href="/sanal-pos/routing/circuit-breaker">
+    Arızalı banka eşik aşıldığında devre dışı, sağlık kontrolüne girer.
+  </Card>
+  <Card title="Mutabakat" icon="scale-balanced" href="/sanal-pos/reconciliation/lifecycle">
+    Banka dosyası → eşleştirme → tutarsızlık → settlement.
+  </Card>
+</CardGroup>
+
+## Para transferi akışları
+
+<CardGroup cols={2}>
+  <Card title="Bulk EFT/FAST/Havale" icon="arrow-right-arrow-left" href="/para-transferi/overview">
+    Pending → Approved → Processing → Completed/Failed yaşam döngüsü.
+  </Card>
+  <Card title="Tekrarlayan Transfer" icon="repeat" href="/para-transferi/overview">
+    Cron tabanlı periyodik transferler.
+  </Card>
+</CardGroup>
+
+## Tasarım prensipleri
+
+Akış tasarlarken Payven'in altta yatan kuralları:
+
+| Prensip | Pratik karşılığı |
+|---|---|
+| **Idempotent yazma** | Her POST'ta anlamlı `Idempotency-Key`. Operatör butonu iki kez basarsa tek işlem oluşur. |
+| **HTTP-doğru durum kodları** | `200/201/202/204` başarı; `4xx` istemci hatası; `5xx` sunucu hatası. Body'de "wrapped success" yok. |
+| **RFC 9457 hata zarfı** | `application/problem+json` — `type`, `title`, `status`, `code`, `detail`, `correlation_id`. |
+| **Asenkron önceliği** | UI'da redirect, sunucuda webhook + sorgulama. Müşteri tarayıcısı kapanırsa sonuç kaybolmaz. |
+| **Korelasyon zinciri** | Her isteğin `X-Correlation-Id`'si vardır; webhook'ta da aynı zincir devam eder. Destek talebinde bu kimliği paylaşın. |
+
+## Yol haritasında — gelecek akış sayfaları
+
+Aşağıdaki akışlar için adanmış sayfalar hazırlanıyor:
+
+- **3DS Iframe Challenge** — modal içinde 3DS challenge UX
+- **Recurring + Card Vault** — saklı kart ile abonelik
+- **Multi-Merchant Sub-Account** — marketplace senaryoları
+- **Refund Webhook → Stok İadesi** — webhook trigger ERP entegrasyonu
+- **Reconciliation Mismatch Resolution** — tutarsızlık çözüm akışı
+
+Güncellemeler için: [Changelog](/resources/changelog).

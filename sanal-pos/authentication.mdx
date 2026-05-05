@@ -31,21 +31,27 @@ TOKEN=$(curl -s https://identity.payven.com.tr/api/v1/auth/payven/token \
 curl https://vpos.payven.com.tr/api/v1/payments \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -H "Idempotency-Key: pay-2026-05-05-abc123" \
+  -H "Idempotency-Key: order-1001-payment" \
   -d '{
-    "amount": 10000,
-    "currency": "TRY",
-    "card_number": "4111111111111111",
-    "expiry_month": 12,
-    "expiry_year": 2030,
-    "cvv": "123",
-    "installment": 1
+    "external_id":    "ORDER-1001",
+    "amount":         { "amount": 10000, "currency": "TRY" },
+    "installment":    1,
+    "operation_type": "sale",
+    "card": {
+      "holder_name":  "Test Kullanici",
+      "number":       "4111111111111111",
+      "expire_month": "12",
+      "expire_year":  "2030",
+      "cvv":          "123"
+    }
   }'
 ```
 
 ## Merchant kimliği
 
-Bir token, tenant'a bağlı **tüm merchant'lar adına** işlem yapabilir. Hangi merchant adına işlem yapıldığını request header'larıyla belirtirsiniz:
+JWT token'ı içinde `merchantId` claim'i taşınır — tek-merchant tenant'larda ek bir header göndermenize gerek yoktur. Backend, claim'den okuyarak işlemi doğru merchant adına kayıt eder.
+
+**Multi-merchant senaryolar** (bir tenant altında birden çok merchant'a işlem alıyorsanız) için override header'ları:
 
 ```http
 X-Merchant-Id:          3fa85f64-5717-4562-b3fc-2c963f66afa6
@@ -57,12 +63,12 @@ Veya kendi sisteminizdeki kimlik ile:
 X-External-Merchant-Id: M-IST-001
 ```
 
-İki header'dan **biri** zorunludur. Her ikisi gönderilirse `X-Merchant-Id` öncelikli olur.
+Her ikisi gönderilirse `X-Merchant-Id` öncelikli olur.
 
-| Header | Tip | Anlam |
-|---|---|---|
-| `X-Merchant-Id` | UUID | Konsoldan kopyalanır (Merchant.Id) |
-| `X-External-Merchant-Id` | Serbest metin | Onboarding sırasında belirlenir (Merchant.ExternalId) |
+| Header | Tip | Anlam | Kaynak |
+|---|---|---|---|
+| `X-Merchant-Id` | UUID | Payven internal kimlik | Konsoldan kopyalanır (Merchant.id) |
+| `X-External-Merchant-Id` | string | Sizin sisteminizdeki kimlik | Onboarding sırasında belirlenir (Merchant.external_id) |
 
 ## Yanıt header'ları
 

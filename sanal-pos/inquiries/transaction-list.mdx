@@ -3,73 +3,138 @@ title: "İşlem Listesi"
 description: "Filtreleme ve sayfalama ile işlemleri toplu olarak listeleyin."
 ---
 
-İşlemlerinizi tarih aralığı, durum, merchant, kart bilgileri gibi kriterlere göre listeleyin.
+İşlemlerinizi tarih aralığı, durum, merchant, kart bilgisi gibi kriterlere göre filtreleyip sayfalı şekilde listeleyin. Bu endpoint **özet** kayıtlar döner — tam detay için tek bir kaydı [Ödeme Detayı](/sanal-pos/inquiries/payment-detail) endpoint'iyle açın.
 
 ## Endpoint
 
-```
+```http
 GET /api/v1/transactions
 ```
 
 ## Sorgu parametreleri
 
+Tüm parametreler **snake_case**'dir.
+
 | Parametre | Tip | Açıklama |
 |---|---|---|
-| `from` / `to` | string | Tarih aralığı (UTC, ISO-8601) |
-| `status` | enum[] | `Success`, `Failed`, `Pending3D`, vb. |
-| `currency` | enum | `TRY`, `USD`, `EUR`, `GBP` |
-| `minAmount` / `maxAmount` | int | Tutar aralığı (kuruş) |
-| `cardScheme` | enum | `Visa`, `Mastercard`, `Troy`, `Amex` |
-| `cardBin` | string | İlk 6-8 hane |
-| `connectorCode` | string | Belirli bir banka konnektörü |
-| `externalId` | string | Sizin sipariş ID'niz |
-| `merchantId` | uuid | Belirli bir merchant |
-| `searchTerm` | string | İşlem ID, sipariş ID, kart son 4 hane veya müşteri e-postasında arama |
-| `sortBy` | enum | `createdAt`, `amount` |
-| `sortDirection` | enum | `asc`, `desc` |
-| `page`        / `pageSize` | int | Sayfalama (max 100) |
+| `page` | int | Sayfa numarası (varsayılan `1`) |
+| `page_size` | int | Sayfa başı kayıt (1–100, varsayılan `20`) |
+| `start_date`, `end_date` | datetime | Tarih aralığı (UTC, ISO 8601) — `t.created` üzerinde filtreler |
+| `status` | enum | `pending`, `pending_3ds`, `authorized`, `completed`, `failed`, `voided`, `refunded`, `partially_refunded`, `settled` |
+| `operation_type` | enum | `sale`, `pre_auth`, `capture`, `refund`, `void` |
+| `payment_type` | enum | `non_3d`, `three_d_secure`, `three_d_pay`, `three_d_pay_hosting` |
+| `secure_type` | enum | 3D modu detayı |
+| `card_schema_type` | enum | `visa`, `mastercard`, `troy`, `amex` |
+| `card_type` | enum | `credit`, `debit`, `prepaid` |
+| `installment_count` | int | Taksit sayısı |
+| `bin_number` | string | İlk 1–6 hane (BIN prefix) |
+| `min_amount`, `max_amount` | int (kuruş) | Tutar aralığı |
+| `merchant_id` | UUID | Internal merchant filtresi |
+| `external_merchant_id` | string | Müşteri-tanımlı merchant kimliği ile filtre |
+| `basket_id` | string | Sepet kimliği |
+| `connector_code` | string | Konnektör kodu (örn. `nestpay`, `halkbankvpos`) |
+| `connector_configuration_id` | UUID | Konnektör konfigürasyonu |
+| `search_term` | string | `id`, `basket_id`, `external_id`, masked kart üzerinde "içerir" araması (max 200 karakter) |
 
 ## İstek
 
 ```bash
-curl "https://vpos.payven.com.tr/api/v1/transactions?from=2026-05-01T00:00:00Z&to=2026-05-31T23:59:59Z&status=Success&pageSize=50" \
-  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT"
+curl "https://vpos.payven.com.tr/api/v1/transactions?start_date=2026-05-01T00:00:00Z&end_date=2026-05-31T23:59:59Z&status=completed&page_size=50" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
 ## Yanıt
 
+Standart sayfalı liste zarfı:
+
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "items": [
-      {
-        "id": "8e3f5c12-...",
-        "externalId": "ORDER-1001",
-        "status": "Success",
-        "amount": 15000,
-        "currency": "TRY",
-        "card": { "binNumber": "454671", "lastFourDigits": "7894", "scheme": "Visa" },
-        "connector": { "code": "GarantiVPOS", "responseCode": "00" },
-        "createdAt": "2026-05-03T12:34:56Z"
-      }
-    ],
-    "page": 1,
-    "pageSize": 50,
-    "totalCount": 1247,
-    "totalPages": 25
-  }
+  "items": [
+    {
+      "id":                          "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "merchant_id":                 "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "external_merchant_id":        "M-IST-001",
+      "merchant_name":               "Acme Mağaza",
+      "external_id":                 "ORDER-1001",
+      "basket_id":                   "BASKET-2026-001",
+      "amount":                      15000,
+      "net_amount":                  10000,
+      "currency":                    "TRY",
+      "status":                      "completed",
+      "operation_type":              "sale",
+      "payment_type":                "three_d_secure",
+      "bin_number":                  454671,
+      "last4":                       "7894",
+      "card_holder_name":            "Test Kullanici",
+      "masked_card_number":          "454671******7894",
+      "card_schema_type":            "visa",
+      "card_brand":                  "bonus",
+      "card_type":                   "credit",
+      "issuer_bank_code":            "GARANTI",
+      "issuer_bank_name":            "Garanti BBVA",
+      "issuer_bank_logo_url":        "https://cdn.payven.com.tr/banks/garanti.svg",
+      "is_3d_secure":                true,
+      "secure_type":                 "three_d_secure",
+      "installment_count":           3,
+      "created":                     "2026-05-03T12:34:56.789+00:00",
+      "completed_at":                "2026-05-03T12:34:58.123+00:00",
+      "error_message":               null,
+      "connector_configuration_id":  "abc123-...",
+      "connector_configuration_name":"Garanti VPOS Production",
+      "connector_code":              "garanti",
+      "installment_amount":          5000,
+      "bank_commission_amount":      150,
+      "merchant_commission_amount":  100,
+      "net_merchant_amount":         14750,
+      "settlement_date":             "2026-05-04T00:00:00.000+00:00",
+      "bank_response_code":          "00",
+      "md_status":                   "y",
+      "provider_transaction_id":     "9f3d2b8e-...",
+      "auth_code":                   "123456",
+      "host_reference":              "PAYVEN-REF-789",
+      "rrn":                         "PAYVEN-REF-789",
+      "extra_properties":            { }
+    }
+  ],
+  "page":               1,
+  "total_pages":        25,
+  "total_count":        1247,
+  "has_previous_page":  false,
+  "has_next_page":      true
 }
 ```
 
-Yanıttaki kayıtlar **özet** versiyondur (kart numarası, müşteri detayları yoktur). Tam detay için ilgili `id` ile [Ödeme Detayı](/sanal-pos/inquiries/payment-detail) endpoint'ini çağırın.
+Sayfalama zarfı detayı: [API Yanıt Formatı](/documentation/concepts/response-format#sayfali-liste-yaniti).
+
+<Note>
+Liste yanıtında `card_holder_name`, `masked_card_number` gibi PII alanlar dönebilir
+ama tam kart numarası, CVV asla dönmez. Production ekranlarında bu alanları
+loglayıp loglara yazmamaya dikkat edin.
+</Note>
+
+## Tek bir işlemin detayı
+
+Listedeki bir kaydın `id` değerini kullanarak detay endpoint'ine gidin:
+
+```bash
+curl https://vpos.payven.com.tr/api/v1/transactions/8e3f5c12-... \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+Detay yanıtında ek olarak `ip_address`, `cavv`, `eci`, `xid`, `md`, `three_ds_server_trans_id`, `provider_raw_request`, `provider_raw_response` gibi alanlar bulunur.
+
+## Geçmiş timeline'ı
+
+Bir işlemin durum geçiş geçmişi için: [İşlem Geçmişi](/sanal-pos/inquiries/payment-history).
 
 ## Export
 
-Konsol → İşlemler ekranından CSV ve XLSX export yapabilirsiniz. Programatik export için:
+Programatik export hâlâ konsoldan yapılır — **Konsol → İşlemler** ekranından CSV/XLSX indirme aktiftir. Public bir `/transactions/export` endpoint'i yol haritasındadır.
 
-```bash
-GET /api/v1/transactions/export?format=csv&from=...&to=...
-```
+## Hata yanıtları
 
-İndirme linki yanıt header'ında `Location` olarak döner; büyük export'lar asenkron işlenir.
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `400` | `validation_failed` | Parametre formatı geçersiz (örn. tarih, BIN) |
+| `403` | `forbidden` | Yetki yok |
+| `422` | `validation_failed` | Tutar aralığı hatalı (`min_amount > max_amount`) |

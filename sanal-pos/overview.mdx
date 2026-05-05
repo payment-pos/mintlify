@@ -80,12 +80,12 @@ Payven Sanal POS, ödeme kuruluşları ve büyük platformlar için **çoklu ban
 
 | Kategori | Endpoint örnekleri | Auth |
 |---|---|---|
-| Ödeme oluşturma | `POST /payments`, `POST /payments/3d/init`, `POST /checkout/sessions` | API Key |
-| Ödeme aksiyonları | `POST /payments/{id}/refund`, `/void`, `/capture` | API Key |
-| Sorgulama | `GET /transactions`, `GET /payments/{id}` | API Key |
-| Webhook yönetimi | `POST /webhooks` | API Key |
-| Mutabakat | `POST /reconciliations/start` | API Key |
-| Backoffice | `GET /connectors`, `/connector-configurations` | Bearer |
+| Ödeme oluşturma | `POST /payments`, `POST /payments/3d/init`, `POST /checkout/sessions` | JWT Bearer |
+| Ödeme aksiyonları | `POST /payments/{id}/refund`, `/void`, `/capture` | JWT Bearer |
+| Sorgulama | `GET /transactions`, `GET /payments/{id}` | JWT Bearer |
+| Webhook yönetimi | `POST /webhooks` | JWT Bearer |
+| Mutabakat | `POST /reconciliations/start` | JWT Bearer |
+| Backoffice | `GET /connectors`, `/connector-configurations` | JWT Bearer |
 
 ## İşlem yaşam döngüsü
 

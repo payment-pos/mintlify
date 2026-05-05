@@ -741,13 +741,13 @@
             "description": "Created",
             "content": {
               "text/plain": {
-                "schema": { }
+                "schema": {}
               },
               "application/json": {
-                "schema": { }
+                "schema": {}
               },
               "text/json": {
-                "schema": { }
+                "schema": {}
               }
             }
           },
@@ -1200,7 +1200,7 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
     "/api/v1/checkout/sessions/{session_id}/pay": {
@@ -1381,7 +1381,7 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
     "/api/v1/checkout/sessions/{session_id}/transaction-status": {
@@ -1470,7 +1470,7 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
     "/api/v1/checkout/sessions/{session_id}/complete": {
@@ -1572,7 +1572,7 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
     "/api/v1/connector-configurations": {
@@ -2521,13 +2521,13 @@
             "description": "Created",
             "content": {
               "text/plain": {
-                "schema": { }
+                "schema": {}
               },
               "application/json": {
-                "schema": { }
+                "schema": {}
               },
               "text/json": {
-                "schema": { }
+                "schema": {}
               }
             }
           }
@@ -3222,12 +3222,7 @@
             "name": "period",
             "in": "query",
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/DashboardPeriod"
-                }
-              ],
-              "default": "today"
+              "type": "string"
             }
           }
         ],
@@ -3296,7 +3291,7 @@
             "description": "OK"
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
     "/api/v1/health/live": {
@@ -3419,13 +3414,13 @@
             "description": "OK",
             "content": {
               "text/plain": {
-                "schema": { }
+                "schema": {}
               },
               "application/json": {
-                "schema": { }
+                "schema": {}
               },
               "text/json": {
-                "schema": { }
+                "schema": {}
               }
             }
           }
@@ -3538,13 +3533,13 @@
             "description": "Created",
             "content": {
               "text/plain": {
-                "schema": { }
+                "schema": {}
               },
               "application/json": {
-                "schema": { }
+                "schema": {}
               },
               "text/json": {
-                "schema": { }
+                "schema": {}
               }
             }
           },
@@ -4172,7 +4167,7 @@
             "description": "OK"
           }
         },
-        "security": [ ]
+        "security": []
       },
       "get": {
         "tags": [
@@ -4183,7 +4178,7 @@
             "description": "OK"
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
     "/api/v1/payments/3d/complete": {
@@ -7318,13 +7313,13 @@
             "description": "Created",
             "content": {
               "text/plain": {
-                "schema": { }
+                "schema": {}
               },
               "application/json": {
-                "schema": { }
+                "schema": {}
               },
               "text/json": {
-                "schema": { }
+                "schema": {}
               }
             }
           },
@@ -9635,13 +9630,13 @@
             "description": "OK",
             "content": {
               "text/plain": {
-                "schema": { }
+                "schema": {}
               },
               "application/json": {
-                "schema": { }
+                "schema": {}
               },
               "text/json": {
-                "schema": { }
+                "schema": {}
               }
             }
           },
@@ -10099,13 +10094,13 @@
             "description": "OK",
             "content": {
               "text/plain": {
-                "schema": { }
+                "schema": {}
               },
               "application/json": {
-                "schema": { }
+                "schema": {}
               },
               "text/json": {
-                "schema": { }
+                "schema": {}
               }
             }
           },
@@ -12826,7 +12821,7 @@
                 "nullable": true
               }
             },
-            "additionalProperties": { }
+            "additionalProperties": {}
           }
         ]
       },
@@ -13419,7 +13414,7 @@
             "nullable": true
           }
         },
-        "additionalProperties": { }
+        "additionalProperties": {}
       },
       "RecentFailedTransactionDto": {
         "type": "object",
@@ -16366,33 +16361,15 @@
     "securitySchemes": {
       "bearerAuth": {
         "type": "http",
-        "description": "Keycloak JWT. Format: `Authorization: Bearer <token>`.",
         "scheme": "bearer",
-        "bearerFormat": "JWT"
-      },
-      "oauth2": {
-        "type": "oauth2",
-        "description": "Keycloak Authorization Code (PKCE) — Swagger UI uzerinden interaktif login.",
-        "flows": {
-          "authorizationCode": {
-            "authorizationUrl": "http://localhost:8080/realms/payven/protocol/openid-connect/auth",
-            "tokenUrl": "http://localhost:8080/realms/payven/protocol/openid-connect/token",
-            "scopes": {
-              "openid": "OpenID Connect",
-              "profile": "User profile",
-              "email": "User email"
-            }
-          }
-        }
+        "bearerFormat": "JWT",
+        "description": "Identity servisinden alinan Keycloak JWT. Format: `Authorization: Bearer <token>`. Token alma: POST /api/v1/auth/{slug}/token"
       }
     }
   },
   "security": [
     {
-      "bearerAuth": [ ]
-    },
-    {
-      "oauth2": [ ]
+      "bearerAuth": []
     }
   ],
   "tags": [
@@ -16467,6 +16444,16 @@
     },
     {
       "name": "Webhooks"
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://vpos.payven.com.tr",
+      "description": "Production"
+    },
+    {
+      "url": "https://vpos-sandbox.payven.com.tr",
+      "description": "Sandbox"
     }
   ]
 }

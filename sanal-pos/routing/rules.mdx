@@ -1,130 +1,153 @@
 ---
 title: "Yönlendirme Kuralları"
-description: "Koşul tabanlı kural oluşturma ve yönetme."
+description: "BIN aralığı, tutar, taksit ve kart filtrelerine göre konnektör seçimi."
 ---
 
-Yönlendirme kuralları **koşul-aksiyon** çiftleridir. Bir kural birden fazla koşul içerebilir (AND/OR).
+Yönlendirme kuralları, bir ödeme isteğine **hangi konnektörün** yanıt vereceğini belirler. Her kural bir filtre kümesi + bir hedef konnektör + opsiyonel fallback konnektör tanımlar. Engine kuralları **`priority` sırasında** değerlendirir; ilk eşleşen kural seçilir.
+
+## Endpoint'ler
+
+```http
+GET    /api/v1/routing-rules                      # Liste
+GET    /api/v1/routing-rules/{id}                 # Tek kural
+POST   /api/v1/routing-rules                      # Yeni kural
+PUT    /api/v1/routing-rules/{id}                 # Güncelleme
+DELETE /api/v1/routing-rules/{id}                 # Silme
+POST   /api/v1/routing-rules/bulk-delete          # Toplu silme
+POST   /api/v1/routing-rules/{id}/activate
+POST   /api/v1/routing-rules/{id}/deactivate
+PATCH  /api/v1/routing-rules/{id}/score           # Skor güncelleme
+```
 
 ## Kural oluşturma
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules \
-  -H "X-API-Key: $KEY" -H "X-API-Secret: $SECRET" -H "X-Merchant-Id: $MERCHANT" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: routing-rule-bonus-garanti" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Bonus kartlar Garantiye",
-    "priority": 10,
-    "enabled": true,
-    "conditions": {
-      "operator": "AND",
-      "rules": [
-        { "field": "card.program", "operator": "equals", "value": "Bonus" },
-        { "field": "amount", "operator": "lte", "value": 200000 }
-      ]
-    },
-    "connectors": [
-      { "configurationId": "cfg_garanti_001", "weight": 100 }
-    ]
+    "name":                       "Bonus 1-12 taksit Garanti",
+    "priority":                   10,
+    "is_active":                  true,
+    "card_bin":                   "454671",
+    "card_bin_end":               "454699",
+    "installment_count":          null,
+    "min_amount":                 100,
+    "max_amount":                 20000000,
+    "currency":                   "TRY",
+    "card_brand_filter":          "bonus",
+    "card_type_filter":           "credit",
+    "target_connector_config_id": "cfg_garanti_prod-001",
+    "fallback_connector_config_id":"cfg_akbank_prod-001",
+    "weight":                     70,
+    "success_rate":               99.2,
+    "average_response_time_ms":   850,
+    "cost_score":                 80,
+    "daily_transaction_limit":    100000
   }'
 ```
 
-## Koşul alanları
+## Alan referansı
 
-| Alan | Tip | Açıklama |
-|---|---|---|
-| `card.scheme` | enum | `Visa`, `Mastercard`, `Troy`, `Amex` |
-| `card.type` | enum | `Credit`, `Debit`, `Prepaid` |
-| `card.program` | string | `Bonus`, `Maximum`, `Axess`, `World`, `Paraf`, `CardFinans`, ... |
-| `card.bankCode` | string | Banka kodu (`GARANTI`, `AKBANK`, ...) |
-| `card.binNumber` | string | İlk 6 hane (regex destekli) |
-| `card.country` | string | `TR`, `US`, ... |
-| `amount` | int | Tutar (kuruş) |
-| `currency` | enum | `TRY`, `USD`, `EUR`, `GBP` |
-| `installment` | int | Taksit sayısı |
-| `use3D` | bool | 3DS kullanılıyor mu |
-| `merchantId` | uuid | Merchant filtresi |
-| `merchantCategory` | string | Merchant'ın MCC kategorisi |
+| Alan | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `name` | string | ✅ | İnsan-okur ad (raporlamada görünür) |
+| `priority` | short | ✅ | Değerlendirme sırası (düşük sayı = önce). 0-32767. |
+| `is_active` | bool | ❌ | Varsayılan `true` |
+| `card_bin` | string | ❌ | BIN başlangıcı (1-6 hane). Tek BIN için `card_bin_end` ile aynı verin. |
+| `card_bin_end` | string | ❌ | BIN aralığı sonu — `card_bin`–`card_bin_end` aralığı eşleşir |
+| `installment_count` | short | ❌ | Spesifik taksit sayısı (boş = her taksit) |
+| `min_amount`, `max_amount` | long (kuruş) | ✅ | Tutar aralığı |
+| `currency` | string | ❌ | `TRY`, `USD`, `EUR`, `GBP` (boş = her para birimi) |
+| `card_brand_filter` | enum | ❌ | `bonus`, `maximum`, `axess`, `world`, `paraf`, `cardfinans`, `wings` |
+| `card_type_filter` | enum | ❌ | `credit`, `debit`, `prepaid` |
+| `target_connector_config_id` | UUID | ✅ | Birinci tercih — hangi konnektör konfigürasyonu yanıtlayacak |
+| `fallback_connector_config_id` | UUID | ❌ | Birinci başarısız olursa Smart Retry hangisini denesin |
+| `weight` | short | ❌ | 0-100 — A/B trafik dağılımı veya skoring katkısı |
+| `success_rate` | decimal | ❌ | Son ölçülen başarı oranı (0-100) — score motoruna girer |
+| `average_response_time_ms` | int | ❌ | Son ortalama yanıt süresi — skor motoruna girer |
+| `cost_score` | short | ❌ | 0-100 (yüksek = daha ucuz). Skor motoruna girer. |
+| `daily_transaction_limit` | int | ❌ | Günlük işlem limiti — aşılırsa kural pas geçilir |
 
-## Operatörler
+## Skor formülü
 
-| Operatör | Açıklama |
-|---|---|
-| `equals` | Eşit |
-| `notEquals` | Eşit değil |
-| `gt`, `gte` | Büyük / büyük eşit |
-| `lt`, `lte` | Küçük / küçük eşit |
-| `in` | Listede mi |
-| `notIn` | Listede değil mi |
-| `between` | Aralık |
-| `regex` | Regex eşleşmesi (BIN için) |
+Engine kuralı eşleşen aday konnektörler için kompozit skor üretir:
 
-## Bileşik koşullar
-
-`AND` ve `OR` ile koşulları gruplayabilirsiniz:
-
-```json
-{
-  "operator": "AND",
-  "rules": [
-    {
-      "operator": "OR",
-      "rules": [
-        { "field": "card.program", "operator": "equals", "value": "Bonus" },
-        { "field": "card.program", "operator": "equals", "value": "Maximum" }
-      ]
-    },
-    { "field": "amount", "operator": "between", "value": [10000, 500000] }
-  ]
-}
+```
+score = (weight × 0.30) + (success_rate × 0.30) + ((1000 − response_ms) × 0.20) + (cost_score × 0.20)
 ```
 
-## Ağırlıklı dağıtım
+En yüksek skorlu konnektör seçilir. Eşit skorda `priority` daha düşük olan kazanır.
 
-Bir kural birden fazla konnektör hedefleyebilir:
+<Note>
+**`success_rate` ve `average_response_time_ms`** alanları konsol ve background
+job'lar tarafından canlı veriden güncellenir — manuel girmenize gerek yok.
+İlk oluşturmada makul varsayılanları (örn. 100 ve 800) verin.
+</Note>
 
-```json
-{
-  "connectors": [
-    { "configurationId": "cfg_akbank_001", "weight": 70 },
-    { "configurationId": "cfg_isbank_001", "weight": 30 }
-  ]
-}
+## Skor güncelleme (canlı veriyle)
+
+```bash
+curl -X PATCH https://vpos.payven.com.tr/api/v1/routing-rules/{id}/score \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "success_rate":            98.5,
+    "average_response_time_ms":920
+  }'
 ```
 
-Trafik **70/30** dağıtılır. Bir konnektör down olursa ağırlığı geçici olarak diğerlerine devreder.
+Skor güncellemesi otomatik agent (background job) tarafından dakikada bir yapılır. Manuel müdahale nadir gereklidir.
 
-## Fallback (Smart Retry için)
-
-```json
-{
-  "connectors": [
-    { "configurationId": "cfg_garanti_001", "weight": 100 }
-  ],
-  "fallbacks": [
-    { "configurationId": "cfg_akbank_001", "priority": 1 },
-    { "configurationId": "cfg_isbank_001", "priority": 2 }
-  ]
-}
-```
-
-Birinci konnektör başarısız olursa sırayla fallback'ler denenir.
-
-## Aktif/pasif yönetimi
+## Aktif / pasif
 
 ```bash
 # Pasife al
-PATCH /api/v1/routing-rules/{id}/deactivate
+curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules/{id}/deactivate \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 
 # Aktif et
-PATCH /api/v1/routing-rules/{id}/activate
+curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules/{id}/activate \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-Pasif kurallar değerlendirme sırasından çıkarılır.
+## Toplu silme
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules/bulk-delete \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "ids": ["uuid1", "uuid2", "uuid3"] }'
+```
+
+## Basit kurallar (`/simple-routing-rules`)
+
+Yeni başlayanlar için **Simple Routing Rules** alternatifi vardır. Aynı CRUD pattern'iyle çalışır ama skor motoru olmadan, "şu BIN'e şu konnektör" mantığında düz yapı sunar:
+
+```http
+GET    /api/v1/simple-routing-rules
+POST   /api/v1/simple-routing-rules
+PUT    /api/v1/simple-routing-rules/{id}
+DELETE /api/v1/simple-routing-rules/{id}
+POST   /api/v1/simple-routing-rules/bulk-delete
+POST   /api/v1/simple-routing-rules/{id}/activate
+POST   /api/v1/simple-routing-rules/{id}/deactivate
+```
 
 ## Hata yanıtları
 
-| `code` | Anlam |
-|---|---|
-| `ROUTING_INVALID_CONDITION` | Koşul alanı veya operatör tanınmadı |
-| `ROUTING_CONNECTOR_NOT_FOUND` | Hedef configurationId bulunamadı |
-| `ROUTING_WEIGHT_SUM_INVALID` | Ağırlıkların toplamı 0'dan büyük olmalı |
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `PV_CONNECTOR_NOT_FOUND` | `target_connector_config_id` veya `fallback_connector_config_id` bulunamadı |
+| `422` | `validation_failed` | `min_amount > max_amount`, BIN format hatası, vb. |
+| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
+
+## Yol haritası
+
+- **Conditional rule tree** — `AND/OR` operatörlü ağaç tabanlı koşullar
+- **A/B traffic split** — aynı koşula iki konnektör + ağırlık dağıtımı
+- **`/resolve` simulation endpoint** — bir koşula hangi kuralın düşeceğini önceden hesaplama
+- **Rule clone** — mevcut kuralı kopyalayıp düzenleme
+
+Güncellemeler için: [Changelog](/resources/changelog).

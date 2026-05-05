@@ -5,7 +5,7 @@
     "version": "1.0"
   },
   "paths": {
-    "/api/v{version}/auth/{slug}/login": {
+    "/api/v1/auth/{slug}/login": {
       "post": {
         "tags": [
           "Auth"
@@ -25,29 +25,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/LoginRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/LoginRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/LoginRequest"
               }
@@ -58,17 +50,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/KeycloakTokenResult"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/KeycloakTokenResult"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/KeycloakTokenResult"
                 }
@@ -78,17 +70,17 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -98,17 +90,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -116,10 +108,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/auth/{slug}/token": {
+    "/api/v1/auth/{slug}/token": {
       "post": {
         "tags": [
           "Auth"
@@ -139,29 +131,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ClientCredentialsRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ClientCredentialsRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ClientCredentialsRequest"
               }
@@ -172,17 +156,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/KeycloakTokenResult"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/KeycloakTokenResult"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/KeycloakTokenResult"
                 }
@@ -192,17 +176,17 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -212,17 +196,17 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -232,17 +216,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -250,10 +234,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/auth/{slug}/register": {
+    "/api/v1/auth/{slug}/register": {
       "post": {
         "tags": [
           "Auth"
@@ -273,29 +257,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/RegisterUserRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/RegisterUserRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/RegisterUserRequest"
               }
@@ -306,17 +282,17 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/RegisterUserResult"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/RegisterUserResult"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/RegisterUserResult"
                 }
@@ -326,17 +302,17 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -344,10 +320,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/auth/{slug}/refresh": {
+    "/api/v1/auth/{slug}/refresh": {
       "post": {
         "tags": [
           "Auth"
@@ -360,29 +336,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/RefreshRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/RefreshRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/RefreshRequest"
               }
@@ -393,17 +361,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/KeycloakTokenResult"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/KeycloakTokenResult"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/KeycloakTokenResult"
                 }
@@ -413,17 +381,17 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -433,17 +401,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -451,10 +419,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/auth/{slug}/logout": {
+    "/api/v1/auth/{slug}/logout": {
       "post": {
         "tags": [
           "Auth"
@@ -467,29 +435,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/LogoutRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/LogoutRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/LogoutRequest"
               }
@@ -503,17 +463,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -521,10 +481,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/auth/{slug}/me": {
+    "/api/v1/auth/{slug}/me": {
       "get": {
         "tags": [
           "Auth"
@@ -537,31 +497,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/KeycloakUserInfoResult"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/KeycloakUserInfoResult"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/KeycloakUserInfoResult"
                 }
@@ -571,17 +523,17 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -591,17 +543,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -611,34 +563,24 @@
         }
       }
     },
-    "/api/v{version}/auth/update-profile": {
+    "/api/v1/auth/update-profile": {
       "put": {
         "tags": [
           "Auth"
         ],
-        "parameters": [
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateProfileRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateProfileRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateProfileRequest"
               }
@@ -649,17 +591,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDto"
                 }
@@ -669,7 +611,7 @@
         }
       }
     },
-    "/api/v{version}/auth/change-password": {
+    "/api/v1/auth/change-password": {
       "post": {
         "tags": [
           "Auth"
@@ -681,29 +623,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ChangePasswordRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ChangePasswordRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ChangePasswordRequest"
               }
@@ -717,17 +651,17 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -737,26 +671,16 @@
         }
       }
     },
-    "/api/v{version}/internal/lookups/cities": {
+    "/api/v1/internal/lookups/cities": {
       "get": {
         "tags": [
           "InternalLookups"
-        ],
-        "parameters": [
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -764,7 +688,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -772,7 +696,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -783,10 +707,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/internal/lookups/districts": {
+    "/api/v1/internal/lookups/districts": {
       "get": {
         "tags": [
           "InternalLookups"
@@ -798,21 +722,13 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -820,7 +736,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -828,7 +744,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -839,29 +755,19 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/internal/lookups/banks": {
+    "/api/v1/internal/lookups/banks": {
       "get": {
         "tags": [
           "InternalLookups"
         ],
-        "parameters": [
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -869,7 +775,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -877,7 +783,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -888,10 +794,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/internal/lookups/banks/resolve": {
+    "/api/v1/internal/lookups/banks/resolve": {
       "get": {
         "tags": [
           "InternalLookups"
@@ -903,31 +809,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/BankDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/BankDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/BankDto"
                 }
@@ -937,17 +835,17 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -957,17 +855,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -975,10 +873,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/internal/lookups/bank-bins": {
+    "/api/v1/internal/lookups/bank-bins": {
       "get": {
         "tags": [
           "InternalLookups"
@@ -990,21 +888,13 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1012,7 +902,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1020,7 +910,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1031,10 +921,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/internal/lookups/bank-bins/resolve": {
+    "/api/v1/internal/lookups/bank-bins/resolve": {
       "get": {
         "tags": [
           "InternalLookups"
@@ -1046,31 +936,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ResolvedBankBinDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ResolvedBankBinDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ResolvedBankBinDto"
                 }
@@ -1080,17 +962,17 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -1100,17 +982,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -1118,10 +1000,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/internal/lookups/mcc-codes": {
+    "/api/v1/internal/lookups/mcc-codes": {
       "get": {
         "tags": [
           "InternalLookups"
@@ -1133,21 +1015,13 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1155,7 +1029,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1163,7 +1037,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1174,10 +1048,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/internal/merchants/resolve": {
+    "/api/v1/internal/merchants/resolve": {
       "get": {
         "tags": [
           "InternalMerchants"
@@ -1197,31 +1071,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ResolvedMerchantDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ResolvedMerchantDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ResolvedMerchantDto"
                 }
@@ -1231,17 +1097,17 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -1251,17 +1117,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -1269,10 +1135,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/internal/merchants/by-tenant": {
+    "/api/v1/internal/merchants/by-tenant": {
       "get": {
         "tags": [
           "InternalMerchants"
@@ -1293,21 +1159,13 @@
               "type": "boolean",
               "default": false
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1315,7 +1173,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1323,7 +1181,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1336,17 +1194,17 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -1354,10 +1212,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/internal/permissions/features/{feature_code}/sync": {
+    "/api/v1/internal/permissions/features/{feature_code}/sync": {
       "post": {
         "tags": [
           "InternalPermissions"
@@ -1377,29 +1235,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/SyncFeatureRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/SyncFeatureRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/SyncFeatureRequest"
               }
@@ -1410,17 +1260,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/SyncFeatureResult"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/SyncFeatureResult"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/SyncFeatureResult"
                 }
@@ -1428,10 +1278,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/internal/permissions/grants": {
+    "/api/v1/internal/permissions/grants": {
       "get": {
         "tags": [
           "InternalPermissions"
@@ -1451,31 +1301,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/InternalGrantsDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/InternalGrantsDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/InternalGrantsDto"
                 }
@@ -1485,17 +1327,17 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -1503,10 +1345,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/internal/tenants/{tenant_id}/features": {
+    "/api/v1/internal/tenants/{tenant_id}/features": {
       "get": {
         "tags": [
           "InternalTenantFeatures"
@@ -1520,31 +1362,23 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantFeaturesDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantFeaturesDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantFeaturesDto"
                 }
@@ -1554,17 +1388,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -1572,10 +1406,10 @@
             }
           }
         },
-        "security": [ ]
+        "security": []
       }
     },
-    "/api/v{version}/lookups/cities": {
+    "/api/v1/lookups/cities": {
       "get": {
         "tags": [
           "Lookups"
@@ -1602,21 +1436,13 @@
               "type": "boolean",
               "default": false
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1624,7 +1450,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1632,7 +1458,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1645,7 +1471,7 @@
         }
       }
     },
-    "/api/v{version}/lookups/districts": {
+    "/api/v1/lookups/districts": {
       "get": {
         "tags": [
           "Lookups"
@@ -1672,21 +1498,13 @@
               "type": "boolean",
               "default": false
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1694,7 +1512,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1702,7 +1520,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1715,7 +1533,7 @@
         }
       }
     },
-    "/api/v{version}/lookups/banks": {
+    "/api/v1/lookups/banks": {
       "get": {
         "tags": [
           "Lookups"
@@ -1735,21 +1553,13 @@
               "type": "boolean",
               "default": false
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1757,7 +1567,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1765,7 +1575,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1778,7 +1588,7 @@
         }
       }
     },
-    "/api/v{version}/lookups/bank-bins": {
+    "/api/v1/lookups/bank-bins": {
       "get": {
         "tags": [
           "Lookups"
@@ -1805,21 +1615,13 @@
               "type": "boolean",
               "default": false
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1827,7 +1629,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1835,7 +1637,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -1858,29 +1660,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateBankBinRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateBankBinRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateBankBinRequest"
               }
@@ -1891,17 +1685,17 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/BankBinDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/BankBinDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/BankBinDto"
                 }
@@ -1911,7 +1705,7 @@
         }
       }
     },
-    "/api/v{version}/lookups/bank-bins/{id}": {
+    "/api/v1/lookups/bank-bins/{id}": {
       "put": {
         "tags": [
           "Lookups"
@@ -1925,29 +1719,21 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateBankBinRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateBankBinRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateBankBinRequest"
               }
@@ -1958,17 +1744,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/BankBinDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/BankBinDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/BankBinDto"
                 }
@@ -1978,17 +1764,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -2010,14 +1796,6 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -2027,17 +1805,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -2047,7 +1825,7 @@
         }
       }
     },
-    "/api/v{version}/lookups/bank-bins/import": {
+    "/api/v1/lookups/bank-bins/import": {
       "post": {
         "tags": [
           "Lookups"
@@ -2059,29 +1837,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ImportBankBinsRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ImportBankBinsRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ImportBankBinsRequest"
               }
@@ -2092,17 +1862,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ImportBankBinsResult"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ImportBankBinsResult"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ImportBankBinsResult"
                 }
@@ -2112,7 +1882,7 @@
         }
       }
     },
-    "/api/v{version}/lookups/mcc-codes": {
+    "/api/v1/lookups/mcc-codes": {
       "get": {
         "tags": [
           "Lookups"
@@ -2139,21 +1909,13 @@
               "type": "boolean",
               "default": false
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -2161,7 +1923,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -2169,7 +1931,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -2182,36 +1944,26 @@
         }
       }
     },
-    "/api/v{version}/me": {
+    "/api/v1/me": {
       "get": {
         "tags": [
           "Me"
-        ],
-        "parameters": [
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MeDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MeDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MeDto"
                 }
@@ -2221,17 +1973,17 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -2241,36 +1993,26 @@
         }
       }
     },
-    "/api/v{version}/me/plan": {
+    "/api/v1/me/plan": {
       "get": {
         "tags": [
           "Me"
-        ],
-        "parameters": [
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MyPlanDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MyPlanDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MyPlanDto"
                 }
@@ -2280,7 +2022,7 @@
         }
       }
     },
-    "/api/v{version}/merchants": {
+    "/api/v1/merchants": {
       "get": {
         "tags": [
           "Merchants"
@@ -2360,31 +2102,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDtoPaginatedList"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDtoPaginatedList"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDtoPaginatedList"
                 }
@@ -2404,29 +2138,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateMerchantRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateMerchantRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateMerchantRequest"
               }
@@ -2437,17 +2163,17 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDto"
                 }
@@ -2457,17 +2183,17 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -2477,36 +2203,26 @@
         }
       }
     },
-    "/api/v{version}/merchants/me": {
+    "/api/v1/merchants/me": {
       "get": {
         "tags": [
           "Merchants"
-        ],
-        "parameters": [
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDto"
                 }
@@ -2516,17 +2232,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -2536,7 +2252,7 @@
         }
       }
     },
-    "/api/v{version}/merchants/{id}": {
+    "/api/v1/merchants/{id}": {
       "get": {
         "tags": [
           "Merchants"
@@ -2550,31 +2266,23 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDto"
                 }
@@ -2584,17 +2292,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -2616,29 +2324,21 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateMerchantRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateMerchantRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateMerchantRequest"
               }
@@ -2649,17 +2349,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantDto"
                 }
@@ -2669,17 +2369,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -2689,17 +2389,17 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -2721,14 +2421,6 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -2738,17 +2430,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -2758,7 +2450,7 @@
         }
       }
     },
-    "/api/v{version}/permissions/grants": {
+    "/api/v1/permissions/grants": {
       "get": {
         "tags": [
           "Permissions"
@@ -2778,31 +2470,23 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantGrantsDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantGrantsDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantGrantsDto"
                 }
@@ -2812,17 +2496,17 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -2832,17 +2516,17 @@
           "403": {
             "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -2862,29 +2546,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateTenantGrantsRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateTenantGrantsRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateTenantGrantsRequest"
               }
@@ -2895,17 +2571,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UpdateTenantGrantsResult"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UpdateTenantGrantsResult"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UpdateTenantGrantsResult"
                 }
@@ -2915,17 +2591,17 @@
           "403": {
             "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -2935,7 +2611,7 @@
         }
       }
     },
-    "/api/v{version}/platform/features": {
+    "/api/v1/platform/features": {
       "get": {
         "tags": [
           "PlatformFeatures"
@@ -2977,31 +2653,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/FeatureDtoPaginatedList"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/FeatureDtoPaginatedList"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/FeatureDtoPaginatedList"
                 }
@@ -3021,29 +2689,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateFeatureRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateFeatureRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateFeatureRequest"
               }
@@ -3054,17 +2714,17 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/FeatureDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/FeatureDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/FeatureDto"
                 }
@@ -3074,17 +2734,17 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -3094,7 +2754,7 @@
         }
       }
     },
-    "/api/v{version}/platform/features/{id}": {
+    "/api/v1/platform/features/{id}": {
       "put": {
         "tags": [
           "PlatformFeatures"
@@ -3108,29 +2768,21 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateFeatureRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateFeatureRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateFeatureRequest"
               }
@@ -3141,17 +2793,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/FeatureDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/FeatureDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/FeatureDto"
                 }
@@ -3161,17 +2813,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -3193,14 +2845,6 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -3210,17 +2854,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -3230,7 +2874,7 @@
         }
       }
     },
-    "/api/v{version}/platform/plans": {
+    "/api/v1/platform/plans": {
       "get": {
         "tags": [
           "PlatformPlans"
@@ -3265,31 +2909,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanDtoPaginatedList"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanDtoPaginatedList"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanDtoPaginatedList"
                 }
@@ -3309,29 +2945,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreatePlanRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreatePlanRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreatePlanRequest"
               }
@@ -3342,17 +2970,17 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanDto"
                 }
@@ -3362,17 +2990,17 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -3382,7 +3010,7 @@
         }
       }
     },
-    "/api/v{version}/platform/plans/{id}": {
+    "/api/v1/platform/plans/{id}": {
       "get": {
         "tags": [
           "PlatformPlans"
@@ -3396,31 +3024,23 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanDto"
                 }
@@ -3430,17 +3050,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -3462,29 +3082,21 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdatePlanRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdatePlanRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdatePlanRequest"
               }
@@ -3495,17 +3107,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanDto"
                 }
@@ -3515,17 +3127,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -3547,14 +3159,6 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -3564,17 +3168,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -3584,17 +3188,17 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -3604,7 +3208,7 @@
         }
       }
     },
-    "/api/v{version}/platform/tenants/{tenant_id}/api-keys": {
+    "/api/v1/platform/tenants/{tenant_id}/api-keys": {
       "get": {
         "tags": [
           "PlatformTenantApiKeys"
@@ -3651,31 +3255,23 @@
               "type": "boolean",
               "default": false
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDtoPaginatedList"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDtoPaginatedList"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDtoPaginatedList"
                 }
@@ -3704,29 +3300,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateApiKeyRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateApiKeyRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateApiKeyRequest"
               }
@@ -3737,17 +3325,17 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateApiKeyResult"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateApiKeyResult"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateApiKeyResult"
                 }
@@ -3757,17 +3345,17 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -3777,7 +3365,7 @@
         }
       }
     },
-    "/api/v{version}/platform/tenants/{tenant_id}/api-keys/{id}": {
+    "/api/v1/platform/tenants/{tenant_id}/api-keys/{id}": {
       "get": {
         "tags": [
           "PlatformTenantApiKeys"
@@ -3800,31 +3388,23 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDto"
                 }
@@ -3834,17 +3414,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -3875,29 +3455,21 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateApiKeyRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateApiKeyRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateApiKeyRequest"
               }
@@ -3908,17 +3480,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDto"
                 }
@@ -3928,17 +3500,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -3948,17 +3520,17 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -3989,14 +3561,6 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -4006,17 +3570,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4026,7 +3590,7 @@
         }
       }
     },
-    "/api/v{version}/platform/tenants/{tenant_id}/api-keys/{id}/rotate-secret": {
+    "/api/v1/platform/tenants/{tenant_id}/api-keys/{id}/rotate-secret": {
       "post": {
         "tags": [
           "PlatformTenantApiKeys"
@@ -4056,31 +3620,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/RotateApiKeySecretResult"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/RotateApiKeySecretResult"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/RotateApiKeySecretResult"
                 }
@@ -4090,17 +3646,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4110,7 +3666,7 @@
         }
       }
     },
-    "/api/v{version}/platform/tenants": {
+    "/api/v1/platform/tenants": {
       "get": {
         "tags": [
           "PlatformTenants"
@@ -4145,31 +3701,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDtoPaginatedList"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDtoPaginatedList"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDtoPaginatedList"
                 }
@@ -4189,29 +3737,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateTenantRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateTenantRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateTenantRequest"
               }
@@ -4222,17 +3762,17 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDto"
                 }
@@ -4242,17 +3782,17 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4262,7 +3802,7 @@
         }
       }
     },
-    "/api/v{version}/platform/tenants/{slug}": {
+    "/api/v1/platform/tenants/{slug}": {
       "get": {
         "tags": [
           "PlatformTenants"
@@ -4275,31 +3815,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDto"
                 }
@@ -4309,17 +3841,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4329,7 +3861,7 @@
         }
       }
     },
-    "/api/v{version}/platform/tenants/{id}/suspend": {
+    "/api/v1/platform/tenants/{id}/suspend": {
       "post": {
         "tags": [
           "PlatformTenants"
@@ -4350,14 +3882,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -4367,17 +3891,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4387,7 +3911,7 @@
         }
       }
     },
-    "/api/v{version}/platform/tenants/{id}/activate": {
+    "/api/v1/platform/tenants/{id}/activate": {
       "post": {
         "tags": [
           "PlatformTenants"
@@ -4408,14 +3932,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -4425,17 +3941,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4445,7 +3961,7 @@
         }
       }
     },
-    "/api/v{version}/platform/tenants/{id}/plan": {
+    "/api/v1/platform/tenants/{id}/plan": {
       "put": {
         "tags": [
           "PlatformTenants"
@@ -4459,29 +3975,21 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/AssignPlanRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/AssignPlanRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/AssignPlanRequest"
               }
@@ -4492,17 +4000,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDto"
                 }
@@ -4512,17 +4020,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4532,7 +4040,7 @@
         }
       }
     },
-    "/api/v{version}/platform/tenants/{id}/payment-policy": {
+    "/api/v1/platform/tenants/{id}/payment-policy": {
       "put": {
         "tags": [
           "PlatformTenants"
@@ -4546,29 +4054,21 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateTenantPaymentPolicyRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateTenantPaymentPolicyRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateTenantPaymentPolicyRequest"
               }
@@ -4579,17 +4079,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantDto"
                 }
@@ -4599,17 +4099,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4619,7 +4119,7 @@
         }
       }
     },
-    "/api/v{version}/tenants/me/api-keys": {
+    "/api/v1/tenants/me/api-keys": {
       "get": {
         "tags": [
           "TenantApiKeys"
@@ -4657,31 +4157,23 @@
               "type": "boolean",
               "default": false
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDtoPaginatedList"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDtoPaginatedList"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDtoPaginatedList"
                 }
@@ -4691,17 +4183,17 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4721,29 +4213,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateApiKeyRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateApiKeyRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateApiKeyRequest"
               }
@@ -4754,17 +4238,17 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateApiKeyResult"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateApiKeyResult"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateApiKeyResult"
                 }
@@ -4774,17 +4258,17 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4794,7 +4278,7 @@
         }
       }
     },
-    "/api/v{version}/tenants/me/api-keys/{id}": {
+    "/api/v1/tenants/me/api-keys/{id}": {
       "get": {
         "tags": [
           "TenantApiKeys"
@@ -4808,31 +4292,23 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDto"
                 }
@@ -4842,17 +4318,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4874,29 +4350,21 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateApiKeyRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateApiKeyRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateApiKeyRequest"
               }
@@ -4907,17 +4375,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyDto"
                 }
@@ -4927,17 +4395,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4959,14 +4427,6 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -4976,17 +4436,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -4996,7 +4456,7 @@
         }
       }
     },
-    "/api/v{version}/tenants/me/api-keys/{id}/rotate-secret": {
+    "/api/v1/tenants/me/api-keys/{id}/rotate-secret": {
       "post": {
         "tags": [
           "TenantApiKeys"
@@ -5017,31 +4477,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/RotateApiKeySecretResult"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/RotateApiKeySecretResult"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/RotateApiKeySecretResult"
                 }
@@ -5051,17 +4503,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -5071,7 +4523,7 @@
         }
       }
     },
-    "/api/v{version}/tenants/{tenant_id}/roles": {
+    "/api/v1/tenants/{tenant_id}/roles": {
       "get": {
         "tags": [
           "TenantRoles"
@@ -5085,21 +4537,13 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -5107,7 +4551,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -5115,7 +4559,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -5128,17 +4572,17 @@
           "403": {
             "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -5167,29 +4611,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateTenantRoleRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateTenantRoleRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateTenantRoleRequest"
               }
@@ -5200,17 +4636,17 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantRoleDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantRoleDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantRoleDto"
                 }
@@ -5220,17 +4656,17 @@
           "403": {
             "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -5240,17 +4676,17 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -5260,7 +4696,7 @@
         }
       }
     },
-    "/api/v{version}/tenants/{tenant_id}/roles/{role_name}": {
+    "/api/v1/tenants/{tenant_id}/roles/{role_name}": {
       "put": {
         "tags": [
           "TenantRoles"
@@ -5282,29 +4718,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateTenantRoleRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateTenantRoleRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateTenantRoleRequest"
               }
@@ -5315,17 +4743,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantRoleDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantRoleDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantRoleDto"
                 }
@@ -5335,17 +4763,17 @@
           "403": {
             "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -5355,17 +4783,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -5395,14 +4823,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -5412,17 +4832,17 @@
           "403": {
             "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -5432,17 +4852,17 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -5452,7 +4872,7 @@
         }
       }
     },
-    "/api/v{version}/users": {
+    "/api/v1/users": {
       "get": {
         "tags": [
           "Users"
@@ -5501,31 +4921,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDtoPaginatedList"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDtoPaginatedList"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDtoPaginatedList"
                 }
@@ -5545,29 +4957,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateUserRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateUserRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/CreateUserRequest"
               }
@@ -5578,17 +4982,17 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDto"
                 }
@@ -5598,17 +5002,17 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -5618,7 +5022,7 @@
         }
       }
     },
-    "/api/v{version}/users/{id}": {
+    "/api/v1/users/{id}": {
       "get": {
         "tags": [
           "Users"
@@ -5631,31 +5035,23 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDto"
                 }
@@ -5665,17 +5061,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -5696,29 +5092,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateUserRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateUserRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateUserRequest"
               }
@@ -5729,17 +5117,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/UserDto"
                 }
@@ -5749,17 +5137,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -5780,14 +5168,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -5797,17 +5177,17 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -5817,7 +5197,7 @@
         }
       }
     },
-    "/api/v{version}/users/{id}/reset-password": {
+    "/api/v1/users/{id}/reset-password": {
       "post": {
         "tags": [
           "Users"
@@ -5837,29 +5217,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ResetPasswordRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ResetPasswordRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ResetPasswordRequest"
               }
@@ -5873,26 +5245,16 @@
         }
       }
     },
-    "/api/v{version}/users/roles": {
+    "/api/v1/users/roles": {
       "get": {
         "tags": [
           "Users"
         ],
-        "parameters": [
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -5900,7 +5262,7 @@
                   }
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -5908,7 +5270,7 @@
                   }
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "type": "array",
                   "items": {
@@ -5921,7 +5283,7 @@
         }
       }
     },
-    "/api/v{version}/validation/card": {
+    "/api/v1/validation/card": {
       "post": {
         "tags": [
           "Validation"
@@ -5933,29 +5295,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ValidateCardRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ValidateCardRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ValidateCardRequest"
               }
@@ -5966,17 +5320,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/CardValidationResultDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/CardValidationResultDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/CardValidationResultDto"
                 }
@@ -5986,7 +5340,7 @@
         }
       }
     },
-    "/api/v{version}/validation/iban": {
+    "/api/v1/validation/iban": {
       "post": {
         "tags": [
           "Validation"
@@ -5998,29 +5352,21 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ValidateIbanRequest"
               }
             },
-            "text/json": {
+            "text/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ValidateIbanRequest"
               }
             },
-            "application/*+json": {
+            "application/*+json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ValidateIbanRequest"
               }
@@ -6031,17 +5377,17 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
+              "text/plain; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/IbanValidationResultDto"
                 }
               },
-              "application/json": {
+              "application/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/IbanValidationResultDto"
                 }
               },
-              "text/json": {
+              "text/json; ver=1.0": {
                 "schema": {
                   "$ref": "#/components/schemas/IbanValidationResultDto"
                 }
@@ -7645,7 +6991,7 @@
             "nullable": true
           }
         },
-        "additionalProperties": { }
+        "additionalProperties": {}
       },
       "RefreshRequest": {
         "type": "object",
@@ -8480,33 +7826,15 @@
     "securitySchemes": {
       "bearerAuth": {
         "type": "http",
-        "description": "Keycloak JWT. Format: `Authorization: Bearer <token>`.",
         "scheme": "bearer",
-        "bearerFormat": "JWT"
-      },
-      "oauth2": {
-        "type": "oauth2",
-        "description": "Keycloak Authorization Code (PKCE) — Swagger UI uzerinden login.",
-        "flows": {
-          "authorizationCode": {
-            "authorizationUrl": "http://localhost:8080/realms/payven-platform/protocol/openid-connect/auth",
-            "tokenUrl": "http://localhost:8080/realms/payven-platform/protocol/openid-connect/token",
-            "scopes": {
-              "openid": "OpenID Connect",
-              "profile": "User profile",
-              "email": "User email"
-            }
-          }
-        }
+        "bearerFormat": "JWT",
+        "description": "Identity servisinden alinan Keycloak JWT. Format: `Authorization: Bearer <token>`. Token alma: POST /api/v1/auth/{slug}/token"
       }
     }
   },
   "security": [
     {
-      "bearerAuth": [ ]
-    },
-    {
-      "oauth2": [ ]
+      "bearerAuth": []
     }
   ],
   "tags": [
@@ -8560,6 +7888,16 @@
     },
     {
       "name": "Validation"
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://identity.payven.com.tr",
+      "description": "Production"
+    },
+    {
+      "url": "https://identity-sandbox.payven.com.tr",
+      "description": "Sandbox"
     }
   ]
 }

@@ -1,75 +1,104 @@
 ---
-title: "İşlem Geçmişi"
-description: "Bir ödeme üzerinde gerçekleşen tüm aksiyonların kronolojik kaydı."
+title: "İşlem Geçmişi (Timeline)"
+description: "Bir işlemin yaşam döngüsündeki tüm durum geçişlerinin kronolojik kaydı."
 ---
 
-Bir ödemenin yaşam döngüsünde gerçekleşen tüm aksiyonları (oluşturma, 3DS, capture, iade, void, fraud kontrolleri, retry'lar, webhook teslimleri) zaman damgalı liste olarak çekin.
+Bir işlemin oluşturulmasından final durumuna kadar gerçekleşen **tüm durum geçişlerini** ve banka çağrılarının ham yanıtlarını getirir. 3DS aşamaları, retry'lar, capture/refund/void tetiklemeleri burada izlenebilir.
 
 ## Endpoint
 
+```http
+GET /api/v1/transactions/{id}/histories
 ```
-GET /api/v1/payments/{paymentId}/history
+
+`id` parametresi UUID formatındadır — `transaction_id` ile aynıdır.
+
+## İstek
+
+```bash
+curl https://vpos.payven.com.tr/api/v1/transactions/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/histories \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
 ## Yanıt
 
+`TransactionHistory` kayıtlarından oluşan dizi (kronolojik):
+
 ```json
-{
-  "isSuccess": true,
-  "data": {
-    "items": [
-      {
-        "timestamp": "2026-05-03T12:34:56Z",
-        "type": "PaymentCreated",
-        "actor": "API",
-        "details": { "externalId": "ORDER-1001", "amount": 15000 }
-      },
-      {
-        "timestamp": "2026-05-03T12:34:57Z",
-        "type": "RoutingDecision",
-        "details": { "ruleName": "Bonus → Garanti", "configurationId": "cfg_garanti_001" }
-      },
-      {
-        "timestamp": "2026-05-03T12:34:58Z",
-        "type": "ConnectorRequest",
-        "details": { "connectorCode": "GarantiVPOS", "duration": 821, "responseCode": "00" }
-      },
-      {
-        "timestamp": "2026-05-03T12:34:58Z",
-        "type": "PaymentSucceeded",
-        "details": { "authCode": "123456" }
-      },
-      {
-        "timestamp": "2026-05-03T12:34:59Z",
-        "type": "WebhookDelivered",
-        "details": { "url": "https://api.example.com/webhooks/payven", "statusCode": 200 }
-      }
-    ]
+[
+  {
+    "id":                          "h1-...",
+    "transaction_id":              "8e3f5c12-...",
+    "connector_configuration_id":  "abc123-...",
+    "connector_configuration_name":"Garanti VPOS Production",
+    "previous_status":             null,
+    "new_status":                  "pending",
+    "message":                     "Ödeme oluşturuldu",
+    "error_code":                  null,
+    "error_message":               null,
+    "provider_transaction_id":     null,
+    "auth_code":                   null,
+    "host_reference":              null,
+    "md_status":                   null,
+    "cavv":                        null,
+    "eci":                         null,
+    "xid":                         null,
+    "md":                          null,
+    "three_ds_server_trans_id":    null,
+    "provider_raw_response":       null,
+    "operation_amount":            15000,
+    "created":                     "2026-05-03T12:34:56.789+00:00"
+  },
+  {
+    "transaction_id":              "8e3f5c12-...",
+    "previous_status":             "pending",
+    "new_status":                  "pending_3ds",
+    "message":                     "3D Secure init başlatıldı",
+    "provider_raw_response":       "<xml>...</xml>",
+    "created":                     "2026-05-03T12:34:57.123+00:00"
+  },
+  {
+    "transaction_id":              "8e3f5c12-...",
+    "previous_status":             "pending_3ds",
+    "new_status":                  "completed",
+    "message":                     "3DS başarılı, otorizasyon onaylandı",
+    "auth_code":                   "123456",
+    "host_reference":              "PAYVEN-REF-789",
+    "md_status":                   "y",
+    "cavv":                        "AAAB...",
+    "eci":                         "05",
+    "provider_raw_response":       "<xml>...</xml>",
+    "created":                     "2026-05-03T12:34:58.456+00:00"
   }
-}
+]
 ```
 
-## Kayıt tipleri
-
-| Tip | Anlam |
+| Alan | Açıklama |
 |---|---|
-| `PaymentCreated` | Ödeme oluşturuldu |
-| `ThreeDSInitialized` | 3DS init |
-| `ThreeDSAuthenticated` / `ThreeDSFailed` | 3DS sonucu |
-| `RoutingDecision` | Hangi kurala göre hangi konnektör seçildi |
-| `ConnectorRequest` | Bankaya istek atıldı |
-| `ConnectorRetry` | Smart Retry uygulandı |
-| `FraudEvaluation` | Fraud motoru kararı |
-| `PaymentSucceeded` / `PaymentFailed` | Final sonuç |
-| `RefundIssued` / `RefundSucceeded` / `RefundFailed` | İade akışı |
-| `Voided` | İptal |
-| `WebhookDelivered` / `WebhookFailed` | Webhook teslim sonucu |
-| `Settled` | Mutabakat sonrası kapanış |
+| `previous_status` / `new_status` | Durum geçişi |
+| `connector_configuration_id` | Hangi banka konnektörü kullanıldı |
+| `message`, `error_code`, `error_message` | Bu geçişin detayı |
+| `provider_transaction_id`, `auth_code`, `host_reference` | Banka referansları |
+| `md_status`, `cavv`, `eci`, `xid`, `md`, `three_ds_server_trans_id` | 3DS verifikasyon detayları |
+| `provider_raw_response` | Bankadan dönen ham yanıt (XML/JSON) — debug için kritik |
+| `operation_amount` | Bu adımda işlenen tutar (kuruş) |
+| `created` | Adımın gerçekleştiği zaman (UTC) |
 
 ## Tipik kullanım
 
-- **Müşteri destek:** Müşteri "ödeme gerçekleşti ama göremiyorum" derken neyin ne zaman olduğunu net görmek.
-- **Debug:** Smart Retry ne zaman devreye girdi, hangi banka hata verdi.
-- **Audit:** Bir ödemenin tüm aksiyonlarının tarihçesi.
+- **Müşteri destek** — "ödeme yaptım ama göremiyorum" senaryosunda neyin ne zaman olduğunu görmek
+- **Debug** — Smart Retry hangi konnektörden hangisine atladı, banka tarafı gerçekten ne dedi
+- **Audit** — bir işlemin tüm yaşam döngüsünün kalıcı kaydı (PCI-DSS uyum gereği)
 
 Tüm bu bilgiler konsoldaki **İşlem Detayı → Timeline** sekmesinde görsel olarak da gösterilir.
+
+## Veri saklama
+
+İşlem geçmişi kayıtları işlemin saklama süresi boyunca tutulur (varsayılan: 36 ay). Bu süreden sonra otomatik arşivlenir; arşivden talep için [destek ekibinize](/resources/support) ulaşın.
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `PV_TRANSACTION_NOT_FOUND` | İşlem bulunamadı |
+| `403` | `forbidden` | Yetki yok |

@@ -1,132 +1,248 @@
 ---
 title: "Webhook Olay Kataloğu"
-description: "Sanal POS'un yayınladığı tüm webhook olayları."
+description: "Sanal POS'un yayınladığı tüm webhook olayları ve payload alanları."
 ---
 
-Aşağıdaki olaylar Sanal POS modülü tarafından yayınlanır. Aboneliğinizde `events: ["*"]` ile hepsini, ya da seçici olarak alabilirsiniz.
+Sanal POS şu anda **8 olay tipi** yayınlar. Subscription oluştururken `events[]` dizisinde dinlemek istediklerinizi belirtirsiniz.
 
-## Genel olay yapısı
+## Genel zarf
+
+Tüm olaylar şu zarfta gönderilir:
 
 ```json
 {
-  "id": "evt_8e3f5c12",
-  "type": "payment.succeeded",
-  "createdAt": "2026-05-03T12:34:56Z",
-  "tenantId": "1a2b3c4d-...",
-  "merchantId": "3fa85f64-...",
-  "data": { ... }
+  "id":         "evt_8e3f5c129a7b4c8dbc4e",
+  "type":       "payment.completed",
+  "created_at": "2026-05-03T12:34:58.123+00:00",
+  "data": { /* olaya özel payload — aşağıda */ }
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `id` | Olay kimliği — idempotent işleme için kullanın |
-| `type` | Olay tipi (aşağıdaki tablo) |
-| `createdAt` | Olayın oluştuğu UTC zaman |
-| `data` | Olay-spesifik payload (genelde tam payment objesi) |
+| `id` | Olay kimliği — idempotency için kullanın. **Aynı olay birden fazla kez gönderilebilir** ama `id` aynıdır. |
+| `type` | Olay tipi (`payment.completed`, `refund.completed`, vb.) |
+| `created_at` | Olayın Payven tarafında oluşturulma zamanı (UTC, ISO 8601) |
+| `data` | Olaya özel payload — bkz. her olay altında |
 
-## Ödeme olayları
+## `data` ortak alanları
 
-| Tip | Tetiklenme |
+Tüm `data` payload'ları aşağıdaki alanları içerir (boş olabilirler):
+
+| Alan | Açıklama |
 |---|---|
-| `payment.created` | Yeni bir ödeme oluşturuldu (henüz banka onayı yok) |
-| `payment.authorized` | Banka tutarı onayladı (Pre-Auth dahil) |
-| `payment.captured` | Capture başarılı |
-| `payment.succeeded` | Ödeme başarıyla tamamlandı (Sale veya Capture sonrası) |
-| `payment.failed` | Ödeme banka tarafından reddedildi |
-| `payment.voided` | İptal başarılı |
-| `payment.expired` | Hosted Checkout / Pay-by-Link süresi doldu |
+| `transaction_id` | İlgili işlemin Payven kimliği (UUID) |
+| `status` | İşlem mevcut durumu — bkz. [Payment Status](/sanal-pos/payment-object#status-degerleri) |
+| `amount` | Tutar (kuruş) |
+| `currency` | Para birimi |
+| `merchant_id` | İşlemin merchant kimliği |
+| `provider_transaction_id` | Bankadaki referans |
+| `auth_code` | Onay kodu |
+| `error_code` | Hata kodu (sadece başarısız olaylarda dolu) |
+| `error_message` | Hata mesajı |
+| `masked_card_number` | Maskelenmiş kart (örn. `454671******7894`) |
+| `card_brand` | Kart birliği (`visa`, `mastercard`, `troy`, `amex`) |
+
+## Olay tipleri
+
+### `payment.completed`
+
+**Tetikleyici:** Sale akışı (Non-3D veya 3DS sonrası) başarıyla tamamlandığında.
 
 ```json
 {
-  "type": "payment.succeeded",
+  "id":         "evt_...",
+  "type":       "payment.completed",
+  "created_at": "2026-05-03T12:34:58.123+00:00",
   "data": {
-    "id": "8e3f5c12-...",
-    "externalId": "ORDER-1001",
-    "status": "Success",
-    "amount": 15000,
-    "currency": "TRY",
-    "card": { "binNumber": "454671", "lastFourDigits": "7894", ... },
-    "connector": { "responseCode": "00", "authCode": "123456" }
+    "transaction_id":          "8e3f5c12-...",
+    "status":                  "completed",
+    "amount":                  15000,
+    "currency":                "TRY",
+    "merchant_id":             "3fa85f64-...",
+    "provider_transaction_id": "9f3d2b8e-...",
+    "auth_code":               "123456",
+    "error_code":              null,
+    "error_message":           null,
+    "masked_card_number":      "454671******7894",
+    "card_brand":              "visa"
   }
 }
 ```
 
-## 3D Secure olayları
+### `payment.failed`
 
-| Tip | Tetiklenme |
-|---|---|
-| `payment.threeds.initialized` | 3DS init yapıldı, müşteri yönlendirilecek |
-| `payment.threeds.authenticated` | 3DS başarılı, banka onayı bekleniyor |
-| `payment.threeds.failed` | 3DS başarısız |
-
-## İade olayları
-
-| Tip | Tetiklenme |
-|---|---|
-| `refund.created` | İade isteği oluşturuldu |
-| `refund.succeeded` | İade banka tarafında onaylandı |
-| `refund.failed` | İade reddedildi |
+**Tetikleyici:** Banka tarafı reddi veya teknik hata.
 
 ```json
 {
-  "type": "refund.succeeded",
+  "id":         "evt_...",
+  "type":       "payment.failed",
+  "created_at": "2026-05-03T12:34:58.123+00:00",
   "data": {
-    "id": "ref_9f3d2b8e",
-    "paymentId": "8e3f5c12-...",
-    "amount": 5000,
-    "currency": "TRY",
-    "status": "Success"
+    "transaction_id":     "8e3f5c12-...",
+    "status":             "failed",
+    "amount":             15000,
+    "currency":           "TRY",
+    "merchant_id":        "3fa85f64-...",
+    "auth_code":          null,
+    "error_code":         "bank_declined",
+    "error_message":      "Yetersiz bakiye",
+    "masked_card_number": "454671******7894",
+    "card_brand":         "visa"
   }
 }
 ```
 
-## Hosted Checkout olayları
+### `payment.authorized`
 
-| Tip | Tetiklenme |
-|---|---|
-| `checkout.session.completed` | Müşteri ödemeyi başarıyla tamamladı |
-| `checkout.session.failed` | Müşteri ödeme yapamadı |
-| `checkout.session.expired` | Oturum süresi doldu |
+**Tetikleyici:** Pre-Auth (ön provizyon) başarıyla alındığında. Tutar bloke edildi, henüz çekilmedi.
 
-## Pay-by-Link olayları
-
-| Tip | Tetiklenme |
-|---|---|
-| `payment.link.created` | Link oluşturuldu |
-| `payment.link.viewed` | Müşteri link'e tıkladı |
-| `payment.link.expired` | Link süresi doldu |
-
-## Mutabakat olayları
-
-| Tip | Tetiklenme |
-|---|---|
-| `reconciliation.created` | Yeni mutabakat oturumu açıldı |
-| `reconciliation.completed` | Mutabakat tamamlandı |
-| `reconciliation.discrepancy` | Mutabakatta tutarsızlık tespit edildi |
-
-## Sistem olayları
-
-| Tip | Tetiklenme |
-|---|---|
-| `webhook.test` | `POST /webhooks/{id}/test` çağrısı |
-| `plan.usage.warning` | Kotanın %80'i geçildi |
-| `plan.usage.critical` | Kotanın %95'i geçildi |
-| `plan.usage.exceeded` | Kota aşıldı, istekler reddedilmeye başlandı |
-
-## Idempotent işleme
-
-Aynı olay birden fazla kez gelebilir (Payven retry mekanizması veya ağ sorunları nedeniyle). `evt.id` değerini saklayıp duplikatları yok sayın:
-
-```javascript
-async function handleEvent(evt) {
-  const seen = await db.events.findOne({ id: evt.id });
-  if (seen) return; // duplikat
-  await db.events.insert({ id: evt.id, processedAt: new Date() });
-  await processEvent(evt);
+```json
+{
+  "type": "payment.authorized",
+  "data": {
+    "transaction_id": "8e3f5c12-...",
+    "status":         "authorized",
+    "amount":         50000,
+    "currency":       "TRY",
+    "auth_code":      "123456"
+  }
 }
 ```
 
-## Olay sürümlemesi
+### `capture.completed`
 
-Yeni alanlar olay payload'una eklenebilir, mevcut alanlar **silinmez**. İstemcinizi tolerant yazın — bilmediği alanları yok saysın.
+**Tetikleyici:** Pre-Auth → Capture başarıyla tamamlandığında.
+
+```json
+{
+  "type": "capture.completed",
+  "data": {
+    "transaction_id": "8e3f5c12-...",
+    "status":         "completed",
+    "amount":         47500,
+    "currency":       "TRY",
+    "auth_code":      "789012"
+  }
+}
+```
+
+### `void.completed`
+
+**Tetikleyici:** İşlem void edildiğinde (mutabakat öncesi tam iptal).
+
+```json
+{
+  "type": "void.completed",
+  "data": {
+    "transaction_id":          "8e3f5c12-...",
+    "status":                  "voided",
+    "provider_transaction_id": "VOID-9f3d2b8e"
+  }
+}
+```
+
+### `refund.completed`
+
+**Tetikleyici:** İade başarıyla yapıldığında (tam veya kısmi).
+
+```json
+{
+  "type": "refund.completed",
+  "data": {
+    "transaction_id":          "8e3f5c12-...",
+    "status":                  "partially_refunded",
+    "amount":                  5000,
+    "currency":                "TRY",
+    "provider_transaction_id": "REFUND-9f3d2b8e"
+  }
+}
+```
+
+`status` alanı işlemin **yeni** durumunu yansıtır: kısmi iade ise `partially_refunded`, tüm tutar iade edildiyse `refunded`.
+
+### `3ds.completed`
+
+**Tetikleyici:** 3D Secure doğrulaması başarılı + bankada otorizasyon başarılı.
+
+```json
+{
+  "type": "3ds.completed",
+  "data": {
+    "transaction_id": "8e3f5c12-...",
+    "status":         "completed",
+    "amount":         15000,
+    "currency":       "TRY",
+    "auth_code":      "123456"
+  }
+}
+```
+
+### `3ds.failed`
+
+**Tetikleyici:** 3DS doğrulaması başarısız (yanlış SMS, timeout, kullanıcı iptali) veya 3DS sonrası banka reddi.
+
+```json
+{
+  "type": "3ds.failed",
+  "data": {
+    "transaction_id": "8e3f5c12-...",
+    "status":         "failed",
+    "error_code":     "three_ds_authentication_failed",
+    "error_message":  "3D Secure dogrulamasi basarisiz."
+  }
+}
+```
+
+## Olay → İşlem durumu eşleşmesi
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending
+    pending --> authorized: payment.authorized (PreAuth)
+    pending --> completed: payment.completed (Sale)
+    pending --> failed: payment.failed
+    pending --> pending_3ds: 3DS init
+    pending_3ds --> completed: 3ds.completed
+    pending_3ds --> failed: 3ds.failed
+    authorized --> completed: capture.completed
+    authorized --> voided: void.completed
+    completed --> refunded: refund.completed (tam)
+    completed --> partially_refunded: refund.completed (kısmi)
+    partially_refunded --> refunded: refund.completed (kalan)
+```
+
+## Webhook subscription örneği
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/webhooks \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url":    "https://example.com/webhooks/payven",
+    "events": [
+      "payment.completed",
+      "payment.failed",
+      "payment.authorized",
+      "capture.completed",
+      "void.completed",
+      "refund.completed",
+      "3ds.completed",
+      "3ds.failed"
+    ]
+  }'
+```
+
+Tüm olaylara abone olmak için `["*"]` kullanmayın — açık liste tutmak ileride yeni olay tiplerini bilinçli almanızı sağlar (mevcut handler'ınızda olmayan olay tipleri unhandled error fırlatmasın).
+
+## Yol haritası
+
+İleride eklenmesi planlanan olaylar:
+
+- `chargeback.received` — bankadan chargeback bildirimi
+- `chargeback.resolved` — chargeback sonuçlandı
+- `settlement.created` — günlük mutabakat raporu hazır
+- `connector.health_changed` — banka sağlık durumu değişti
+
+Güncellemeler için [Changelog](/resources/changelog) sayfasını izleyin.

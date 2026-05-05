@@ -1,270 +1,273 @@
 ---
 title: "Hızlı Başlangıç"
-description: "Beş dakikada Payven Sanal POS üzerinden ilk test ödemesini başlatın."
+description: "Beş dakikada Payven üzerinden ilk test ödemesini başlatın."
 ---
 
-Bu rehber, Payven Sanal POS API'sine yapılan **ilk başarılı ödeme** için gereken minimum adımları gösterir. Tüm kod örnekleri test ortamı içindir.
+Bu rehber, Payven Sanal POS API'sine yapılan **ilk başarılı test ödemesi** için gereken minimum adımları gösterir. Tüm örnekler sandbox ortamı içindir; gerçek para işlemi yapılmaz.
 
 <Note>
-**Ön koşul:** [Konsol](https://dashboard.payven.com.tr) üzerinden bir hesabınız ve aktif bir merchant tanımınız olmalıdır.
+**Ön koşul:** [Konsol](https://dashboard.payven.com.tr) üzerinde bir tenant'ınız ve `client_id` / `client_secret` çiftiniz olmalıdır. Onboarding için satış ekibimize ulaşın.
 </Note>
 
-## 1. API anahtarı oluşturun
+## 1. JWT alın
 
-Konsola giriş yaptıktan sonra **Ayarlar → API Anahtarları → Yeni Anahtar Oluştur** adımıyla bir anahtar üretin. Üretilen değerleri güvenli bir yerde saklayın:
-
-| Bilgi | Açıklama |
-|---|---|
-| `apiKey` | Public tanımlayıcı (`pvk-` ile başlar). |
-| `apiSecret` | Gizli imza anahtarı. **Yalnızca oluşturma anında bir kez gösterilir.** |
-| `merchantId` | Ödemeyi gerçekleştirecek merchant'ın kimliği. |
-
-<Warning>
-`apiSecret` değerini hiçbir zaman istemci tarafı (tarayıcı, mobil uygulama) kodlarına gömmeyin. Tüm Payven API çağrıları yalnızca **sunucu tarafından** yapılmalıdır.
-</Warning>
-
-## 2. İlk isteğinizi atın
-
-Aşağıdaki örnek, **Non-3D bir test ödemesi** başlatır. Tutar **kuruş** cinsindendir — `15000` değeri 150,00 ₺'ye karşılık gelir.
+Identity servisinden OAuth 2.0 `client_credentials` akışıyla token alın:
 
 <CodeGroup>
-
 ```bash cURL
-curl -X POST https://vpos-sandbox.payven.com.tr/api/v1/payments \
-  -H "X-API-Key: pvk-test-XXXX" \
-  -H "X-API-Secret: YOUR_SECRET" \
-  -H "X-Merchant-Id: 3fa85f64-5717-4562-b3fc-2c963f66afa6" \
+curl https://identity-sandbox.payven.com.tr/api/v1/auth/payven/token \
   -H "Content-Type: application/json" \
   -d '{
-    "externalId": "ORDER-1001",
-    "amount": 15000,
-    "currency": "TRY",
-    "installment": 1,
+    "client_id":     "pvk_test_xxxxxxxxxxxxxxxxxxxx",
+    "client_secret": "YOUR_CLIENT_SECRET"
+  }'
+```
+
+```javascript Node.js
+const tokenRes = await fetch(
+  "https://identity-sandbox.payven.com.tr/api/v1/auth/payven/token",
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_id: process.env.PAYVEN_CLIENT_ID,
+      client_secret: process.env.PAYVEN_CLIENT_SECRET,
+    }),
+  },
+);
+const { access_token } = await tokenRes.json();
+```
+
+```python Python
+import httpx, os
+
+token_res = httpx.post(
+    "https://identity-sandbox.payven.com.tr/api/v1/auth/payven/token",
+    json={
+        "client_id":     os.environ["PAYVEN_CLIENT_ID"],
+        "client_secret": os.environ["PAYVEN_CLIENT_SECRET"],
+    },
+)
+access_token = token_res.json()["access_token"]
+```
+</CodeGroup>
+
+Yanıt:
+
+```json
+{
+  "access_token":       "eyJhbGciOiJSUzI1NiI...",
+  "refresh_token":      "eyJhbGciOiJIUzI1NiI...",
+  "expires_in":         300,
+  "refresh_expires_in": 0,
+  "token_type":         "Bearer",
+  "scope":              "openid profile email"
+}
+```
+
+**Token 5 dakika geçerli.** Production'da bunu cache'leyip auto-refresh ile yönetin — örnek SDK: [Kimlik Doğrulama](/documentation/concepts/authentication#sdk-ornekleri-auto-refresh).
+
+<Warning>
+`client_secret` değerini hiçbir zaman istemci tarafı (tarayıcı, mobil uygulama, public repo) koduna gömmeyin. Tüm Payven API çağrıları yalnızca **sunucu tarafından** yapılmalıdır.
+</Warning>
+
+## 2. İlk ödemeyi gerçekleştirin
+
+Aşağıdaki örnek, sandbox'ta bir **Non-3D test ödemesi** başlatır. Tutar **kuruş** cinsindendir — `15000` değeri 150,00 ₺'dir.
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://vpos-sandbox.payven.com.tr/api/v1/payments \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Idempotency-Key: order-1001-payment" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "external_id":    "ORDER-1001",
+    "amount":         { "amount": 15000, "currency": "TRY" },
+    "installment":    1,
+    "operation_type": "sale",
     "card": {
-      "holderName": "Test Kullanici",
-      "number": "4546711234567894",
-      "expireMonth": "12",
-      "expireYear": "2030",
-      "cvv": "000"
+      "holder_name":  "Test Kullanici",
+      "number":       "4546711234567894",
+      "expire_month": "12",
+      "expire_year":  "2030",
+      "cvv":          "000"
+    },
+    "buyer": {
+      "id":         "cust-001",
+      "email":      "test@example.com",
+      "ip_address": "85.105.10.10"
     }
   }'
 ```
 
-```csharp C#
-using System.Net.Http.Json;
-
-var http = new HttpClient { BaseAddress = new Uri("https://vpos-sandbox.payven.com.tr") };
-http.DefaultRequestHeaders.Add("X-API-Key", "pvk-test-XXXX");
-http.DefaultRequestHeaders.Add("X-API-Secret", "YOUR_SECRET");
-http.DefaultRequestHeaders.Add("X-Merchant-Id", "3fa85f64-5717-4562-b3fc-2c963f66afa6");
-
-var response = await http.PostAsJsonAsync("/api/v1/payments", new
-{
-    externalId = "ORDER-1001",
-    amount = 15000,
-    currency = "TRY",
-    installment = 1,
-    card = new
-    {
-        holderName = "Test Kullanici",
-        number = "4546711234567894",
-        expireMonth = "12",
-        expireYear = "2030",
-        cvv = "000"
-    }
-});
-
-var result = await response.Content.ReadAsStringAsync();
-Console.WriteLine(result);
-```
-
 ```javascript Node.js
-const response = await fetch("https://vpos-sandbox.payven.com.tr/api/v1/payments", {
-  method: "POST",
-  headers: {
-    "X-API-Key": "pvk-test-XXXX",
-    "X-API-Secret": "YOUR_SECRET",
-    "X-Merchant-Id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    "Content-Type": "application/json"
+const res = await fetch(
+  "https://vpos-sandbox.payven.com.tr/api/v1/payments",
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${access_token}`,
+      "Idempotency-Key": "order-1001-payment",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      external_id: "ORDER-1001",
+      amount: { amount: 15000, currency: "TRY" },
+      installment: 1,
+      operation_type: "sale",
+      card: {
+        holder_name:  "Test Kullanici",
+        number:       "4546711234567894",
+        expire_month: "12",
+        expire_year:  "2030",
+        cvv:          "000",
+      },
+      buyer: { id: "cust-001", email: "test@example.com", ip_address: "85.105.10.10" },
+    }),
   },
-  body: JSON.stringify({
-    externalId: "ORDER-1001",
-    amount: 15000,
-    currency: "TRY",
-    installment: 1,
-    card: {
-      holderName: "Test Kullanici",
-      number: "4546711234567894",
-      expireMonth: "12",
-      expireYear: "2030",
-      cvv: "000"
-    }
-  })
-});
-
-const data = await response.json();
-console.log(data);
-```
-
-```go Go
-package main
-
-import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"net/http"
-)
-
-func main() {
-	body, _ := json.Marshal(map[string]any{
-		"externalId":  "ORDER-1001",
-		"amount":      15000,
-		"currency":    "TRY",
-		"installment": 1,
-		"card": map[string]string{
-			"holderName":  "Test Kullanici",
-			"number":      "4546711234567894",
-			"expireMonth": "12",
-			"expireYear":  "2030",
-			"cvv":         "000",
-		},
-	})
-
-	req, _ := http.NewRequest("POST",
-		"https://vpos-sandbox.payven.com.tr/api/v1/payments",
-		bytes.NewReader(body))
-	req.Header.Set("X-API-Key", "pvk-test-XXXX")
-	req.Header.Set("X-API-Secret", "YOUR_SECRET")
-	req.Header.Set("X-Merchant-Id", "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, _ := http.DefaultClient.Do(req)
-	defer resp.Body.Close()
-	out, _ := io.ReadAll(resp.Body)
-	println(string(out))
-}
-```
-
-```php PHP
-<?php
-$ch = curl_init("https://vpos-sandbox.payven.com.tr/api/v1/payments");
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST => true,
-    CURLOPT_HTTPHEADER => [
-        "X-API-Key: pvk-test-XXXX",
-        "X-API-Secret: YOUR_SECRET",
-        "X-Merchant-Id: 3fa85f64-5717-4562-b3fc-2c963f66afa6",
-        "Content-Type: application/json",
-    ],
-    CURLOPT_POSTFIELDS => json_encode([
-        "externalId"  => "ORDER-1001",
-        "amount"      => 15000,
-        "currency"    => "TRY",
-        "installment" => 1,
-        "card" => [
-            "holderName"  => "Test Kullanici",
-            "number"      => "4546711234567894",
-            "expireMonth" => "12",
-            "expireYear"  => "2030",
-            "cvv"         => "000",
-        ],
-    ]),
-]);
-echo curl_exec($ch);
+);
+const payment = await res.json();
+console.log(payment.transaction_id, payment.status);
 ```
 
 ```python Python
-import requests
-
-response = requests.post(
+res = httpx.post(
     "https://vpos-sandbox.payven.com.tr/api/v1/payments",
     headers={
-        "X-API-Key": "pvk-test-XXXX",
-        "X-API-Secret": "YOUR_SECRET",
-        "X-Merchant-Id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "Authorization":   f"Bearer {access_token}",
+        "Idempotency-Key": "order-1001-payment",
     },
     json={
-        "externalId": "ORDER-1001",
-        "amount": 15000,
-        "currency": "TRY",
-        "installment": 1,
+        "external_id":    "ORDER-1001",
+        "amount":         {"amount": 15000, "currency": "TRY"},
+        "installment":    1,
+        "operation_type": "sale",
         "card": {
-            "holderName": "Test Kullanici",
-            "number": "4546711234567894",
-            "expireMonth": "12",
-            "expireYear": "2030",
-            "cvv": "000",
+            "holder_name":  "Test Kullanici",
+            "number":       "4546711234567894",
+            "expire_month": "12",
+            "expire_year":  "2030",
+            "cvv":          "000",
         },
     },
 )
-print(response.json())
+payment = res.json()
+print(payment["transaction_id"], payment["status"])
 ```
 
+```csharp C#
+var payload = new
+{
+    external_id    = "ORDER-1001",
+    amount         = new { amount = 15000L, currency = "TRY" },
+    installment    = 1,
+    operation_type = "sale",
+    card = new
+    {
+        holder_name  = "Test Kullanici",
+        number       = "4546711234567894",
+        expire_month = "12",
+        expire_year  = "2030",
+        cvv          = "000"
+    }
+};
+
+var request = new HttpRequestMessage(HttpMethod.Post,
+    "https://vpos-sandbox.payven.com.tr/api/v1/payments")
+{
+    Content = JsonContent.Create(payload)
+};
+request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+request.Headers.Add("Idempotency-Key", "order-1001-payment");
+
+var response = await http.SendAsync(request);
+var payment  = await response.Content.ReadFromJsonAsync<Payment>();
+```
 </CodeGroup>
 
-## 3. Yanıtı yorumlayın
-
-Başarılı bir Non-3D ödemenin yanıtı şu yapıdadır:
+Başarılı yanıt:
 
 ```json
 {
-  "isSuccess": true,
-  "message": "Başarılı.",
-  "code": "200",
-  "data": {
-    "id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-    "externalId": "ORDER-1001",
-    "status": "Success",
-    "amount": 15000,
-    "currency": "TRY",
-    "installment": 1,
-    "authCode": "123456",
-    "hostReference": "PAYVEN-REF-789",
-    "connector": {
-      "code": "GarantiVPOS",
-      "responseCode": "00",
-      "responseMessage": "Onaylandı"
-    },
-    "createdAt": "2026-05-03T12:34:56Z"
+  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":              "completed",
+  "is_success":          true,
+  "message":             "Onaylandı",
+  "error_code":          null,
+  "provider_error_code": null,
+  "extra_properties": {
+    "processed_at":            "2026-05-03T12:34:58.123+00:00",
+    "auth_code":               "123456",
+    "host_reference":          "PAYVEN-REF-789",
+    "provider_transaction_id": "9f3d2b8e-..."
   }
 }
 ```
 
-İstediğiniz alanın anlamı için [API Yanıt Formatı](/documentation/concepts/response-format) sayfasına bakın.
+`status: "completed"` ve `is_success: true` → ödeme başarıyla tamamlandı. `transaction_id` değerini saklayın — sonraki adımlarda iade, sorgulama veya webhook eşleştirmesinde kullanacaksınız.
 
-## 4. Webhook ile sonucu doğrulayın
+<Tip>
+**API Referansı'nda Try It paneli** ile bu isteği tarayıcınızdan canlı olarak deneyebilirsiniz: [POST /payments](/api-reference/sanal-pos).
+</Tip>
 
-Asenkron işlem sonuçlarını (3D Secure, capture, iade, mutabakat olayları) yakalamak için bir webhook endpoint'i kaydedin. Detay: [Webhook Genel Bakış](/sanal-pos/webhooks/overview).
+## 3. İşlemi sorgulayın
+
+```bash
+curl https://vpos-sandbox.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Detaylı yanıt yapısı: [Payment Objesi](/sanal-pos/payment-object).
+
+## 4. Webhook ile asenkron yakalayın
+
+Tarayıcı tabanlı akışlarda (3DS, hosted checkout) müşteri tarayıcıyı kapatabilir — sonucu kaçırmamak için webhook kurun:
 
 ```bash
 curl -X POST https://vpos-sandbox.payven.com.tr/api/v1/webhooks \
-  -H "X-API-Key: pvk-test-XXXX" \
-  -H "X-API-Secret: YOUR_SECRET" \
-  -H "X-Merchant-Id: 3fa85f64-5717-4562-b3fc-2c963f66afa6" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://example.com/webhooks/payven",
-    "events": ["payment.succeeded", "payment.failed", "refund.succeeded"]
+    "url":    "https://your-domain.com/webhooks/payven",
+    "events": ["payment.completed", "payment.failed", "refund.completed"]
   }'
 ```
 
-Yanıttaki `secret` değerini saklayın — bu değerle gelen webhook isteklerinin imzasını doğrulayacaksınız.
+Webhook isteklerini doğrularken HMAC-SHA256 imzasını kontrol edin — bkz. [İmza Doğrulama](/sanal-pos/webhooks/signature). Lokal geliştirmede [ngrok](https://ngrok.com) veya [Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/) ile localhost'unuzu internete açabilirsiniz.
+
+## 5. Test kart numaraları
+
+Sandbox'ta gerçek banka çağrısı yapılmaz; senaryoları aşağıdaki kartlarla simüle edebilirsiniz:
+
+| Senaryo | Kart numarası | Banka |
+|---|---|---|
+| Onaylanır (Visa) | `4546711234567894` | Test bank |
+| Onaylanır (Mastercard) | `5400617800000000` | Test bank |
+| 3DS challenge başarılı | `4111111111111111` | Test bank — şifre `a` |
+| 3DS challenge başarısız | `4111111111111129` | Test bank |
+| Yetersiz bakiye | `4022770000000005` | Test bank — `provider_error_code: "51"` |
+| Expired card | `4022770000000013` | Test bank — `provider_error_code: "54"` |
+
+Tam liste ve özel senaryolar: [Test Kartları](/sanal-pos/test/test-cards).
 
 ## Sonraki adımlar
 
 <CardGroup cols={2}>
-  <Card title="3D Secure ödeme" icon="shield-check" href="/sanal-pos/payments/3d-secure">
-    Müşteriyi banka doğrulama sayfasına yönlendiren tam akış.
+  <Card title="3D Secure ile chargeback'i azalt" icon="shield-check" href="/sanal-pos/payments/3d-secure">
+    Tüketici işlemlerinde sorumluluğu bankaya taşıyın.
   </Card>
-  <Card title="Test kartları" icon="id-card" href="/sanal-pos/test/test-cards">
-    Sandbox ortamında kullanılabilir tüm test kartlarının listesi.
+  <Card title="Hosted Checkout ile PCI yükünü düşür" icon="window-maximize" href="/sanal-pos/payments/hosted-checkout">
+    Kart girişini Payven sayfasında yapın, SAQ-A kapsamına inin.
   </Card>
-  <Card title="Hata yönetimi" icon="triangle-exclamation" href="/documentation/concepts/errors">
-    Hata kodları, retry stratejisi ve idempotency kullanımı.
+  <Card title="Akışlar" icon="diagram-project" href="/flows/3d-secure">
+    Uçtan uca senaryoları sequence diagram'larıyla kavrayın.
   </Card>
-  <Card title="Production geçişi" icon="rocket" href="/documentation/security/go-live-checklist">
-    Canlıya geçmeden önce tamamlanması gereken kontrol listesi.
+  <Card title="Recipes" icon="book" href="/recipes/overview">
+    "Şunu nasıl yaparım?" tarifleri.
   </Card>
 </CardGroup>
+
+## Yardım
+
+Bir adımda takılırsanız: yanıttaki `correlation_id` (veya `X-Correlation-Id` header'ı) ile birlikte [destek ekibine](/resources/support) yazın — log zincirini saniyeler içinde bulabiliriz.
