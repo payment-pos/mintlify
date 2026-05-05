@@ -1,110 +1,86 @@
 ---
-title: "Login"
-description: "Kullanıcı oturumu başlatma ve access/refresh token alma."
+title: "Login (Portal Kullanıcısı)"
+description: "Insan kullanıcılar için username/password ile JWT alma."
 ---
 
-Identity servisi üzerinden oturum başlatır, access ve refresh token alırsınız. Bu token'lar konsol işlemlerinde ve Identity API'sinde kullanılır.
+Identity servisi üzerinden **portal kullanıcısı** (insan) oturumu başlatır. Backend kanalları (server-to-server) için bu yerine [Token (Client Credentials)](/documentation/concepts/authentication) endpoint'ini kullanın.
 
 ## Endpoint
 
-```
+```http
 POST /api/v1/auth/{slug}/login
 ```
 
 | Path parametresi | Açıklama |
 |---|---|
-| `slug` | Kuruluşunuzun slug'ı. Platform yöneticisi iseniz `platform`. |
+| `slug` | Tenant slug'ı (onboarding sırasında verilen). Platform yöneticileri için: `platform`. |
+
+<Note>
+Bu endpoint **rate limited**: IP başına dakikada **10** istek. Aşımda `429 rate_limit_exceeded`.
+</Note>
 
 ## İstek
 
-<CodeGroup>
-```bash cURL
-curl -X POST https://identity.payven.com.tr/api/v1/auth/acme-bank/login \
+```bash
+curl -X POST https://identity.payven.com.tr/api/v1/auth/payven/login \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "user@acme-bank.com",
-    "password": "********"
+    "username": "user@example.com",
+    "password": "**********"
   }'
 ```
 
-```javascript Node.js
-const res = await fetch(
-  "https://identity.payven.com.tr/api/v1/auth/acme-bank/login",
-  {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      username: "user@acme-bank.com",
-      password: "********",
-    }),
-  }
-);
-const { data } = await res.json();
-const accessToken = data.accessToken;
-```
-
-```csharp C#
-var payload = new { username = "user@acme-bank.com", password = "********" };
-var response = await http.PostAsJsonAsync(
-    "https://identity.payven.com.tr/api/v1/auth/acme-bank/login", payload);
-var result = await response.Content.ReadFromJsonAsync<LoginResult>();
-```
-</CodeGroup>
-
-### İstek gövdesi
-
-| Alan | Tip | Zorunlu | Açıklama |
-|---|---|---|---|
-| `username` | `string` | ✅ | E-posta veya kullanıcı adı |
-| `password` | `string` | ✅ | Parola |
+| Alan | Tip | Zorunlu |
+|---|---|---|
+| `username` | string | ✅ |
+| `password` | string | ✅ |
 
 ## Yanıt
 
+`200 OK` — Keycloak token sonucu (`KeycloakTokenResult`):
+
 ```json
 {
-  "isSuccess": true,
-  "message": "Başarılı.",
-  "code": "200",
-  "data": {
-    "accessToken": "eyJhbGciOiJSUzI1NiIs...",
-    "refreshToken": "eyJhbGciOiJIUzUxMiIs...",
-    "expiresIn": 3600,
-    "refreshExpiresIn": 1800,
-    "tokenType": "Bearer"
-  }
+  "access_token":        "eyJhbGciOiJSUzI1NiI...",
+  "refresh_token":       "eyJhbGciOiJIUzI1NiI...",
+  "expires_in":          300,
+  "refresh_expires_in":  1800,
+  "token_type":          "Bearer",
+  "scope":               "openid profile email"
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `accessToken` | Sonraki API çağrılarında `Authorization: Bearer ...` olarak gönderilir |
-| `refreshToken` | Access token süresi dolduğunda yenilemek için |
-| `expiresIn` | Access token'ın saniye cinsinden geçerlilik süresi (tipik: 3600) |
-| `refreshExpiresIn` | Refresh token'ın geçerlilik süresi (tipik: 1800) |
-| `tokenType` | Sabit: `Bearer` |
+| `access_token` | Sonraki API çağrılarında `Authorization: Bearer ...` header'ı ile gönderin |
+| `refresh_token` | Access token süresi dolduğunda yenilemek için |
+| `expires_in` | Access token saniye cinsinden geçerlilik (varsayılan **5 dakika**) |
+| `refresh_expires_in` | Refresh token idle timeout (varsayılan 30 dakika; offline scope ile 30 gün) |
+| `token_type` | Daima `Bearer` |
+| `scope` | Tahsis edilen OIDC scope'lar |
 
 ## Token kullanımı
 
-Aldığınız `accessToken` değerini Identity API'sindeki tüm korumalı endpoint'lerde gönderin:
-
 ```http
 GET /api/v1/me
-Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+Authorization: Bearer eyJhbGciOiJSUzI1NiI...
 ```
 
 ## Hata yanıtları
 
+Hata zarfı [RFC 9457 problem+json](/documentation/concepts/errors).
+
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `401` | `INVALID_CREDENTIALS` | Kullanıcı adı veya parola hatalı |
-| `403` | `USER_DISABLED` | Hesap devre dışı |
-| `403` | `USER_PENDING_APPROVAL` | Onay bekliyor |
-| `404` | `TENANT_NOT_FOUND` | Slug bulunamadı |
-| `429` | `RATE_LIMIT_EXCEEDED` | Çok fazla başarısız deneme |
+| `401` | `invalid_credentials` | Kullanıcı adı veya parola hatalı |
+| `403` | `user_disabled` | Hesap devre dışı |
+| `403` | `user_pending_approval` | Onay bekliyor |
+| `404` | `realm_not_found` | Slug geçersiz |
+| `429` | `rate_limit_exceeded` | Çok fazla başarısız deneme — `Retry-After` header'ına uyun |
 
-## Güvenlik notları
+## Güvenlik
 
 <Check>Login isteklerini **sadece HTTPS** üzerinden atın.</Check>
-<Check>`accessToken`'ı tarayıcıda **httpOnly cookie** veya in-memory state'te tutun, localStorage'a yazmayın.</Check>
-<Check>`refreshToken`'ı sadece sunucu tarafında saklayın.</Check>
-<Check>Başarısız login denemeleri için **account lockout** mekanizmamız vardır — 5 hatalı denemenin ardından 15 dakika bekleme süresi devreye girer.</Check>
+<Check>Tarayıcıda `access_token`'ı in-memory veya `httpOnly` cookie'de tutun, `localStorage`'a yazmayın.</Check>
+<Check>`refresh_token`'ı sadece sunucu tarafında saklayın (BFF pattern öneriyoruz).</Check>
+<Check>Brute-force koruması: ardışık başarısız giriş denemelerinde rate limit + Keycloak account lockout devreye girer.</Check>

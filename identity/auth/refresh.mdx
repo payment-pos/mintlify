@@ -3,59 +3,64 @@ title: "Token Yenileme"
 description: "Access token süresi dolduğunda refresh token ile yenileme."
 ---
 
-Access token'ın süresi dolduğunda kullanıcıyı yeniden login'e yönlendirmek yerine **refresh token** kullanarak sessizce yenileyebilirsiniz.
+Access token süresi dolduğunda (`expires_in` saniye geçince) kullanıcıyı yeniden login'e yönlendirmek yerine **refresh token** ile sessizce yenileyin.
 
 ## Endpoint
 
-```
+```http
 POST /api/v1/auth/{slug}/refresh
 ```
 
 ## İstek
 
 ```bash
-curl -X POST https://identity.payven.com.tr/api/v1/auth/acme-bank/refresh \
+curl -X POST https://identity.payven.com.tr/api/v1/auth/payven/refresh \
   -H "Content-Type: application/json" \
   -d '{
-    "refreshToken": "eyJhbGciOiJIUzUxMiIs..."
+    "refresh_token": "eyJhbGciOiJIUzI1NiI..."
   }'
 ```
 
+| Alan | Tip | Zorunlu |
+|---|---|---|
+| `refresh_token` | string | ✅ |
+
 ## Yanıt
+
+`200 OK` — yeni `KeycloakTokenResult`:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "accessToken": "yeni-access-token...",
-    "refreshToken": "yeni-refresh-token...",
-    "expiresIn": 3600,
-    "refreshExpiresIn": 1800,
-    "tokenType": "Bearer"
-  }
+  "access_token":        "eyJhbGciOiJSUzI1NiI...",
+  "refresh_token":       "eyJhbGciOiJIUzI1NiI...",
+  "expires_in":          300,
+  "refresh_expires_in":  1800,
+  "token_type":          "Bearer",
+  "scope":               "openid profile email"
 }
 ```
 
 <Note>
-Yenileme sonrası **hem access hem refresh token yenilenir**. Eski refresh token bir kez kullanıldıktan sonra geçersiz olur (rotation).
+**Refresh token rotation:** Yenileme sonrası hem access hem refresh token yenilenir. Eski refresh token bir kez kullanıldıktan sonra **geçersiz** olur — token reuse attack koruması.
 </Note>
 
 ## Önerilen yenileme stratejisi
 
-Token süresi dolmadan **30 saniye önce** proaktif yenileme yapın:
+Token süresi dolmadan **60 saniye önce** proaktif yenileme yapın (clock-skew + network latency margin):
 
-<CodeGroup>
-```javascript Node.js
+```javascript
 class TokenManager {
-  constructor() {
+  constructor(slug, identityBase) {
+    this.slug = slug;
+    this.identityBase = identityBase;
     this.accessToken = null;
     this.refreshToken = null;
     this.expiresAt = 0;
   }
 
   async getValidToken() {
-    const bufferMs = 30_000;
-    if (Date.now() < this.expiresAt - bufferMs) {
+    const buffer = 60_000;
+    if (this.accessToken && Date.now() < this.expiresAt - buffer) {
       return this.accessToken;
     }
     await this.refresh();
@@ -63,25 +68,36 @@ class TokenManager {
   }
 
   async refresh() {
-    const res = await fetch(`${BASE}/auth/${SLUG}/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: this.refreshToken }),
-    });
-    const { data } = await res.json();
-    this.accessToken = data.accessToken;
-    this.refreshToken = data.refreshToken;
-    this.expiresAt = Date.now() + data.expiresIn * 1000;
+    const res = await fetch(
+      `${this.identityBase}/api/v1/auth/${this.slug}/refresh`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: this.refreshToken }),
+      },
+    );
+    if (!res.ok) {
+      this.refreshToken = null;
+      throw new Error("refresh_failed");
+    }
+    const data = await res.json();
+    this.accessToken = data.access_token;
+    this.refreshToken = data.refresh_token;
+    this.expiresAt = Date.now() + data.expires_in * 1000;
   }
 }
 ```
-</CodeGroup>
+
+Tam SDK örnekleri (5 dilde): [Kimlik Doğrulama → SDK örnekleri](/documentation/concepts/authentication#sdk-ornekleri-auto-refresh).
 
 ## Hata yanıtları
 
+Hata zarfı RFC 9457 problem+json.
+
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `401` | `INVALID_REFRESH_TOKEN` | Refresh token geçersiz veya kullanılmış |
-| `401` | `REFRESH_TOKEN_EXPIRED` | Refresh token süresi dolmuş — yeniden login gerekli |
+| `401` | `invalid_refresh_token` | Refresh token geçersiz veya zaten kullanılmış |
+| `401` | `token_expired` | Refresh token süresi dolmuş |
+| `404` | `realm_not_found` | Slug geçersiz |
 
-`REFRESH_TOKEN_EXPIRED` aldığınızda kullanıcıyı login ekranına yönlendirin.
+`invalid_refresh_token` veya `token_expired` aldığınızda kullanıcıyı login ekranına yönlendirin.

@@ -7,51 +7,57 @@ Identity servisi, Türkiye'deki tüm aktif bankaların kataloğunu sağlar. Bank
 
 ## Endpoint
 
-```
+```http
 GET /api/v1/lookups/banks
 ```
+
+JWT Bearer auth gerektirir.
 
 ## İstek
 
 ```bash
-curl https://identity.payven.com.tr/api/v1/lookups/banks \
-  -H "Authorization: Bearer ..."
+curl "https://identity.payven.com.tr/api/v1/lookups/banks?page=1&page_size=50" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
 | Query parametresi | Tip | Açıklama |
 |---|---|---|
-| `searchTerm` | `string` | İsim veya kodda arama |
-| `page`        | `int` | Sayfa numarası (varsayılan: 1) |
-| `pageSize` | `int` | Sayfa boyutu (varsayılan: 50, max: 200) |
+| `search_term` | string | İsim veya kodda "içerir" araması |
+| `page` | int | Sayfa numarası (varsayılan `1`) |
+| `page_size` | int | Sayfa boyutu (1–200, varsayılan `50`) |
+| `include_inactive` | bool | Pasif bankaları da getir (varsayılan `false`) |
 
 ## Yanıt
 
+`200 OK` — sayfalı liste:
+
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "items": [
-      {
-        "id": "8e3f5c12-...",
-        "code": "GARANTI",
-        "name": "Garanti BBVA",
-        "bkmMemberId": "62",
-        "swiftCode": "TGBATRIS",
-        "isActive": true,
-        "logoUrl": "https://cdn.payven.com.tr/banks/garanti.svg"
-      },
-      {
-        "id": "9f3d2b8e-...",
-        "code": "AKBANK",
-        "name": "Akbank",
-        "bkmMemberId": "46",
-        "swiftCode": "AKBKTRIS",
-        "isActive": true,
-        "logoUrl": "https://cdn.payven.com.tr/banks/akbank.svg"
-      }
-    ],
-    "totalCount": 28
-  }
+  "items": [
+    {
+      "id":           "8e3f5c12-...",
+      "code":         "GARANTI",
+      "name":         "Garanti BBVA",
+      "bkm_member_id": "62",
+      "swift_code":   "TGBATRIS",
+      "is_active":    true,
+      "logo_url":     "https://cdn.payven.com.tr/banks/garanti.svg"
+    },
+    {
+      "id":           "9f3d2b8e-...",
+      "code":         "AKBANK",
+      "name":         "Akbank",
+      "bkm_member_id": "46",
+      "swift_code":   "AKBKTRIS",
+      "is_active":    true,
+      "logo_url":     "https://cdn.payven.com.tr/banks/akbank.svg"
+    }
+  ],
+  "page":              1,
+  "total_pages":       1,
+  "total_count":       28,
+  "has_previous_page": false,
+  "has_next_page":     false
 }
 ```
 
@@ -73,10 +79,11 @@ async function getBanks() {
   if (banksCache && Date.now() - banksCache.fetchedAt < CACHE_TTL_MS) {
     return banksCache.data;
   }
-  const res = await fetch(`${BASE}/lookups/banks`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const { data } = await res.json();
+  const res = await fetch(
+    "https://identity.payven.com.tr/api/v1/lookups/banks?page_size=200",
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  const data = await res.json();
   banksCache = { data: data.items, fetchedAt: Date.now() };
   return data.items;
 }

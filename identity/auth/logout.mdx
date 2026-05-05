@@ -1,40 +1,48 @@
 ---
 title: "Logout"
-description: "Aktif oturumu sonlandırma ve token'ları geçersiz kılma."
+description: "Aktif oturumu sonlandırma ve refresh token'ı geçersiz kılma."
 ---
 
-Logout endpoint'i hem access hem refresh token'ı geçersiz kılar.
+Logout endpoint'i Keycloak tarafında refresh token'ı geçersiz kılar — access token kalan süresince hâlâ kullanılabilir, ama refresh edilemez. Tam logout için access token'ı da istemci tarafında imha edin.
 
 ## Endpoint
 
-```
+```http
 POST /api/v1/auth/{slug}/logout
 ```
 
 ## İstek
 
 ```bash
-curl -X POST https://identity.payven.com.tr/api/v1/auth/acme-bank/logout \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
+curl -X POST https://identity.payven.com.tr/api/v1/auth/payven/logout \
   -H "Content-Type: application/json" \
   -d '{
-    "refreshToken": "eyJhbGciOiJIUzUxMiIs..."
+    "refresh_token": "eyJhbGciOiJIUzI1NiI..."
   }'
 ```
 
+| Alan | Tip | Zorunlu |
+|---|---|---|
+| `refresh_token` | string | ✅ |
+
+<Note>
+Bu endpoint anonim erişilebilir — `Authorization: Bearer ...` header'ı gerekmez. Refresh token kendi kendine kimlik bilgisidir.
+</Note>
+
 ## Yanıt
 
-```json
-{
-  "isSuccess": true,
-  "message": "Çıkış yapıldı.",
-  "code": "200",
-  "data": null
-}
-```
+`204 No Content` — gövde yok.
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `realm_not_found` | Slug geçersiz |
+| `401` | `invalid_refresh_token` | Refresh token geçersiz / zaten geçersizleştirilmiş |
 
 ## En iyi uygulamalar
 
-<Check>Kullanıcı çıkış yaptığında **mutlaka logout endpoint'i çağrılsın** — sadece istemci tarafında token'ı silmek yeterli değildir, çalınmış bir token hâlâ geçerli olabilir.</Check>
-<Check>İstemci tarafında token'ları temizleyin (cookie, in-memory state).</Check>
-<Check>Cross-tab senaryoda diğer sekmelere `storage` event'i ile haber verin.</Check>
+<Check>**Logout her zaman çağrılsın** — sadece istemci tarafında token silmek yetersiz; çalınmış bir refresh token hâlâ kullanılabilir.</Check>
+<Check>İstemci tarafında tüm token'ları temizleyin (cookie, in-memory state, localStorage).</Check>
+<Check>Cross-tab senaryoda diğer sekmelere `storage` event'i ile haber verin → her sekme kendi state'ini sıfırlasın.</Check>
+<Check>Logout başarısız olsa bile (network kesintisi, vb.) istemci tarafında token'ları silin — Keycloak refresh denildiğinde reddedecektir.</Check>

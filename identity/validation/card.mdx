@@ -3,105 +3,127 @@ title: "Kart Doğrulama"
 description: "Kart numarasının formatını doğrulayın ve banka bilgilerini çözümleyin."
 ---
 
-Bu endpoint, kart numarasının **Luhn algoritması** ile geçerli olup olmadığını kontrol eder ve aynı zamanda BIN'den banka/kart bilgilerini çözümler. Tek bir çağrıyla iki işi birden yaparsınız.
+Bu endpoint, kart numarasının **Luhn algoritması** + uzunluk kontrolü yapar ve aynı zamanda BIN'den banka/kart bilgilerini çözümler. Tek istek, iki iş.
 
 ## Endpoint
 
-```
+```http
 POST /api/v1/validation/card
 ```
+
+JWT Bearer auth gerektirir.
 
 ## İstek
 
 ```bash
 curl -X POST https://identity.payven.com.tr/api/v1/validation/card \
-  -H "Authorization: Bearer ..." \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "number": "4546711234567894" }'
 ```
 
 | Alan | Tip | Zorunlu | Açıklama |
 |---|---|---|---|
-| `number` | `string` | ✅ | Tam kart numarası (boşluksuz). Bu değer **saklanmaz**. |
+| `number` | string | ✅ | Tam kart numarası (boşluksuz, 13-19 hane). Bu değer **saklanmaz**. |
 
 ## Yanıt
 
+`200 OK` — `CardValidationResultDto`:
+
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "isValid": true,
-    "luhnValid": true,
-    "bin": "454671",
-    "lastFour": "7894",
-    "maskedNumber": "454671******7894",
-    "scheme": "Visa",
-    "type": "Credit",
-    "bank": {
-      "id": "8e3f5c12-...",
-      "code": "GARANTI",
-      "name": "Garanti BBVA"
-    },
-    "program": "Bonus",
-    "country": "TR"
-  }
+  "is_valid":     true,
+  "luhn_valid":   true,
+  "length_valid": true,
+  "length":       16,
+  "bin":          "454671",
+  "masked_number":"454671******7894",
+  "schema_type":  "visa",
+  "bank_bin": {
+    "id":           "abc-...",
+    "bin_start":    "454671",
+    "bin_end":      "454671",
+    "card_scheme":  "visa",
+    "card_type":    "credit",
+    "card_program": "bonus",
+    "country":      "TR"
+  },
+  "bank": {
+    "id":            "8e3f5c12-...",
+    "code":          "GARANTI",
+    "name":          "Garanti BBVA",
+    "bkm_member_id": "62"
+  },
+  "error_message": null
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `isValid` | Genel geçerlilik (Luhn + BIN bulundu) |
-| `luhnValid` | Sadece Luhn kontrolü |
+| `is_valid` | Genel geçerlilik (`luhn_valid && length_valid`) |
+| `luhn_valid` | Luhn checksum geçerli mi |
+| `length_valid` | Uzunluk kart birliğine uygun mu |
 | `bin` | İlk 6 hane |
-| `lastFour` | Son 4 hane (loglarda saklanabilir) |
-| `maskedNumber` | Görüntüleme için maskeli format |
-| `scheme` | Visa / Mastercard / Troy / Amex |
-| `type` | Credit / Debit / Prepaid |
-| `bank` | Banka bilgisi (BIN'den çözümlendi) |
-| `program` | Banka kart programı (Bonus, Maximum, vb.) |
+| `masked_number` | `BIN******SON4` formatı — loglarda saklanabilir |
+| `schema_type` | `visa`, `mastercard`, `troy`, `amex`, vb. |
+| `bank_bin` | BIN aralığı + program bilgisi |
+| `bank` | BIN'den çözümlenen banka |
+| `error_message` | `is_valid: false` ise sebep |
 
 <Warning>
-Kart numarası bu istekte **saklanmaz** ve sunucu loglarına yazılmaz. Yine de PCI-DSS kuralları gereği kart numarasını yalnızca güvenli kanal üzerinden iletin.
+Kart numarası bu istekte **saklanmaz** ve sunucu loglarına yazılmaz. Yine de PCI-DSS kuralları gereği kart numarasını yalnızca güvenli kanal (TLS) üzerinden iletin ve sızıntıya neden olabilecek loglara (ör. APM trace) yazmaktan kaçının.
 </Warning>
 
-## Hata yanıtları
+## Geçersiz kart örnegi
 
 ```json
 {
-  "isSuccess": false,
-  "code": "VALIDATION_INVALID_CARD",
-  "message": "Kart numarası geçersiz."
+  "is_valid":     false,
+  "luhn_valid":   false,
+  "length_valid": true,
+  "length":       16,
+  "bin":          "454671",
+  "masked_number":"454671******7895",
+  "schema_type":  "visa",
+  "bank_bin":     null,
+  "bank":         null,
+  "error_message":"Kart numarası Luhn checksum'ı geçmiyor."
 }
 ```
 
-| HTTP | `code` | Anlam |
-|---|---|---|
-| `400` | `VALIDATION_INVALID_CARD` | Luhn kontrolü başarısız |
-| `404` | `BIN_NOT_FOUND` | BIN katalogda bulunamadı (kart geçerli ama Türk bankası değil olabilir) |
-
-## Tipik kullanım: Inline form validasyonu
+## Tipik kullanım: inline form validasyonu
 
 ```javascript
 async function validateCardOnBlur(cardNumber) {
   const digits = cardNumber.replace(/\D/g, "");
   if (digits.length < 13) return;
 
+  // Backend BFF üzerinden — frontend Identity'e direkt token taşımayın
   const res = await fetch("/api/validation/card", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ number: digits }),
   });
-  const { data, isSuccess, message } = await res.json();
+  const result = await res.json();
 
-  if (!isSuccess) {
-    showFieldError("cardNumber", message);
+  if (!result.is_valid) {
+    showFieldError("card_number", result.error_message);
     return;
   }
 
-  showBankLogo(data.bank.code);
-  showSchemeIcon(data.scheme);
-  if (data.type === "Debit") {
+  showBankLogo(result.bank?.code);
+  showSchemeIcon(result.schema_type);
+  if (result.bank_bin?.card_type === "debit") {
     hideInstallmentDropdown();
   }
 }
 ```
+
+## Hata yanıtları (HTTP)
+
+`is_valid: false` durumu **`200 OK`** ile döner — `error_message` alanı sebebi içerir. Aşağıdaki HTTP hataları yalnızca istek formatı hatalı olduğunda döner:
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `400` | `validation_failed` | `number` alanı eksik veya boş |
+| `400` | `bad_request` | İstek gövdesi geçersiz JSON |

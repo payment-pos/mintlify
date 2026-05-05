@@ -3,51 +3,61 @@ title: "Anahtar Revoke / Silme"
 description: "Bir anahtarı pasife alma veya kalıcı silme."
 ---
 
-Bir anahtarı geçici (`disable`) veya kalıcı olarak (`delete`) iptal edebilirsiniz. Her iki durumda da o anahtarla atılan tüm yeni istekler `401` ile reddedilir.
+Bir anahtarı geçici (**pasif**) veya kalıcı olarak (**sil**) iptal edebilirsiniz. Her iki durumda da o anahtarla yeni token alınamaz, mevcut token süresi dolduğunda da yenilenemez.
 
 ## Endpoint'ler
 
 | İşlem | Endpoint | Geri alınabilir mi? |
 |---|---|---|
-| Pasife al | `PATCH /api/v1/tenants/me/api-keys/{id}` (`status: "Inactive"`) | ✅ Evet |
-| Kalıcı sil | `DELETE /api/v1/tenants/me/api-keys/{id}` | ❌ Hayır |
+| Pasife al | `PUT /api/v1/tenants/me/api-keys/{id}` (`is_active: false`) | ✅ Evet — yeniden aktive edilebilir |
+| Kalıcı sil | `DELETE /api/v1/tenants/me/api-keys/{id}` | ❌ Hayır — Keycloak client da silinir |
+
+JWT Bearer auth + `tenant-admin` rolü gerektirir.
 
 ## Pasife alma
 
 ```bash
-curl -X PATCH https://identity.payven.com.tr/api/v1/tenants/me/api-keys/key_8e3f5c12 \
-  -H "Authorization: Bearer ..." \
+curl -X PUT https://identity.payven.com.tr/api/v1/tenants/me/api-keys/8e3f5c12-... \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{ "status": "Inactive" }'
+  -d '{
+    "display_name":  "Production — Ödeme Servisi",
+    "contact_email": "ops@example.com",
+    "is_active":     false
+  }'
 ```
 
-Pasife alma **anında etkilidir** ama anahtarı silmez. İhtiyaç olursa tekrar aktif edebilirsiniz:
+Pasife alma **anında etkilidir** — yeni token üretimi durur. Mevcut token'lar süre sonuna kadar (5dk) çalışır, sonra refresh edilemez.
+
+Geri aktive etmek için `is_active: true` ile aynı endpoint:
 
 ```bash
-curl -X PATCH https://identity.payven.com.tr/api/v1/tenants/me/api-keys/key_8e3f5c12 \
-  -H "Authorization: Bearer ..." \
+curl -X PUT https://identity.payven.com.tr/api/v1/tenants/me/api-keys/8e3f5c12-... \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{ "status": "Active" }'
+  -d '{
+    "display_name":  "Production — Ödeme Servisi",
+    "contact_email": "ops@example.com",
+    "is_active":     true
+  }'
 ```
+
+<Note>
+PUT, PATCH değildir — tüm güncellenebilir alanları göndermeniz gerekir. Sadece `is_active` field'ını
+göndermek diğer alanları sıfırlar. Anlık aktive/pasif için aynı objeyi alıp tek alanı değiştirin.
+</Note>
 
 ## Kalıcı silme
 
 ```bash
-curl -X DELETE https://identity.payven.com.tr/api/v1/tenants/me/api-keys/key_8e3f5c12 \
-  -H "Authorization: Bearer ..."
+curl -X DELETE https://identity.payven.com.tr/api/v1/tenants/me/api-keys/8e3f5c12-... \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-```json
-{
-  "isSuccess": true,
-  "message": "API anahtarı silindi.",
-  "code": "200",
-  "data": null
-}
-```
+`204 No Content` — gövde yok.
 
 <Warning>
-Silme **geri alınamaz**. İlgili `apiKey` değeri tekrar üretilmez — yeni bir anahtar oluşturmanız gerekir.
+Silme **geri alınamaz**. Identity DB kaydı + Keycloak client beraber silinir. `client_id` değeri tekrar üretilmez — yeni bir anahtar oluşturmanız gerekir.
 </Warning>
 
 ## Ne zaman pasife alın, ne zaman silin?
@@ -55,19 +65,28 @@ Silme **geri alınamaz**. İlgili `apiKey` değeri tekrar üretilmez — yeni bi
 | Durum | Önerilen aksiyon |
 |---|---|
 | Anahtarın kullanılmadığını doğrulamak istiyorsunuz | **Pasife al** — birkaç hafta izleyip sonra silin |
-| Sızıntı şüphesi var | **Pasife al** sonra **sil** |
+| Sızıntı şüphesi var | **Pasife al** (anlık etki) → soruşturma → **sil** |
 | Geçici servis kapatılıyor | **Pasife al** |
-| Eski entegrasyon kaldırıldı | **Sil** |
+| Eski entegrasyon kalıcı kaldırıldı | **Sil** |
+| Otomatik temizlik (CI/CD ile) | **Sil** — pasifleri bekletmeyin, audit kirletir |
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `api_key_not_found` | Anahtar bulunamadı |
+| `403` | `forbidden` | `tenant-admin` rolü yok |
+| `409` | `api_key_in_use` | Sistem kritik anahtarı (örn. last-active) silmeyi engelliyor — önce yeni anahtar yarat |
 
 ## Audit log
 
-Tüm anahtar yaşam döngüsü olayları konsol → **API Kayıtları → Audit** ekranında dökümlüdür:
+Tüm anahtar yaşam döngüsü olayları konsoldaki **API Kayıtları → Audit** ekranında loglanır:
 
-- Oluşturma
-- Güncelleme
-- Rotasyon
-- Pasife alma / aktif etme
-- Silme
-- Kullanım kayıtları (her istek için)
+- Oluşturma (`api_key.created`)
+- Güncelleme (`api_key.updated`)
+- Rotasyon (`api_key.secret_rotated`)
+- Pasife alma / aktif etme (`api_key.deactivated` / `api_key.activated`)
+- Silme (`api_key.deleted`)
+- Kullanım — her token üretimi (`api_key.used`)
 
-Bu kayıtlar PCI-DSS uyumluluk denetimlerinde delil olarak kullanılabilir.
+Bu kayıtlar PCI-DSS, ISO 27001 ve KVKK denetimlerinde audit trail olarak kullanılabilir.

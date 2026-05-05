@@ -1,65 +1,88 @@
 ---
 title: "Secret Rotasyonu"
-description: "Mevcut anahtarın `apiKey` değerini koruyup secret'ı yenileme."
+description: "Mevcut anahtarın `client_id` değerini koruyup `client_secret`'ı yenileme."
 ---
 
-Rotasyon, anahtarın **public tanımlayıcısını korur** (servisinizdeki konfigürasyonu değiştirmeden) ama secret'ı yeniler. Sızıntı şüphesinde veya periyodik güvenlik politikası gereği kullanılır.
+Rotasyon, anahtarın **`client_id` değerini korur** (servisinizdeki konfigürasyonu değiştirmeden) ama `client_secret`'ı yeniler. Sızıntı şüphesinde veya periyodik güvenlik politikası gereği kullanılır.
 
 ## Endpoint
 
-```
+```http
 POST /api/v1/tenants/me/api-keys/{id}/rotate-secret
 ```
+
+JWT Bearer auth + `tenant-admin` rolü gerektirir.
 
 ## İstek
 
 ```bash
-curl -X POST https://identity.payven.com.tr/api/v1/tenants/me/api-keys/key_8e3f5c12/rotate-secret \
-  -H "Authorization: Bearer ..."
+curl -X POST https://identity.payven.com.tr/api/v1/tenants/me/api-keys/8e3f5c12-.../rotate-secret \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: rotate-prod-payments-2026-05"
 ```
+
+Body gerekmez.
 
 ## Yanıt
 
+`200 OK` — `RotateSecretResult`:
+
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "id": "key_8e3f5c12",
-    "apiKey": "pvk-prod-MaVpaXii",
-    "secret": "yeni-secret-değeri-burada",
-    "rotatedAt": "2026-05-03T12:34:56Z"
-  }
+  "api_key": {
+    "id":                       "8e3f5c12-...",
+    "keycloak_client_id":       "pvk-payven-a1b2c3",
+    "display_name":             "Production — Ödeme Servisi",
+    "is_active":                true,
+    "created":                  "2026-01-15T10:00:00.000+00:00"
+  },
+  "secret":      "yeni_secret_AbC123dEf456GhI789jKl",
+  "rotated_at":  "2026-05-03T12:34:56.789+00:00"
 }
 ```
 
-<Warning>
-Eski secret **anında geçersiz** olur. Servisleriniz hâlâ eski secret ile çalışıyorsa istek başarısız olur. Aşağıdaki sıfır-kesinti yaklaşımını uygulayın.
-</Warning>
+<Note>
+**Eski secret 24 saat boyunca geçerli kalır** — zero-downtime geçiş için. Bu sürede her iki secret ile token alınabilir.
+</Note>
 
-## Sıfır kesintiyle rotasyon
-
-Tek bir anahtarın secret'ını rotasyona almak yerine **iki anahtarla** çalışmak daha güvenlidir:
+## Önerilen rotation akışı
 
 <Steps>
-  <Step title="Yeni anahtar oluşturun">
-    Eskisini bırakıp [yeni anahtar üretin](/identity/api-keys/create).
+  <Step title="Yeni secret üret">
+    `POST /api-keys/{id}/rotate-secret` → yanıttan yeni `secret` değerini al.
   </Step>
-  <Step title="Yeni anahtarı secret manager'a yazın">
-    Production secret manager'ında yeni `apiKey` ve `secret` değerlerini kaydedin.
+  <Step title="Secret manager'a yaz">
+    Production secret store'unda yeni değeri kaydet.
   </Step>
-  <Step title="Servisi rolling restart ile dağıtın">
-    Yeni anahtarla başlayan instance'lar çalışmaya başlasın. Eski instance'lar hâlâ eski anahtarla çalışıyor — ikisi de geçerli.
+  <Step title="Servisi rolling restart ile dağıt">
+    Yeni secret ile başlayan instance'lar JWT alıp çalışmaya başlar. Eski instance'lar hâlâ eski secret'la çalışıyor — 24 saat boyunca her iki secret geçerli.
   </Step>
-  <Step title="Eski anahtara trafik kalmadığında pasife alın">
-    Konsol → API Kayıtları'ndan eski anahtara gelen istek olup olmadığını izleyin. Sıfırlanınca [revoke edin](/identity/api-keys/revoke).
+  <Step title="24 saat sonra eski secret otomatik geçersiz olur">
+    Geçişin sorunsuz olduğunu konsoldan **API Kayıtları** ekranıyla doğrula.
   </Step>
 </Steps>
 
-`rotate-secret` endpoint'i ise **tek bir anahtar bağlamında** çalışır — sızıntı şüphesinde anlık kapatma için uygundur.
+## Acil rotation (sızıntı şüphesi)
+
+Sızıntı şüphesi varsa **24 saatlik geçiş penceresini beklemek istemezsiniz**. Anlık etki için iki seçenek:
+
+1. **Anahtarı pasife alın** — `PUT /api-keys/{id}` ile `is_active: false`. Token üretimi anında durur. Sonra rotate-secret yapın.
+2. **Anahtarı silin** — `DELETE /api-keys/{id}`. Yeni anahtar oluşturup servislerinizi yeniden konfigüre edin.
+
+Detay: [Anahtar Revoke / Silme](/identity/api-keys/revoke).
 
 ## Hata yanıtları
 
+Hata zarfı RFC 9457 problem+json.
+
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `API_KEY_NOT_FOUND` | Anahtar bulunamadı |
-| `403` | `PERMISSION_DENIED` | Rotasyon yetkiniz yok (TenantAdmin gerekir) |
+| `404` | `api_key_not_found` | Anahtar bulunamadı veya bu tenant'a ait değil |
+| `403` | `forbidden` | `tenant-admin` rolü yok |
+
+## En iyi uygulamalar
+
+<Check>**6 ayda bir rotasyon** — periyodik güvenlik standardı.</Check>
+<Check>**Ekip değişiminde rotasyon** — bir kişi ayrıldığında erişebildiği anahtarları döndürün.</Check>
+<Check>**Sızıntı sonrası anlık pasife alma + rotasyon** — 24 saatlik geçiş penceresini beklemeyin.</Check>
+<Check>**Audit log takibi** — rotasyon olayları konsoldaki **API Kayıtları → Audit** ekranında loglanır.</Check>

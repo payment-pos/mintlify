@@ -1,116 +1,130 @@
 ---
 title: "BIN Sorgulama"
-description: "Kart numarasının ilk 6-8 hanesinden banka, kart birliği ve tipi öğrenin."
+description: "Kart numarasının ilk 6 hanesinden banka, kart birliği ve tipi öğrenin."
 ---
 
-**BIN** (Bank Identification Number), kart numarasının ilk 6-8 hanesidir. Bu sayılar bankayı, kart birliğini (Visa, Mastercard, Troy) ve kart tipini (kredi/banka) tanımlar.
+**BIN** (Bank Identification Number), kart numarasının ilk 6 hanesidir. Bu sayılar bankayı, kart birliğini (Visa, Mastercard, Troy) ve kart tipini (kredi / banka / prepaid) tanımlar.
 
 Identity servisi tüm Türk bankalarının BIN aralıklarını içerir. Checkout sırasında müşteriye dinamik olarak banka logosu, taksit seçenekleri ve kart kampanyaları göstermek için kullanılır.
 
-## Endpoint
+## Endpoint'ler
 
-```
-GET /api/v1/lookups/bankbins
+```http
+GET    /api/v1/lookups/bank-bins                 # Liste (sayfalı)
+GET    /api/v1/lookups/bank-bins/{id}            # Tek BIN aralığı
+POST   /api/v1/lookups/bank-bins                 # Yeni BIN aralığı (admin)
+PUT    /api/v1/lookups/bank-bins/{id}            # Güncelleme (admin)
+DELETE /api/v1/lookups/bank-bins/{id}            # Silme (admin)
+POST   /api/v1/lookups/bank-bins/import          # Toplu import (admin)
 ```
 
-## İstek
+JWT Bearer auth gerektirir. CRUD operasyonları `tenant-admin` veya `platform-admin` rolü gerektirir.
+
+## Liste / arama
 
 ```bash
-curl "https://identity.payven.com.tr/api/v1/lookups/bankbins?bin=454671" \
-  -H "Authorization: Bearer ..."
+curl "https://identity.payven.com.tr/api/v1/lookups/bank-bins?bin_prefix=454671&page=1&page_size=20" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-| Query parametresi | Tip | Açıklama |
-|---|---|---|
-| `bin` | `string` | 6-8 haneli BIN |
-| `bankId` | `uuid` | Belirli bir bankanın BIN'lerini listele |
-| `page`        / `pageSize` | `int` | Sayfalama |
+| Query parametresi | Açıklama |
+|---|---|
+| `bin_prefix` | İlk 1-6 hane — bu prefix ile başlayan BIN aralıklarını döner |
+| `bank_id` | Belirli bir bankanın tüm BIN'lerini listele |
+| `card_scheme` | `visa`, `mastercard`, `troy`, `amex` |
+| `card_type` | `credit`, `debit`, `prepaid` |
+| `page`, `page_size` | Sayfalama (default `1`, `50`; max `200`) |
 
 ## Yanıt
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "items": [
-      {
-        "id": "...",
-        "binStart": "454671",
-        "binEnd": "454671",
-        "bankId": "8e3f5c12-...",
-        "bankCode": "GARANTI",
-        "bankName": "Garanti BBVA",
-        "cardScheme": "Visa",
-        "cardType": "Credit",
-        "cardProgram": "Bonus",
-        "country": "TR",
-        "isCommercial": false,
-        "logoUrl": "https://cdn.payven.com.tr/cards/visa.svg"
-      }
-    ]
-  }
+  "items": [
+    {
+      "id":           "abc-...",
+      "bin_start":    "454671",
+      "bin_end":      "454671",
+      "bank_id":      "8e3f5c12-...",
+      "bank_code":    "GARANTI",
+      "bank_name":    "Garanti BBVA",
+      "card_scheme":  "visa",
+      "card_type":    "credit",
+      "card_program": "bonus",
+      "country":      "TR",
+      "is_commercial": false,
+      "is_active":    true
+    }
+  ],
+  "page":              1,
+  "total_pages":       1,
+  "total_count":       1,
+  "has_previous_page": false,
+  "has_next_page":     false
 }
 ```
 
-| Alan | Açıklama |
-|---|---|
-| `binStart`, `binEnd` | Aralık başlangıç/bitiş BIN'i |
-| `cardScheme` | `Visa`, `Mastercard`, `Troy`, `Amex` |
-| `cardType` | `Credit`, `Debit`, `Prepaid` |
-| `cardProgram` | Banka programı: `Bonus`, `Maximum`, `Axess`, `World`, `Paraf`, `CardFinans`, `Wings`, vb. |
-| `isCommercial` | Kurumsal kart mı? |
+## Internal resolver (composer-to-composer)
 
-## Internal endpoint (composer-to-composer)
+Backend servisleriniz arasında düşük gecikmeli BIN çözümleme için `internal` namespace'i mevcuttur:
 
-Backend servisleriniz arasında düşük gecikmeli BIN çözümleme için `internal` namespace'ini kullanabilirsiniz:
-
-```
-GET /api/v1/internal/lookups/bankbins/resolve?bin=454671
+```http
+GET /api/v1/internal/lookups/bank-bins/resolve?prefix=454671
 ```
 
-Bu endpoint kuruluş kapsamında yetkilendirme **yapmaz** — yalnızca güvenli ağ içinden çağrılmalıdır.
+Bu endpoint **anonymous** çalışır (composer'lar arası iç çağrı). Yalnız güvenli ağ içinden — public erişim için load balancer / firewall katmanında bloke edilmelidir. Sanal POS Composer içindeki `IBankBinResolver` 5dk memory cache ile bu endpoint'i kullanır.
 
-## Sık kullanılan bir desen: Çığır açan checkout
+## Tipik kullanım: dinamik checkout
 
 Müşteri kart numarası alanına yazarken, ilk 6 hane tamamlandığında tetikleyin:
-
-<CodeGroup>
-```javascript Node.js (frontend yardımcı endpoint)
-// Backend tarafı endpoint:
-app.get("/api/bin/:bin", authenticate, async (req, res) => {
-  const { bin } = req.params;
-  const lookup = await fetch(
-    `${IDENTITY_BASE}/lookups/bankbins?bin=${bin}`,
-    { headers: { Authorization: `Bearer ${getServiceToken()}` } }
-  );
-  const { data } = await lookup.json();
-  res.json(data.items[0] ?? null);
-});
-```
-</CodeGroup>
 
 ```javascript
 // Frontend
 async function onCardNumberChange(value) {
   const digits = value.replace(/\D/g, "");
   if (digits.length < 6) return;
-  const bin = digits.slice(0, 6);
+  const prefix = digits.slice(0, 6);
 
-  const response = await fetch(`/api/bin/${bin}`);
+  // Kendi backend'iniz üzerinden çağırın — frontend'den Identity'e direkt token taşımayın
+  const response = await fetch(`/api/bin/${prefix}`);
   const card = await response.json();
   if (card) {
-    showBankLogo(card.bankCode);
-    loadInstallmentOptions(bin, currentAmount);
+    showBankLogo(card.bank_code);
+    loadInstallmentOptions(prefix, currentAmount);
   }
 }
 ```
 
+Backend (BFF):
+
+```javascript
+app.get("/api/bin/:bin", authenticate, async (req, res) => {
+  const lookup = await fetch(
+    `${IDENTITY_BASE}/api/v1/lookups/bank-bins?bin_prefix=${req.params.bin}&page_size=1`,
+    { headers: { Authorization: `Bearer ${await getServiceToken()}` } },
+  );
+  const data = await lookup.json();
+  res.json(data.items[0] ?? null);
+});
+```
+
 ## Toplu import (admin)
 
-Kuruluş yöneticisi yeni BIN aralıkları toplu olarak yükleyebilir:
+Kuruluş yöneticisi yeni BIN aralıklarını toplu olarak yükleyebilir:
 
-```
-POST /api/v1/lookups/bankbins/import
+```bash
+curl -X POST https://identity.payven.com.tr/api/v1/lookups/bank-bins/import \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "entries": [
+      { "bin_start": "454671", "bin_end": "454671", "bank_code": "GARANTI", "card_scheme": "visa", "card_type": "credit", "card_program": "bonus" },
+      { "bin_start": "540063", "bin_end": "540063", "bank_code": "AKBANK",  "card_scheme": "mastercard", "card_type": "credit", "card_program": "axess" }
+    ]
+  }'
 ```
 
-Multipart form-data ile Excel veya CSV dosyası gönderilir. Format: `binStart, binEnd, bankCode, cardScheme, cardType, cardProgram`. Hatalı satırlar yanıtta detaylı dönülür.
+Yanıtta her satır için durum (`inserted`, `updated`, `skipped_duplicate`, `error`) raporlanır.
+
+## Caching
+
+BIN tablosu nadiren değişir — istemcinizde **24 saatlik** cache önerilir. Composer'ların kendi içinde 1 saatlik cache zaten vardır.

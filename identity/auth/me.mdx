@@ -1,117 +1,148 @@
 ---
 title: "Mevcut Kullanıcı (/me)"
-description: "Aktif kullanıcının kuruluş, merchant ve özellik bağlamı."
+description: "Aktif kullanıcının kuruluş, merchant ve aktif feature bağlamı."
 ---
 
-`/me` endpoint'i; aktif kullanıcının **kim olduğu**, **hangi kuruluşa bağlı**, **hangi merchant'lara erişebildiği** ve **hangi ürünleri kullanabildiği** bilgisini tek bir istekle döner. Konsolun ana yükleme isteğidir.
+`/me` endpoint'i; aktif kullanıcının **kim olduğu**, **hangi tenant'a bağlı**, **hangi merchant adına** çalıştığı ve **hangi modüller** için yetkili olduğunu tek bir istekte döner. Konsolun ilk açılışta yaptığı kanonik çağrıdır.
 
 ## Endpoint
 
-```
+```http
 GET /api/v1/me
 ```
+
+JWT Bearer auth gerektirir.
 
 ## İstek
 
 ```bash
 curl https://identity.payven.com.tr/api/v1/me \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiI..."
 ```
 
 ## Yanıt
 
+`200 OK` — `MeDto`:
+
 ```json
 {
-  "isSuccess": true,
-  "code": "200",
-  "data": {
-    "user": {
-      "id": "9f3d2b8e-...",
-      "email": "user@acme-bank.com",
-      "firstName": "Ayşe",
-      "lastName": "Yılmaz",
-      "roles": ["pos-admin", "transfer-viewer"]
+  "user": {
+    "id":       "9f3d2b8e-...",
+    "username": "ayse@example.com",
+    "email":    "ayse@example.com",
+    "name":     "Ayşe Yılmaz"
+  },
+  "tenant": {
+    "id":            "1a2b3c4d-...",
+    "slug":          "payven",
+    "display_name":  "Payven A.Ş."
+  },
+  "merchant": {
+    "id":          "3fa85f64-...",
+    "external_id": "M-IST-001",
+    "name":        "Acme E-Ticaret"
+  },
+  "roles": ["pos-admin", "transfer-viewer"],
+  "features": [
+    {
+      "code":         "sanalpos",
+      "display_name": "Sanal POS",
+      "base_path":    "/sanalpos",
+      "is_active":    true,
+      "permissions": [
+        "transactions.view",
+        "transactions.refund",
+        "merchants.manage"
+      ],
+      "nav_items": [
+        { "id": "dashboard",    "name": "Genel Bakış", "href": "/dashboard" },
+        { "id": "transactions", "name": "İşlemler",     "href": "/transactions" },
+        { "id": "refunds",      "name": "İadeler",      "href": "/refunds" }
+      ]
     },
-    "tenant": {
-      "id": "1a2b3c4d-...",
-      "slug": "acme-bank",
-      "name": "Acme Bank A.Ş.",
-      "status": "Active"
-    },
-    "merchants": [
-      {
-        "id": "3fa85f64-...",
-        "externalId": "M-IST-001",
-        "name": "Acme E-Ticaret"
-      }
-    ],
-    "features": [
-      {
-        "code": "sanalpos",
-        "name": "Sanal POS",
-        "category": "Module",
-        "enabled": true
-      },
-      {
-        "code": "para-transferi",
-        "name": "Para Transferi",
-        "category": "Module",
-        "enabled": true
-      },
-      {
-        "code": "fraud",
-        "name": "Fraud Yönetimi",
-        "category": "Module",
-        "enabled": false
-      }
-    ],
-    "permissions": [
-      "transactions.view",
-      "transactions.refund",
-      "merchants.manage"
-    ]
-  }
+    {
+      "code":         "para-transferi",
+      "display_name": "Para Transferi",
+      "base_path":    "/paratransferi",
+      "is_active":    true,
+      "permissions":  ["transfers.view"],
+      "nav_items":    [...]
+    }
+  ]
 }
 ```
+
+| Alan | Açıklama |
+|---|---|
+| `user` | Keycloak'tan gelen kullanıcı kimliği — `id`, `username`, `email`, `name` |
+| `tenant` | Aktif tenant — `id`, `slug`, `display_name` (null olabilir, JWT'de yoksa) |
+| `merchant` | Aktif merchant — multi-merchant senaryolarda override edilebilir (null olabilir) |
+| `roles` | Keycloak realm rolleri (`pos-admin`, `transfer-admin`, `tenant-admin`, vb.) |
+| `features[]` | Tenant planında aktif **modül** feature'ları — her birinin kullanıcının rollerinden çıkarılan effective permission listesi + filtrelenmiş nav item'lar |
 
 ## Plan ve kullanım
 
-Kuruluşunuzun aktif planını ve kotalarını ayrı endpoint'ten çekebilirsiniz:
+Tenant planının detayını ayrı endpoint'ten çekin:
 
-```
+```http
 GET /api/v1/me/plan
 ```
 
+Yanıt — `MyPlanDto`:
+
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "plan": {
-      "name": "Standart",
-      "price": 999900,
-      "currency": "TRY",
-      "billingCycle": "Monthly"
-    },
-    "usage": {
-      "monthlyTransactions": 12450,
-      "monthlyTransactionsLimit": 100000,
-      "activeMerchants": 18,
-      "activeMerchantsLimit": 50
-    },
+  "plan": {
+    "id":                "abc-...",
+    "code":              "standard",
+    "name":              "Standart Plan",
+    "description":       "...",
+    "price":             999900,
+    "currency":          "TRY",
+    "billing_cycle":     "monthly",
     "features": [
-      { "code": "sanalpos", "enabled": true },
-      { "code": "para-transferi", "enabled": true }
+      { "code": "sanalpos",       "name": "Sanal POS",       "category": "module" },
+      { "code": "para-transferi", "name": "Para Transferi",  "category": "module" }
     ]
   }
 }
 ```
 
-## Permission ve role
+Tenant planı yoksa yanıt `null` döner.
 
-Permission'lar `kategori.aksiyon` formatındadır. UI'da bir butonu göstermeden önce ilgili permission'ı kontrol edin:
+## Kullanım örnekleri
+
+### Aktif modülleri keşfet
 
 ```javascript
-const canRefund = me.permissions.includes("transactions.refund");
+const me = await fetch("/api/v1/me", { headers: auth }).then(r => r.json());
+const activeModules = me.features.filter(f => f.is_active).map(f => f.code);
+// → ["sanalpos", "para-transferi"]
 ```
 
-Tam permission listesi: [Konsol → Kullanıcı Yönetimi → Roller](https://dashboard.payven.com.tr/users).
+### UI'da bir butonu permission ile koru
+
+```javascript
+const sanalpos = me.features.find(f => f.code === "sanalpos");
+const canRefund = sanalpos?.permissions.includes("transactions.refund");
+
+if (!canRefund) hideRefundButton();
+```
+
+### Sidebar nav item'larını render et
+
+```javascript
+const navItems = sanalpos?.nav_items ?? [];
+// Backend filtered: kullanıcının izni olmayanlar zaten listede yok
+```
+
+## Hata yanıtları
+
+| HTTP | Anlam |
+|---|---|
+| `401` | Token yok / geçersiz / expired |
+| `404` | (boş) Kullanıcı tenant context'i bulunamadı |
+
+## Alternatif endpoint
+
+`/api/v1/auth/{slug}/me` endpoint'i Keycloak userinfo proxy olarak da kullanılabilir — sadece Keycloak'tan ham userinfo döner (roles + email + name), tenant/merchant/feature context'i içermez. Production akışlarında **`/api/v1/me`** tercih edin.

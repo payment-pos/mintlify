@@ -1,9 +1,9 @@
 ---
-title: "Yeni Anahtar Oluşturma"
-description: "Konsoldan veya API üzerinden yeni API anahtarı üretin."
+title: "Yeni API Anahtarı Oluşturma"
+description: "Konsoldan veya API üzerinden Keycloak service-account client'ı üretin."
 ---
 
-Yeni anahtarlar konsol veya programatik olarak oluşturulabilir. Her iki durumda da `apiSecret` **yalnızca yanıtta bir kez** döner — sonradan tekrar erişilemez.
+Yeni anahtarlar konsol veya programatik olarak oluşturulabilir. İki durumda da **`client_secret` yalnızca yanıtta bir kez** döner — sonradan tekrar erişilemez.
 
 ## Konsoldan oluşturma
 
@@ -15,79 +15,115 @@ Yeni anahtarlar konsol veya programatik olarak oluşturulabilir. Her iki durumda
     Sağ üstteki butona basın.
   </Step>
   <Step title="Bilgileri girin">
-    - **İsim**: hangi servis için kullanılacağı (örn. *"Production - Ödeme Servisi"*).
-    - **Ortam**: Sandbox veya Production.
-    - **IP Whitelist**: production için zorunlu kabul edin.
+    - **Görünen ad** — hangi servis/ortam için (örn. *"Production — Ödeme Servisi"*).
+    - **İletişim e-postası** — opsiyonel; alarm/uyarı için.
+    - **Plan** — bu anahtara atanacak plan (rate limit + kotalar).
+    - **IP whitelist** — production için zorunlu kabul edin.
+    - **Geçerlilik tarihi** — opsiyonel; geçici anahtarlar için.
   </Step>
   <Step title="Secret'i kopyalayın">
-    Üretilen `apiSecret` değerini güvenli bir yere kopyalayın. **Bu pencere kapatıldıktan sonra bir daha gösterilmez.**
+    Üretilen `client_secret` değerini güvenli bir yere (vault, secret manager) kopyalayın. **Bu pencere kapatıldıktan sonra bir daha gösterilmez.**
   </Step>
 </Steps>
 
 ## API ile oluşturma
 
-```
+```http
 POST /api/v1/tenants/me/api-keys
 ```
 
+JWT Bearer auth gerektirir + kullanıcı `tenant-admin` rolünde olmalı.
+
 ```bash
 curl -X POST https://identity.payven.com.tr/api/v1/tenants/me/api-keys \
-  -H "Authorization: Bearer ..." \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: api-key-prod-payments-1" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Production - Ödeme Servisi",
-    "environment": "Production",
-    "ipWhitelist": ["52.18.42.10", "52.18.42.11/32"],
-    "expiresAt": null
+    "display_name":            "Production — Ödeme Servisi",
+    "contact_email":           "ops@example.com",
+    "merchant_id":             "M-IST-001",
+    "plan_id":                 "abc-...",
+    "daily_limit_override":    null,
+    "monthly_limit_override":  null,
+    "rate_limit_override":     null,
+    "allowed_ips":             "52.18.42.10,52.18.42.0/24",
+    "expires_at":              null
   }'
 ```
 
 | Alan | Tip | Zorunlu | Açıklama |
 |---|---|---|---|
-| `name` | `string` | ✅ | Anahtar için açıklayıcı isim |
-| `environment` | `enum` | ✅ | `Sandbox` veya `Production` |
-| `ipWhitelist` | `string[]` | ⚠️ | IP veya CIDR listesi. Boş bırakılırsa tüm IP'ler kabul edilir. |
-| `expiresAt` | `string` (ISO-8601) | ❌ | Anahtarın otomatik pasifleşeceği tarih. Geçici anahtarlar için faydalı. |
+| `display_name` | string | ✅ | Anahtar için açıklayıcı ad |
+| `contact_email` | string | ❌ | Alarm / uyarı e-postası |
+| `merchant_id` | string | ❌ | Default merchant external ID — JWT claim olarak token'a yansır |
+| `plan_id` | UUID | ❌ | Atanacak plan — boş bırakılırsa tenant default'u |
+| `daily_limit_override` | int | ❌ | Plan günlük limitini override eder (kuruş) |
+| `monthly_limit_override` | int | ❌ | Plan aylık limit override |
+| `rate_limit_override` | int | ❌ | Plan RPS override |
+| `allowed_ips` | string | ❌ | CSV IP / CIDR listesi (örn. `52.18.42.10,10.0.0.0/8`). Boş = tüm IP'ler |
+| `expires_at` | datetime | ❌ | Anahtarın otomatik pasifleşeceği tarih (UTC, ISO 8601) |
 
 ## Yanıt
 
+`201 Created` — `CreateApiKeyResult`:
+
 ```json
 {
-  "isSuccess": true,
-  "code": "201",
-  "data": {
-    "id": "key_8e3f5c12",
-    "apiKey": "pvk-prod-MaVpaXii",
-    "secret": "ZQVHx6fpBJa4BMVggVR6xm9C9wrRDTmaGi5jgD7a",
-    "name": "Production - Ödeme Servisi",
-    "environment": "Production",
-    "status": "Active",
-    "ipWhitelist": ["52.18.42.10", "52.18.42.11/32"],
-    "createdAt": "2026-05-03T12:34:56Z",
-    "expiresAt": null
-  }
+  "api_key": {
+    "id":                       "8e3f5c12-...",
+    "tenant_id":                "1a2b3c4d-...",
+    "keycloak_client_id":       "pvk-payven-a1b2c3",
+    "display_name":             "Production — Ödeme Servisi",
+    "contact_email":            "ops@example.com",
+    "merchant_id":              "M-IST-001",
+    "plan_id":                  "abc-...",
+    "plan_code":                "standard",
+    "plan_name":                "Standart Plan",
+    "effective_daily_limit":    100000,
+    "effective_monthly_limit":  3000000,
+    "effective_rate_limit":     200,
+    "allowed_ips":              "52.18.42.10,52.18.42.0/24",
+    "expires_at":               null,
+    "is_active":                true,
+    "created":                  "2026-05-03T12:34:56.789+00:00"
+  },
+  "secret": "AbC123dEf456GhI789jKl012MnO345pQ"
 }
 ```
 
 <Warning>
-**`secret` alanı yalnızca bu yanıtta dönecek.** Listeleme veya detay endpoint'lerinde her zaman `null` olur. Hemen secret manager'ınıza kaydedin.
+**`secret` alanı yalnızca bu yanıtta dönecek.** Liste/detay endpoint'lerinde döndürülmez.
+Hemen secret manager'ınıza (HashiCorp Vault, AWS Secrets Manager, Azure Key Vault, Doppler, vb.) kaydedin.
 </Warning>
 
 ## Hemen kullanmaya başlama
 
-Aldığınız `apiKey` ve `secret` ile ürün servislerine istek atabilirsiniz:
+Aldığınız `client_id` + `secret` ile [Identity'den JWT alın](/documentation/concepts/authentication):
 
 ```bash
+TOKEN=$(curl -s https://identity.payven.com.tr/api/v1/auth/payven/token \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"client_id\":     \"pvk-payven-a1b2c3\",
+    \"client_secret\": \"AbC123dEf456GhI789jKl012MnO345pQ\"
+  }" | jq -r .access_token)
+
+# Sanal POS'a istek
 curl https://vpos.payven.com.tr/api/v1/transactions \
-  -H "X-API-Key: pvk-prod-MaVpaXii" \
-  -H "X-API-Secret: ZQVHx6fpBJa4..." \
-  -H "X-Merchant-Id: 3fa85f64-..."
+  -H "Authorization: Bearer $TOKEN"
 ```
+
+JWT içinde `tenant_id`, `merchant_id`, `plan_code`, `daily_limit`, `monthly_limit`, `rate_limit` claim'leri taşınır — Composer'lar bunları doğrudan validate eder, Identity'ye HTTP atmaz.
 
 ## Hata yanıtları
 
+Hata zarfı RFC 9457 problem+json.
+
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `403` | `PERMISSION_DENIED` | Anahtar oluşturma yetkiniz yok (TenantAdmin gerekir) |
-| `409` | `API_KEY_LIMIT_REACHED` | Plan kotanız aktif anahtar sayısı için doldu |
-| `400` | `VALIDATION_INVALID_IP` | IP whitelist formatı hatalı |
+| `403` | `forbidden` | `tenant-admin` rolü yok |
+| `404` | `plan_not_found` | Belirtilen `plan_id` bulunamadı |
+| `409` | `api_key_limit_reached` | Plan kotanız aktif anahtar sayısı için doldu |
+| `422` | `invalid_ip_format` | `allowed_ips` formatı geçersiz (IP / CIDR olmalı) |
+| `422` | `invalid_expires_at` | Geçmiş tarih veya format hatalı |

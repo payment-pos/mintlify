@@ -1,80 +1,129 @@
 ---
 title: "API Anahtarı Yönetimi"
-description: "Kuruluşunuzun ürün API'lerine erişen anahtarları yönetin."
+description: "Server-to-server entegrasyonlar için Keycloak service-account credential'ları."
 ---
 
-API anahtarları, ürün servislerine (Sanal POS, Para Transferi, Fraud, Fatura Ödeme) **sunucu-sunucu** kimlik doğrulaması için kullanılır. Anahtar yönetimi Identity servisi üzerinden yapılır.
+Payven'de "API anahtarı", **Keycloak service-account client'ıdır**. Bir API anahtarı oluşturduğunuzda Identity arka tarafta Keycloak'a yeni bir client kaydeder ve size `client_id` + `client_secret` çifti verir. Bu çift ile [`/auth/{slug}/token`](/identity/auth/login) endpoint'inden JWT alır, ürün servislerine `Authorization: Bearer ...` ile çağrı yaparsınız.
+
+<Note>
+**JWT vs API Key kavramı:** Burada "API Key" diye bahsettiğimiz şey **uzun ömürlü kimlik bilgisi** (client_id + client_secret). API çağrılarında doğrudan kullanılmaz; **kısa ömürlü JWT alıp** onu kullanırsınız. Tek başına `client_id` ile API çağrısı yapamazsınız.
+</Note>
 
 ## Anahtar yapısı
 
-Bir anahtar iki bileşenden oluşur:
-
 | Bileşen | Açıklama | Örnek |
 |---|---|---|
-| `apiKey` | Public tanımlayıcı | `pvk-prod-MaVpaXii` |
-| `apiSecret` | Gizli imza anahtarı (yalnızca oluşturma anında bir kez gösterilir) | `ZQVHx6fpBJa4...` |
+| `client_id` | Public tanımlayıcı, Keycloak client ID | `pvk-payven-a1b2c3` |
+| `client_secret` | Gizli — yalnızca oluşturma + rotasyon anında bir kez gösterilir | `whsec_AbC...XyZ` |
 
-`apiKey` `pvk-` prefix'i ile başlar, ardından ortam (`prod` / `test`) ve rastgele segment gelir.
+Client ID prefix'i `pvk-{tenant-slug}-{rastgele}` formatındadır. Sandbox/production ayrımı **tenant slug'ı** üzerinden yapılır (sandbox tenant'ı için ayrı slug + ayrı API key).
 
 ## Endpoint'ler
 
-| İşlem | Endpoint | Auth |
-|---|---|---|
-| Anahtarları listele | `GET /api/v1/tenants/me/api-keys` | Bearer |
-| Yeni anahtar oluştur | `POST /api/v1/tenants/me/api-keys` | Bearer + TenantAdmin |
-| Anahtarı güncelle | `PUT /api/v1/tenants/me/api-keys/{id}` | Bearer + TenantAdmin |
-| Secret rotasyonu | `POST /api/v1/tenants/me/api-keys/{id}/rotate-secret` | Bearer + TenantAdmin |
-| Anahtarı revoke et | `DELETE /api/v1/tenants/me/api-keys/{id}` | Bearer + TenantAdmin |
+JWT Bearer auth gerektirir (kullanıcı `tenant-admin` rolünde olmalı).
+
+```http
+GET    /api/v1/tenants/me/api-keys                    # Liste (sayfalı)
+GET    /api/v1/tenants/me/api-keys/{id}               # Tek anahtar
+POST   /api/v1/tenants/me/api-keys                    # Yeni anahtar
+PUT    /api/v1/tenants/me/api-keys/{id}               # Güncelleme
+DELETE /api/v1/tenants/me/api-keys/{id}               # Silme (revoke)
+POST   /api/v1/tenants/me/api-keys/{id}/rotate-secret # Secret rotasyonu
+```
+
+## Liste
+
+```bash
+curl https://identity.payven.com.tr/api/v1/tenants/me/api-keys \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+Yanıt — sayfalı `ApiKeyDto` listesi:
+
+```json
+{
+  "items": [
+    {
+      "id":                       "8e3f5c12-...",
+      "tenant_id":                "1a2b3c4d-...",
+      "keycloak_client_id":       "pvk-payven-a1b2c3",
+      "display_name":             "Production — Ödeme Servisi",
+      "contact_email":            "ops@example.com",
+      "merchant_id":              "M-IST-001",
+      "plan_id":                  "abc-...",
+      "plan_code":                "standard",
+      "plan_name":                "Standart Plan",
+      "daily_limit_override":     null,
+      "monthly_limit_override":   null,
+      "rate_limit_override":      null,
+      "effective_daily_limit":    100000,
+      "effective_monthly_limit":  3000000,
+      "effective_rate_limit":     200,
+      "allowed_ips":              "52.18.42.10,52.18.42.0/24",
+      "expires_at":               null,
+      "is_active":                true,
+      "created":                  "2026-01-15T10:00:00.000+00:00"
+    }
+  ],
+  "page":              1,
+  "total_pages":       1,
+  "total_count":       4,
+  "has_previous_page": false,
+  "has_next_page":     false
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `keycloak_client_id` | API çağrılarında `client_id` olarak kullanılır |
+| `display_name` | İnsan-okur ad (raporlama için) |
+| `merchant_id` | Bu anahtarın "default merchant"ı — JWT claim'ine yansır |
+| `plan_*` | Atanmış plan (rate limit + günlük/aylık limit kaynağı) |
+| `*_override` | Plan default'unu override eden tenant-spesifik limit |
+| `effective_*` | Override'lar uygulanmış nihai limit (JWT claim olarak token'a basılır) |
+| `allowed_ips` | CSV IP / CIDR listesi |
+| `expires_at` | Anahtarın otomatik pasifleşeceği tarih (boş = sınırsız) |
+| `is_active` | Pasif anahtarlar token üretemez |
+
+<Note>
+**`client_secret` listede her zaman gizli.** Sadece oluşturma + rotasyon yanıtında bir kez döner.
+</Note>
 
 ## Yaşam döngüsü
 
 ```mermaid
 flowchart LR
-    A[Oluştur] --> B[Aktif]
-    B -->|Rotate Secret| B
-    B -->|Disable| C[Pasif]
-    C -->|Enable| B
-    B -->|Delete| D[Silinmiş]
-    C -->|Delete| D
+    A[POST .../api-keys] --> B[Aktif]
+    B -->|POST .../rotate-secret| B
+    B -->|PUT .../api-keys/id<br/>is_active=false| C[Pasif]
+    C -->|PUT .../api-keys/id<br/>is_active=true| B
+    B -->|DELETE| D[Silinmiş]
+    C -->|DELETE| D
 ```
 
-## Anahtar listesi
+## En iyi uygulamalar
 
-```bash
-curl https://identity.payven.com.tr/api/v1/tenants/me/api-keys \
-  -H "Authorization: Bearer ..."
-```
-
-```json
-{
-  "isSuccess": true,
-  "data": {
-    "items": [
-      {
-        "id": "key_8e3f5c12",
-        "apiKey": "pvk-prod-MaVpaXii",
-        "name": "Production - Ödeme Servisi",
-        "environment": "Production",
-        "status": "Active",
-        "ipWhitelist": ["52.18.42.10", "52.18.42.11"],
-        "createdAt": "2026-01-15T10:00:00Z",
-        "lastUsedAt": "2026-05-03T12:34:56Z",
-        "secret": null
-      }
-    ],
-    "totalCount": 4
-  }
-}
-```
-
-`secret` alanı **listeleme yanıtında her zaman `null`** döner. Secret yalnızca oluşturma ve rotasyon anında bir kez gösterilir.
-
-## Kuralname
-
-<Check>Her ortam (sandbox / production) için **ayrı anahtar** oluşturun.</Check>
-<Check>Her servis için **ayrı anahtar** oluşturmayı düşünün — sızıntı durumunda etki alanı sınırlı kalır.</Check>
-<Check>Production anahtarları için **IP whitelist** zorunlu kabul edin.</Check>
-<Check>**6 ayda bir** rotasyona alın.</Check>
-<Check>Ekipten ayrılan üye varsa o kişinin erişebildiği anahtarları **rotasyona alın**.</Check>
+<Check>**Ortam başına ayrı anahtar** — sandbox tenant'ı için ayrı `client_id` üret, production'la karıştırma.</Check>
+<Check>**Servis başına ayrı anahtar** — sızıntı durumunda etki alanı sınırlı kalır, audit kolaylaşır.</Check>
+<Check>**Production için IP whitelist zorunlu** — `allowed_ips` doldurmadan production anahtar dağıtmayın.</Check>
+<Check>**6 ayda bir rotasyon** — `rotate-secret` ile secret'ı yenileyin (eski 24 saat geçerli kalır, zero-downtime geçiş).</Check>
+<Check>**Ekipten ayrılma protokolü** — bir kişi ayrıldığında o kişinin erişebildiği anahtarları rotasyona alın.</Check>
 
 Detay: [API Anahtarı En İyi Uygulamaları](/documentation/security/api-key-best-practices).
+
+## Sıradaki adımlar
+
+<CardGroup cols={2}>
+  <Card title="Yeni anahtar oluştur" icon="plus" href="/identity/api-keys/create">
+    Adım adım kayıt + secret saklama.
+  </Card>
+  <Card title="Secret rotasyonu" icon="arrows-rotate" href="/identity/api-keys/rotate">
+    Sızıntı şüphesi veya zamanlı rotation.
+  </Card>
+  <Card title="Anahtar revoke" icon="trash" href="/identity/api-keys/revoke">
+    Pasif/sil — kullanılmayan anahtarları temizle.
+  </Card>
+  <Card title="JWT alma akışı" icon="key" href="/documentation/concepts/authentication">
+    Aldığınız client_id+secret ile token nasıl alınır?
+  </Card>
+</CardGroup>

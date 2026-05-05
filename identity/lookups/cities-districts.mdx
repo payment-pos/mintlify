@@ -3,52 +3,60 @@ title: "Şehir ve İlçe"
 description: "Türkiye il ve ilçe listesi — onboarding adres formları için."
 ---
 
-İl ve ilçe lookup'ları, merchant onboarding ve adres formlarında dropdown doldurmak için kullanılır.
+İl ve ilçe lookup'ları; merchant onboarding ve adres formlarında dropdown doldurmak için kullanılır. Sayfalama yoktur — tüm il/ilçe listesi tek seferde döner.
 
 ## Şehirler
 
-```
+```http
 GET /api/v1/lookups/cities
 ```
 
+```bash
+curl https://identity.payven.com.tr/api/v1/lookups/cities \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+Yanıt — şehir listesi (81 il):
+
 ```json
-{
-  "isSuccess": true,
-  "data": {
-    "items": [
-      { "id": "...", "code": "34", "name": "İstanbul" },
-      { "id": "...", "code": "06", "name": "Ankara" },
-      { "id": "...", "code": "35", "name": "İzmir" }
-    ]
-  }
-}
+[
+  { "id": "abc-...", "code": "34", "name": "İstanbul" },
+  { "id": "def-...", "code": "06", "name": "Ankara" },
+  { "id": "ghi-...", "code": "35", "name": "İzmir" }
+]
 ```
 
 | Alan | Açıklama |
 |---|---|
+| `id` | UUID — districts sorgusunda kullanılır |
 | `code` | Plaka kodu (`34`, `06`, ...) |
 | `name` | Türkçe isim |
 
 ## İlçeler
 
-```
-GET /api/v1/lookups/districts?cityId={cityId}
+```http
+GET /api/v1/lookups/districts?city_id={uuid}
 ```
 
-İlçeleri **şehir bazında** çekersiniz. Tüm ilçeleri tek seferde almak yerine seçilen şehre göre lazy-load önerilir.
+İlçeleri **şehir bazında** çekersiniz. Tüm ilçeleri tek seferde almak mümkün ama 950+ kayıt — seçilen şehre göre lazy-load önerilir.
+
+```bash
+curl "https://identity.payven.com.tr/api/v1/lookups/districts?city_id=abc-..." \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
 
 ```json
-{
-  "isSuccess": true,
-  "data": {
-    "items": [
-      { "id": "...", "name": "Kadıköy", "cityId": "..." },
-      { "id": "...", "name": "Beşiktaş", "cityId": "..." }
-    ]
-  }
-}
+[
+  { "id": "...", "name": "Kadıköy",   "city_id": "abc-..." },
+  { "id": "...", "name": "Beşiktaş", "city_id": "abc-..." },
+  { "id": "...", "name": "Şişli",     "city_id": "abc-..." }
+]
 ```
+
+| Query parametresi | Tip | Açıklama |
+|---|---|---|
+| `city_id` | UUID | Filtre — boş bırakılırsa tüm ilçeler döner |
 
 ## Caching
 
-Bu liste **çok nadir** değişir (yeni ilçe atanması nadirdir). 7 günlük cache uygulayabilirsiniz.
+Bu liste **çok nadir** değişir (yeni ilçe atanması nadirdir). İstemcinizde **7 günlük** cache uygulayabilirsiniz. Composer'ların iç kullanımı için Identity zaten 1 saatlik in-memory cache uygular.

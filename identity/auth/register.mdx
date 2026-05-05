@@ -1,72 +1,84 @@
 ---
-title: "Self-Service Register"
-description: "Kuruluşa bağlı yeni kullanıcı kaydı (onay bekleyen)."
+title: "Self-Service Kayıt"
+description: "Bir tenant'a yeni kullanıcı kaydı (onay bekleyen)."
 ---
 
-Kuruluşunuza bağlı yeni kullanıcılar self-service kayıt akışıyla başvurabilir. Kayıt sonrası hesap **onay bekleyen** statüde kalır — kuruluş yöneticisi onayladığında aktifleşir.
+Bir tenant'a self-service kayıt akışıyla yeni kullanıcı eklenir. Kayıt sonrası hesap **onay bekleyen** statüde kalır (`Enabled=false`, `pendingApproval=true`); tenant yöneticisi konsolundan onayladığında aktifleşir ve rol atanır.
 
 ## Endpoint
 
-```
+```http
 POST /api/v1/auth/{slug}/register
 ```
+
+| Path parametresi | Açıklama |
+|---|---|
+| `slug` | Tenant slug. **`platform` slug'ı kabul edilmez** (platform admin sadece davet ile eklenebilir). |
+
+<Note>
+Bu endpoint **rate limited**: IP başına dakikada 10 istek. Aşımda `429 rate_limit_exceeded`.
+</Note>
 
 ## İstek
 
 ```bash
-curl -X POST https://identity.payven.com.tr/api/v1/auth/acme-bank/register \
+curl -X POST https://identity.payven.com.tr/api/v1/auth/payven/register \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "yeni@acme-bank.com",
-    "firstName": "Ayşe",
-    "lastName": "Yılmaz",
-    "phone": "+905551234567",
-    "password": "GüçlüParola123!",
-    "title": "Operasyon Uzmanı"
+    "first_name":   "Ayşe",
+    "last_name":    "Yılmaz",
+    "email":        "ayse@example.com",
+    "company_name": "Acme Ödeme Kuruluşu",
+    "password":     "GüċlüParola123!"
   }'
 ```
 
 | Alan | Tip | Zorunlu | Açıklama |
 |---|---|---|---|
-| `email` | `string` | ✅ | Geçerli e-posta |
-| `firstName` | `string` | ✅ | |
-| `lastName` | `string` | ✅ | |
-| `phone` | `string` | ⚠️ | E.164 formatında önerilir |
-| `password` | `string` | ✅ | Min. 10 karakter, harf+rakam+sembol |
-| `title` | `string` | ⚠️ | Kullanıcının ünvanı |
+| `first_name` | string | ✅ | İsim |
+| `last_name` | string | ✅ | Soyisim |
+| `email` | string | ✅ | Geçerli e-posta — kullanıcı adı olarak kullanılır |
+| `company_name` | string | ✅ | Şirket adı (Keycloak attribute olarak saklanır) |
+| `password` | string | ✅ | Keycloak parola politikasına uygun (min uzunluk + karakter çeşitliliği) |
 
 ## Yanıt
 
+`201 Created`:
+
 ```json
 {
-  "isSuccess": true,
-  "message": "Kayıt başvurunuz alındı. Yönetici onayı bekleniyor.",
-  "code": "201",
-  "data": {
-    "userId": "9f3d2b8e-5a4c-4a1d-9e2f-12cb24a8a8a8",
-    "status": "PendingApproval"
-  }
+  "user_id": "9f3d2b8e-5a4c-4a1d-9e2f-12cb24a8a8a8",
+  "email":   "ayse@example.com"
 }
 ```
 
-## Hata yanıtları
-
-| HTTP | `code` | Anlam |
-|---|---|---|
-| `400` | `VALIDATION_INVALID_EMAIL` | E-posta formatı geçersiz |
-| `400` | `VALIDATION_WEAK_PASSWORD` | Parola politikası karşılanmıyor |
-| `409` | `USER_ALREADY_EXISTS` | Bu e-posta zaten kayıtlı |
-| `404` | `TENANT_NOT_FOUND` | Slug bulunamadı |
+| Alan | Açıklama |
+|---|---|
+| `user_id` | Keycloak'ta oluşturulan kullanıcının kimliği |
+| `email` | Doğrulanmış e-posta adresi |
 
 ## Onay süreci
 
 ```mermaid
 flowchart LR
-    A[Yeni kullanıcı kayıt olur] --> B[Pending Approval]
-    B --> C{Yönetici inceler}
-    C -->|Onayla| D[Active]
-    C -->|Reddet| E[Rejected]
+    A[POST /register] --> B[Keycloak'ta user oluştu<br/>Enabled=false<br/>pendingApproval=true]
+    B --> C{Tenant admin onaylar mı?}
+    C -->|Evet| D[Enabled=true<br/>rol atanır]
+    C -->|Hayır| E[user disabled kalır]
     D --> F[Kullanıcı login olabilir]
 ```
 
-Kuruluş yöneticileri bekleyen kullanıcıları konsoldaki **Kullanıcılar → Onay Bekleyenler** ekranından yönetir.
+Tenant adminleri **Konsol → Kullanıcılar → Onay Bekleyenler** ekranından bekleyenleri görür ve `PUT /api/v1/users/{id}` ile onaylar.
+
+## Hata yanıtları
+
+Hata zarfı RFC 9457 problem+json.
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `400` | `validation_failed` | Zorunlu alan eksik / format yanlış |
+| `404` | `realm_not_found` | Slug bulunamadı veya `platform` denendi |
+| `403` | `tenant_inactive` | Tenant askıya alınmış |
+| `409` | `user_already_exists` | Bu e-posta zaten kayıtlı (aynı tenant içinde) |
+| `422` | `weak_password` | Parola Keycloak politikasına uymuyor |
+| `429` | `rate_limit_exceeded` | Çok fazla deneme — `Retry-After` header'ına uyun |

@@ -3,52 +3,83 @@ title: "IBAN Doğrulama"
 description: "IBAN formatını doğrulayın ve banka bilgilerini çözümleyin."
 ---
 
-IBAN (International Bank Account Number) formatı **mod-97** algoritmasıyla doğrulanır. Aynı zamanda banka kodu çözümlenir.
+IBAN (International Bank Account Number) formatı **mod-97** algoritmasıyla doğrulanır. TR IBAN'larında 5-9. karakterler banka kodu ile eşleşir → banka bilgisi de aynı yanıtta döner.
 
 ## Endpoint
 
-```
+```http
 POST /api/v1/validation/iban
 ```
+
+JWT Bearer auth gerektirir.
 
 ## İstek
 
 ```bash
 curl -X POST https://identity.payven.com.tr/api/v1/validation/iban \
-  -H "Authorization: Bearer ..." \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "iban": "TR320010009999901234567890" }'
 ```
 
+| Alan | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `iban` | string | ✅ | Boşluklu veya boşluksuz IBAN — Payven normalize eder |
+
 ## Yanıt
+
+`200 OK` — `IbanValidationResultDto`:
 
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "isValid": true,
-    "iban": "TR320010009999901234567890",
-    "formattedIban": "TR32 0010 0099 9990 1234 5678 90",
-    "country": "TR",
-    "bank": {
-      "id": "8e3f5c12-...",
-      "code": "ZIRAAT",
-      "name": "Ziraat Bankası",
-      "branchCode": "0010"
-    }
-  }
+  "is_valid":       true,
+  "checksum_valid": true,
+  "format_valid":   true,
+  "country_code":   "TR",
+  "check_digits":   "32",
+  "bank_code":      "00010",
+  "formatted_iban": "TR32 0010 0099 9990 1234 5678 90",
+  "masked_iban":    "TR32 **** **** **** **** **78 90",
+  "bank": {
+    "id":            "8e3f5c12-...",
+    "code":          "ZIRAAT",
+    "name":          "T.C. Ziraat Bankası",
+    "bkm_member_id": "10"
+  },
+  "error_message": null
 }
 ```
 
-## Hata yanıtları
+| Alan | Açıklama |
+|---|---|
+| `is_valid` | Genel geçerlilik (`format_valid && checksum_valid`) |
+| `checksum_valid` | mod-97 doğrulaması |
+| `format_valid` | Uzunluk + karakter formatı (TR için 26 hane) |
+| `country_code` | İlk 2 karakter (`TR`) |
+| `check_digits` | 3-4. hane (mod-97 sonucu) |
+| `bank_code` | TR IBAN için 5-9. hane (5 haneli banka kodu) |
+| `formatted_iban` | İnsan-okur format (4'lü gruplar) |
+| `masked_iban` | Görüntüleme için maskeli format |
+| `bank` | TR IBAN'larında banka kodundan çözümlenmiş banka (yabancı IBAN'larda `null`) |
 
-| HTTP | `code` | Anlam |
-|---|---|---|
-| `400` | `VALIDATION_INVALID_IBAN_FORMAT` | Format yanlış (uzunluk, karakter) |
-| `400` | `VALIDATION_INVALID_IBAN_CHECKSUM` | Mod-97 checksum doğrulanamadı |
-| `400` | `VALIDATION_UNSUPPORTED_COUNTRY` | Türkiye dışı IBAN — şu an `TR` desteklenmektedir |
+## Geçersiz örnek
 
-## Tipik kullanım
+```json
+{
+  "is_valid":       false,
+  "checksum_valid": false,
+  "format_valid":   true,
+  "country_code":   "TR",
+  "check_digits":   "33",
+  "bank_code":      null,
+  "formatted_iban": "TR33 0010 0099 9990 1234 5678 90",
+  "masked_iban":    "TR33 **** **** **** **** **78 90",
+  "bank":           null,
+  "error_message":  "IBAN mod-97 checksum'ı geçmiyor."
+}
+```
+
+## Tipik kullanım: alıcı hesabı kaydı
 
 Para Transferi entegrasyonunda alıcı hesabı kaydederken IBAN'ı doğrularsınız:
 
@@ -61,14 +92,27 @@ async function onIbanBlur(iban) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ iban: cleaned }),
   });
-  const { data, isSuccess, message } = await res.json();
+  const result = await res.json();
 
-  if (!isSuccess) {
-    showError(message);
+  if (!result.is_valid) {
+    showError(result.error_message);
     return;
   }
 
-  setRecipientBank(data.bank.name);
-  setIbanFormatted(data.formattedIban);
+  setRecipientBank(result.bank?.name);
+  setIbanFormatted(result.formatted_iban);
 }
 ```
+
+## Hata yanıtları (HTTP)
+
+`is_valid: false` durumu `200 OK` ile döner — `error_message` alanı sebebi içerir. Aşağıdaki HTTP hataları yalnızca istek formatı hatalı olduğunda döner:
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `400` | `validation_failed` | `iban` alanı eksik veya boş |
+| `400` | `bad_request` | İstek gövdesi geçersiz JSON |
+
+## Yabancı IBAN desteği
+
+Format ve checksum doğrulaması ISO 13616 kapsamındaki **tüm ülkeler** için çalışır. Banka çözümlemesi şu an yalnızca **TR IBAN** için aktiftir — diğer ülkelerde `bank: null` döner. Yabancı banka çözümlemesi yol haritasındadır.

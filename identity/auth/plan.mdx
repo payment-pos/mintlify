@@ -1,84 +1,79 @@
 ---
-title: "Plan ve Kullanım (/me/plan)"
-description: "Kuruluşunuzun aktif planı, kotaları ve gerçek zamanlı kullanım metrikleri."
+title: "Plan (/me/plan)"
+description: "Kuruluşunuzun atanmış planı ve plan'a dahil feature'lar."
 ---
 
-`/me/plan` endpoint'i; aktif planınızı, etkin ürünleri ve gerçek zamanlı kullanım sayaçlarınızı döner.
+`/me/plan` endpoint'i; aktif tenant'ınızın atanmış planını ve plana dahil feature'ları döner. Sadece okunabilir (read-only); plan değişikliği konsoldan veya satış ekibinden talep edilir.
 
 ## Endpoint
 
-```
+```http
 GET /api/v1/me/plan
 ```
+
+JWT Bearer auth gerektirir.
 
 ## İstek
 
 ```bash
 curl https://identity.payven.com.tr/api/v1/me/plan \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..."
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
 ## Yanıt
 
+`200 OK` — `MyPlanDto`:
+
 ```json
 {
-  "isSuccess": true,
-  "data": {
-    "plan": {
-      "id": "plan_standard",
-      "name": "Standart",
-      "price": 999900,
-      "currency": "TRY",
-      "billingCycle": "Monthly",
-      "renewsAt": "2026-06-01T00:00:00Z"
-    },
-    "usage": {
-      "monthlyTransactions": 12450,
-      "monthlyTransactionsLimit": 100000,
-      "rps": 47,
-      "rpsLimit": 200,
-      "activeMerchants": 18,
-      "activeMerchantsLimit": 50,
-      "activeApiKeys": 4,
-      "activeApiKeysLimit": 10
-    },
+  "plan": {
+    "id":            "abc-...",
+    "code":          "standard",
+    "name":          "Standart Plan",
+    "description":   "Sanal POS + Para Transferi modülleri",
+    "price":         999900,
+    "currency":      "TRY",
+    "billing_cycle": "monthly",
     "features": [
       {
-        "code": "sanalpos",
-        "name": "Sanal POS",
-        "category": "Module",
-        "enabled": true
+        "code":     "sanalpos",
+        "name":     "Sanal POS",
+        "category": "module"
       },
       {
-        "code": "para-transferi",
-        "name": "Para Transferi",
-        "category": "Module",
-        "enabled": true
+        "code":     "para-transferi",
+        "name":     "Para Transferi",
+        "category": "module"
       },
       {
-        "code": "fraud",
-        "name": "Fraud Yönetimi",
-        "category": "Module",
-        "enabled": false,
-        "available": true
+        "code":     "fraud",
+        "name":     "Fraud Yönetimi",
+        "category": "addon"
       }
     ]
   }
 }
 ```
 
-## Kota uyarıları
-
-Kotanın **%80**'ini geçtiğinizde otomatik bir webhook olayı gönderilir:
-
-| Olay | Açıklama |
+| Alan | Açıklama |
 |---|---|
-| `plan.usage.warning` | Bir kota %80 seviyesini geçti |
-| `plan.usage.critical` | Bir kota %95 seviyesini geçti |
-| `plan.usage.exceeded` | Bir kota aşıldı, ilgili istekler reddedilmeye başlandı |
+| `plan.id` | Plan kimliği |
+| `plan.code` | Plan kodu (`free`, `standard`, `enterprise`, vb.) |
+| `plan.name`, `description` | İnsan-okur ad |
+| `plan.price` | Kuruş cinsinden (varsayılan TRY) |
+| `plan.billing_cycle` | `monthly`, `yearly` |
+| `plan.features[]` | Plana dahil feature'lar — `category: "module"` aktif modül, `addon` ek paket |
 
-Detay: [Webhook Olayları](/sanal-pos/webhooks/events).
+Tenant planı henüz atanmamışsa yanıt `null` döner.
 
-## Plan yükseltme
+## Aktif feature'ları öğrenmek
 
-Kotanız yetmiyorsa konsoldaki **Plan ve Kullanım** ekranından yükseltme talebi açabilir veya doğrudan [destek ekibine](/resources/support) yazabilirsiniz.
+Plan'a dahil feature'ların **bu kullanıcı için aktif olup olmadığını** öğrenmek için [`GET /me`](/identity/auth/me) endpoint'ini kullanın — orada `features[].is_active` alanı kullanıcı + tenant + plan üçlüsünden filtrelenmiş halde döner.
+
+## Yol haritası
+
+- **Kullanım sayaçları** — bu plan kapsamında aylık transaction sayısı, RPS limiti, aktif merchant sayısı (henüz public response'da değil; backend hazırlıkta)
+- **Plan yükseltme webhook'ları** — `plan.usage.warning`, `plan.usage.exceeded` (planda)
+- **Self-service plan yükseltme** — şu an konsoldan veya satış kanalı üzerinden
+
+Güncellemeler için: [Changelog](/resources/changelog).
