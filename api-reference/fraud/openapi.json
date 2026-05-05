@@ -1,9 +1,30 @@
 {
   "openapi": "3.0.4",
   "info": {
-    "title": "Payven.Fraud.Web",
+    "title": "Payven Fraud API",
+    "description": "Payven Fraud — gercek zamanli risk skorlama ve fraud kural motoru.",
+    "termsOfService": "https://payven.com.tr/sozlesmeler",
+    "contact": {
+      "name": "Payven Developer Support",
+      "url": "https://docs.payven.com.tr",
+      "email": "destek@payven.com.tr"
+    },
+    "license": {
+      "name": "Payven API License",
+      "url": "https://payven.com.tr/sozlesmeler/api-lisansi"
+    },
     "version": "1.0"
   },
+  "servers": [
+    {
+      "url": "https://fraud.payven.com.tr",
+      "description": "Production"
+    },
+    {
+      "url": "https://fraud-sandbox.payven.com.tr",
+      "description": "Sandbox"
+    }
+  ],
   "paths": {
     "/api/v1/internal/fraud/evaluate": {
       "post": {
@@ -31,17 +52,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Evaluate.EvaluateFraudRequest"
+                "$ref": "#/components/schemas/EvaluateFraudRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Evaluate.EvaluateFraudRequest"
+                "$ref": "#/components/schemas/EvaluateFraudRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Evaluate.EvaluateFraudRequest"
+                "$ref": "#/components/schemas/EvaluateFraudRequest"
               }
             }
           }
@@ -52,17 +73,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Evaluate.EvaluationResultDto"
+                  "$ref": "#/components/schemas/EvaluationResultDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Evaluate.EvaluationResultDto"
+                  "$ref": "#/components/schemas/EvaluationResultDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Evaluate.EvaluationResultDto"
+                  "$ref": "#/components/schemas/EvaluationResultDto"
                 }
               }
             }
@@ -72,17 +93,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -109,17 +130,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Finalize.FinalizeDecisionCommand"
+                "$ref": "#/components/schemas/FinalizeDecisionCommand"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Finalize.FinalizeDecisionCommand"
+                "$ref": "#/components/schemas/FinalizeDecisionCommand"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Finalize.FinalizeDecisionCommand"
+                "$ref": "#/components/schemas/FinalizeDecisionCommand"
               }
             }
           }
@@ -133,17 +154,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -162,14 +183,14 @@
             "name": "status",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudAlertStatus"
+              "$ref": "#/components/schemas/FraudAlertStatus"
             }
           },
           {
             "name": "process",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudProcess"
+              "$ref": "#/components/schemas/FraudProcess"
             }
           },
           {
@@ -225,17 +246,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudAlertDtoPaginatedList"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudAlertDtoPaginatedList"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudAlertDtoPaginatedList"
                 }
               }
             }
@@ -270,17 +291,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Web.Controllers.PlatformFraudAlertsController.ResolveBody"
+                "$ref": "#/components/schemas/ResolveBody"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Web.Controllers.PlatformFraudAlertsController.ResolveBody"
+                "$ref": "#/components/schemas/ResolveBody"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Web.Controllers.PlatformFraudAlertsController.ResolveBody"
+                "$ref": "#/components/schemas/ResolveBody"
               }
             }
           }
@@ -291,17 +312,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+                  "$ref": "#/components/schemas/FraudAlertDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+                  "$ref": "#/components/schemas/FraudAlertDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+                  "$ref": "#/components/schemas/FraudAlertDto"
                 }
               }
             }
@@ -311,17 +332,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -356,17 +377,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Web.Controllers.PlatformFraudAlertsController.ResolveBody"
+                "$ref": "#/components/schemas/ResolveBody"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Web.Controllers.PlatformFraudAlertsController.ResolveBody"
+                "$ref": "#/components/schemas/ResolveBody"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Web.Controllers.PlatformFraudAlertsController.ResolveBody"
+                "$ref": "#/components/schemas/ResolveBody"
               }
             }
           }
@@ -377,17 +398,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+                  "$ref": "#/components/schemas/FraudAlertDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+                  "$ref": "#/components/schemas/FraudAlertDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+                  "$ref": "#/components/schemas/FraudAlertDto"
                 }
               }
             }
@@ -397,17 +418,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -425,14 +446,14 @@
             "name": "entry_type",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.BlacklistEntryType"
+              "$ref": "#/components/schemas/BlacklistEntryType"
             }
           },
           {
             "name": "scope",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudRuleScope"
+              "$ref": "#/components/schemas/FraudRuleScope"
             }
           },
           {
@@ -472,17 +493,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/BlacklistEntryDtoPaginatedList"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/BlacklistEntryDtoPaginatedList"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/BlacklistEntryDtoPaginatedList"
                 }
               }
             }
@@ -506,17 +527,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Commands.AddBlacklistEntry.AddBlacklistEntryRequest"
+                "$ref": "#/components/schemas/AddBlacklistEntryRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Commands.AddBlacklistEntry.AddBlacklistEntryRequest"
+                "$ref": "#/components/schemas/AddBlacklistEntryRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Commands.AddBlacklistEntry.AddBlacklistEntryRequest"
+                "$ref": "#/components/schemas/AddBlacklistEntryRequest"
               }
             }
           }
@@ -527,17 +548,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto"
+                  "$ref": "#/components/schemas/BlacklistEntryDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto"
+                  "$ref": "#/components/schemas/BlacklistEntryDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto"
+                  "$ref": "#/components/schemas/BlacklistEntryDto"
                 }
               }
             }
@@ -547,17 +568,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -590,17 +611,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -618,7 +639,7 @@
             "name": "scope",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudRuleScope"
+              "$ref": "#/components/schemas/FraudRuleScope"
             }
           },
           {
@@ -633,7 +654,7 @@
             "name": "process",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudProcess"
+              "$ref": "#/components/schemas/FraudProcess"
             }
           },
           {
@@ -680,17 +701,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Rules.Dtos.FraudRuleDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudRuleDtoPaginatedList"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Rules.Dtos.FraudRuleDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudRuleDtoPaginatedList"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Rules.Dtos.FraudRuleDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudRuleDtoPaginatedList"
                 }
               }
             }
@@ -714,17 +735,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Commands.CreateFraudRule.CreateFraudRuleRequest"
+                "$ref": "#/components/schemas/CreateFraudRuleRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Commands.CreateFraudRule.CreateFraudRuleRequest"
+                "$ref": "#/components/schemas/CreateFraudRuleRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Commands.CreateFraudRule.CreateFraudRuleRequest"
+                "$ref": "#/components/schemas/CreateFraudRuleRequest"
               }
             }
           }
@@ -735,17 +756,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+                  "$ref": "#/components/schemas/FraudRuleDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+                  "$ref": "#/components/schemas/FraudRuleDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+                  "$ref": "#/components/schemas/FraudRuleDto"
                 }
               }
             }
@@ -755,17 +776,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -793,17 +814,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Commands.UpdateFraudRule.UpdateFraudRuleRequest"
+                "$ref": "#/components/schemas/UpdateFraudRuleRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Commands.UpdateFraudRule.UpdateFraudRuleRequest"
+                "$ref": "#/components/schemas/UpdateFraudRuleRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Commands.UpdateFraudRule.UpdateFraudRuleRequest"
+                "$ref": "#/components/schemas/UpdateFraudRuleRequest"
               }
             }
           }
@@ -814,17 +835,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+                  "$ref": "#/components/schemas/FraudRuleDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+                  "$ref": "#/components/schemas/FraudRuleDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+                  "$ref": "#/components/schemas/FraudRuleDto"
                 }
               }
             }
@@ -834,17 +855,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -875,17 +896,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -903,14 +924,14 @@
             "name": "status",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudAlertStatus"
+              "$ref": "#/components/schemas/FraudAlertStatus"
             }
           },
           {
             "name": "process",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudProcess"
+              "$ref": "#/components/schemas/FraudProcess"
             }
           },
           {
@@ -966,17 +987,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudAlertDtoPaginatedList"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudAlertDtoPaginatedList"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudAlertDtoPaginatedList"
                 }
               }
             }
@@ -1011,17 +1032,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Web.Controllers.TenantFraudAlertsController.ResolveBody"
+                "$ref": "#/components/schemas/ResolveBody"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Web.Controllers.TenantFraudAlertsController.ResolveBody"
+                "$ref": "#/components/schemas/ResolveBody"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Web.Controllers.TenantFraudAlertsController.ResolveBody"
+                "$ref": "#/components/schemas/ResolveBody"
               }
             }
           }
@@ -1032,17 +1053,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+                  "$ref": "#/components/schemas/FraudAlertDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+                  "$ref": "#/components/schemas/FraudAlertDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+                  "$ref": "#/components/schemas/FraudAlertDto"
                 }
               }
             }
@@ -1052,17 +1073,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1097,17 +1118,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Web.Controllers.TenantFraudAlertsController.ResolveBody"
+                "$ref": "#/components/schemas/ResolveBody"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Web.Controllers.TenantFraudAlertsController.ResolveBody"
+                "$ref": "#/components/schemas/ResolveBody"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Web.Controllers.TenantFraudAlertsController.ResolveBody"
+                "$ref": "#/components/schemas/ResolveBody"
               }
             }
           }
@@ -1118,17 +1139,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+                  "$ref": "#/components/schemas/FraudAlertDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+                  "$ref": "#/components/schemas/FraudAlertDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+                  "$ref": "#/components/schemas/FraudAlertDto"
                 }
               }
             }
@@ -1138,17 +1159,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1166,14 +1187,14 @@
             "name": "entry_type",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.BlacklistEntryType"
+              "$ref": "#/components/schemas/BlacklistEntryType"
             }
           },
           {
             "name": "scope",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudRuleScope"
+              "$ref": "#/components/schemas/FraudRuleScope"
             }
           },
           {
@@ -1213,17 +1234,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/BlacklistEntryDtoPaginatedList"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/BlacklistEntryDtoPaginatedList"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/BlacklistEntryDtoPaginatedList"
                 }
               }
             }
@@ -1247,17 +1268,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Commands.AddBlacklistEntry.AddBlacklistEntryRequest"
+                "$ref": "#/components/schemas/AddBlacklistEntryRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Commands.AddBlacklistEntry.AddBlacklistEntryRequest"
+                "$ref": "#/components/schemas/AddBlacklistEntryRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Commands.AddBlacklistEntry.AddBlacklistEntryRequest"
+                "$ref": "#/components/schemas/AddBlacklistEntryRequest"
               }
             }
           }
@@ -1268,17 +1289,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto"
+                  "$ref": "#/components/schemas/BlacklistEntryDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto"
+                  "$ref": "#/components/schemas/BlacklistEntryDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto"
+                  "$ref": "#/components/schemas/BlacklistEntryDto"
                 }
               }
             }
@@ -1288,17 +1309,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1331,17 +1352,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1359,14 +1380,14 @@
             "name": "process",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudProcess"
+              "$ref": "#/components/schemas/FraudProcess"
             }
           },
           {
             "name": "decision",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudAction"
+              "$ref": "#/components/schemas/FraudAction"
             }
           },
           {
@@ -1438,17 +1459,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Logs.Dtos.FraudCheckLogDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudCheckLogDtoPaginatedList"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Logs.Dtos.FraudCheckLogDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudCheckLogDtoPaginatedList"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Logs.Dtos.FraudCheckLogDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudCheckLogDtoPaginatedList"
                 }
               }
             }
@@ -1458,17 +1479,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1497,17 +1518,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.MerchantPolicies.Dtos.MerchantFraudPolicyBundleDto"
+                  "$ref": "#/components/schemas/MerchantFraudPolicyBundleDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.MerchantPolicies.Dtos.MerchantFraudPolicyBundleDto"
+                  "$ref": "#/components/schemas/MerchantFraudPolicyBundleDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.MerchantPolicies.Dtos.MerchantFraudPolicyBundleDto"
+                  "$ref": "#/components/schemas/MerchantFraudPolicyBundleDto"
                 }
               }
             }
@@ -1532,17 +1553,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.MerchantPolicies.Commands.UpsertMerchantPolicy.UpsertMerchantPolicyRequest"
+                "$ref": "#/components/schemas/UpsertMerchantPolicyRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.MerchantPolicies.Commands.UpsertMerchantPolicy.UpsertMerchantPolicyRequest"
+                "$ref": "#/components/schemas/UpsertMerchantPolicyRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.MerchantPolicies.Commands.UpsertMerchantPolicy.UpsertMerchantPolicyRequest"
+                "$ref": "#/components/schemas/UpsertMerchantPolicyRequest"
               }
             }
           }
@@ -1553,17 +1574,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.MerchantPolicies.Dtos.MerchantFraudPolicyBundleDto"
+                  "$ref": "#/components/schemas/MerchantFraudPolicyBundleDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.MerchantPolicies.Dtos.MerchantFraudPolicyBundleDto"
+                  "$ref": "#/components/schemas/MerchantFraudPolicyBundleDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.MerchantPolicies.Dtos.MerchantFraudPolicyBundleDto"
+                  "$ref": "#/components/schemas/MerchantFraudPolicyBundleDto"
                 }
               }
             }
@@ -1581,7 +1602,7 @@
             "name": "scope",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudRuleScope"
+              "$ref": "#/components/schemas/FraudRuleScope"
             }
           },
           {
@@ -1596,7 +1617,7 @@
             "name": "process",
             "in": "query",
             "schema": {
-              "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudProcess"
+              "$ref": "#/components/schemas/FraudProcess"
             }
           },
           {
@@ -1643,17 +1664,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Rules.Dtos.FraudRuleDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudRuleDtoPaginatedList"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Rules.Dtos.FraudRuleDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudRuleDtoPaginatedList"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Rules.Dtos.FraudRuleDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]"
+                  "$ref": "#/components/schemas/FraudRuleDtoPaginatedList"
                 }
               }
             }
@@ -1677,17 +1698,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Commands.CreateFraudRule.CreateFraudRuleRequest"
+                "$ref": "#/components/schemas/CreateFraudRuleRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Commands.CreateFraudRule.CreateFraudRuleRequest"
+                "$ref": "#/components/schemas/CreateFraudRuleRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Commands.CreateFraudRule.CreateFraudRuleRequest"
+                "$ref": "#/components/schemas/CreateFraudRuleRequest"
               }
             }
           }
@@ -1698,17 +1719,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+                  "$ref": "#/components/schemas/FraudRuleDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+                  "$ref": "#/components/schemas/FraudRuleDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+                  "$ref": "#/components/schemas/FraudRuleDto"
                 }
               }
             }
@@ -1718,17 +1739,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1756,17 +1777,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Commands.UpdateFraudRule.UpdateFraudRuleRequest"
+                "$ref": "#/components/schemas/UpdateFraudRuleRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Commands.UpdateFraudRule.UpdateFraudRuleRequest"
+                "$ref": "#/components/schemas/UpdateFraudRuleRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Commands.UpdateFraudRule.UpdateFraudRuleRequest"
+                "$ref": "#/components/schemas/UpdateFraudRuleRequest"
               }
             }
           }
@@ -1777,17 +1798,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+                  "$ref": "#/components/schemas/FraudRuleDto"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+                  "$ref": "#/components/schemas/FraudRuleDto"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+                  "$ref": "#/components/schemas/FraudRuleDto"
                 }
               }
             }
@@ -1797,17 +1818,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1838,17 +1859,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Microsoft.AspNetCore.Mvc.ProblemDetails"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1859,7 +1880,7 @@
   },
   "components": {
     "schemas": {
-      "Microsoft.AspNetCore.Mvc.ProblemDetails": {
+      "ProblemDetails": {
         "type": "object",
         "properties": {
           "type": {
@@ -1886,7 +1907,7 @@
         },
         "additionalProperties": {}
       },
-      "Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto": {
+      "FraudAlertDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -1906,7 +1927,7 @@
             "nullable": true
           },
           "process": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudProcess"
+            "$ref": "#/components/schemas/FraudProcess"
           },
           "external_txn_id": {
             "type": "string",
@@ -1929,7 +1950,7 @@
             "nullable": true
           },
           "status": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudAlertStatus"
+            "$ref": "#/components/schemas/FraudAlertStatus"
           },
           "assigned_to": {
             "type": "string",
@@ -1959,11 +1980,11 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Blacklist.Commands.AddBlacklistEntry.AddBlacklistEntryRequest": {
+      "AddBlacklistEntryRequest": {
         "type": "object",
         "properties": {
           "scope": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudRuleScope"
+            "$ref": "#/components/schemas/FraudRuleScope"
           },
           "tenant_id": {
             "type": "string",
@@ -1971,7 +1992,7 @@
             "nullable": true
           },
           "entry_type": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.BlacklistEntryType"
+            "$ref": "#/components/schemas/BlacklistEntryType"
           },
           "value": {
             "type": "string",
@@ -1993,7 +2014,7 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto": {
+      "BlacklistEntryDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -2001,7 +2022,7 @@
             "format": "uuid"
           },
           "scope": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudRuleScope"
+            "$ref": "#/components/schemas/FraudRuleScope"
           },
           "tenant_id": {
             "type": "string",
@@ -2009,7 +2030,7 @@
             "nullable": true
           },
           "entry_type": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.BlacklistEntryType"
+            "$ref": "#/components/schemas/BlacklistEntryType"
           },
           "display_value": {
             "type": "string",
@@ -2034,13 +2055,13 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]": {
+      "FraudAlertDtoPaginatedList": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Payven.Fraud.Application.Alerts.Dtos.FraudAlertDto"
+              "$ref": "#/components/schemas/FraudAlertDto"
             },
             "nullable": true
           },
@@ -2068,13 +2089,13 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]": {
+      "BlacklistEntryDtoPaginatedList": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Payven.Fraud.Application.Blacklist.Dtos.BlacklistEntryDto"
+              "$ref": "#/components/schemas/BlacklistEntryDto"
             },
             "nullable": true
           },
@@ -2102,13 +2123,13 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Logs.Dtos.FraudCheckLogDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]": {
+      "FraudCheckLogDtoPaginatedList": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Payven.Fraud.Application.Logs.Dtos.FraudCheckLogDto"
+              "$ref": "#/components/schemas/FraudCheckLogDto"
             },
             "nullable": true
           },
@@ -2136,13 +2157,13 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Common.Models.PaginatedList`1[[Payven.Fraud.Application.Rules.Dtos.FraudRuleDto, Payven.Fraud.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]": {
+      "FraudRuleDtoPaginatedList": {
         "type": "object",
         "properties": {
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Payven.Fraud.Application.Rules.Dtos.FraudRuleDto"
+              "$ref": "#/components/schemas/FraudRuleDto"
             },
             "nullable": true
           },
@@ -2170,7 +2191,7 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Evaluation.Commands.Evaluate.EvaluateFraudRequest": {
+      "EvaluateFraudRequest": {
         "required": [
           "amount_minor",
           "external_txn_id",
@@ -2180,7 +2201,7 @@
         "type": "object",
         "properties": {
           "process": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudProcess"
+            "$ref": "#/components/schemas/FraudProcess"
           },
           "external_txn_id": {
             "type": "string",
@@ -2199,13 +2220,13 @@
             "nullable": true
           },
           "customer": {
-            "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Evaluate.FraudCustomerSignals"
+            "$ref": "#/components/schemas/FraudCustomerSignals"
           },
           "instrument": {
-            "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Evaluate.FraudInstrumentSignals"
+            "$ref": "#/components/schemas/FraudInstrumentSignals"
           },
           "context": {
-            "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Evaluate.FraudContextSignals"
+            "$ref": "#/components/schemas/FraudContextSignals"
           },
           "extras": {
             "type": "object",
@@ -2217,7 +2238,7 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Evaluation.Commands.Evaluate.EvaluationResultDto": {
+      "EvaluationResultDto": {
         "type": "object",
         "properties": {
           "decision_id": {
@@ -2225,7 +2246,7 @@
             "format": "uuid"
           },
           "action": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudAction"
+            "$ref": "#/components/schemas/FraudAction"
           },
           "score": {
             "type": "integer",
@@ -2247,7 +2268,7 @@
             "nullable": true
           },
           "challenge": {
-            "$ref": "#/components/schemas/Payven.Fraud.Application.Evaluation.Commands.Evaluate.FraudChallenge"
+            "$ref": "#/components/schemas/FraudChallenge"
           },
           "review_ttl_seconds": {
             "type": "integer",
@@ -2265,7 +2286,7 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Evaluation.Commands.Evaluate.FraudChallenge": {
+      "FraudChallenge": {
         "type": "object",
         "properties": {
           "type": {
@@ -2282,7 +2303,7 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Evaluation.Commands.Evaluate.FraudContextSignals": {
+      "FraudContextSignals": {
         "type": "object",
         "properties": {
           "channel": {
@@ -2304,7 +2325,7 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Evaluation.Commands.Evaluate.FraudCustomerSignals": {
+      "FraudCustomerSignals": {
         "type": "object",
         "properties": {
           "identifier": {
@@ -2330,7 +2351,7 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Evaluation.Commands.Evaluate.FraudInstrumentSignals": {
+      "FraudInstrumentSignals": {
         "type": "object",
         "properties": {
           "type": {
@@ -2374,7 +2395,7 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Evaluation.Commands.Finalize.FinalizeDecisionCommand": {
+      "FinalizeDecisionCommand": {
         "required": [
           "decision_id",
           "outcome"
@@ -2386,7 +2407,7 @@
             "format": "uuid"
           },
           "outcome": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.TxnOutcome"
+            "$ref": "#/components/schemas/TxnOutcome"
           },
           "bank_response_code": {
             "type": "string",
@@ -2400,7 +2421,7 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Logs.Dtos.FraudCheckLogDto": {
+      "FraudCheckLogDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -2416,7 +2437,7 @@
             "nullable": true
           },
           "process": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudProcess"
+            "$ref": "#/components/schemas/FraudProcess"
           },
           "external_txn_id": {
             "type": "string",
@@ -2435,7 +2456,7 @@
             "format": "int32"
           },
           "decision": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudAction"
+            "$ref": "#/components/schemas/FraudAction"
           },
           "reason_codes": {
             "type": "string",
@@ -2454,7 +2475,7 @@
             "nullable": true
           },
           "outcome": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.TxnOutcome"
+            "$ref": "#/components/schemas/TxnOutcome"
           },
           "checked_at": {
             "type": "string",
@@ -2463,11 +2484,11 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.MerchantPolicies.Commands.UpsertMerchantPolicy.UpsertMerchantPolicyItem": {
+      "UpsertMerchantPolicyItem": {
         "type": "object",
         "properties": {
           "process": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudProcess"
+            "$ref": "#/components/schemas/FraudProcess"
           },
           "enabled": {
             "type": "boolean"
@@ -2479,20 +2500,20 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.MerchantPolicies.Commands.UpsertMerchantPolicy.UpsertMerchantPolicyRequest": {
+      "UpsertMerchantPolicyRequest": {
         "type": "object",
         "properties": {
           "policies": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Payven.Fraud.Application.MerchantPolicies.Commands.UpsertMerchantPolicy.UpsertMerchantPolicyItem"
+              "$ref": "#/components/schemas/UpsertMerchantPolicyItem"
             },
             "nullable": true
           }
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.MerchantPolicies.Dtos.MerchantFraudPolicyBundleDto": {
+      "MerchantFraudPolicyBundleDto": {
         "type": "object",
         "properties": {
           "tenant_id": {
@@ -2506,14 +2527,14 @@
           "policies": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Payven.Fraud.Application.MerchantPolicies.Dtos.MerchantFraudPolicyDto"
+              "$ref": "#/components/schemas/MerchantFraudPolicyDto"
             },
             "nullable": true
           }
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.MerchantPolicies.Dtos.MerchantFraudPolicyDto": {
+      "MerchantFraudPolicyDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -2529,7 +2550,7 @@
             "nullable": true
           },
           "process": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudProcess"
+            "$ref": "#/components/schemas/FraudProcess"
           },
           "enabled": {
             "type": "boolean"
@@ -2545,11 +2566,11 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Rules.Commands.CreateFraudRule.CreateFraudRuleRequest": {
+      "CreateFraudRuleRequest": {
         "type": "object",
         "properties": {
           "scope": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudRuleScope"
+            "$ref": "#/components/schemas/FraudRuleScope"
           },
           "tenant_id": {
             "type": "string",
@@ -2557,7 +2578,7 @@
             "nullable": true
           },
           "process": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudProcess"
+            "$ref": "#/components/schemas/FraudProcess"
           },
           "code": {
             "type": "string",
@@ -2572,14 +2593,14 @@
             "nullable": true
           },
           "type": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudRuleType"
+            "$ref": "#/components/schemas/FraudRuleType"
           },
           "expression_json": {
             "type": "string",
             "nullable": true
           },
           "action": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudAction"
+            "$ref": "#/components/schemas/FraudAction"
           },
           "priority": {
             "type": "integer",
@@ -2591,7 +2612,7 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Rules.Commands.UpdateFraudRule.UpdateFraudRuleRequest": {
+      "UpdateFraudRuleRequest": {
         "type": "object",
         "properties": {
           "name": {
@@ -2607,7 +2628,7 @@
             "nullable": true
           },
           "action": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudAction"
+            "$ref": "#/components/schemas/FraudAction"
           },
           "priority": {
             "type": "integer",
@@ -2621,7 +2642,7 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Application.Rules.Dtos.FraudRuleDto": {
+      "FraudRuleDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -2629,7 +2650,7 @@
             "format": "uuid"
           },
           "scope": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudRuleScope"
+            "$ref": "#/components/schemas/FraudRuleScope"
           },
           "tenant_id": {
             "type": "string",
@@ -2637,7 +2658,7 @@
             "nullable": true
           },
           "process": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudProcess"
+            "$ref": "#/components/schemas/FraudProcess"
           },
           "code": {
             "type": "string",
@@ -2652,14 +2673,14 @@
             "nullable": true
           },
           "type": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudRuleType"
+            "$ref": "#/components/schemas/FraudRuleType"
           },
           "expression_json": {
             "type": "string",
             "nullable": true
           },
           "action": {
-            "$ref": "#/components/schemas/Payven.Fraud.Domain.Enums.FraudAction"
+            "$ref": "#/components/schemas/FraudAction"
           },
           "priority": {
             "type": "integer",
@@ -2679,7 +2700,7 @@
         },
         "additionalProperties": false
       },
-      "Payven.Fraud.Domain.Enums.BlacklistEntryType": {
+      "BlacklistEntryType": {
         "enum": [
           "card",
           "email",
@@ -2690,7 +2711,7 @@
         ],
         "type": "string"
       },
-      "Payven.Fraud.Domain.Enums.FraudAction": {
+      "FraudAction": {
         "enum": [
           "approve",
           "challenge",
@@ -2699,7 +2720,7 @@
         ],
         "type": "string"
       },
-      "Payven.Fraud.Domain.Enums.FraudAlertStatus": {
+      "FraudAlertStatus": {
         "enum": [
           "open",
           "approved",
@@ -2708,7 +2729,7 @@
         ],
         "type": "string"
       },
-      "Payven.Fraud.Domain.Enums.FraudProcess": {
+      "FraudProcess": {
         "enum": [
           "sanal_pos",
           "para_transferi",
@@ -2716,14 +2737,14 @@
         ],
         "type": "string"
       },
-      "Payven.Fraud.Domain.Enums.FraudRuleScope": {
+      "FraudRuleScope": {
         "enum": [
           "global",
           "tenant"
         ],
         "type": "string"
       },
-      "Payven.Fraud.Domain.Enums.FraudRuleType": {
+      "FraudRuleType": {
         "enum": [
           "velocity",
           "amount_threshold",
@@ -2733,7 +2754,7 @@
         ],
         "type": "string"
       },
-      "Payven.Fraud.Domain.Enums.TxnOutcome": {
+      "TxnOutcome": {
         "enum": [
           "success",
           "failed",
@@ -2742,17 +2763,7 @@
         ],
         "type": "string"
       },
-      "Payven.Fraud.Web.Controllers.PlatformFraudAlertsController.ResolveBody": {
-        "type": "object",
-        "properties": {
-          "notes": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "Payven.Fraud.Web.Controllers.TenantFraudAlertsController.ResolveBody": {
+      "ResolveBody": {
         "type": "object",
         "properties": {
           "notes": {
@@ -2769,6 +2780,21 @@
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "description": "Identity servisinden alinan Keycloak JWT. Format: `Authorization: Bearer <token>`. Token alma: POST /api/v1/auth/{slug}/token"
+      },
+      "oauth2": {
+        "type": "oauth2",
+        "description": "Keycloak Authorization Code (PKCE) — Swagger UI uzerinden login.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "http://keycloak:8080/realms/payven/protocol/openid-connect/auth",
+            "tokenUrl": "http://keycloak:8080/realms/payven/protocol/openid-connect/token",
+            "scopes": {
+              "openid": "OpenID Connect",
+              "profile": "User profile",
+              "email": "User email"
+            }
+          }
+        }
       }
     }
   },
@@ -2804,16 +2830,6 @@
     },
     {
       "name": "TenantFraudRules"
-    }
-  ],
-  "servers": [
-    {
-      "url": "https://fraud.payven.com.tr",
-      "description": "Production"
-    },
-    {
-      "url": "https://fraud-sandbox.payven.com.tr",
-      "description": "Sandbox"
     }
   ]
 }
