@@ -44,8 +44,8 @@ PCI-DSS uyumluluğu **sizin kart verisi nasıl topladığınızla** doğrudan il
 
 | Veri | Saklamak yasak mı? |
 |---|---|
-| Tam kart numarası (PAN) | ❌ **Yasak** (Payven saklar, siz saklamayın) |
-| CVV / CVC | ❌ **Kesinlikle yasak** |
+| Tam kart numarası (PAN) | ❌ **Yasak** — Payven de saklamaz; istek sırasında bankaya iletilir, akış bittiğinde bellekte tutulmaz |
+| CVV / CVC | ❌ **Kesinlikle yasak** — Payven de saklamaz |
 | Manyetik şerit / chip track verisi | ❌ **Kesinlikle yasak** |
 | PIN | ❌ **Kesinlikle yasak** |
 | Kart sahibi adı (referans için) | ✅ İzinli ama gerekmiyorsa saklamayın |
@@ -56,6 +56,10 @@ PCI-DSS uyumluluğu **sizin kart verisi nasıl topladığınızla** doğrudan il
 <Warning>
 Kart numarasını veya CVV'yi loglara, veritabanınıza, dosya sistemine veya geçici cache'e **yazmayın**. Yanlışlıkla yazılması bile uyumluluk ihlali sayılır.
 </Warning>
+
+<Note>
+**Tokenization yol haritasında:** Tekrarlayan ödeme (recurring) ve saklı kart akışları için Payven, kart numarasının yerini alacak token üretir; bu token sizin tarafınızda saklanabilir. Token tek başına işlem yapmaya yetmez ve bir başkası tarafından kart numarasına dönüştürülemez. Detay: [Saklı Kart ile Abonelik](/recipes/overview).
+</Note>
 
 ## Önerilen güvenlik kontrolleri
 
