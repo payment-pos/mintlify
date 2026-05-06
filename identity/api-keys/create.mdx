@@ -99,20 +99,7 @@ Hemen secret manager'ınıza (HashiCorp Vault, AWS Secrets Manager, Azure Key Va
 
 ## Hemen kullanmaya başlama
 
-Aldığınız `client_id` + `secret` ile [Identity'den access token alın](/documentation/concepts/authentication):
-
-```bash
-TOKEN=$(curl -s https://identity.payven.com.tr/api/v1/auth/payven/token \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"client_id\":     \"pvk-payven-a1b2c3\",
-    \"client_secret\": \"AbC123dEf456GhI789jKl012MnO345pQ\"
-  }" | jq -r .access_token)
-
-# Sanal POS'a istek
-curl https://vpos.payven.com.tr/api/v1/transactions \
-  -H "Authorization: Bearer $TOKEN"
-```
+Aldığınız `client_id` + `client_secret` çifti ile [Identity'den access token alın](/documentation/concepts/authentication) ve ürün servislerine gönderin.
 
 Access token içinde `tenant_id`, `merchant_id`, `plan_code`, `daily_limit`, `monthly_limit`, `rate_limit` gibi claim'ler taşınır — ürün servisleri bunları doğrudan doğrular, ek bir kimlik akışı gerekmez.
 

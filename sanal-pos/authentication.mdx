@@ -18,34 +18,17 @@ Sanal POS API'si Payven'in standart OAuth 2.0 Client Credentials akışını kul
 
 ## Hızlı başlangıç
 
-```bash
-# 1. Token al
-TOKEN=$(curl -s https://identity.payven.com.tr/api/v1/auth/payven/token \
-  -H "Content-Type: application/json" \
-  -d '{
-    "client_id":     "'"$PAYVEN_CLIENT_ID"'",
-    "client_secret": "'"$PAYVEN_CLIENT_SECRET"'"
-  }' | jq -r .access_token)
+Önce [Identity'den access token alın](/documentation/concepts/authentication) — `$PAYVEN_TOKEN` ortam değişkenine yazıp Sanal POS endpoint'lerine gönderin:
 
-# 2. Sanal POS API'yi çağır
+```bash
 curl https://vpos.payven.com.tr/api/v1/payments \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Idempotency-Key: order-1001-payment" \
-  -d '{
-    "external_id":    "ORDER-1001",
-    "amount":         { "amount": 10000, "currency": "TRY" },
-    "installment":    1,
-    "operation_type": "sale",
-    "card": {
-      "holder_name":  "Test Kullanici",
-      "number":       "4111111111111111",
-      "expire_month": "12",
-      "expire_year":  "2030",
-      "cvv":          "123"
-    }
-  }'
+  -H "Content-Type: application/json" \
+  -d @payment.json
 ```
+
+Tam ödeme isteği örneği için: [Hızlı Başlangıç](/documentation/quickstart#2-i̇lk-odemeyi-gerceklestirin).
 
 ## Merchant kimliği
 
