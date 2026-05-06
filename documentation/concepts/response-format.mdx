@@ -51,7 +51,7 @@ Content-Type: application/problem+json
   "code":           "refund_exceeds_original",
   "detail":         "Toplam iade tutarı orijinal tutarı (15000 kuruş) aşamaz.",
   "instance":      "/api/v1/payments/8e3f5c12-.../refund",
-  "correlationId": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
+  "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
 }
 ```
 
@@ -63,13 +63,7 @@ Content-Type: application/problem+json
 | `code` | Programatik hata kodu (snake_case). `type` URI'sinin son segmenti |
 | `detail` | Bu özel duruma ilişkin açıklayıcı mesaj |
 | `instance` | Hatanın oluştuğu kaynak yolu |
-| `correlationId` | İstek zinciri kimliği — destek talebinde paylaşın (yanıt header'ı `X-Correlation-Id` ile aynı değer) |
-
-<Note>
-Problem+json yanıtındaki alanlar (`type`, `title`, `correlationId` vb.) RFC 9457
-ve ASP.NET ProblemDetails konvansiyonu gereği **camelCase**'tir. Diğer tüm istek
-ve yanıt gövdelerinde standart **snake_case** kullanılır.
-</Note>
+| `correlation_id` | İstek zinciri kimliği — destek talebinde paylaşın (yanıt header'ı `X-Correlation-Id` ile aynı değer) |
 
 Tam hata kodu kataloğu: [Hata Yönetimi](/documentation/concepts/errors).
 
@@ -154,7 +148,7 @@ yapılır — istek başarılı mıydı diye envelope alanına bakmanız gerekme
 
 | Header | Açıklama |
 |---|---|
-| `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Hata gövdesindeki `correlationId` ile aynı değer |
+| `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Hata gövdesindeki `correlation_id` ile aynı değer |
 | `X-RateLimit-Limit` / `X-RateLimit-Remaining` / `X-RateLimit-Reset` | Rate limit durumu — bkz. [Rate Limiting](/documentation/concepts/rate-limiting) |
 | `Retry-After` | Yalnız `429` yanıtında — kaç saniye sonra tekrar denemeniz gerektiği |
 | `Idempotent-Replayed` | Yalnız idempotent replay'lerde — yanıt cache'den döndüyse `true`. Bkz. [Idempotency](/documentation/concepts/idempotency) |

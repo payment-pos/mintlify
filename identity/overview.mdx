@@ -31,7 +31,7 @@ Identity, OAuth 2.0 Client Credentials akışına göre çalışır: `client_id`
 Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
 ```
 
-Identity'den alınan tek access token, planınızdaki **tüm ürün servislerinde** geçerlidir — Sanal POS, Para Transferi, Fraud, Identity. Servis başına ayrı kimlik akışı yoktur.
+Identity'den alınan tek access token, planınızdaki **tüm ürün servislerinde** geçerlidir — Sanal POS, Para Transferi ve Identity'nin kendisi. Servis başına ayrı kimlik akışı yoktur.
 
 Token nasıl alınır: [Login](/identity/auth/login).
 
@@ -52,9 +52,9 @@ GET  /api/v1/auth/{slug}/me
 
 ```mermaid
 flowchart LR
-    Client["Sizin Backend"] -->|"client_id + client_secret"| ID["Payven Identity"]
+    Client["Sizin Backendiniz"] -->|"client_id + client_secret"| ID["Payven Identity"]
     ID -->|"access_token"| Client
-    Client -->|"Authorization: Bearer ..."| Products["Ürün Servisleri<br/>(Sanal POS, Para Transferi, Fraud)"]
+    Client -->|"Authorization: Bearer ..."| Products["Ürün Servisleri<br/>(Sanal POS, Para Transferi)"]
     Client -->|"Authorization: Bearer ..."| ID
 ```
 

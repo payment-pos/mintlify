@@ -1,79 +1,39 @@
 ---
 title: "Test Kartları"
-description: "Sandbox ortamında kullanabileceğiniz test kart numaraları ve simüle ettikleri yanıtlar."
+description: "Sandbox ortamında kullanılabilecek test kart numaralarına nasıl erişilir."
 ---
 
-Sandbox'ta **gerçek kart numarası kullanmayın** — yalnızca aşağıdaki test kartları işlem alır.
+Test kart numaraları **bankanın test ortamı tarafından** belirlenir; her banka konnektörü kendi test kart matrisini sağlar. Payven sandbox'ında hangi kartların geçerli olduğu, kuruluşunuzun aktif konnektör konfigürasyonlarına bağlıdır.
 
-## Tüm akışlar için ortak
+## Konsoldan güncel matrisi alın
 
-| Alan | Değer |
+Sandbox konfigürasyonlarınıza göre derlenmiş, sürekli güncellenen test kartı listesi konsolda mevcuttur:
+
+→ [Konsol → Test Kartları](https://dashboard.payven.com.tr/test-cards)
+
+Bu ekran şunları gösterir:
+
+- **Başarılı işlem kartları** — Visa / Mastercard / Troy / Amex
+- **Banka tarafı ret senaryoları** — yetersiz bakiye, kart bloke, limit aşımı, geçersiz CVV
+- **3DS test akışı** — challenge / frictionless tetikleyen kartlar, test SMS / şifre
+- **Taksit testi** — kart programı (Bonus / Maximum / Axess / World) bazlı destekli taksit aralıkları
+- **Geçerli son kullanma tarihi ve CVV** — her kart için bankanın kabul ettiği değerler
+
+## Test akışı modları
+
+Sandbox'ta iki farklı çalışma modu vardır — bkz. [Sandbox Ortamı](/sanal-pos/test/sandbox#banka-cagri-modu):
+
+| Mod | Test kartı kaynağı |
 |---|---|
-| Son kullanma tarihi | Gelecek bir tarih (örn. `12/2030`) |
-| CVV | Genelde `000` (kart bazlı, aşağıda belirtilmiş) |
+| **Mock konnektör** | Payven tarafı sahte yanıt üretir. Numara biçimi (Luhn) doğruysa tipik senaryolar simüle edilebilir. |
+| **Banka test ortamı konnektörü** | Bankanın resmi test kart listesi geçerlidir. Bu kartlar dışındaki numaraları banka reddeder. |
 
-## Başarılı senaryolar
-
-| Kart | Birlik | Tip | Banka | CVV | 3DS |
-|---|---|---|---|---|---|
-| `4546711234567894` | Visa | Credit | Garanti | `000` | Otomatik onay |
-| `5400637000000005` | Mastercard | Credit | Akbank | `000` | Onay (parola: `a`) |
-| `9792030394440796` | Troy | Credit | Ziraat | `000` | Otomatik onay |
-| `4022774022774026` | Visa | Debit | Akbank | `000` | Otomatik onay |
-| `5440931234567890` | Mastercard | Credit | İş Bankası | `000` | Otomatik onay |
-| `6504331234567890` | Troy | Credit | Yapı Kredi | `000` | Otomatik onay |
-
-## Banka tarafından red senaryoları
-
-| Kart | Senaryo | `provider_error_code` (Payven `code`) |
-|---|---|---|
-| `4111111111111111` | Yetersiz bakiye | `51` (`insufficient_funds`) |
-| `5555555555554444` | Limit aşımı | `61` (`limit_exceeded`) |
-| `4012888888881881` | Şüpheli işlem | `59` (`fraud_suspected`) |
-| `4242424242424242` | Banka timeout | `91` (`bank_timeout`) |
-| `4444333322221111` | Kart bloke | `41` (`bank_declined`) |
-| `5105105105105100` | Geçersiz CVV | `82` (`invalid_cvv`) |
-
-## 3DS senaryoları
-
-| Kart | Senaryo | 3DS sonucu |
-|---|---|---|
-| `5400637000000005` | Başarılı (challenge) | `Y`, ECI `05` |
-| `4485084920000003` | Başarılı (frictionless) | `Y`, ECI `06` |
-| `4900200000000007` | Doğrulama başarısız | `N` |
-| `4666899999999999` | Banka 3DS desteklemiyor | `U` |
-| `4111990000000003` | 3DS attempt (pasif) | `A` |
-
-## Taksit testi
-
-Aşağıdaki kartlarla taksit testleri yapabilirsiniz:
-
-| Kart | Program | Desteklediği max taksit |
-|---|---|---|
-| `4546711234567894` | Bonus | 12 |
-| `5400637000000005` | Axess | 9 |
-| `4022774022774026` | (debit) | 1 (taksit yok) |
-
-## Pre-Auth + Capture
-
-Tüm başarılı kartlar Pre-Auth akışını destekler. Capture sonrası status `completed` olur (öncesinde `authorized`).
-
-## DCC testi
-
-Yabancı kart simülasyonu için:
-
-| Kart | Kart para birimi |
-|---|---|
-| `4444555566667777` | USD |
-| `5555444433332222` | EUR |
-| `4111888877776666` | GBP |
-
-İlk istekte DCC teklifi alır, `dcc/confirm` ile seçim yaparsınız.
-
-## İade ve iptal
-
-Tüm başarılı işlemler iade ve iptal edilebilir. Sandbox 24 saatlik mutabakat penceresini **5 dakikaya** sıkıştırır — bu sürede void, sonrasında refund gerekir.
+Hangi konfigürasyona ait olduğunuza göre yukarıdaki konsol ekranı doğru kartları otomatik filtreler.
 
 ## Üretim simülasyonu
 
-Yüksek hacim testi için Payven'de **load test ortamı** sunulur. Anlaşmanıza dahil olup olmadığını kontrol edin — değilse [destek ekibine](/resources/support) yazın.
+Yüksek hacim testi için Payven **load test ortamı** sunar. Anlaşmanıza dahil olup olmadığını kontrol edin — değilse [destek ekibine](/resources/support) yazın.
+
+## PCI uyumu
+
+Sandbox test kartları **gerçek kart değildir**, dolayısıyla saklamak/loglamak teknik olarak ihlal değildir. Yine de production kodunuzun gerçek kartı işlemediğinden emin olmak için sandbox'ta da aynı disiplinle çalışın — kart numarasını veritabanına/loga yazmayın.

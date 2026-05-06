@@ -72,7 +72,7 @@ Akış tasarlarken Payven'in altta yatan kuralları:
 |---|---|
 | **Idempotent yazma** | Her POST'ta anlamlı `Idempotency-Key`. Operatör butonu iki kez basarsa tek işlem oluşur. |
 | **HTTP-doğru durum kodları** | `200/201/202/204` başarı; `4xx` istemci hatası; `5xx` sunucu hatası. Body'de "wrapped success" yok. |
-| **RFC 9457 hata zarfı** | `application/problem+json` — `type`, `title`, `status`, `code`, `detail`, `correlationId`. |
+| **RFC 9457 hata zarfı** | `application/problem+json` — `type`, `title`, `status`, `code`, `detail`, `correlation_id`. |
 | **Asenkron önceliği** | UI'da redirect, sunucuda webhook + sorgulama. Müşteri tarayıcısı kapanırsa sonuç kaybolmaz. |
 | **Korelasyon zinciri** | Her isteğin `X-Correlation-Id`'si vardır; webhook'ta da aynı zincir devam eder. Destek talebinde bu kimliği paylaşın. |
 

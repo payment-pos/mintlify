@@ -9,30 +9,28 @@ Payven, ortak bir kimlik servisi etrafında düzenlenmiş bağımsız ürün ser
 
 ```mermaid
 flowchart LR
-    Client["Sizin Backend"]
+    Client["Sizin Backendiniz"]
 
     Identity["Payven Identity<br/>identity.payven.com.tr"]
     VPOS["Sanal POS<br/>vpos.payven.com.tr"]
     Transfer["Para Transferi<br/>transfer.payven.com.tr"]
-    Fraud["Fraud<br/>fraud.payven.com.tr"]
 
     Client -->|"1- client_id + client_secret"| Identity
     Identity -->|"access_token"| Client
     Client -->|"2- Authorization: Bearer ..."| VPOS
     Client -->|"Authorization: Bearer ..."| Transfer
-    Client -->|"Authorization: Bearer ..."| Fraud
 ```
 
-İlk adımda Identity'den `client_credentials` akışıyla bir access token alırsınız; sonraki tüm istekleri ürün servislerine `Authorization: Bearer <access_token>` header'ı ile yaparsınız. Aynı token Sanal POS, Para Transferi ve Fraud servislerinin hepsinde geçerlidir.
+İlk adımda Identity'den `client_credentials` akışıyla bir access token alırsınız; sonraki tüm istekleri ürün servislerine `Authorization: Bearer <access_token>` header'ı ile yaparsınız. Aynı token Sanal POS ve Para Transferi servislerinin ikisinde de geçerlidir.
 
 | Servis | Sorumluluk |
 |---|---|
 | **Identity** | Kuruluş ve kullanıcı yönetimi, API anahtarı yaşam döngüsü, OAuth 2.0 token üretimi, ortak referans veriler (banka, BIN, MCC, şehir/ilçe) |
 | **Sanal POS** | Kart ödemeleri, 3D Secure, akıllı yönlendirme, mutabakat, webhook teslimi |
 | **Para Transferi** | Çoklu banka üzerinden FAST, EFT ve havale yönlendirme |
-| **Fraud** | Kural motoru, kara/beyaz liste, risk skorlama, manuel inceleme kuyruğu |
+| **Fraud** | Sanal POS akışlarının içinde otomatik çalışan risk motoru — kural yönetimi, kara/beyaz liste, manuel inceleme kuyruğu |
 
-Tüm ürün servisleri aynı **Bearer access token** ile kimliklendirilir; servis başına ayrı kimlik akışı yoktur.
+Tüm ürün servisleri aynı **Bearer access token** ile kimliklendirilir; servis başına ayrı kimlik akışı yoktur. Fraud servisinin endpoint'leri (kural CRUD, manuel inceleme) Sanal POS API'siyle birlikte sunulur.
 
 <Note>
 **Yol haritasında:** Fatura Ödeme ve Açık Bankacılık modülleri geliştirme aşamasındadır. Bu servisler henüz canlı API'ye dahil değildir. [Yol haritası](/#yol-haritasi).
@@ -70,7 +68,7 @@ Aşağıda kart ödeme isteğinin Sanal POS servisinden geçişi gösterilmişti
 
 ```mermaid
 sequenceDiagram
-    participant App as Sizin Backend
+    participant App as Sizin Backendiniz
     participant API as Sanal POS API
     participant Routing as Akıllı Yönlendirme
     participant Bank as Banka
@@ -95,7 +93,7 @@ Her servis kendi alt-domain'i üzerinden hizmet verir. Tüm path'ler `/api/v1` i
 | **Identity** | `https://identity-sandbox.payven.com.tr` | `https://identity.payven.com.tr` |
 | **Sanal POS** | `https://vpos-sandbox.payven.com.tr` | `https://vpos.payven.com.tr` |
 | **Para Transferi** | `https://transfer-sandbox.payven.com.tr` | `https://transfer.payven.com.tr` |
-| **Fraud** | `https://fraud-sandbox.payven.com.tr` | `https://fraud.payven.com.tr` |
-| **Konsol** | `https://dashboard-sandbox.payven.com.tr` | `https://dashboard.payven.com.tr` |
 
-Sandbox ortamı gerçek bankaya istek göndermez; yanıtları yerel olarak simüle eder. Production geçişi öncesinde [Go-live kontrol listesini](/documentation/security/go-live-checklist) tamamlayın.
+Fraud servisi bağımsız bir API olarak değil, **Sanal POS akışlarının içinde** çağrılır — ayrı bir base URL'e ihtiyaç duymazsınız (bkz. [Fraud Genel Bakış](/fraud/overview)). Konsol ([dashboard.payven.com.tr](https://dashboard.payven.com.tr)) tarayıcıdan kullanılır, programatik bir API değildir.
+
+Sandbox ortamı, kuruluşunuzun konnektör konfigürasyonuna göre ya simülasyonla yanıt üretir ya da bankanın test ortamına gerçek çağrı atar — bkz. [Sandbox Ortamı](/sanal-pos/test/sandbox#banka-cagri-modu). Production geçişi öncesinde [Go-live kontrol listesini](/documentation/security/go-live-checklist) tamamlayın.

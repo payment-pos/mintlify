@@ -20,7 +20,7 @@ Content-Type: application/problem+json
   "code":          "insufficient_balance",
   "detail":        "Talep edilen tutar (1.500.000 kuruş) hesap bakiyesini aşıyor.",
   "instance":      "/api/v1/transfers/bulk/send",
-  "correlationId": "9f1c8e76-..."
+  "correlation_id": "9f1c8e76-..."
 }
 ```
 
@@ -129,11 +129,11 @@ function userMessage(problem) {
 
 ## Destek talebi
 
-Her hata yanıtında dönen **`correlationId`** değerini paylaşın — log zincirini saniyeler içinde bulabiliriz. Yanıt header'ındaki `X-Correlation-Id` ile gövdedeki `correlationId` aynı değerdir.
+Her hata yanıtında dönen **`correlation_id`** değerini paylaşın — log zincirini saniyeler içinde bulabiliriz. Yanıt header'ındaki `X-Correlation-Id` ile gövdedeki `correlation_id` aynı değerdir.
 
 ```text
 Konu:    Transfer 422 — insufficient_balance
-Detay:   correlationId: 9f1c8e76-...
+Detay:   correlation_id: 9f1c8e76-...
          transfer_id:   8e3f5c12-...
          external_id:   PAYROLL-001
          zaman:         2026-05-03T15:34:58+03:00

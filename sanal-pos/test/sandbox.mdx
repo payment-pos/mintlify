@@ -1,9 +1,9 @@
 ---
 title: "Sandbox Ortamı"
-description: "Production'a benzer şekilde davranan, gerçek bankaya istek atmayan test ortamı."
+description: "Production ile birebir aynı API yüzeyini sunan, gerçek para hareketi yapmayan test ortamı."
 ---
 
-Sandbox ortamı, production ile **birebir aynı API**'yi sunar — fakat istekler gerçek bankaya gitmez, banka yanıtları **simüle** edilir.
+Sandbox ortamı, production ile **birebir aynı API**'yi sunar — gerçek para hareketi yapılmaz. Banka çağrıları kuruluşunuzun sandbox konnektör konfigürasyonuna göre ya simüle edilir ya da bankanın test ortamına yönlendirilir.
 
 ## URL
 
@@ -25,26 +25,29 @@ https://identity-sandbox.payven.com.tr/api/v1/auth/{slug}/token
 
 | Özellik | Production | Sandbox |
 |---|---|---|
-| Gerçek banka isteği | ✅ | ❌ — simüle edilir |
-| Gerçek 3DS sayfası | ✅ | ❌ — Payven'in test sayfası |
 | Para hareketi | ✅ | ❌ |
 | Webhook teslimi | ✅ | ✅ (gerçek HTTP isteği) |
-| Mutabakat | ✅ — gerçek banka raporu | ✅ — simüle edilmiş rapor |
+| Mutabakat | ✅ — gerçek banka raporu | ✅ — simüle veya banka test raporu |
 | Rate limit | Plan'a göre | 50 RPS |
 
-## Banka yanıtlarını kontrol etme
+## Banka çağrı modu
 
-Sandbox'ta hangi yanıtın döneceğini **kart numarası** üzerinden kontrol edebilirsiniz. Her test kartı belirli bir banka yanıtı simüle eder:
+Sandbox'ta banka çağrısı, kuruluşunuzun konnektör konfigürasyonuna göre iki şekilde yapılabilir:
 
-| Senaryo | Test kart numarası |
+| Konfigürasyon | Davranış |
 |---|---|
-| Başarılı Non-3D | `4546711234567894` |
-| Başarılı 3DS | `5400637000000005` |
-| Yetersiz bakiye | `4111111111111111` |
-| 3DS başarısız | `4900200000000007` |
-| Banka timeout | `4242424242424242` |
+| **Mock konnektör** | Banka tarafına hiç çağrı atılmaz. Yanıt Payven tarafında simüle edilir; entegrasyon testleri ve CI için idealdir. |
+| **Banka test ortamı konnektörü** | Bankanın resmi test ortamına gerçek HTTP çağrısı yapılır. Banka tarafı simülasyon kurallarıyla çalışır (tipik test kartları, 3DS test sayfası, vb.). Banka entegrasyonunun uçtan uca doğrulanması için kullanın. |
 
-Tam liste: [Test Kartları](/sanal-pos/test/test-cards).
+Hangi modun aktif olduğunu konsol → **Konnektör Konfigürasyonları** ekranından görebilirsiniz. Yeni bir konfigürasyon eklerken modu seçersiniz.
+
+## Test kart numaraları
+
+Test kart numaraları **bankanın test ortamı tarafından** belirlenir. Konsoldaki **Test Kartları** ekranında, kuruluşunuzun aktif sandbox konfigürasyonlarına göre derlenmiş güncel matris yer alır:
+
+→ [Konsol → Test Kartları](https://dashboard.payven.com.tr/test-cards)
+
+Bu ekran her banka için: başarılı işlem kartları, ret senaryoları (yetersiz bakiye, kart bloke), 3DS challenge/frictionless test kartları ve geçerli son kullanma tarihi / CVV bilgilerini içerir.
 
 ## Sandbox → production geçişi
 

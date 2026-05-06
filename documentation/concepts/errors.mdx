@@ -21,7 +21,7 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
   "code":           "refund_exceeds_original",
   "detail":         "Toplam iade tutarı orijinal tutarı (15000 kuruş) aşamaz.",
   "instance":      "/api/v1/payments/8e3f5c12-.../refund",
-  "correlationId": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
+  "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
 }
 ```
 
@@ -33,7 +33,7 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 | `code` | ✅ | Programatik hata kodu (`snake_case`). `type` URI'sinin son segmenti. |
 | `detail` | — | Bu özel duruma ilişkin açıklayıcı mesaj. |
 | `instance` | — | Hatanın oluştuğu kaynak yolu. |
-| `correlationId` | — | İstek zinciri kimliği. Yanıt header'ı `X-Correlation-Id` ile aynı. Destek talebinde paylaşın. |
+| `correlation_id` | — | İstek zinciri kimliği. Yanıt header'ı `X-Correlation-Id` ile aynı. Destek talebinde paylaşın. |
 
 ## HTTP kategorileri
 
@@ -245,11 +245,11 @@ function userMessage(problem) {
 
 ## Destek talebi açarken
 
-Her hata yanıtında dönen **`correlationId`** değerini paylaşın — log zincirini saniyeler içinde bulabiliriz. Yanıt header'ındaki `X-Correlation-Id` ile gövdedeki `correlationId` aynı değerdir.
+Her hata yanıtında dönen **`correlation_id`** değerini paylaşın — log zincirini saniyeler içinde bulabiliriz. Yanıt header'ındaki `X-Correlation-Id` ile gövdedeki `correlation_id` aynı değerdir.
 
 ```text
 Konu:   Refund 422 — refund_exceeds_original
-Detay:  correlationId: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
+Detay:  correlation_id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
         instance:      /api/v1/payments/8e3f5c12-.../refund
         zaman:         2026-05-05T14:23:11+03:00
 ```
