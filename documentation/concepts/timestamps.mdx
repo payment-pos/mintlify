@@ -11,7 +11,7 @@ Payven, tüm tarih-zaman alanlarında **ISO-8601** formatını ve **UTC** zaman 
 2026-05-03T12:34:56.789+00:00
 ```
 
-Payven backend `DateTimeOffset` kullanır ve serileştirme `O` formatındadır — yani `Z` yerine her zaman `+HH:mm` offset'i yazılır. Hem `Z` hem de `+00:00` aynı zamanı temsil eder; istek tarafında ikisini de kabul ederiz.
+Payven her zaman `+HH:mm` offset formatıyla serileştirir; `Z` (Zulu / UTC) ile `+00:00` aynı zamanı temsil eder. İstek tarafında her iki gösterimi de kabul ederiz.
 
 | Bölüm | Anlam |
 |---|---|

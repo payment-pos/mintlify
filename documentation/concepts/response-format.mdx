@@ -139,7 +139,7 @@ Liste endpoint'lerinde ortak query parametreleri:
 | `5xx` | Sunucu hatası — exponential backoff ile retry edin | `application/problem+json` |
 
 <Warning>
-**HTTP `200` her zaman ödeme başarılı demek değildir.** Gateway'e ulaşmış ama bankada
+**HTTP `200` her zaman ödeme başarılı demek değildir.** Bankaya ulaşmış ama
 reddedilen bir işlem `200` ile dönüp gövdesinde `is_success: false` ve `error_code:
 "bank_declined"` taşıyabilir. Asıl başarı kararını yanıttaki `is_success` ve `status`
 alanlarına bakarak verin.
@@ -156,7 +156,7 @@ alanlarına bakarak verin.
 
 ## Tarih ve zaman
 
-Tüm tarih alanları **ISO 8601** formatında ve **UTC offset**'i ile döner. Backend `DateTimeOffset` kullanır:
+Tüm tarih alanları **ISO 8601** formatında ve **UTC offset**'i ile döner:
 
 ```
 2026-05-03T12:34:56.789+00:00
