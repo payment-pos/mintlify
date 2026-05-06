@@ -252,7 +252,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/bankbins": {
@@ -8469,7 +8470,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Identity servisinden alinan Keycloak JWT. Format: `Authorization: Bearer <token>`. Token alma: POST /api/v1/auth/{slug}/token"
+        "description": "Bearer JWT token. Format: `Authorization: Bearer <token>`. Token almak için Identity & Auth servisindeki `POST /api/v1/auth/{slug}/token` çağırılır."
       }
     }
   },
@@ -8542,10 +8543,6 @@
     {
       "name": "Dashboard",
       "description": "Transfer servisi konsol istatistikleri."
-    },
-    {
-      "name": "ApiRequestLogs",
-      "description": "Konektör çağrılarının ham HTTP logları."
     }
   ],
   "servers": [

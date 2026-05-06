@@ -109,7 +109,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/internal/fraud/finalize": {
@@ -170,7 +171,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/platform/fraud/alerts": {
@@ -261,7 +263,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/fraud/alerts/{id}/approve": {
@@ -347,7 +350,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/fraud/alerts/{id}/reject": {
@@ -433,7 +437,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/fraud/blacklist": {
@@ -508,7 +513,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       },
       "post": {
         "tags": [
@@ -583,7 +589,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/fraud/blacklist/{id}": {
@@ -626,7 +633,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/fraud/rules": {
@@ -716,7 +724,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       },
       "post": {
         "tags": [
@@ -791,7 +800,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/fraud/rules/{id}": {
@@ -870,7 +880,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       },
       "delete": {
         "tags": [
@@ -911,7 +922,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/fraud/alerts": {
@@ -2779,22 +2791,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Identity servisinden alinan Keycloak JWT. Format: `Authorization: Bearer <token>`. Token alma: POST /api/v1/auth/{slug}/token"
-      },
-      "oauth2": {
-        "type": "oauth2",
-        "description": "Keycloak Authorization Code (PKCE) — Swagger UI uzerinden login.",
-        "flows": {
-          "authorizationCode": {
-            "authorizationUrl": "http://keycloak:8080/realms/payven/protocol/openid-connect/auth",
-            "tokenUrl": "http://keycloak:8080/realms/payven/protocol/openid-connect/token",
-            "scopes": {
-              "openid": "OpenID Connect",
-              "profile": "User profile",
-              "email": "User email"
-            }
-          }
-        }
+        "description": "Bearer JWT token. Format: `Authorization: Bearer <token>`. Token almak için Identity & Auth servisindeki `POST /api/v1/auth/{slug}/token` çağırılır."
       }
     }
   },
@@ -2823,22 +2820,6 @@
     {
       "name": "TenantFraudMerchantPolicies",
       "description": "Üye işyeri (merchant) bazında fraud politika atamaları. Alt merchant'lara farklı kurallar uygulanmasını sağlar."
-    },
-    {
-      "name": "PlatformFraudRules",
-      "description": "Platform yöneticisinin tüm tenant'lara global olarak uygulanan kural yönetmesi."
-    },
-    {
-      "name": "PlatformFraudAlerts",
-      "description": "Platform genelinde tüm tenant'ların fraud uyarılarını izleme."
-    },
-    {
-      "name": "PlatformFraudBlacklist",
-      "description": "Platform genelinde geçerli olan global kara liste."
-    },
-    {
-      "name": "InternalFraud",
-      "description": "Sanal POS ve diğer servislerin fraud servisini çağırdığı dahili uçlar. Public kullanım için değildir."
     }
   ]
 }

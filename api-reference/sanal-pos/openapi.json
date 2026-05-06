@@ -3301,7 +3301,8 @@
             "description": "OK"
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/health/live": {
@@ -3313,7 +3314,8 @@
           "200": {
             "description": "OK"
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/health/ready": {
@@ -3362,7 +3364,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/health": {
@@ -3411,7 +3414,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/health/connectors": {
@@ -3434,7 +3438,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/merchants/{merchant_id}/bank-profiles": {
@@ -3959,7 +3964,7 @@
                   {
                     "id": "SKU-1042",
                     "name": "Kablosuz kulaklık",
-                    "price": 199.90,
+                    "price": 199.9,
                     "quantity": 1
                   }
                 ],
@@ -4254,7 +4259,8 @@
             "description": "OK"
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       },
       "get": {
         "tags": [
@@ -4267,7 +4273,8 @@
             "description": "OK"
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/payments/3d/complete": {
@@ -8366,7 +8373,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/test-cards": {
@@ -9226,7 +9234,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/transactions": {
@@ -13415,7 +13424,7 @@
             "type": "number",
             "format": "double",
             "description": "Birim fiyat (TL cinsinden, ondalık). Toplam tutar `price * quantity` olarak hesaplanır.",
-            "example": 199.90
+            "example": 199.9
           },
           "quantity": {
             "type": "integer",
@@ -16604,7 +16613,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Identity servisinden alinan Keycloak JWT. Format: `Authorization: Bearer <token>`. Token alma: POST /api/v1/auth/{slug}/token"
+        "description": "Bearer JWT token. Format: `Authorization: Bearer <token>`. Token almak için Identity & Auth servisindeki `POST /api/v1/auth/{slug}/token` çağırılır."
       }
     }
   },
@@ -16693,22 +16702,6 @@
     {
       "name": "ApiRequestLogs",
       "description": "Konektörlere giden ham HTTP isteklerinin loglarını sorgulama. Hata ayıklama için correlation_id ile zincir izlenebilir."
-    },
-    {
-      "name": "Trace",
-      "description": "Bir correlation_id'ye bağlı tüm sistem olaylarının dağıtık izleme (distributed trace) görünümü."
-    },
-    {
-      "name": "Health",
-      "description": "Servis sağlık ve hazırlık (liveness/readiness) probu. Kubernetes ve dış izleme araçlarınca kullanılır."
-    },
-    {
-      "name": "FraudCallback",
-      "description": "Fraud servisinden gelen alarm sonuç callback'leri. Sanal POS bu callback'leri dinleyerek işlemi durdurabilir veya devam ettirir."
-    },
-    {
-      "name": "Tenants",
-      "description": "Tenant (müşteri kuruluş) kurulum (seed) ve başlangıç yapılandırması. Operasyon kullanımı içindir."
     }
   ],
   "servers": [

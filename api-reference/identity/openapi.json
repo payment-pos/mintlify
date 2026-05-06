@@ -11,7 +11,7 @@
           "Auth"
         ],
         "summary": "Kullanıcı adı/parola ile giriş",
-        "description": "Tenant'ın kendi Keycloak realm'ında oturum açar. Cevap olarak `access_token` (kısa ömürlü), `refresh_token` (uzun ömürlü) ve `expires_in` saniye değerini döner. Konsol/dashboard kullanıcıları için tasarlanmıştır; sunucu-sunucu entegrasyonlarda `/api/v1/auth/{slug}/token` (client credentials) tercih edilmelidir.",
+        "description": "Kullanıcı adı ve parola ile oturum açar. Cevap olarak `access_token` (kısa ömürlü), `refresh_token` (uzun ömürlü) ve `expires_in` saniye değerini döner. Konsol kullanıcıları için tasarlanmıştır; sunucu-sunucu entegrasyonlarda `/api/v1/auth/{slug}/token` (client credentials) tercih edilmelidir.",
         "parameters": [
           {
             "name": "slug",
@@ -56,17 +56,17 @@
             "content": {
               "text/plain; ver=1.0": {
                 "schema": {
-                  "$ref": "#/components/schemas/KeycloakTokenResult"
+                  "$ref": "#/components/schemas/AuthTokenResult"
                 }
               },
               "application/json; ver=1.0": {
                 "schema": {
-                  "$ref": "#/components/schemas/KeycloakTokenResult"
+                  "$ref": "#/components/schemas/AuthTokenResult"
                 }
               },
               "text/json; ver=1.0": {
                 "schema": {
-                  "$ref": "#/components/schemas/KeycloakTokenResult"
+                  "$ref": "#/components/schemas/AuthTokenResult"
                 }
               }
             }
@@ -170,17 +170,17 @@
             "content": {
               "text/plain; ver=1.0": {
                 "schema": {
-                  "$ref": "#/components/schemas/KeycloakTokenResult"
+                  "$ref": "#/components/schemas/AuthTokenResult"
                 }
               },
               "application/json; ver=1.0": {
                 "schema": {
-                  "$ref": "#/components/schemas/KeycloakTokenResult"
+                  "$ref": "#/components/schemas/AuthTokenResult"
                 }
               },
               "text/json; ver=1.0": {
                 "schema": {
-                  "$ref": "#/components/schemas/KeycloakTokenResult"
+                  "$ref": "#/components/schemas/AuthTokenResult"
                 }
               }
             }
@@ -255,7 +255,7 @@
           "Auth"
         ],
         "summary": "Yeni kullanıcı kaydı",
-        "description": "Tenant realm'ında yeni bir Keycloak kullanıcısı oluşturur. Kullanıcının ilk giriş yapabilmesi için belirlenen e-posta adresine doğrulama maili gönderilir.",
+        "description": "Tenant'a yeni bir kullanıcı kaydı oluşturur. Kullanıcının ilk giriş yapabilmesi için belirlenen e-posta adresine doğrulama maili gönderilir.",
         "parameters": [
           {
             "name": "slug",
@@ -382,17 +382,17 @@
             "content": {
               "text/plain; ver=1.0": {
                 "schema": {
-                  "$ref": "#/components/schemas/KeycloakTokenResult"
+                  "$ref": "#/components/schemas/AuthTokenResult"
                 }
               },
               "application/json; ver=1.0": {
                 "schema": {
-                  "$ref": "#/components/schemas/KeycloakTokenResult"
+                  "$ref": "#/components/schemas/AuthTokenResult"
                 }
               },
               "text/json; ver=1.0": {
                 "schema": {
-                  "$ref": "#/components/schemas/KeycloakTokenResult"
+                  "$ref": "#/components/schemas/AuthTokenResult"
                 }
               }
             }
@@ -512,7 +512,7 @@
           "Auth"
         ],
         "summary": "Mevcut kullanıcı bilgisi",
-        "description": "Bearer token üzerinden Keycloak'tan oturum açmış kullanıcının id, e-posta, rol ve tenant bilgilerini döner. Frontend'in oturum hidrate etmesi için kullanılır.",
+        "description": "Bearer token sahibi kullanıcının id, e-posta, rol ve tenant bilgilerini döner. Frontend'in oturum hidrate etmesi için kullanılır.",
         "parameters": [
           {
             "name": "slug",
@@ -530,17 +530,17 @@
             "content": {
               "text/plain; ver=1.0": {
                 "schema": {
-                  "$ref": "#/components/schemas/KeycloakUserInfoResult"
+                  "$ref": "#/components/schemas/AuthUserInfoResult"
                 }
               },
               "application/json; ver=1.0": {
                 "schema": {
-                  "$ref": "#/components/schemas/KeycloakUserInfoResult"
+                  "$ref": "#/components/schemas/AuthUserInfoResult"
                 }
               },
               "text/json; ver=1.0": {
                 "schema": {
-                  "$ref": "#/components/schemas/KeycloakUserInfoResult"
+                  "$ref": "#/components/schemas/AuthUserInfoResult"
                 }
               }
             }
@@ -732,7 +732,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/internal/lookups/districts": {
@@ -780,7 +781,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/internal/lookups/banks": {
@@ -819,7 +821,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/internal/lookups/banks/resolve": {
@@ -898,7 +901,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/internal/lookups/bank-bins": {
@@ -946,7 +950,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/internal/lookups/bank-bins/resolve": {
@@ -1025,7 +1030,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/internal/lookups/mcc-codes": {
@@ -1073,7 +1079,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/internal/merchants/resolve": {
@@ -1160,7 +1167,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/internal/merchants/by-tenant": {
@@ -1237,7 +1245,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/internal/permissions/features/{feature_code}/sync": {
@@ -1303,7 +1312,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/internal/permissions/grants": {
@@ -1370,7 +1380,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/internal/tenants/{tenant_id}/features": {
@@ -1431,7 +1442,8 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "x-hidden": true
       }
     },
     "/api/v1/lookups/cities": {
@@ -2705,7 +2717,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       },
       "post": {
         "tags": [
@@ -2780,7 +2793,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/features/{id}": {
@@ -2859,7 +2873,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       },
       "delete": {
         "tags": [
@@ -2900,7 +2915,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/plans": {
@@ -2961,7 +2977,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       },
       "post": {
         "tags": [
@@ -3036,7 +3053,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/plans/{id}": {
@@ -3096,7 +3114,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       },
       "put": {
         "tags": [
@@ -3173,7 +3192,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       },
       "delete": {
         "tags": [
@@ -3234,7 +3254,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/tenants/{tenant_id}/api-keys": {
@@ -3307,7 +3328,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       },
       "post": {
         "tags": [
@@ -3391,7 +3413,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/tenants/{tenant_id}/api-keys/{id}": {
@@ -3460,7 +3483,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       },
       "put": {
         "tags": [
@@ -3566,7 +3590,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       },
       "delete": {
         "tags": [
@@ -3616,7 +3641,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/tenants/{tenant_id}/api-keys/{id}/rotate-secret": {
@@ -3692,7 +3718,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/tenants": {
@@ -3753,7 +3780,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       },
       "post": {
         "tags": [
@@ -3828,7 +3856,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/tenants/{slug}": {
@@ -3887,7 +3916,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/tenants/{id}/suspend": {
@@ -3937,7 +3967,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/tenants/{id}/activate": {
@@ -3987,7 +4018,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/tenants/{id}/plan": {
@@ -4066,7 +4098,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/platform/tenants/{id}/payment-policy": {
@@ -4145,7 +4178,8 @@
               }
             }
           }
-        }
+        },
+        "x-hidden": true
       }
     },
     "/api/v1/tenants/me/api-keys": {
@@ -6369,61 +6403,78 @@
         },
         "additionalProperties": false
       },
-      "KeycloakTokenResult": {
+      "AuthTokenResult": {
         "type": "object",
+        "description": "Login veya token uçlarından dönen OAuth2 token cevabı.",
         "properties": {
           "access_token": {
             "type": "string",
+            "description": "API çağrılarında `Authorization: Bearer <token>` header'ında kullanılacak JWT.",
             "nullable": true
           },
           "refresh_token": {
             "type": "string",
+            "description": "Süresi dolan access token'ı yenilemek için kullanılan token. Daha uzun ömürlüdür ve yalnızca güvenli bir yerde saklanmalıdır.",
             "nullable": true
           },
           "expires_in": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "description": "`access_token` ömrü (saniye).",
+            "example": 900
           },
           "refresh_expires_in": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "description": "`refresh_token` ömrü (saniye).",
+            "example": 86400
           },
           "token_type": {
             "type": "string",
+            "description": "Token tipi. Her zaman `Bearer` döner.",
+            "example": "Bearer",
             "nullable": true
           },
           "scope": {
             "type": "string",
+            "description": "Token'a verilen kapsam (scope) listesi.",
             "nullable": true
           }
         },
         "additionalProperties": false
       },
-      "KeycloakUserInfoResult": {
+      "AuthUserInfoResult": {
         "type": "object",
+        "description": "Mevcut kullanıcının kimlik bilgisi.",
         "properties": {
           "sub": {
             "type": "string",
+            "description": "Kullanıcının benzersiz kimliği (subject).",
             "nullable": true
           },
           "preferred_username": {
             "type": "string",
+            "description": "Tercih edilen kullanıcı adı.",
             "nullable": true
           },
           "email": {
             "type": "string",
+            "description": "E-posta adresi.",
             "nullable": true
           },
           "given_name": {
             "type": "string",
+            "description": "Kullanıcının adı.",
             "nullable": true
           },
           "family_name": {
             "type": "string",
+            "description": "Kullanıcının soyadı.",
             "nullable": true
           },
           "name": {
             "type": "string",
+            "description": "Tam ad (ad + soyad).",
             "nullable": true
           },
           "roles": {
@@ -6431,18 +6482,22 @@
             "items": {
               "type": "string"
             },
+            "description": "Kullanıcıya atanan rol kodlarının listesi.",
             "nullable": true
           },
           "tenant_id": {
             "type": "string",
+            "description": "Kullanıcının ait olduğu tenant kimliği.",
             "nullable": true
           },
           "merchant_id": {
             "type": "string",
+            "description": "Varsa kullanıcıya atanmış merchant kimliği.",
             "nullable": true
           },
           "company_name": {
             "type": "string",
+            "description": "Tenant/firma görünen adı.",
             "nullable": true
           }
         },
@@ -7916,7 +7971,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Identity servisinden alinan Keycloak JWT. Format: `Authorization: Bearer <token>`. Token alma: POST /api/v1/auth/{slug}/token"
+        "description": "Bearer JWT token. Format: `Authorization: Bearer <token>`. Token almak için: POST /api/v1/auth/{slug}/token"
       }
     }
   },
@@ -7928,7 +7983,7 @@
   "tags": [
     {
       "name": "Auth",
-      "description": "Tenant'a özel kimlik doğrulama uçları (Keycloak realm'ları üstünde). Login, register, refresh, logout ve `me` endpoint'lerini içerir; tüm path'lerde `{slug}` tenant kimliğidir."
+      "description": "Kimlik doğrulama uçları: kullanıcı adı/parola ile login, API anahtarıyla token alma (client credentials), refresh, logout ve `me`. Tüm path'lerde `{slug}` tenant kimliğidir."
     },
     {
       "name": "Me",
@@ -7961,38 +8016,6 @@
     {
       "name": "Validation",
       "description": "Kart numarası ve IBAN doğrulama yardımcı endpoint'leri."
-    },
-    {
-      "name": "PlatformTenants",
-      "description": "Platform yöneticisinin tenant kayıtlarını yönetmesi (Payven operasyon kullanımı). Tenant açma, askıya alma, plan değiştirme."
-    },
-    {
-      "name": "PlatformTenantApiKeys",
-      "description": "Platform yöneticisinin herhangi bir tenant adına API anahtarı yönetmesi."
-    },
-    {
-      "name": "PlatformPlans",
-      "description": "Platform abonelik planları (Starter, Growth, Enterprise vb.) tanımları."
-    },
-    {
-      "name": "PlatformFeatures",
-      "description": "Platform genelinde tanımlı özellik (feature) kataloğu."
-    },
-    {
-      "name": "InternalLookups",
-      "description": "Diğer Payven mikroservislerinden çağrılan dahili lookup uçları. Public kullanım için değildir."
-    },
-    {
-      "name": "InternalMerchants",
-      "description": "Diğer Payven mikroservislerinden merchant çözümleme uçları. Public kullanım için değildir."
-    },
-    {
-      "name": "InternalPermissions",
-      "description": "Servisler arası izin senkronizasyonu için dahili uç noktalar."
-    },
-    {
-      "name": "InternalTenantFeatures",
-      "description": "Tenant feature flag'lerini diğer servislere açan dahili endpoint'ler."
     }
   ],
   "servers": [
