@@ -1,0 +1,131 @@
+---
+title: "Transfer Listesi"
+description: "Filtreleme ve sayfalama ile transferleri toplu olarak listeleyin."
+---
+
+Transferlerinizi tarih, durum, tip, hesap, alıcı gibi kriterlere göre filtreleyip sayfalı şekilde listeleyin. Bu endpoint **özet** kayıtlar döner — tek bir transferin tam detayı için [Transfer Detayı](/para-transferi/inquiries/transfer-detail) endpoint'ini kullanın.
+
+## Endpoint
+
+```http
+GET /api/v1/transfers
+```
+
+**Yetki:** `transfer-admin`, `transfer-operator` veya `transfer-viewer` rolü.
+
+## Sorgu parametreleri
+
+Tüm parametreler **snake_case**'dir.
+
+| Parametre | Tip | Açıklama |
+|---|---|---|
+| `page` | int | Sayfa numarası (varsayılan `1`) |
+| `page_size` | int | Sayfa başı kayıt (1–100, varsayılan `25`) |
+| `start_date`, `end_date` | datetime | Tarih aralığı (UTC, ISO 8601) — `created` üzerinde filtreler |
+| `status` | enum | `pending`, `approved`, `rejected`, `processing`, `delivered`, `completed`, `failed`, `refunded` |
+| `transfer_type` | enum | `fast`, `eft`, `remittance`, `credit_card` |
+| `source_account_id` | UUID | Kaynak hesap filtresi |
+| `recipient_id` | UUID | Saklı alıcı filtresi |
+| `external_id` | string | Sizin sisteminizdeki transfer kimliği |
+| `min_amount`, `max_amount` | int (kuruş) | Tutar aralığı |
+| `currency` | string | Para birimi (`TRY`) |
+| `iban` | string | Alıcı IBAN ile filtre (tam eşleşme veya prefix) |
+| `merchant_id` | UUID | Multi-merchant tenant'larda merchant filtresi |
+| `search_term` | string | `external_id`, `receipt_no`, alıcı adı ve IBAN üzerinde "içerir" araması (max 200 karakter) |
+
+## İstek
+
+```bash
+curl "https://transfer.payven.com.tr/api/v1/transfers?start_date=2026-05-01T00:00:00Z&end_date=2026-05-31T23:59:59Z&status=completed&transfer_type=fast&page_size=50" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID"
+```
+
+## Yanıt
+
+Standart sayfalı liste zarfı:
+
+```json
+{
+  "items": [
+    {
+      "id":                       "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "merchant_id":              "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "external_id":              "PAYROLL-001",
+      "description":              "Mayıs maaş ödemesi",
+      "receipt_no":               "TRF-20260503-0001",
+
+      "source_account_id":        "550e8400-e29b-41d4-a716-446655440000",
+      "source_account_iban":      "TR860006400000000000000123",
+      "source_account_bank":      "Garanti BBVA",
+
+      "recipient_id":             "abc-12345-...",
+      "recipient_name":           "Ahmet Yılmaz",
+      "recipient_iban":           "TR330006100519786457841326",
+      "recipient_bank":           "Akbank",
+
+      "amount":                   1500000,
+      "currency":                 "TRY",
+      "fee_amount":               350,
+
+      "request_transfer_type":    "fast",
+      "success_transfer_type":    "fast",
+
+      "status":                   "completed",
+      "scheduled_date":           "2026-05-03T12:00:00.000+00:00",
+      "sent_date":                "2026-05-03T12:34:58.000+00:00",
+      "processed_date":           "2026-05-03T12:35:00.000+00:00",
+      "created":                  "2026-05-03T12:00:00.123+00:00"
+    }
+  ],
+  "page":              1,
+  "total_pages":       12,
+  "total_count":       574,
+  "has_previous_page": false,
+  "has_next_page":     true
+}
+```
+
+Sayfalama zarfı detayı: [API Yanıt Formatı](/documentation/concepts/response-format#sayfali-liste-yaniti).
+
+## Filtreleme örnekleri
+
+**Bugün başarılı tamamlanan tüm FAST transferleri:**
+
+```http
+GET /api/v1/transfers?start_date=2026-05-03T00:00:00Z&end_date=2026-05-03T23:59:59Z&status=completed&transfer_type=fast
+```
+
+**Belirli bir alıcıya yapılan son transferler:**
+
+```http
+GET /api/v1/transfers?recipient_id=abc-12345-...&page_size=20
+```
+
+**100.000 TL üzeri başarısız işlemler:**
+
+```http
+GET /api/v1/transfers?status=failed&min_amount=10000000
+```
+
+**Kendi sipariş ID'nize göre arama:**
+
+```http
+GET /api/v1/transfers?external_id=PAYROLL-001
+```
+
+## Tek bir transferin detayı
+
+Listedeki bir kaydın `id` değerini kullanarak detay endpoint'ine gidin: [Transfer Detayı](/para-transferi/inquiries/transfer-detail).
+
+## Export
+
+Programatik export şu an konsoldan yapılır — **Konsol → Transferler** ekranından CSV/XLSX indirme aktiftir. Public bir `/transfers/export` endpoint'i yol haritasındadır.
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `400` | `validation_failed` | Parametre formatı geçersiz (örn. tarih, IBAN) |
+| `403` | `forbidden` | Yetki yok |
+| `422` | `invalid_filter` | Tutar aralığı hatalı (`min_amount > max_amount`) |

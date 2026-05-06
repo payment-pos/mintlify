@@ -1,0 +1,176 @@
+---
+title: "Transfer Detayı"
+description: "Tek bir transferin son durumunu, tarihçesini ve banka yanıt detaylarını sorgulayın."
+---
+
+Bir transferin **mevcut** durumunu ve banka tarafından dönen ham detayları çekmek için kullanılır.
+
+## Endpoint
+
+```http
+GET /api/v1/transfers/{id}
+```
+
+`id` parametresi UUID formatındadır — `POST /transfers/bulk/create` çağrısının yanıtında dönen kimlik veya `external_id` üzerinden listelemeden alınmış kimlik.
+
+**Yetki:** `transfer-admin`, `transfer-operator` veya `transfer-viewer` rolü.
+
+## İstek
+
+```bash
+curl https://transfer.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6 \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID"
+```
+
+## Yanıt
+
+`TransferDetailDto` döner — listeleme yanıtının üzerine **banka ham yanıtı** ve **durum geçiş tarihçesi** ekler:
+
+```json
+{
+  "id":                       "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "merchant_id":              "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "external_id":              "PAYROLL-001",
+  "request_id":               "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8",
+  "description":              "Mayıs maaş ödemesi",
+  "receipt_no":               "TRF-20260503-0001",
+
+  "source_account_id":        "550e8400-e29b-41d4-a716-446655440000",
+  "source_account_iban":      "TR860006400000000000000123",
+  "source_account_bank":      "Garanti BBVA",
+
+  "recipient": {
+    "id":            "abc-12345-...",
+    "holder_name":   "Ahmet Yılmaz",
+    "iban":          "TR330006100519786457841326",
+    "tax_id":        "12345678901",
+    "bank_name":     "Akbank",
+    "bank_code":     "AKBANK"
+  },
+
+  "amount":                   1500000,
+  "currency":                 "TRY",
+  "fee_amount":               350,
+
+  "request_transfer_type":    "fast",
+  "success_transfer_type":    "fast",
+
+  "status":                   "completed",
+  "retry_count":              0,
+  "error_code":               null,
+  "provider_error_code":      null,
+  "error_message":            null,
+
+  "scheduled_date":           "2026-05-03T12:00:00.000+00:00",
+  "validate_date":            "2026-05-03T12:34:55.000+00:00",
+  "sent_date":                "2026-05-03T12:34:58.000+00:00",
+  "processed_date":           "2026-05-03T12:35:00.000+00:00",
+  "created":                  "2026-05-03T12:00:00.123+00:00",
+
+  "history": [
+    {
+      "previous_status": null,
+      "new_status":      "pending",
+      "occurred_at":     "2026-05-03T12:00:00.123+00:00",
+      "actor":           "operator-create"
+    },
+    {
+      "previous_status": "pending",
+      "new_status":      "approved",
+      "occurred_at":     "2026-05-03T12:34:55.000+00:00",
+      "actor":           "operator-approve"
+    },
+    {
+      "previous_status": "approved",
+      "new_status":      "processing",
+      "occurred_at":     "2026-05-03T12:34:58.000+00:00",
+      "actor":           "operator-send"
+    },
+    {
+      "previous_status":           "processing",
+      "new_status":                "completed",
+      "occurred_at":               "2026-05-03T12:35:00.000+00:00",
+      "actor":                     "bank-callback",
+      "bank_response_code":        "00",
+      "bank_response_message":     "Onaylandı",
+      "provider_transaction_id":   "AKBANK-FAST-9f3d2b8e"
+    }
+  ]
+}
+```
+
+## Alan referansı
+
+`recipient`, `source_account_*`, tutar ve durum alanları için: [Transfer Objesi](/para-transferi/transfer-object).
+
+### `history[]`
+
+Transferin yaşam döngüsündeki tüm durum geçişleri kronolojik olarak burada bulunur.
+
+| Alan | Açıklama |
+|---|---|
+| `previous_status` / `new_status` | Durum geçişi |
+| `occurred_at` | Geçişin gerçekleştiği zaman |
+| `actor` | Geçişi tetikleyen — `operator-create/approve/send/reject` (kullanıcı eylemi) veya `bank-callback` (banka yanıtı) |
+| `bank_response_code`, `bank_response_message` | Banka tarafı yanıtı (yalnız `processing → completed/delivered/failed` geçişlerinde dolar) |
+| `provider_transaction_id` | Banka tarafındaki transfer kimliği |
+
+## Failed transferin sorgusu
+
+Başarısız transfer (`status: "failed"`) sorgulandığında yanıt **`200 OK`** döner; hata detayları yanıt gövdesindeki **data alanları** olarak taşınır:
+
+```json
+{
+  "id":                  "8e3f5c12-...",
+  "status":              "failed",
+  "error_code":          "insufficient_balance",
+  "provider_error_code": "01",
+  "error_message":       "Kaynak hesapta yeterli bakiye yok",
+  "retry_count":         2,
+  "history": [
+    /* ... önceki başarılı geçişler ... */
+    {
+      "previous_status":       "processing",
+      "new_status":            "failed",
+      "occurred_at":           "2026-05-03T12:35:00.000+00:00",
+      "actor":                 "bank-callback",
+      "bank_response_code":    "01",
+      "bank_response_message": "Yetersiz bakiye"
+    }
+  ]
+}
+```
+
+Failed durumunda `history` array'i hata sebebini ve hangi adımda olduğunu gösterir — debug için kritik.
+
+## Tipik kullanım
+
+- **Webhook gelmemiş bir transfer** için son durumu öğrenmek
+- **Müşteri destek talebinde** geçmiş bir transferi incelemek (`history` ile zaman çizelgesi)
+- **Audit / uyumluluk** raporlamasında durum geçişlerini ekstrakt etmek
+- **Banka tarafı sorununu** debug etmek (`bank_response_code` + `provider_error_code`)
+
+<Warning>
+**Polling kullanmayın.** Yüksek hacimli senaryolarda her transfer için periyodik `GET` çağrısı yapmayın — bunun yerine [webhook](/para-transferi/webhooks/overview) entegre edin. Webhook gelmemişse konsoldan **Webhook Teslim Logları** ekranıyla manuel replay tetikleyebilirsiniz.
+</Warning>
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `transfer_not_found` | Verilen `id` bulunamadı veya bu tenant'a ait değil |
+| `403` | `forbidden` | Yetki yok |
+
+Hata zarfı RFC 9457 problem+json formatındadır.
+
+## Sonraki adımlar
+
+<CardGroup cols={2}>
+  <Card title="Transfer Listesi" icon="list" href="/para-transferi/inquiries/transfer-list">
+    Filtreleme ve sayfalama ile transferleri toplu görüntüleme.
+  </Card>
+  <Card title="Dekont indirme" icon="file-arrow-down" href="/para-transferi/transfers/receipt">
+    Tamamlanmış transferin makbuz PDF'i.
+  </Card>
+</CardGroup>

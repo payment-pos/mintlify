@@ -1,0 +1,121 @@
+---
+title: "Transfer Reddet (Reject)"
+description: "Pending durumdaki transferleri onaylamadan reddetme — alternatif 2. adım."
+---
+
+Reject, 4-eyes akışında **onay yerine** uygulanan alternatif aksiyondur. `pending` durumdaki transferler reddedildiğinde kalıcı olarak `rejected` durumuna geçer; bankaya hiçbir istek gönderilmez ve hesaplarınızdan para çekilmez.
+
+## Endpoint
+
+```http
+POST /api/v1/transfers/bulk/reject
+```
+
+**Yetki:** `transfer-admin` rolü gerektirir (onay yetkisiyle aynı).
+
+## Ne zaman kullanılır?
+
+| Senaryo | Aksiyon |
+|---|---|
+| Yanlış kaynak hesap seçildi | Reject + yeniden create |
+| Hatalı tutar veya alıcı | Reject + yeniden create |
+| 4-eyes onay süreci başarısız (operatör itiraz etti) | Reject |
+| Toplu transfer içinde bir kalem hatalı, kalanı temiz | Sadece hatalıyı reject + yeniden create |
+
+<Note>
+**Reject ≠ İptal.** Bir transfer **bankaya gönderildikten** sonra reject edilemez (`pending` durumunda değildir). Bankaya gitmiş bir transferin geri alınması için banka tarafı iade akışı (sonradan `transfer.refunded` olabilir) gerekir.
+</Note>
+
+## İstek
+
+```bash
+curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/reject \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "Idempotency-Key: payroll-2026-05-01-reject" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transfer_ids": [
+      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "9f3d2b8e-..."
+    ],
+    "reason": "Yanlış kaynak hesap seçildi — düzeltilmiş listeyle yeniden oluşturulacak"
+  }'
+```
+
+| Alan | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `transfer_ids[]` | UUID array | ✅ | Reddedilecek transfer kimlikleri (max 1000 / istek) |
+| `reason` | string | ❌ | Operatör notu (audit kaydında saklanır, max 500 karakter) |
+
+## Yanıt
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
+{
+  "rejected": [
+    {
+      "id":            "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "status":        "rejected",
+      "rejected_at":   "2026-05-03T12:34:55.000+00:00",
+      "rejected_by":   "operator-user-id"
+    },
+    {
+      "id":            "9f3d2b8e-...",
+      "status":        "rejected",
+      "rejected_at":   "2026-05-03T12:34:55.000+00:00",
+      "rejected_by":   "operator-user-id"
+    }
+  ],
+  "skipped": [],
+  "total_rejected": 2
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `rejected[]` | Başarıyla reddedilen transferler |
+| `skipped[]` | Reddedilemeyenler (zaten approved, sent, completed, vb.) — her biri için `reason` döner |
+| `total_rejected` | Reddedilen transfer sayısı |
+
+## Kısmi başarı
+
+Bir veya daha fazla transfer reddedilemeyebilir (örn. zaten onaylanmış, gönderilmiş veya başka tenant'a ait). Bu durumda yine `200 OK` döner; başarısızlar `skipped[]` array'inde gözükür:
+
+```json
+{
+  "rejected": [
+    { "id": "8e3f5c12-...", "status": "rejected", "rejected_at": "..." }
+  ],
+  "skipped": [
+    {
+      "id":      "9f3d2b8e-...",
+      "reason":  "already_sent",
+      "message": "Bu transfer zaten bankaya gönderilmiş, reddedilemez."
+    }
+  ],
+  "total_rejected": 1
+}
+```
+
+İstek tamamen başarısızsa (örn. tüm transfer ID'ler geçersiz) `422 Unprocessable Entity` döner.
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `400` | `validation_failed` | `transfer_ids[]` boş veya ID formatı geçersiz |
+| `403` | `forbidden` | `transfer-admin` rolü yok |
+| `404` | `transfer_not_found` | Tüm verilen ID'ler bulunamadı |
+| `422` | `invalid_state_transition` | Transfer `pending` durumunda değil |
+| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
+
+Hata zarfı RFC 9457 problem+json.
+
+## Webhook olayı
+
+Reject şu an dedicated bir webhook olayı yayınlamaz — operatör eylemi olarak konsoldaki audit log'a düşer. İleride `transfer.rejected` olayı yol haritasındadır.

@@ -178,7 +178,21 @@
             "pages": [
               "para-transferi/transfers/bulk-create",
               "para-transferi/transfers/bulk-approve",
+              "para-transferi/transfers/bulk-reject",
               "para-transferi/transfers/bulk-send"
+            ]
+          },
+          {
+            "group": "Sorgulamalar",
+            "pages": [
+              "para-transferi/inquiries/transfer-list",
+              "para-transferi/inquiries/transfer-detail"
+            ]
+          },
+          {
+            "group": "Alıcılar",
+            "pages": [
+              "para-transferi/recipients/overview"
             ]
           },
           {
