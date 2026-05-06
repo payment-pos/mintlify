@@ -1,9 +1,9 @@
 ---
 title: "API Anahtarı Yönetimi"
-description: "Server-to-server entegrasyonlar için Keycloak service-account credential'ları."
+description: "Sunucu-sunucu entegrasyonlar için OAuth 2.0 client kimlik bilgileri."
 ---
 
-Payven'de "API anahtarı", **Keycloak service-account client'ıdır**. Bir API anahtarı oluşturduğunuzda Identity arka tarafta Keycloak'a yeni bir client kaydeder ve size `client_id` + `client_secret` çifti verir. Bu çift ile [`/auth/{slug}/token`](/identity/auth/login) endpoint'inden JWT alır, ürün servislerine `Authorization: Bearer ...` ile çağrı yaparsınız.
+Payven'de bir API anahtarı, sunucu-sunucu entegrasyonlar için verilen bir **OAuth 2.0 client** çiftidir: `client_id` + `client_secret`. Bu çiftle [`/auth/{slug}/token`](/identity/auth/login) endpoint'inden JWT alır, ürün servislerine `Authorization: Bearer ...` ile çağrı yaparsınız.
 
 <Note>
 **JWT vs API Key kavramı:** Burada "API Key" diye bahsettiğimiz şey **uzun ömürlü kimlik bilgisi** (client_id + client_secret). API çağrılarında doğrudan kullanılmaz; **kısa ömürlü JWT alıp** onu kullanırsınız. Tek başına `client_id` ile API çağrısı yapamazsınız.
@@ -13,10 +13,10 @@ Payven'de "API anahtarı", **Keycloak service-account client'ıdır**. Bir API a
 
 | Bileşen | Açıklama | Örnek |
 |---|---|---|
-| `client_id` | Public tanımlayıcı, Keycloak client ID | `pvk-payven-a1b2c3` |
-| `client_secret` | Gizli — yalnızca oluşturma + rotasyon anında bir kez gösterilir | `whsec_AbC...XyZ` |
+| `client_id` | Public tanımlayıcı | `pvk-payven-a1b2c3` |
+| `client_secret` | Gizli anahtar — yalnızca oluşturma ve rotasyon anında bir kez gösterilir | `whsec_AbC...XyZ` |
 
-Client ID prefix'i `pvk-{tenant-slug}-{rastgele}` formatındadır. Sandbox/production ayrımı **tenant slug'ı** üzerinden yapılır (sandbox tenant'ı için ayrı slug + ayrı API key).
+`client_id` formatı `pvk-{kuruluş-slug'ı}-{rastgele}` şeklindedir. Sandbox ve production ayrımı **kuruluş slug'ı** üzerinden yapılır (sandbox için ayrı slug + ayrı anahtar).
 
 ## Endpoint'ler
 
@@ -75,13 +75,13 @@ Yanıt — sayfalı `ApiKeyDto` listesi:
 
 | Alan | Açıklama |
 |---|---|
-| `keycloak_client_id` | API çağrılarında `client_id` olarak kullanılır |
+| `keycloak_client_id` | API çağrılarında `client_id` olarak kullanılan public tanımlayıcı |
 | `display_name` | İnsan-okur ad (raporlama için) |
-| `merchant_id` | Bu anahtarın "default merchant"ı — JWT claim'ine yansır |
-| `plan_*` | Atanmış plan (rate limit + günlük/aylık limit kaynağı) |
-| `*_override` | Plan default'unu override eden tenant-spesifik limit |
+| `merchant_id` | Bu anahtarın varsayılan merchant'ı — JWT claim'ine yansır |
+| `plan_*` | Atanmış plan (rate limit ile günlük/aylık limit kaynağı) |
+| `*_override` | Plan varsayılanını override eden kuruluş-bazlı limit |
 | `effective_*` | Override'lar uygulanmış nihai limit (JWT claim olarak token'a basılır) |
-| `allowed_ips` | CSV IP / CIDR listesi |
+| `allowed_ips` | Virgülle ayrılmış IP / CIDR listesi |
 | `expires_at` | Anahtarın otomatik pasifleşeceği tarih (boş = sınırsız) |
 | `is_active` | Pasif anahtarlar token üretemez |
 
@@ -103,7 +103,7 @@ flowchart LR
 
 ## En iyi uygulamalar
 
-<Check>**Ortam başına ayrı anahtar** — sandbox tenant'ı için ayrı `client_id` üret, production'la karıştırma.</Check>
+<Check>**Ortam başına ayrı anahtar** — sandbox kuruluşu için ayrı `client_id` üretin, production'la karıştırmayın.</Check>
 <Check>**Servis başına ayrı anahtar** — sızıntı durumunda etki alanı sınırlı kalır, audit kolaylaşır.</Check>
 <Check>**Production için IP whitelist zorunlu** — `allowed_ips` doldurmadan production anahtar dağıtmayın.</Check>
 <Check>**6 ayda bir rotasyon** — `rotate-secret` ile secret'ı yenileyin (eski 24 saat geçerli kalır, zero-downtime geçiş).</Check>

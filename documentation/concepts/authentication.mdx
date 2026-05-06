@@ -1,6 +1,6 @@
 ---
 title: "Kimlik Doğrulama"
-description: "Keycloak OAuth 2.0 üzerinden JWT Bearer token ile Payven API'lerine erişim."
+description: "OAuth 2.0 üzerinden JWT Bearer token ile Payven API'lerine erişim."
 ---
 
 Payven tüm public API'lerinde **OAuth 2.0 + JWT Bearer** kullanır. Token, Identity servisinden alınır; ürün API'lerine `Authorization: Bearer <token>` header'ı ile gidersiniz.
@@ -398,8 +398,8 @@ class PayvenClient {
 | `401` | `invalid_token` | Access token geçersiz | Refresh akışını çalıştırın |
 | `401` | `token_expired` | Access token süresi geçti | Refresh edin |
 | `401` | `invalid_refresh_token` | Refresh token expire / revoke | Yeni `client_credentials` ile baştan token alın |
-| `403` | `realm_suspended` | Tenant askıya alınmış | Müşteri ilişkileriniz ile iletişime geçin |
-| `404` | `realm_not_found` | `{slug}` geçersiz | Onboarding'de verilen slug'ı kontrol edin |
+| `403` | `tenant_suspended` | Kuruluş askıya alınmış | Müşteri ilişkileriniz ile iletişime geçin |
+| `404` | `tenant_not_found` | `{slug}` geçersiz | Onboarding'de verilen slug'ı kontrol edin |
 | `429` | `rate_limit_exceeded` | Token endpoint'ine çok istek | `Retry-After` header'ına uyun, token'ı cache'leyin |
 
 Tam hata zarfı şekli için: [Hata Yönetimi](/documentation/concepts/errors).
@@ -427,7 +427,7 @@ Tam hata zarfı şekli için: [Hata Yönetimi](/documentation/concepts/errors).
   <Accordion title="Test (sandbox) ortamı?">
     Sandbox endpoint'leri ayrı bir tenant slug ile yayında: `https://identity-sandbox.payven.com.tr` ve `https://vpos-sandbox.payven.com.tr`. Sandbox `client_id`'leri canlıdan ayrıdır; üretim parasıyla işlem yapılmaz, kart numarası test BIN'leri kullanır.
   </Accordion>
-  <Accordion title="API key (X-API-Key + X-API-Secret) hâlâ destekleniyor mu?">
-    Evet — eski entegrasyonlar için `ApiKey` scheme aktif kalmaya devam ediyor. Yeni entegrasyonlarınız için **JWT Bearer'ı tercih edin** — daha standart, daha esnek, multi-service token tek tutuyor. API key flow'unu kullanmak zorundaysanız: bkz. [Sanal POS → Kimlik Doğrulama](/sanal-pos/authentication).
+  <Accordion title="Tüm ürünler aynı kimlik doğrulamayı mı kullanıyor?">
+    Evet. Sanal POS, Para Transferi, Fraud ve Identity — hepsi `Authorization: Bearer <access_token>` bekler. API anahtarı çiftinizden token almak ürünler arası ortak adımdır; bir kez yapılır, ardından tüm ürünlere aynı token ile çağrı atılır.
   </Accordion>
 </AccordionGroup>

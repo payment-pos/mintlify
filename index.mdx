@@ -13,8 +13,8 @@ Payven, Türkiye'nin finansal teknoloji altyapısıdır. **14 banka** ile entegr
   <Card title="API Referansı" icon="code" href="/api-reference/sanal-pos">
     Tüm endpoint'ler, parametre şemaları ve **Try It** ile tarayıcıdan canlı deneme.
   </Card>
-  <Card title="Akışlar" icon="diagram-project" href="/flows/3d-secure">
-    Uçtan uca senaryoların görsel sequence diagram'ları — 3DS, Pre-Auth, Webhook retry, Mutabakat.
+  <Card title="Akışlar" icon="diagram-project" href="/flows/overview">
+    Uçtan uca senaryoların görsel sequence diagram'ları — 3DS, ön provizyon, webhook retry, mutabakat.
   </Card>
   <Card title="Recipes" icon="book" href="/recipes/overview">
     "Şunu nasıl yaparım?" cevapları. Taksitli ödeme, BIN kampanyası, idempotent webhook handler, smart-retry.
@@ -28,13 +28,13 @@ Payven, Türkiye'nin finansal teknoloji altyapısıdır. **14 banka** ile entegr
     14 banka, akıllı yönlendirme, 3D Secure 2.x, ön provizyon, hosted checkout, pay-by-link, taksit kampanyaları, recurring, DCC, point inquiry.
   </Card>
   <Card title="Para Transferi" icon="arrow-right-arrow-left" href="/para-transferi/overview">
-    EFT, FAST, havale ve banka hesabı transferi. 6 banka konnektörü, Polly resilience, otomatik mutabakat.
+    EFT, FAST, havale ve kart-hesap transferi. Çoklu banka konektörü, otomatik yeniden deneme, mutabakat.
   </Card>
   <Card title="Fraud" icon="shield-halved" href="/fraud/overview">
     Gerçek zamanlı kural motoru, hız kontrolü, kara/beyaz liste, BIN kısıtlama, manual review queue.
   </Card>
   <Card title="Identity & Auth" icon="shield-keyhole" href="/identity/overview">
-    OAuth 2.0 + Keycloak, multi-tenant realm yönetimi, API key rotasyonu, BIN/banka/MCC lookup servisleri.
+    OAuth 2.0 / OIDC tabanlı kimlik doğrulama, çoklu kuruluş yönetimi, API anahtarı rotasyonu, BIN / banka / MCC lookup servisleri.
   </Card>
   <Card title="Mutabakat" icon="scale-balanced" href="/sanal-pos/reconciliation/overview">
     Banka dosyalarının otomatik çözümlenmesi, eşleştirme, tutarsızlık yönetimi, settlement raporları.
@@ -74,7 +74,7 @@ Payven, Türkiye'nin finansal teknoloji altyapısıdır. **14 banka** ile entegr
     Identity'den aldığınız tek JWT, planınızdaki tüm modüllere geçer. Sanal POS, transfer, fraud, identity — hepsi aynı token ile çağrılır.
   </Card>
   <Card title="Akıllı Yönlendirme + Smart Retry" icon="route">
-    Composite-score motoru BIN, tutar, taksit, kart birliği, banka sağlığına göre yönlendirir. Banka arızasında işlem otomatik alternatife düşer.
+    BIN, tutar, taksit, kart birliği ve banka sağlığını dikkate alan kural motoru ödemeyi en uygun bankaya yönlendirir. Banka arızasında işlem otomatik alternatife düşer; müşteri yeniden ödeme yapmaz.
   </Card>
   <Card title="REST + RFC 9457" icon="check-double">
     HTTP semantiğine sıkı uyum: doğru status kodları, problem+json hata zarfı, cursor + page pagination, Idempotency-Key, snake_case taşıma.

@@ -25,46 +25,54 @@ https://identity.payven.com.tr/api/v1
 
 ## Auth modeli
 
-Identity servisi **JWT Bearer token** kullanır — diğer ürün servislerinde kullanılan API Key + Secret modelinden farklıdır.
+Tüm Payven API'leri **OAuth 2.0 + JWT Bearer** kullanır. Identity servisi token üretir; ürün API'leri tüketir.
 
 ```http
 Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
 ```
 
-Token nasıl alınır: [Login](/identity/auth/login).
+İki farklı yolla token alınır:
+
+| Akış | Kullanım | Endpoint |
+|---|---|---|
+| **Client credentials** | Sunucu-sunucu entegrasyonlar (önerilir) | `POST /api/v1/auth/{slug}/token` |
+| **Username + parola** | Konsol kullanıcısı (insan) login'i | `POST /api/v1/auth/{slug}/login` |
+
+Detaylı akış, SDK örnekleri ve token süreleri için: [Kimlik Doğrulama](/documentation/concepts/authentication).
 
 ## Slug tabanlı oturum
 
 Identity, çoklu kuruluş (multi-tenant) yapısı için **slug tabanlı** oturum URL'leri kullanır:
 
 ```
+POST /api/v1/auth/{slug}/token
 POST /api/v1/auth/{slug}/login
 POST /api/v1/auth/{slug}/refresh
 GET  /api/v1/auth/{slug}/me
 ```
 
-`slug`, kuruluşunuzun benzersiz tanımlayıcısıdır (örn. `acme-bank`). Onboarding sırasında atanır. Platform yöneticileri için özel `platform` slug'ı kullanılır.
+`slug`, kuruluşunuzun benzersiz tanımlayıcısıdır (örn. `acme-bank`). Onboarding sırasında atanır.
 
 ## Kullanım senaryoları
 
 | Kim? | Ne için? | Endpoint |
 |---|---|---|
+| Sunucu uygulamanız | Token alıp ürün API'lerine çağrı atmak | `POST /auth/{slug}/token` |
 | Konsol kullanıcısı | Konsola giriş yapmak | `POST /auth/{slug}/login` |
 | Kuruluş yöneticisi | API anahtarı oluşturmak | `POST /tenants/me/api-keys` |
-| Geliştirici | Onboarding sırasında merchant kayıt | `GET /me` |
-| Backend servisi | BIN'den banka çözümleme (internal) | `GET /internal/lookups/bankbins/resolve` |
+| Geliştirici | Mevcut kullanıcı bağlamını okumak | `GET /me` |
 
-## Hangi servisi ne zaman kullanırsınız?
+## Tek token, tüm ürünler
 
 ```mermaid
 flowchart LR
-    User["Kullanıcı / Konsol"] -->|"Bearer Token"| ID["Identity"]
-    ID -->|"API Key oluştur"| Key["API Anahtarı"]
-    Server["Sunucunuz"] -->|"X-API-Key + Secret"| Products["Ürün Servisleri<br/>(Sanal POS, Para Transferi, Fraud, Fatura)"]
+    Server["Sunucunuz"]
+    Server -->|"client_id + secret"| ID["Identity"]
+    ID -->|"access_token"| Server
+    Server -->|"Authorization: Bearer &lt;token&gt;"| Products["Ürün Servisleri<br/>(Sanal POS · Para Transferi · Fraud)"]
 ```
 
-- **Konsol işlemleri (admin, kullanıcı yönetimi, anahtar oluşturma):** Identity üzerinden Bearer token ile.
-- **Production işlemleri (ödeme, transfer, fraud):** Ürün servislerine API Key + Secret ile.
+Identity'den aldığınız tek JWT, planınızdaki bütün ürün servislerine geçer.
 
 ## Ortam URL'leri
 

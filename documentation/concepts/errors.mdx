@@ -67,8 +67,8 @@ yanıttaki `is_success` ve `status` alanlarına bakarak verin.
 | `token_expired` | 401 | Access token süresi doldu — refresh edin |
 | `invalid_credentials` | 401 | `client_id` / `client_secret` yanlış |
 | `invalid_refresh_token` | 401 | Refresh token expire / revoke edilmiş |
-| `realm_not_found` | 404 | Auth endpoint'inde `{slug}` geçersiz |
-| `realm_suspended` | 403 | Tenant askıya alınmış |
+| `tenant_not_found` | 404 | Auth endpoint'inde `{slug}` geçersiz |
+| `tenant_suspended` | 403 | Kuruluş askıya alınmış |
 | `forbidden` | 403 | Bu rol bu kaynağı göremez |
 | `merchant_inactive` | 403 | Belirtilen merchant pasif |
 | `merchant_not_found` | 403 | `X-Merchant-Id` / `X-External-Merchant-Id` çözümlenemedi |
@@ -81,7 +81,7 @@ yanıttaki `is_success` ve `status` alanlarına bakarak verin.
 |---|---|---|
 | `bad_request` | 400 | Genel istek hatası |
 | `invalid_json` | 400 | Gövde geçersiz JSON |
-| `validation_failed` | 422 | FluentValidation kuralı ihlali — `errors[]` ile alan listesi |
+| `validation_failed` | 422 | Validasyon kuralı ihlali — hatalı alanların listesi `errors[]` içinde döner |
 | `invalid_amount` | 422 | Tutar pozitif değil veya minimum altında |
 | `invalid_currency` | 422 | Para birimi desteklenmiyor (`TRY` dışı için kapalı) |
 | `invalid_card` | 422 | Kart numarası Luhn checksum'ı geçmiyor |

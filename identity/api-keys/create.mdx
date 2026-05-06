@@ -1,6 +1,6 @@
 ---
 title: "Yeni API Anahtarı Oluşturma"
-description: "Konsoldan veya API üzerinden Keycloak service-account client'ı üretin."
+description: "Konsoldan veya API üzerinden client kimlik bilgileri üretin."
 ---
 
 Yeni anahtarlar konsol veya programatik olarak oluşturulabilir. İki durumda da **`client_secret` yalnızca yanıtta bir kez** döner — sonradan tekrar erişilemez.
@@ -114,7 +114,7 @@ curl https://vpos.payven.com.tr/api/v1/transactions \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-JWT içinde `tenant_id`, `merchant_id`, `plan_code`, `daily_limit`, `monthly_limit`, `rate_limit` claim'leri taşınır — Composer'lar bunları doğrudan validate eder, Identity'ye HTTP atmaz.
+JWT içinde `tenant_id`, `merchant_id`, `plan_code`, `daily_limit`, `monthly_limit`, `rate_limit` claim'leri taşınır — ürün servisleri bu bilgileri doğrudan token'dan okur, ek bir Identity çağrısı gerekmez.
 
 ## Hata yanıtları
 

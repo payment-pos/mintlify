@@ -10,7 +10,7 @@ Bir anahtarı geçici (**pasif**) veya kalıcı olarak (**sil**) iptal edebilirs
 | İşlem | Endpoint | Geri alınabilir mi? |
 |---|---|---|
 | Pasife al | `PUT /api/v1/tenants/me/api-keys/{id}` (`is_active: false`) | ✅ Evet — yeniden aktive edilebilir |
-| Kalıcı sil | `DELETE /api/v1/tenants/me/api-keys/{id}` | ❌ Hayır — Keycloak client da silinir |
+| Kalıcı sil | `DELETE /api/v1/tenants/me/api-keys/{id}` | ❌ Hayır — geri alınamaz |
 
 JWT Bearer auth + `tenant-admin` rolü gerektirir.
 
@@ -57,7 +57,7 @@ curl -X DELETE https://identity.payven.com.tr/api/v1/tenants/me/api-keys/8e3f5c1
 `204 No Content` — gövde yok.
 
 <Warning>
-Silme **geri alınamaz**. Identity DB kaydı + Keycloak client beraber silinir. `client_id` değeri tekrar üretilmez — yeni bir anahtar oluşturmanız gerekir.
+Silme **geri alınamaz**. Anahtar kaydı kalıcı olarak silinir; aynı `client_id` tekrar üretilmez — yeni bir anahtar oluşturmanız gerekir.
 </Warning>
 
 ## Ne zaman pasife alın, ne zaman silin?

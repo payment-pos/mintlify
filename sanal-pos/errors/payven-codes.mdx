@@ -145,7 +145,7 @@ Aşağıdaki kodlar HTTP altyapısı tarafından üretilir; spesifik bir Payven 
 | `404` | `resource_not_found` | Generic kaynak bulunamadı |
 | `409` | `conflict` | Generic çakışma |
 | `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
-| `422` | `validation_failed` | FluentValidation kuralı ihlali |
+| `422` | `validation_failed` | Validasyon kuralı ihlali |
 | `429` | `rate_limit_exceeded` | İstek limiti aşıldı |
 | `500` | `internal_server_error` | Sunucu hatası |
 | `502` | `bad_gateway` | Upstream / connector kötü yanıt |

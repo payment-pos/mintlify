@@ -29,7 +29,7 @@ sequenceDiagram
     Note over Payven: Olay tetiklenir<br/>(payment.completed)
     Payven->>Net: POST /webhooks/payven
     Net->>You: HTTP isteği
-    You-->>Net: HTTP 200 (≤ 5sn içinde)
+    You-->>Net: HTTP 200 (≤ 15sn içinde)
     Net-->>Payven: Onay
     Note over Payven: Teslim başarılı<br/>kayıt edilir
 ```
@@ -40,7 +40,7 @@ Webhook endpoint'iniz aşağıdaki kurallara uymalıdır:
 
 <Check>**HTTPS zorunlu** — HTTP URL'leri reddedilir.</Check>
 <Check>**Public erişilebilir** — özel ağ veya VPN arkasında olamaz.</Check>
-<Check>**5 saniye içinde HTTP 2xx döner** — uzun süren işler için iş kuyruğa atılmalıdır.</Check>
+<Check>**15 saniye içinde HTTP 2xx döner** — uzun süren işler için iş kuyruğa atılmalıdır.</Check>
 <Check>**Idempotent çalışır** — aynı olay birden fazla kez gelebilir.</Check>
 <Check>**İmzayı doğrular** — sahte istekleri reddeder.</Check>
 

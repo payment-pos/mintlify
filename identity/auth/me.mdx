@@ -74,11 +74,11 @@ curl https://identity.payven.com.tr/api/v1/me \
 
 | Alan | Açıklama |
 |---|---|
-| `user` | Keycloak'tan gelen kullanıcı kimliği — `id`, `username`, `email`, `name` |
-| `tenant` | Aktif tenant — `id`, `slug`, `display_name` (null olabilir, JWT'de yoksa) |
+| `user` | Kullanıcı kimliği — `id`, `username`, `email`, `name` |
+| `tenant` | Aktif kuruluş — `id`, `slug`, `display_name` (JWT'de yoksa null) |
 | `merchant` | Aktif merchant — multi-merchant senaryolarda override edilebilir (null olabilir) |
-| `roles` | Keycloak realm rolleri (`pos-admin`, `transfer-admin`, `tenant-admin`, vb.) |
-| `features[]` | Tenant planında aktif **modül** feature'ları — her birinin kullanıcının rollerinden çıkarılan effective permission listesi + filtrelenmiş nav item'lar |
+| `roles` | Kullanıcıya atanan rol kodları (`pos-admin`, `transfer-admin`, `tenant-admin` vb.) |
+| `features[]` | Tenant planında aktif **modül** feature'ları — her birinin kullanıcının rollerinden çıkarılan effective permission listesi ve filtrelenmiş nav item'ları |
 
 ## Plan ve kullanım
 
@@ -145,4 +145,4 @@ const navItems = sanalpos?.nav_items ?? [];
 
 ## Alternatif endpoint
 
-`/api/v1/auth/{slug}/me` endpoint'i Keycloak userinfo proxy olarak da kullanılabilir — sadece Keycloak'tan ham userinfo döner (roles + email + name), tenant/merchant/feature context'i içermez. Production akışlarında **`/api/v1/me`** tercih edin.
+`/api/v1/auth/{slug}/me` endpoint'i de mevcuttur ancak yalnızca temel kullanıcı bilgisini (roller, e-posta, ad) döner — tenant / merchant / feature bağlamı içermez. Production akışlarında **`/api/v1/me`** tercih edin.

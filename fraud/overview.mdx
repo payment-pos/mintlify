@@ -43,7 +43,7 @@ parçası olarak sunulur. Standalone fraud servisi olarak da kullanılabilir
 
 ## Fraud kararı
 
-Her ödeme isteğinde Sanal POS, fraud servisinden iki çağrı yapar:
+Her ödeme isteğinde Sanal POS, fraud servisine başvurur ve `allow / review / block` kararından birini alır. Bu süreç sizin için saydamdır — siz yalnızca `POST /payments` çağırırsınız, sonucu doğrudan ödeme cevabında veya `fraud_blocked` / `fraud_review_required` hata kodu olarak görürsünüz.
 
 ```mermaid
 sequenceDiagram
@@ -53,12 +53,11 @@ sequenceDiagram
     participant Bank as Banka
 
     App->>POS: POST /payments
-    POS->>Fraud: POST /internal/fraud/evaluate
+    POS->>Fraud: Risk skorlama
     alt Karar: allow
         Fraud-->>POS: { decision: "allow", score: 12 }
         POS->>Bank: Otorizasyon
         Bank-->>POS: Onay
-        POS->>Fraud: POST /internal/fraud/finalize
         POS-->>App: completed
     else Karar: block
         Fraud-->>POS: { decision: "block", score: 92, rules_triggered: [...] }
@@ -66,7 +65,7 @@ sequenceDiagram
     else Karar: review
         Fraud-->>POS: { decision: "review", score: 64 }
         POS-->>App: 422 fraud_review_required
-        Note over POS: İşlem holding'de — operatör onayı bekleniyor
+        Note over POS: İşlem beklemede — operatör onayı bekleniyor
     end
 ```
 
@@ -74,7 +73,7 @@ sequenceDiagram
 |---|---|---|
 | `allow` | Risk düşük, işleme devam | Sanal POS bankaya otorizasyon gönderir |
 | `block` | Risk yüksek — kesin reddet | `422 fraud_blocked` döner; işlem oluşmaz |
-| `review` | Risk orta — manuel onay gerekli | İşlem `review` durumunda bekler; operatör allow/block'a çevirir |
+| `review` | Risk orta — manuel onay gerekli | İşlem `review` durumunda bekler; operatör allow / block'a çevirir |
 
 ## Kural tipleri
 
@@ -107,10 +106,11 @@ curl -X POST https://fraud-sandbox.payven.com.tr/api/v1/fraud/rules \
 
 | Kategori | Açıklama |
 |---|---|
-| `/internal/fraud/*` | Sanal POS'un dahili kullanımı — `evaluate`, `finalize` |
-| `/fraud/rules` | Tenant kuralları CRUD |
-| `/tenant/fraud/{rules,blacklist,alerts,logs,merchant-policies}` | Tenant bazlı yönetim |
-| `/platform/fraud/*` | Platform-level (multi-tenant) kara liste, alert havuzu |
+| `/api/v1/fraud/rules` | Kural tanımları — listele, oluştur, güncelle, sil |
+| `/api/v1/fraud/blacklist` | Kara liste yönetimi (kart, IP, e-posta, müşteri kimliği) |
+| `/api/v1/fraud/alerts` | Tetiklenen uyarıları listele, onayla / reddet |
+| `/api/v1/fraud/logs` | Geçmiş fraud kararlarının audit kayıtları |
+| `/api/v1/fraud/merchants/{merchant_id}/policy` | Merchant bazlı politika atama |
 
 ## Webhook olayları
 

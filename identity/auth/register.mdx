@@ -1,9 +1,9 @@
 ---
 title: "Self-Service Kayıt"
-description: "Bir tenant'a yeni kullanıcı kaydı (onay bekleyen)."
+description: "Bir kuruluşa yeni kullanıcı kaydı (onay bekleyen)."
 ---
 
-Bir tenant'a self-service kayıt akışıyla yeni kullanıcı eklenir. Kayıt sonrası hesap **onay bekleyen** statüde kalır (`Enabled=false`, `pendingApproval=true`); tenant yöneticisi konsolundan onayladığında aktifleşir ve rol atanır.
+Bir kuruluşa self-service kayıt akışıyla yeni kullanıcı eklenir. Kayıt sonrası hesap **onay bekleyen** statüde kalır; kuruluş yöneticisi konsoldan onayladığında aktifleşir ve rol atanır.
 
 ## Endpoint
 
@@ -13,7 +13,7 @@ POST /api/v1/auth/{slug}/register
 
 | Path parametresi | Açıklama |
 |---|---|
-| `slug` | Tenant slug. **`platform` slug'ı kabul edilmez** (platform admin sadece davet ile eklenebilir). |
+| `slug` | Kuruluş slug'ı. |
 
 <Note>
 Bu endpoint **rate limited**: IP başına dakikada 10 istek. Aşımda `429 rate_limit_exceeded`.
@@ -38,8 +38,8 @@ curl -X POST https://identity.payven.com.tr/api/v1/auth/payven/register \
 | `first_name` | string | ✅ | İsim |
 | `last_name` | string | ✅ | Soyisim |
 | `email` | string | ✅ | Geçerli e-posta — kullanıcı adı olarak kullanılır |
-| `company_name` | string | ✅ | Şirket adı (Keycloak attribute olarak saklanır) |
-| `password` | string | ✅ | Keycloak parola politikasına uygun (min uzunluk + karakter çeşitliliği) |
+| `company_name` | string | ✅ | Şirket adı (görüntüleme için saklanır) |
+| `password` | string | ✅ | Parola politikasına uygun (min uzunluk + karakter çeşitliliği) |
 
 ## Yanıt
 
@@ -54,21 +54,21 @@ curl -X POST https://identity.payven.com.tr/api/v1/auth/payven/register \
 
 | Alan | Açıklama |
 |---|---|
-| `user_id` | Keycloak'ta oluşturulan kullanıcının kimliği |
+| `user_id` | Yeni oluşturulan kullanıcının kimliği |
 | `email` | Doğrulanmış e-posta adresi |
 
 ## Onay süreci
 
 ```mermaid
 flowchart LR
-    A[POST /register] --> B[Keycloak'ta user oluştu<br/>Enabled=false<br/>pendingApproval=true]
-    B --> C{Tenant admin onaylar mı?}
-    C -->|Evet| D[Enabled=true<br/>rol atanır]
-    C -->|Hayır| E[user disabled kalır]
+    A[POST /register] --> B[Kullanıcı oluştu<br/>durum: pending_approval]
+    B --> C{Yönetici onaylıyor mu?}
+    C -->|Evet| D[Aktif edilir<br/>rol atanır]
+    C -->|Hayır| E[Pasif kalır]
     D --> F[Kullanıcı login olabilir]
 ```
 
-Tenant adminleri **Konsol → Kullanıcılar → Onay Bekleyenler** ekranından bekleyenleri görür ve `PUT /api/v1/users/{id}` ile onaylar.
+Kuruluş yöneticileri **Konsol → Kullanıcılar → Onay Bekleyenler** ekranından bekleyenleri görür ve `PUT /api/v1/users/{id}` ile onaylar.
 
 ## Hata yanıtları
 
@@ -77,8 +77,8 @@ Hata zarfı RFC 9457 problem+json.
 | HTTP | `code` | Anlam |
 |---|---|---|
 | `400` | `validation_failed` | Zorunlu alan eksik / format yanlış |
-| `404` | `realm_not_found` | Slug bulunamadı veya `platform` denendi |
-| `403` | `tenant_inactive` | Tenant askıya alınmış |
-| `409` | `user_already_exists` | Bu e-posta zaten kayıtlı (aynı tenant içinde) |
-| `422` | `weak_password` | Parola Keycloak politikasına uymuyor |
+| `404` | `tenant_not_found` | Slug bulunamadı |
+| `403` | `tenant_inactive` | Kuruluş askıya alınmış |
+| `409` | `user_already_exists` | Bu e-posta zaten kayıtlı (aynı kuruluş içinde) |
+| `422` | `weak_password` | Parola politikaya uymuyor |
 | `429` | `rate_limit_exceeded` | Çok fazla deneme — `Retry-After` header'ına uyun |

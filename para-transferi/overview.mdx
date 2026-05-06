@@ -8,23 +8,23 @@ Payven Para Transferi modülü; lisanslı ödeme kuruluşları ve büyük platfo
 ## Temel özellikler
 
 <CardGroup cols={2}>
-  <Card title="Çoklu Banka Konnektörleri" icon="building-columns">
-    Kuveyt Türk, Fibabanka, İş Bankası, Intertech, Akbank, HalkBank — REST/SOAP/OAuth2 farklarını Payven yönetir.
+  <Card title="Çoklu Banka Konektörleri" icon="building-columns">
+    Kuveyt Türk, Fibabanka, İş Bankası, Akbank, HalkBank ve diğerleri — banka API farklılıklarını Payven yönetir, sizin payload'unuz tek formatta kalır.
   </Card>
   <Card title="EFT + FAST + Havale" icon="arrow-right-arrow-left">
-    Tek API ile üç transfer tipi. Bankaya göre otomatik FAST/EFT seçimi.
+    Tek API ile üç transfer tipi. Bankaya göre otomatik FAST / EFT seçimi.
   </Card>
-  <Card title="Bulk İşlem" icon="layer-group">
-    Onlarca-yüzlerce transferi tek istekte gönderin; banka batch API'leri otomatik kullanılır.
+  <Card title="Toplu İşlem" icon="layer-group">
+    Onlarca veya yüzlerce transferi tek istekte gönderin; banka destekliyorsa toplu API kullanılır.
   </Card>
-  <Card title="Polly Resilience" icon="arrows-rotate">
-    HTTP retry (3x exponential backoff), circuit breaker (3 failure → 30sn), token retry — hepsi otomatik.
+  <Card title="Otomatik Yeniden Deneme" icon="arrows-rotate">
+    Geçici banka hatalarında üstel geri çekilmeli (exponential backoff) yeniden deneme ve devre kesici (circuit breaker) Payven tarafında çalışır; siz bir şey yapmazsınız.
   </Card>
-  <Card title="Webhook + SignalR Dashboard" icon="bell">
-    Transfer status değişimleri webhook ile teslim edilir; dashboard SignalR ile gerçek zamanlı güncellenir.
+  <Card title="Webhook + Konsol İzleme" icon="bell">
+    Transfer durum değişimleri webhook ile teslim edilir; konsoldan gerçek zamanlı izlenir.
   </Card>
-  <Card title="Multi-Tenant Soft Delete" icon="shield-keyhole">
-    Tenant bazlı izolasyon (`X-Tenant-Id`), EF Core query filter ile otomatik kapsam.
+  <Card title="Çoklu Kuruluş İzolasyonu" icon="shield-keyhole">
+    Tüm veriler kuruluş başına izole edilir; başka kuruluşların transferleri görülemez.
   </Card>
 </CardGroup>
 
@@ -112,21 +112,19 @@ curl -X POST https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/send \
   -d '{ "transfer_ids": ["8e3f5c12-..."] }'
 ```
 
-## Konnektör kapasitesi
+## Konektör kapasitesi
 
-| Konnektör | Auth | EFT | FAST | Havale | Kart Transferi | Dekont PDF | Bulk |
-|---|---|---|---|---|---|---|---|
-| Kuveyt Türk | OAuth2 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Fibabanka | REST + mTLS opsiyonel | — | — | — | ✅ | — | ✅ |
-| İş Bankası | OAuth2 (scope: EFT/Fast/Remittance/Credit) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Akbank | OAuth2 | ✅ | ✅ | ✅ | ✅ | ✅ | Native bulk |
-| HalkBank | SOAP/WCF | ✅ | ✅ | ✅ | — | ✅ | ✅ |
-| Intertech | REST | (stub) | (stub) | (stub) | (stub) | — | — |
+| Konektör | EFT | FAST | Havale | Kart Transferi | Dekont PDF | Toplu işlem |
+|---|---|---|---|---|---|---|
+| Kuveyt Türk | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Fibabanka | — | — | — | ✅ | — | ✅ |
+| İş Bankası | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Akbank | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| HalkBank | ✅ | ✅ | ✅ | — | ✅ | ✅ |
 
 <Note>
-Konnektör isimleri ve auth yöntemleri **konfigürasyon** üzerinden gelir; sizin
-istek payload'unuz tüm bankalar için aynı şekildedir. Hangi banka kullanılacağı
-**connector configuration**'a göre seçilir.
+Sizin istek payload'unuz tüm bankalar için aynıdır. Hangi banka kullanılacağı
+konsoldan tanımladığınız konektör konfigürasyonuna göre seçilir.
 </Note>
 
 ## Webhook olayları

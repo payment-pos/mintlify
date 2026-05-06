@@ -9,7 +9,9 @@ Payven, ortak bir kimlik servisi etrafında düzenlenmiş bağımsız ürün ser
 
 ```mermaid
 flowchart LR
-    Client["Müşteri Uygulaması"] -->|"X-API-Key + Secret"| Gateway["Payven API"]
+    Client["Müşteri Uygulaması"]
+    Client -->|"client_id + secret ile<br/>token al"| Identity
+    Client -->|"Authorization: Bearer &lt;token&gt;"| Products
 
     subgraph Identity[" "]
       direction TB
@@ -24,21 +26,20 @@ flowchart LR
       Invoice["Fatura Ödeme"]
     end
 
-    Gateway --> Identity
-    Gateway --> Products
-
-    I -.->|"BIN/Bank/MCC lookup"| VPOS
-    I -.->|"BIN/IBAN validation"| Transfer
+    I -.->|"banka / BIN / MCC lookup"| VPOS
+    I -.->|"banka / IBAN doğrulama"| Transfer
     Fraud -.->|"risk skoru"| VPOS
 ```
 
-| Servis | Sorumluluk | Auth |
-|---|---|---|
-| **Identity & Auth** | Kullanıcı ve kuruluş yönetimi, API anahtarı yaşam döngüsü, ortak referans veriler (banka, BIN, MCC, şehir) | OAuth 2.0 / OIDC tabanlı, Bearer token |
-| **Sanal POS** | Ödeme işlemleri, akıllı yönlendirme, mutabakat, webhook | API Key + Secret |
-| **Para Transferi** | Çoklu banka üzerinden FAST, EFT, havale yönlendirme | API Key + Secret |
-| **Fraud Yönetimi** | Kural motoru, kara/beyaz liste, risk skorlama | API Key + Secret |
-| **Fatura Ödeme** | Fatura oluşturma, sorgulama, tahsilat | API Key + Secret |
+| Servis | Sorumluluk |
+|---|---|
+| **Identity & Auth** | Kullanıcı ve kuruluş yönetimi, API anahtarı yaşam döngüsü, ortak referans veriler (banka, BIN, MCC, şehir). API anahtarı çiftiyle JWT token verir. |
+| **Sanal POS** | Ödeme işlemleri, akıllı yönlendirme, mutabakat, webhook. |
+| **Para Transferi** | Çoklu banka üzerinden FAST, EFT, havale yönlendirme. |
+| **Fraud Yönetimi** | Kural motoru, kara/beyaz liste, risk skorlama. |
+| **Fatura Ödeme** | Fatura oluşturma, sorgulama, tahsilat. |
+
+Tüm servisler aynı kimlik doğrulama yöntemini kullanır: Identity'den aldığınız tek JWT, planınızdaki bütün ürünlere geçer. Detay: [Kimlik Doğrulama](/documentation/concepts/authentication).
 
 ## Kuruluş ve merchant modeli
 

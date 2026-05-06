@@ -1,9 +1,9 @@
 ---
 title: "Login (Portal Kullanıcısı)"
-description: "Insan kullanıcılar için username/password ile JWT alma."
+description: "İnsan kullanıcılar için kullanıcı adı / parola ile JWT alma."
 ---
 
-Identity servisi üzerinden **portal kullanıcısı** (insan) oturumu başlatır. Backend kanalları (server-to-server) için bu yerine [Token (Client Credentials)](/documentation/concepts/authentication) endpoint'ini kullanın.
+Identity servisi üzerinden **konsol kullanıcısı** (insan) oturumu başlatır. Sunucu-sunucu entegrasyonları için bu yerine [Token (Client Credentials)](/documentation/concepts/authentication) endpoint'ini kullanın.
 
 ## Endpoint
 
@@ -13,7 +13,7 @@ POST /api/v1/auth/{slug}/login
 
 | Path parametresi | Açıklama |
 |---|---|
-| `slug` | Tenant slug'ı (onboarding sırasında verilen). Platform yöneticileri için: `platform`. |
+| `slug` | Kuruluşunuzun slug'ı (onboarding sırasında verilen). |
 
 <Note>
 Bu endpoint **rate limited**: IP başına dakikada **10** istek. Aşımda `429 rate_limit_exceeded`.
@@ -37,7 +37,7 @@ curl -X POST https://identity.payven.com.tr/api/v1/auth/payven/login \
 
 ## Yanıt
 
-`200 OK` — Keycloak token sonucu (`KeycloakTokenResult`):
+`200 OK` — `AuthTokenResult`:
 
 ```json
 {
@@ -75,12 +75,12 @@ Hata zarfı [RFC 9457 problem+json](/documentation/concepts/errors).
 | `401` | `invalid_credentials` | Kullanıcı adı veya parola hatalı |
 | `403` | `user_disabled` | Hesap devre dışı |
 | `403` | `user_pending_approval` | Onay bekliyor |
-| `404` | `realm_not_found` | Slug geçersiz |
+| `404` | `tenant_not_found` | Slug geçersiz |
 | `429` | `rate_limit_exceeded` | Çok fazla başarısız deneme — `Retry-After` header'ına uyun |
 
 ## Güvenlik
 
 <Check>Login isteklerini **sadece HTTPS** üzerinden atın.</Check>
 <Check>Tarayıcıda `access_token`'ı in-memory veya `httpOnly` cookie'de tutun, `localStorage`'a yazmayın.</Check>
-<Check>`refresh_token`'ı sadece sunucu tarafında saklayın (BFF pattern öneriyoruz).</Check>
-<Check>Brute-force koruması: ardışık başarısız giriş denemelerinde rate limit + Keycloak account lockout devreye girer.</Check>
+<Check>`refresh_token`'ı sadece sunucu tarafında saklayın — tarayıcıya açmayın.</Check>
+<Check>Brute-force koruması: ardışık başarısız giriş denemelerinde rate limit ve hesap kilidi devreye girer.</Check>
