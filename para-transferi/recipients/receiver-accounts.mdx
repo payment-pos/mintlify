@@ -1,0 +1,169 @@
+---
+title: "Alıcı Hesapları"
+description: "Bir alıcının IBAN'ları ve banka hesaplarını ayrı kayıtlar olarak yönetin."
+---
+
+Bir [alıcının](/para-transferi/recipients/overview) **birden fazla banka hesabı (IBAN)** olabilir — örn. maaş hesabı, prim hesabı, farklı bankada vergi hesabı. `receiver_accounts` kayıtları, alıcı master data'sından **bağımsız** bir IBAN katmanıdır.
+
+```
+Alıcı (Recipient)
+└── Alıcı Hesapları (Receiver Accounts)
+    ├── IBAN — Garanti BBVA — "Maaş hesabı" (default)
+    ├── IBAN — Akbank — "Prim hesabı"
+    └── IBAN — İş Bankası — "Vergi hesabı"
+```
+
+Transfer oluştururken `receiver_account_id` ile spesifik hesabı seçebilir veya `recipient_id` ile alıcının **default** hesabını otomatik seçebilirsiniz.
+
+## Endpoint'ler
+
+```http
+POST   /api/v1/receiveraccounts                                # Yeni hesap
+GET    /api/v1/receiveraccounts                                # Liste
+GET    /api/v1/receiveraccounts/by-bank/{bank_id}              # Banka bazlı liste
+GET    /api/v1/receiveraccounts/by-saved-account/{recipient_id}# Alıcıya bağlı hesaplar
+PUT    /api/v1/receiveraccounts/{id}                           # Güncelle
+DELETE /api/v1/receiveraccounts/{id}                           # Sil
+```
+
+**Yetki:** Listeleme için `transfer-viewer`; CRUD operasyonları `transfer-admin`.
+
+## Hesap oluşturma
+
+```bash
+curl -X POST https://transfer.payven.com.tr/api/v1/receiveraccounts \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "Idempotency-Key: receiver-account-ahmet-akbank" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "recipient_id":  "abc-12345-...",
+    "iban":          "TR330006100519786457841326",
+    "bank_id":       "bank-akbank-uuid",
+    "label":         "Maaş hesabı",
+    "is_default":    true,
+    "external_id":   "RA-EMP001-AKBANK"
+  }'
+```
+
+| Alan | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `recipient_id` | UUID | ✅ | Hangi alıcıya bağlı |
+| `iban` | string | ✅ | TR ile başlayan 26 haneli IBAN |
+| `bank_id` | UUID | ❌ | IBAN'dan otomatik çözümlenir; manuel override için |
+| `label` | string | ❌ | "Maaş hesabı", "Vergi hesabı" gibi operatör etiketi |
+| `is_default` | bool | ❌ | Bu alıcının default hesabı mı? Aynı alıcıda yalnız bir default olabilir; `true` set edilirse diğeri otomatik `false` olur. |
+| `external_id` | string | önerilir | Sizin sisteminizdeki kayıt kimliği |
+
+<Note>
+**IBAN doğrulama** önceden yapılır: oluşturma sırasında IBAN checksum kontrol edilir, geçersizse `422 invalid_iban` döner. Banka kimliği IBAN'ın 5-6. hanelerinden otomatik çözümlenir. Detay: [IBAN Doğrulama](/para-transferi/validation/iban).
+</Note>
+
+## Yanıt
+
+```json
+{
+  "id":            "ra-8e3f5c12-...",
+  "recipient_id":  "abc-12345-...",
+  "iban":          "TR330006100519786457841326",
+  "iban_masked":   "TR33 **** **** **** **** 1326",
+  "bank_id":       "bank-akbank-uuid",
+  "bank_name":     "Akbank",
+  "bank_code":     "AKBANK",
+  "label":         "Maaş hesabı",
+  "is_default":    true,
+  "is_active":     true,
+  "external_id":   "RA-EMP001-AKBANK",
+  "created":       "2026-05-07T10:00:00.123+03:00"
+}
+```
+
+`id` değerini saklayın — transfer oluştururken `receiver_account_id` olarak kullanılır.
+
+## Alıcıya bağlı hesaplar
+
+Bir alıcının tüm hesaplarını listelemek için:
+
+```bash
+curl https://transfer.payven.com.tr/api/v1/receiveraccounts/by-saved-account/abc-12345-... \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID"
+```
+
+Yanıt — array (sayfasız, alıcı başına tipik olarak <10 hesap):
+
+```json
+{
+  "items": [
+    { "id": "ra-1", "iban": "TR33...", "label": "Maaş hesabı", "is_default": true,  ... },
+    { "id": "ra-2", "iban": "TR67...", "label": "Prim hesabı", "is_default": false, ... }
+  ]
+}
+```
+
+## Banka bazlı liste
+
+Belirli bir bankadaki tüm alıcı hesaplarınızı listelemek için (operasyonel raporlama):
+
+```bash
+curl https://transfer.payven.com.tr/api/v1/receiveraccounts/by-bank/bank-akbank-uuid \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID"
+```
+
+Yanıt sayfalı liste zarfı.
+
+## Default hesap kuralı
+
+Transfer oluştururken sadece `recipient_id` verirseniz, alıcının **`is_default: true`** olan hesabı otomatik seçilir. Default yoksa `422 default_receiver_account_required` döner — ya hesabı oluştururken `is_default: true` set edin ya da transferde `receiver_account_id` ile spesifik hesap belirtin.
+
+## Transfer'de kullanım
+
+Üç mod:
+
+**Mod 1 — Default hesap (en kısa):**
+
+```json
+"recipient": { "recipient_id": "abc-12345-..." }
+```
+
+**Mod 2 — Spesifik hesap:**
+
+```json
+"recipient": {
+  "recipient_id":         "abc-12345-...",
+  "receiver_account_id":  "ra-8e3f5c12-..."
+}
+```
+
+**Mod 3 — Ad-hoc IBAN (saklı alıcı yok):**
+
+```json
+"recipient": {
+  "holder_name": "...",
+  "iban":        "TR..."
+}
+```
+
+## Güncelleme
+
+`iban` ve `recipient_id` değiştirilemez (yeni hesap oluşturmanız gerekir). Diğer alanlar güncellenebilir:
+
+```bash
+curl -X PUT https://transfer.payven.com.tr/api/v1/receiveraccounts/ra-8e3f5c12-... \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "Content-Type: application/json" \
+  -d '{ "label": "Maaş — yeni şirket", "is_default": false }'
+```
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `recipient_not_found` | `recipient_id` bulunamadı veya pasif |
+| `404` | `bank_not_found` | IBAN'dan banka çözümlenemedi (yabancı IBAN olabilir) |
+| `422` | `invalid_iban` | IBAN checksum'ı geçmiyor |
+| `409` | `iban_already_registered` | Bu IBAN aynı alıcıda zaten kayıtlı |
+| `409` | `duplicate_external_id` | Aynı `external_id` ile başka kayıt var |
+| `403` | `forbidden` | `transfer-admin` rolü yok |

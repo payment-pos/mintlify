@@ -1,0 +1,104 @@
+---
+title: "Kuruluş Hesapları"
+description: "Para transferi için kullanılan kaynak banka hesaplarınızı ve bakiyelerini görüntüleyin."
+---
+
+Kuruluş hesapları, kuruluşunuzun **transfer çıkışında kullanılan** banka hesaplarıdır. Her hesap bir konnektör konfigürasyonuyla eşleşir — yani Payven üzerinden gerçek bir bankada gerçek bakiyenizdir.
+
+Bu sayfa **raporlama / izleme** odaklıdır: bakiye sorgulama, hesap hareketlerini listeleme, muhasebe sistemine besleme.
+
+<Note>
+Bu hesapların **konfigürasyonu** (banka credential, kurulum) konsoldan yapılır. Bu API ürün entegrasyonu için **salt okunur** raporlama amaçlıdır.
+</Note>
+
+## Endpoint'ler
+
+```http
+GET /api/v1/accounts                                # Tüm hesapları listele
+GET /api/v1/accounts/{id}                           # Tek hesap detayı + bakiye
+```
+
+**Yetki:** `transfer-viewer` veya üzeri.
+
+## Hesap listesi
+
+```bash
+curl https://transfer.payven.com.tr/api/v1/accounts \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID"
+```
+
+Yanıt (sayfasız, kuruluş başına tipik olarak <50 hesap):
+
+```json
+{
+  "items": [
+    {
+      "id":                  "550e8400-e29b-41d4-a716-446655440000",
+      "name":                "Garanti — Operasyon Hesabı",
+      "iban":                "TR860006400000000000000123",
+      "iban_masked":         "TR86 **** **** **** **** 0123",
+      "bank_id":             "bank-garanti-uuid",
+      "bank_name":           "Garanti BBVA",
+      "bank_code":           "GARANTI",
+      "branch_name":         "Maslak Şubesi",
+      "currency":            "TRY",
+      "available_balance":   125000000,
+      "blocked_balance":     5000000,
+      "total_balance":       130000000,
+      "balance_updated_at":  "2026-05-07T10:35:00.123+00:00",
+      "supported_transfer_types": ["fast", "eft", "remittance"],
+      "is_active":           true,
+      "created":             "2026-01-15T10:00:00.000+00:00"
+    }
+  ],
+  "total_count": 4
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `available_balance` | Transfer gönderilebilir tutar (kuruş) |
+| `blocked_balance` | Açık ön provizyon, beklenen transfer gibi nedenlerle bloke tutar |
+| `total_balance` | Toplam (`available + blocked`) |
+| `balance_updated_at` | Bakiyenin son güncellenme zamanı |
+| `supported_transfer_types` | Bu hesabın desteklediği transfer tipleri |
+
+<Warning>
+**Bakiye gerçek zamanlı değildir.** Bankadan periyodik olarak çekilir (tipik 1-5 dakika tazelik). Hassas işlemlerde transfer atmadan önce hesap detayını sorgulamak iyi pratik olsa da, transfer anında bankanın gerçek bakiyesi tek geçerli kaynaktır.
+</Warning>
+
+## Tek hesap detayı
+
+```bash
+curl https://transfer.payven.com.tr/api/v1/accounts/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID"
+```
+
+Liste yanıtındaki tek bir kayıt + son 5 başarılı transfer özeti döner.
+
+## Tipik kullanım
+
+- **Operasyonel dashboard** — günün başında tüm hesap bakiyelerini görüntüleme
+- **Pre-transfer kontrol** — bulk transfer öncesi yeterli bakiye var mı doğrulama
+- **Muhasebe entegrasyonu** — gün sonu bakiyeleri ERP'ye besleme
+- **Treasury** — fazla bakiyeyi nakit yönetimine taşıma kararı
+
+## Gerçek zamanlı bakiye yenileme
+
+Eğer son güncellemenin tazeliği yetmiyorsa konsoldaki **Hesaplar** ekranında hesabın yanındaki "Yenile" butonu bankadan anlık tazeleme tetikler. Programatik anlık tazeleme endpoint'i yol haritasındadır.
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `account_not_found` | Verilen `id` bulunamadı |
+| `403` | `forbidden` | Yetki yok |
+| `502` | `bank_balance_unavailable` | Banka tarafı bakiye sorgusu başarısız (önbellek değer döner) |
+
+## Sonraki adım
+
+<Card title="Hesap Hareketleri" icon="list" href="/para-transferi/reporting/transactions">
+  Bir hesabın geçmiş giriş/çıkış hareketlerini listeleyin.
+</Card>

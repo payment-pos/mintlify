@@ -183,16 +183,37 @@
             ]
           },
           {
-            "group": "Sorgulamalar",
+            "group": "Tekrarlayan Transferler",
+            "pages": [
+              "para-transferi/transfers/recurring"
+            ]
+          },
+          {
+            "group": "Sorgulamalar & Dekont",
             "pages": [
               "para-transferi/inquiries/transfer-list",
-              "para-transferi/inquiries/transfer-detail"
+              "para-transferi/inquiries/transfer-detail",
+              "para-transferi/transfers/receipt"
             ]
           },
           {
             "group": "Alıcılar",
             "pages": [
-              "para-transferi/recipients/overview"
+              "para-transferi/recipients/overview",
+              "para-transferi/recipients/receiver-accounts"
+            ]
+          },
+          {
+            "group": "Validasyon",
+            "pages": [
+              "para-transferi/validation/iban"
+            ]
+          },
+          {
+            "group": "Raporlama & İzleme",
+            "pages": [
+              "para-transferi/reporting/accounts",
+              "para-transferi/reporting/transactions"
             ]
           },
           {

@@ -1,0 +1,157 @@
+---
+title: "Hesap Hareketleri"
+description: "Kuruluş hesabınızdaki tüm para hareketlerini (giriş/çıkış) raporlayın."
+---
+
+Hesap hareketleri (account transactions), bir [kuruluş hesabınızın](/para-transferi/reporting/accounts) bankadaki **gerçek hareket kayıtlarıdır**: gelen havaleler, çıkan transferler, banka komisyonu kesintileri, faiz tahakkukları. Para Transferi modülünden çıkmayan hareketler (örn. başka biri sizin hesaba para yatırmış) da burada görünür.
+
+<Note>
+**Transfer ≠ Hesap hareketi.** Transfer, sizin Payven üzerinden başlattığınız çıkış işlemidir. Hesap hareketi ise bankanın gözünden tüm giriş ve çıkışlardır. Sizin başlattığınız her başarılı transfer bir çıkış hareketi yaratır, ama hesap hareketi listesinde **dışarıdan gelen havaleler** de bulunur.
+</Note>
+
+## Endpoint
+
+```http
+GET /api/v1/accounts/{account_id}/transactions
+```
+
+**Yetki:** `transfer-viewer` veya üzeri.
+
+## Sorgu parametreleri
+
+| Parametre | Tip | Açıklama |
+|---|---|---|
+| `page` | int | Sayfa numarası (varsayılan `1`) |
+| `page_size` | int | Sayfa başı kayıt (1–200, varsayılan `50`) |
+| `start_date`, `end_date` | datetime | Tarih aralığı (UTC, ISO 8601) |
+| `direction` | enum | `inbound` (gelen) / `outbound` (çıkan) / `all` (varsayılan) |
+| `min_amount`, `max_amount` | int (kuruş) | Tutar aralığı |
+| `category` | enum | `transfer`, `commission`, `interest`, `tax`, `other` |
+| `counterparty_iban` | string | Karşı taraf IBAN ile filtre |
+| `transfer_id` | UUID | Bu hesap hareketini üreten Payven transfer kimliği (varsa) |
+| `search_term` | string | Açıklama, karşı taraf adı, banka referans no üzerinde arama |
+
+## İstek
+
+```bash
+curl "https://transfer.payven.com.tr/api/v1/accounts/550e8400-e29b-41d4-a716-446655440000/transactions?start_date=2026-05-01T00:00:00Z&end_date=2026-05-07T23:59:59Z&direction=outbound&page_size=100" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID"
+```
+
+## Yanıt
+
+```json
+{
+  "items": [
+    {
+      "id":                "tx-8e3f5c12-...",
+      "account_id":        "550e8400-e29b-41d4-a716-446655440000",
+      "occurred_at":       "2026-05-03T12:35:00.000+00:00",
+      "value_date":        "2026-05-03",
+
+      "direction":         "outbound",
+      "amount":            1500000,
+      "currency":          "TRY",
+      "balance_after":     123500000,
+
+      "category":          "transfer",
+      "transfer_id":       "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "external_id":       "PAYROLL-001",
+
+      "counterparty_name": "Ahmet Yılmaz",
+      "counterparty_iban": "TR330006100519786457841326",
+      "counterparty_bank": "Akbank",
+
+      "description":       "Mayıs maaş ödemesi",
+      "bank_reference":    "AKBANK-FAST-9f3d2b8e",
+      "bank_response_code":"00"
+    },
+    {
+      "id":                "tx-9f3d2b8e-...",
+      "occurred_at":       "2026-05-03T12:35:01.000+00:00",
+      "direction":         "outbound",
+      "amount":            350,
+      "category":          "commission",
+      "transfer_id":       "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "description":       "FAST işlem komisyonu"
+    }
+  ],
+  "page":              1,
+  "total_pages":       3,
+  "total_count":       247,
+  "has_previous_page": false,
+  "has_next_page":     true,
+
+  "summary": {
+    "total_inbound":    8500000,
+    "total_outbound":   12350000,
+    "net":              -3850000,
+    "commission_total": 8750
+  }
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `direction` | `inbound` veya `outbound` |
+| `amount` | Mutlak değer (kuruş) — yön `direction` ile belirtilir |
+| `balance_after` | Bu hareketten sonraki hesap bakiyesi |
+| `category` | Hareketin tipi |
+| `transfer_id` | Eğer hareket Payven üzerinden başlatıldıysa, ilgili transfer kimliği |
+| `counterparty_*` | Karşı taraf bilgileri (gelen havale için gönderici, çıkan için alıcı) |
+| `bank_reference` | Banka tarafı işlem referans numarası |
+
+### `summary` alanı
+
+Sayfalı yanıtın yanında **filtre kapsamındaki tüm kayıtlar için** özet:
+
+| Alan | Açıklama |
+|---|---|
+| `total_inbound` | Toplam gelen tutar |
+| `total_outbound` | Toplam çıkan tutar |
+| `net` | Net hareket (`inbound − outbound`) |
+| `commission_total` | Toplam banka komisyonu |
+
+## Tipik kullanım örnekleri
+
+**Bugünkü tüm çıkışlar:**
+
+```http
+GET /accounts/{id}/transactions?start_date=2026-05-07T00:00:00Z&direction=outbound
+```
+
+**Belirli bir transferin hesap üzerindeki etkisi (anapara + komisyon):**
+
+```http
+GET /accounts/{id}/transactions?transfer_id=8e3f5c12-...
+```
+
+**Bilinmeyen büyük tutarlı gelen havale tespiti:**
+
+```http
+GET /accounts/{id}/transactions?direction=inbound&min_amount=100000000
+```
+
+**Aylık komisyon raporlaması:**
+
+```http
+GET /accounts/{id}/transactions?start_date=2026-05-01T00:00:00Z&end_date=2026-05-31T23:59:59Z&category=commission
+```
+
+## Mutabakat ile ilişki
+
+Hesap hareketleri **anlık** veridir; bankadan periyodik çekilir. Gün sonu **mutabakat** ise bu hareketleri Payven'in transfer kayıtlarıyla **eşleştirir** — eksik kayıtları, tutar farklarını ve durum uyumsuzluklarını tespit eder. Detay: konsoldaki **Mutabakat** ekranı.
+
+## Export
+
+CSV/XLSX export şu an konsoldan yapılır — **Konsol → Hesap Hareketleri** ekranından "Dışa aktar" butonuyla. Programatik bir `/transactions/export` endpoint'i yol haritasındadır.
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `account_not_found` | `account_id` bulunamadı |
+| `403` | `forbidden` | Yetki yok |
+| `400` | `invalid_filter` | Tarih aralığı hatalı veya `min_amount > max_amount` |
+| `502` | `bank_data_unavailable` | Banka tarafı geçici hata, önbellek değer döner |

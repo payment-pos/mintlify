@@ -1,0 +1,108 @@
+---
+title: "Dekont (Makbuz) İndirme"
+description: "Tamamlanmış transferin banka makbuz PDF'ini indirin veya Base64 olarak alın."
+---
+
+`completed` veya `delivered` durumdaki transferlerin **banka makbuzu** PDF olarak indirilebilir. İki seçenek vardır: doğrudan PDF dosyası veya Base64-encoded string (e-posta eki, S3 yükleme veya CRM kayıtları için pratik).
+
+## Endpoint'ler
+
+```http
+GET /api/v1/transfers/{id}/receipt/download   # PDF dosyası (binary)
+GET /api/v1/transfers/{id}/receipt/base-64    # Base64-encoded string
+```
+
+**Yetki:** `transfer-viewer` veya üzeri.
+
+## PDF dosyası olarak indirme
+
+```bash
+curl https://transfer.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/receipt/download \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -o makbuz.pdf
+```
+
+Yanıt:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="TRF-20260503-0001.pdf"
+Content-Length: 47823
+```
+
+PDF binary içeriği döner. Tarayıcıda doğrudan görüntülemek için `Content-Disposition: inline` ile sunabilirsiniz.
+
+## Base64 olarak alma
+
+E-posta eki, mobil uygulama görüntüleme veya başka bir sistemden yükleme yaparken doğrudan Base64 string almak daha pratiktir:
+
+```bash
+curl https://transfer.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/receipt/base-64 \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID"
+```
+
+Yanıt:
+
+```json
+{
+  "transfer_id":  "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "receipt_no":   "TRF-20260503-0001",
+  "filename":     "TRF-20260503-0001.pdf",
+  "content_type": "application/pdf",
+  "content":      "JVBERi0xLjQKJYCBgoMKMSAwIG9iago8PA..."
+}
+```
+
+Tipik kullanım — Node.js ile e-posta eki:
+
+```javascript
+const res = await fetch(
+  `https://transfer.payven.com.tr/api/v1/transfers/${transferId}/receipt/base-64`,
+  { headers: { Authorization: `Bearer ${token}`, "X-Tenant-Id": tenantId } }
+);
+const { content, filename } = await res.json();
+
+await mailer.send({
+  to: customer.email,
+  subject: "Transfer dekontunuz",
+  attachments: [{ filename, content, encoding: "base64" }],
+});
+```
+
+## Dekont içeriği
+
+Banka tarafından üretilen makbuz şu bilgileri taşır (banka şablonuna göre değişebilir):
+
+- **Banka ve şube logosu**
+- **İşlem tarihi ve saati**
+- **İşlem referans numarası** (banka tarafı)
+- **Gönderici hesap** (IBAN, isim, açıklama)
+- **Alıcı hesap** (IBAN, isim, açıklama)
+- **Tutar ve para birimi**
+- **Banka komisyonu**
+- **Transfer tipi** (FAST / EFT / Havale)
+- **Banka onay imzası / kaşesi**
+
+## Hangi durumlarda mevcut?
+
+| Transfer durumu | Dekont alınabilir mi? |
+|---|---|
+| `pending`, `approved`, `processing` | ❌ — banka henüz onaylamadı |
+| `delivered` | ⚠️ Bazı bankalar henüz dekont üretmemiş olabilir |
+| `completed` | ✅ |
+| `failed`, `rejected` | ❌ — başarılı işlem yok |
+| `refunded` | ✅ — ek olarak iade dekontu da alınabilir |
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `transfer_not_found` | Verilen `id` bulunamadı |
+| `409` | `receipt_not_available` | Transfer henüz `completed`/`delivered` değil |
+| `502` | `bank_receipt_error` | Banka tarafından dekont alınamadı (geçici) |
+| `403` | `forbidden` | Yetki yok |
+
+`502 bank_receipt_error` durumunda işlem geçici sayılır — kısa süre sonra tekrar deneyin. Banka tarafı 24 saatte üretmediyse [destek talebi](/resources/support) açın; konsol üzerinden manuel temin edilebilir.
