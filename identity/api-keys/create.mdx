@@ -57,7 +57,7 @@ curl -X POST https://identity.payven.com.tr/api/v1/tenants/me/api-keys \
 | `display_name` | string | ✅ | Anahtar için açıklayıcı ad |
 | `contact_email` | string | ❌ | Alarm / uyarı e-postası |
 | `merchant_id` | string | ❌ | Default merchant external ID — JWT claim olarak token'a yansır |
-| `plan_id` | UUID | ❌ | Atanacak plan — boş bırakılırsa tenant default'u |
+| `plan_id` | UUID | ❌ | Atanacak plan — boş bırakılırsa kuruluş varsayılanı uygulanır |
 | `daily_limit_override` | int | ❌ | Plan günlük limitini override eder (kuruş) |
 | `monthly_limit_override` | int | ❌ | Plan aylık limit override |
 | `rate_limit_override` | int | ❌ | Plan RPS override |

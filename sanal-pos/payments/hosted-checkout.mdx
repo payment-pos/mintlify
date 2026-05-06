@@ -10,7 +10,7 @@ Hosted Checkout, müşterinin kart bilgilerini **Payven'in barındırdığı say
 <Check>**Hızlı entegrasyon** — kart formu, BIN lookup, taksit seçenekleri, Luhn kontrolü, 3DS yönlendirme, sonuç sayfası — hepsi Payven'de</Check>
 <Check>**Düşük PCI yükü** — kart verisi sunucularınıza dokunmaz</Check>
 <Check>**Mobil uyumlu** — Payven sayfası hazır responsive</Check>
-<Check>**Tenant-default 3DS modu** — `ThreeDSecure`, `ThreeDPay`, `ThreeDPayHosting` modlarından platform politikasına uygun olanı otomatik seçer</Check>
+<Check>**Kuruluş varsayılan 3DS modu** — kuruluşunuzun policy'sinde tanımlı 3DS akışı (klasik 3D Secure, 3D Pay veya Hosted) otomatik seçilir</Check>
 
 Aksi durumda [Direct API (Non-3D)](/sanal-pos/payments/non-3d) veya [Pay-by-Link](/sanal-pos/payments/pay-by-link) kullanın.
 
@@ -76,7 +76,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/checkout/sessions \
 | `allowed_installments` | int[] | ❌ | İzin verilen taksit seçenekleri. Boş → `[1, 2, 3, 6, 9, 12]` varsayılanı |
 | `external_id`, `basket_id`, `description` | string | ❌ | Sipariş referansları |
 | `customer_email`, `customer_phone` | string | ❌ | Müşteri bilgileri (önerilir — fraud için) |
-| `payment_mode` | enum | ❌ | `non_3d` / `three_d_secure` / `three_d_pay` / `three_d_pay_hosting`. Boş → tenant'ın `preferred_three_d_flow` ayarından türetilir. |
+| `payment_mode` | enum | ❌ | `non_3d` / `three_d_secure` / `three_d_pay` / `three_d_pay_hosting`. Boş → kuruluşunuzun `preferred_three_d_flow` ayarından türetilir. |
 | `allow_pre_auth` | bool | ❌ | Checkout sayfasında "Ön provizyon" seçeneği gösterilsin mi (default `false`) |
 | `is_test_session` | bool | ❌ | Test araçları (Void/Refund/Capture butonları) gösterilsin mi |
 | `success_url` | url | ❌ | Başarılı ödeme sonrası yönlendirme |
@@ -84,9 +84,9 @@ curl -X POST https://vpos.payven.com.tr/api/v1/checkout/sessions \
 | `metadata` | object | ❌ | Anahtar-değer çiftleri (raporlama) |
 
 <Note>
-**Tenant policy uyumu:** `payment_mode: "non_3d"` istenirse ancak tenant policy'sinde
-`allow_non_3d` kapalıysa istek `400 Bad Request` ile reddedilir. Production tenant'larda
-non-3D varsayılan olarak kapalıdır — fraud riski nedeniyle.
+**Kuruluş politikası uyumu:** `payment_mode: "non_3d"` istenirse ancak kuruluşunuzun
+politikasında `allow_non_3d` kapalıysa istek `400 Bad Request` ile reddedilir. Production
+kurulumlarda Non-3D fraud riski nedeniyle varsayılan olarak kapalıdır.
 </Note>
 
 ### Yanıt
@@ -187,7 +187,7 @@ Yanıt yapısı: [Payment Objesi](/sanal-pos/payment-object).
 ## Görünüm özelleştirme
 
 Şu anda Payven hosted checkout sayfası **payven markasıyla** yayınlanır. White-label domain, custom CSS, logo + ana renk gibi gelişmiş özelleştirme için:
-- Konsoldan tenant ayarlarını kullanın (logo, ana renk)
+- Konsoldan kuruluş ayarlarını kullanın (logo, ana renk)
 - White-label domain talebi için [satış ekibinize](/resources/support) ulaşın
 
 ## Webhook olayları
@@ -206,7 +206,7 @@ Hosted Checkout'a özgü `checkout.session.*` olayları yol haritasındadır —
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `400` | `non_3d_not_allowed` | Tenant policy'sinde Non-3D kapalı |
+| `400` | `non_3d_not_allowed` | Kuruluş politikasında Non-3D kapalı |
 | `400` | `merchant_id_required` | Aktif merchant kimliği bulunamadı |
 | `404` | `session_not_found` | `session_id` geçersiz |
 | `410` | `session_expired` | Session süresi dolmuş |

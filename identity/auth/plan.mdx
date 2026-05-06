@@ -1,9 +1,9 @@
 ---
 title: "Plan (/me/plan)"
-description: "Kuruluşunuzun atanmış planı ve plan'a dahil feature'lar."
+description: "Kuruluşunuzun atanmış planı ve plana dahil feature'lar."
 ---
 
-`/me/plan` endpoint'i; aktif tenant'ınızın atanmış planını ve plana dahil feature'ları döner. Sadece okunabilir (read-only); plan değişikliği konsoldan veya satış ekibinden talep edilir.
+`/me/plan` endpoint'i; aktif kuruluşunuzun atanmış planını ve plana dahil feature'ları döner. Sadece okunabilir; plan değişikliği konsoldan veya satış ekibinden talep edilir.
 
 ## Endpoint
 
@@ -64,16 +64,16 @@ curl https://identity.payven.com.tr/api/v1/me/plan \
 | `plan.billing_cycle` | `monthly`, `yearly` |
 | `plan.features[]` | Plana dahil feature'lar — `category: "module"` aktif modül, `addon` ek paket |
 
-Tenant planı henüz atanmamışsa yanıt `null` döner.
+Kuruluşa henüz plan atanmamışsa yanıt `null` döner.
 
 ## Aktif feature'ları öğrenmek
 
-Plan'a dahil feature'ların **bu kullanıcı için aktif olup olmadığını** öğrenmek için [`GET /me`](/identity/auth/me) endpoint'ini kullanın — orada `features[].is_active` alanı kullanıcı + tenant + plan üçlüsünden filtrelenmiş halde döner.
+Plana dahil feature'ların **bu kullanıcı için aktif olup olmadığını** öğrenmek için [`GET /me`](/identity/auth/me) endpoint'ini kullanın — orada `features[].is_active` alanı kullanıcı + kuruluş + plan üçlüsünden filtrelenmiş halde döner.
 
 ## Yol haritası
 
-- **Kullanım sayaçları** — bu plan kapsamında aylık transaction sayısı, RPS limiti, aktif merchant sayısı (henüz public response'da değil; backend hazırlıkta)
-- **Plan yükseltme webhook'ları** — `plan.usage.warning`, `plan.usage.exceeded` (planda)
+- **Kullanım sayaçları** — bu plan kapsamında aylık işlem sayısı, RPS limiti, aktif merchant sayısı (henüz yanıtta yer almıyor)
+- **Plan kullanım webhook'ları** — `plan.usage.warning`, `plan.usage.exceeded` (planlanıyor)
 - **Self-service plan yükseltme** — şu an konsoldan veya satış kanalı üzerinden
 
 Güncellemeler için: [Changelog](/resources/changelog).

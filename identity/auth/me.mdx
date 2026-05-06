@@ -3,7 +3,7 @@ title: "Mevcut Kullanıcı (/me)"
 description: "Aktif kullanıcının kuruluş, merchant ve aktif feature bağlamı."
 ---
 
-`/me` endpoint'i; aktif kullanıcının **kim olduğu**, **hangi tenant'a bağlı**, **hangi merchant adına** çalıştığı ve **hangi modüller** için yetkili olduğunu tek bir istekte döner. Konsolun ilk açılışta yaptığı kanonik çağrıdır.
+`/me` endpoint'i; aktif kullanıcının **kim olduğu**, **hangi kuruluşa bağlı**, **hangi merchant adına** çalıştığı ve **hangi modüller** için yetkili olduğunu tek bir istekte döner. Konsolun ilk açılışta yaptığı kanonik çağrıdır.
 
 ## Endpoint
 
@@ -78,11 +78,11 @@ curl https://identity.payven.com.tr/api/v1/me \
 | `tenant` | Aktif kuruluş — `id`, `slug`, `display_name` (JWT'de yoksa null) |
 | `merchant` | Aktif merchant — multi-merchant senaryolarda override edilebilir (null olabilir) |
 | `roles` | Kullanıcıya atanan rol kodları (`pos-admin`, `transfer-admin`, `tenant-admin` vb.) |
-| `features[]` | Tenant planında aktif **modül** feature'ları — her birinin kullanıcının rollerinden çıkarılan effective permission listesi ve filtrelenmiş nav item'ları |
+| `features[]` | Kuruluş planında aktif **modül** feature'ları — her biri için kullanıcının rollerinden çıkarılan etkili izin listesi ve filtrelenmiş nav item'ları |
 
 ## Plan ve kullanım
 
-Tenant planının detayını ayrı endpoint'ten çekin:
+Kuruluş planının detayını ayrı endpoint'ten çekin:
 
 ```http
 GET /api/v1/me/plan
@@ -108,7 +108,7 @@ Yanıt — `MyPlanDto`:
 }
 ```
 
-Tenant planı yoksa yanıt `null` döner.
+Kuruluşun planı yoksa yanıt `null` döner.
 
 ## Kullanım örnekleri
 
@@ -141,8 +141,8 @@ const navItems = sanalpos?.nav_items ?? [];
 | HTTP | Anlam |
 |---|---|
 | `401` | Token yok / geçersiz / expired |
-| `404` | (boş) Kullanıcı tenant context'i bulunamadı |
+| `404` | (boş) Kullanıcının kuruluş bağlamı bulunamadı |
 
 ## Alternatif endpoint
 
-`/api/v1/auth/{slug}/me` endpoint'i de mevcuttur ancak yalnızca temel kullanıcı bilgisini (roller, e-posta, ad) döner — tenant / merchant / feature bağlamı içermez. Production akışlarında **`/api/v1/me`** tercih edin.
+`/api/v1/auth/{slug}/me` endpoint'i de mevcuttur ancak yalnızca temel kullanıcı bilgisini (roller, e-posta, ad) döner — kuruluş / merchant / feature bağlamı içermez. Production akışlarında **`/api/v1/me`** tercih edin.

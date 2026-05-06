@@ -94,7 +94,7 @@ curl https://vpos.payven.com.tr/api/v1/payments \
   }'
 ```
 
-JWT içinde `tenantId`, `merchantId`, `planCode` claim'leri taşınır — backend bunları okuyup işlem yetkisini doğrular. Ek bir merchant header'ı gerekmez. (Multi-merchant senaryolar için `X-Merchant-Id` ile override yapılabilir; bkz. [Sanal POS → Kimlik Doğrulama](/sanal-pos/authentication).)
+JWT içinde `tenant_id`, `merchant_id`, `plan_code` claim'leri taşınır — Payven bunları okuyup işlem yetkisini doğrular. Ek bir merchant header'ı gerekmez. (Multi-merchant senaryolar için `X-Merchant-Id` ile override yapılabilir; bkz. [Sanal POS → Kimlik Doğrulama](/sanal-pos/authentication).)
 
 ## 3. Adım — Token yenile
 
@@ -425,7 +425,7 @@ Tam hata zarfı şekli için: [Hata Yönetimi](/documentation/concepts/errors).
     Evet — Identity'den alınan JWT, planınızdaki tüm aktif ürünlerde geçerlidir. Sanal POS, Para Transferi, Fraud, Identity — hepsi aynı token ile çağrılır.
   </Accordion>
   <Accordion title="Test (sandbox) ortamı?">
-    Sandbox endpoint'leri ayrı bir tenant slug ile yayında: `https://identity-sandbox.payven.com.tr` ve `https://vpos-sandbox.payven.com.tr`. Sandbox `client_id`'leri canlıdan ayrıdır; üretim parasıyla işlem yapılmaz, kart numarası test BIN'leri kullanır.
+    Sandbox endpoint'leri ayrı bir kuruluş slug'ı ile yayındadır: `https://identity-sandbox.payven.com.tr` ve `https://vpos-sandbox.payven.com.tr`. Sandbox `client_id`'leri canlıdan ayrıdır; üretim parasıyla işlem yapılmaz, kart numarası test BIN'leri kullanır.
   </Accordion>
   <Accordion title="Tüm ürünler aynı kimlik doğrulamayı mı kullanıyor?">
     Evet. Sanal POS, Para Transferi, Fraud ve Identity — hepsi `Authorization: Bearer <access_token>` bekler. API anahtarı çiftinizden token almak ürünler arası ortak adımdır; bir kez yapılır, ardından tüm ürünlere aynı token ile çağrı atılır.

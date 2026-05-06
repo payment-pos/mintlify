@@ -49,9 +49,9 @@ curl https://vpos.payven.com.tr/api/v1/payments \
 
 ## Merchant kimliği
 
-JWT token'ı içinde `merchantId` claim'i taşınır — tek-merchant tenant'larda ek bir header göndermenize gerek yoktur. Backend, claim'den okuyarak işlemi doğru merchant adına kayıt eder.
+JWT içinde `merchant_id` claim'i taşınır — tek-merchant kurulumlarda ek bir header göndermenize gerek yoktur. Sanal POS, claim'den okuyup işlemi doğru merchant adına kayıt eder.
 
-**Multi-merchant senaryolar** (bir tenant altında birden çok merchant'a işlem alıyorsanız) için override header'ları:
+**Multi-merchant senaryolar** (bir kuruluş altında birden çok merchant'a işlem alıyorsanız) için override header'ları:
 
 ```http
 X-Merchant-Id:          3fa85f64-5717-4562-b3fc-2c963f66afa6

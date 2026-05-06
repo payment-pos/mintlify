@@ -29,11 +29,11 @@ Idempotent-Replayed: true
 | Format | UUID v4 önerilir; herhangi bir string kabul edilir |
 | Maksimum uzunluk | 128 karakter |
 | Saklama süresi | **Ödeme endpoint'leri** (`POST /payments` ve `/payments/...`): **24 saat**. Diğer yazma endpoint'leri: **3 dakika** (cache TTL). |
-| Eşsiz olma kapsamı | Tenant + endpoint kombinasyonu içinde |
+| Eşsiz olma kapsamı | Kuruluş + endpoint kombinasyonu içinde |
 | Body değişikliği | Aynı anahtarla **farklı** body → `409 idempotency_key_in_use` |
 
 <Note>
-Anahtar tenant düzeyinde scope'lanır — farklı bir tenant aynı anahtarla başka bir
+Anahtar kuruluş düzeyinde scope'lanır — farklı bir kuruluş aynı anahtarla başka bir
 işlem oluşturabilir, bu beklenen davranıştır.
 </Note>
 
