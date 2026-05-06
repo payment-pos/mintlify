@@ -79,15 +79,6 @@
         ]
       },
       {
-        "tab": "Recipes",
-        "groups": [
-          {
-            "group": "Başlarken",
-            "pages": ["recipes/overview"]
-          }
-        ]
-      },
-      {
         "tab": "Sanal POS",
         "groups": [
           {
