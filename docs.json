@@ -79,15 +79,6 @@
         ]
       },
       {
-        "tab": "Akışlar",
-        "groups": [
-          {
-            "group": "Genel Bakış",
-            "pages": ["flows/overview"]
-          }
-        ]
-      },
-      {
         "tab": "Recipes",
         "groups": [
           {
