@@ -26,7 +26,7 @@ Idempotent-Replayed: true
 
 | Kural | Değer |
 |---|---|
-| Format | UUID v4 önerilir; herhangi bir string kabul edilir |
+| Format | **UUID v7** önerilir (RFC 9562, zaman-sıralı — debug ve audit'te kronolojiyi korur). UUID v4 veya başka herhangi bir string de kabul edilir. |
 | Maksimum uzunluk | 128 karakter |
 | Saklama süresi | Ödeme endpoint'lerinde (`POST /payments` ve alt-akışlar) **24 saat**; diğer yazma endpoint'lerinde **3 dakika**. Hassas işlemler (refund, void, capture, transfer) ödeme endpoint'leri kapsamındadır. |
 | Eşsiz olma kapsamı | Tenant + endpoint kombinasyonu içinde |
