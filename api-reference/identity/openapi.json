@@ -1,9 +1,30 @@
 {
   "openapi": "3.0.4",
   "info": {
-    "title": "Payven.Identity.Web",
+    "title": "Payven Identity API",
+    "description": "Payven Identity — OAuth 2.0 kimlik doğrulama, API anahtarı yönetimi ve banka/BIN/MCC referans servisleri.",
+    "termsOfService": "https://payven.com.tr/sozlesmeler",
+    "contact": {
+      "name": "Payven Developer Support",
+      "url": "https://docs.payven.com.tr",
+      "email": "destek@payven.com.tr"
+    },
+    "license": {
+      "name": "Payven API License",
+      "url": "https://payven.com.tr/sozlesmeler/api-lisansi"
+    },
     "version": "1.0"
   },
+  "servers": [
+    {
+      "url": "https://identity-sandbox.payven.com.tr",
+      "description": "Sandbox"
+    },
+    {
+      "url": "https://identity.payven.com.tr",
+      "description": "Production"
+    }
+  ],
   "paths": {
     "/api/v1/auth/{slug}/login": {
       "post": {
@@ -7888,16 +7909,6 @@
     },
     {
       "name": "Validation"
-    }
-  ],
-  "servers": [
-    {
-      "url": "https://identity.payven.com.tr",
-      "description": "Production"
-    },
-    {
-      "url": "https://identity-sandbox.payven.com.tr",
-      "description": "Sandbox"
     }
   ]
 }

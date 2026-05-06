@@ -28,7 +28,7 @@ Idempotent-Replayed: true
 |---|---|
 | Format | UUID v4 önerilir; herhangi bir string kabul edilir |
 | Maksimum uzunluk | 128 karakter |
-| Saklama süresi | **Ödeme endpoint'leri** (`POST /payments` ve `/payments/...`): **24 saat**. Diğer yazma endpoint'leri: **3 dakika** (cache TTL). |
+| Saklama süresi | Ödeme endpoint'lerinde (`POST /payments` ve alt-akışlar) **24 saat**; diğer yazma endpoint'lerinde **3 dakika**. Hassas işlemler (refund, void, capture, transfer) ödeme endpoint'leri kapsamındadır. |
 | Eşsiz olma kapsamı | Tenant + endpoint kombinasyonu içinde |
 | Body değişikliği | Aynı anahtarla **farklı** body → `409 idempotency_key_in_use` |
 
@@ -61,10 +61,10 @@ işlem oluşturabilir, bu beklenen davranıştır.
     ```json
     {
       "type":   "https://docs.payven.com.tr/errors/idempotency_key_in_use",
-      "title":  "Idempotency-Key conflict",
+      "title":  "Idempotency-Key çakışması",
       "status": 409,
       "code":   "idempotency_key_in_use",
-      "detail": "Idempotency-Key was previously used with a different request body."
+      "detail": "Bu Idempotency-Key daha önce farklı bir istek gövdesi ile kullanıldı."
     }
     ```
 
@@ -138,15 +138,15 @@ await retry(lambda: client.post(
 
 | Kategori | Idempotency |
 |---|---|
-| `POST /api/v1/payments` (Non-3D ödeme) | **Önerilir** |
-| `POST /api/v1/payments/3d/init` (3DS init) | **Önerilir** |
-| `POST /api/v1/payments/{id}/refund` (İade) | **Zorunlu öneri** — aynı tutarın iki kez iade edilmesini engeller |
-| `POST /api/v1/payments/{id}/void` (İptal) | **Zorunlu öneri** |
-| `POST /api/v1/payments/{id}/capture` (Capture) | **Zorunlu öneri** |
-| `POST /api/v1/checkout/sessions` (Hosted checkout) | Önerilir |
-| `POST /api/v1/transfers/...` (Para transferi) | **Zorunlu öneri** |
-| `POST /api/v1/webhooks` (Webhook subscription) | Opsiyonel |
-| `GET` istekleri | İhtiyaç yok — `GET` zaten doğal idempotent |
+| `POST /api/v1/payments` (Non-3D ödeme) | Önerilir |
+| `POST /api/v1/payments/3d/init` (3DS init) | Önerilir |
+| `POST /api/v1/payments/{id}/refund` (iade) | **Şiddetle önerilir** — aynı tutarın iki kez iade edilmesini engeller |
+| `POST /api/v1/payments/{id}/void` (iptal) | **Şiddetle önerilir** |
+| `POST /api/v1/payments/{id}/capture` (ön provizyon çekimi) | **Şiddetle önerilir** |
+| `POST /api/v1/checkout/sessions` (hosted checkout) | Önerilir |
+| `POST /api/v1/transfers/...` (para transferi) | **Şiddetle önerilir** |
+| `POST /api/v1/webhooks` (webhook subscription) | Opsiyonel |
+| `GET` istekleri | İhtiyaç yok — `GET` doğası gereği idempotenttir |
 
 ## Sınırlar ve dikkat
 

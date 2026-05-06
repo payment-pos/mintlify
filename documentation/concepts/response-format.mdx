@@ -1,6 +1,6 @@
 ---
 title: "API Yanıt Formatı"
-description: "Payven API yanıt zarfı, sayfalama ve tarih/tutar konvansiyonları."
+description: "Payven API yanıt yapısı, sayfalama ve tarih/tutar konvansiyonları."
 ---
 
 Payven API'leri **REST + HTTP semantiği** üzerinde çalışır: HTTP durum kodu başarıyı, yanıt gövdesi veriyi taşır. Hata gövdeleri [RFC 9457 — Problem Details](https://www.rfc-editor.org/rfc/rfc9457) standardına uyar.
@@ -18,17 +18,15 @@ Content-Type: application/json
 {
   "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
   "status": "completed",
-  "is_success": true,
-  "message": "Onaylandı",
-  "error_code": null,
-  "provider_error_code": null,
   "extra_properties": {
-    "processed_at": "2026-05-03T12:34:58.123+00:00",
-    "auth_code": "123456",
+    "processed_at":  "2026-05-03T12:34:58.123+00:00",
+    "auth_code":     "123456",
     "host_reference": "PAYVEN-REF-789"
   }
 }
 ```
+
+İstek başarılı mı bilgisini **HTTP durum kodundan** okuyun (`2xx` → başarılı). Hata durumunda gövde `application/problem+json` MIME tipiyle döner (aşağıda).
 
 <Note>
 Tüm property isimleri **snake_case**, enum değerleri **snake_case** olarak yazılır
@@ -52,8 +50,8 @@ Content-Type: application/problem+json
   "status":         422,
   "code":           "refund_exceeds_original",
   "detail":         "Toplam iade tutarı orijinal tutarı (15000 kuruş) aşamaz.",
-  "instance":       "/api/v1/payments/8e3f5c12-.../refund",
-  "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
+  "instance":      "/api/v1/payments/8e3f5c12-.../refund",
+  "correlationId": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
 }
 ```
 
@@ -65,7 +63,13 @@ Content-Type: application/problem+json
 | `code` | Programatik hata kodu (snake_case). `type` URI'sinin son segmenti |
 | `detail` | Bu özel duruma ilişkin açıklayıcı mesaj |
 | `instance` | Hatanın oluştuğu kaynak yolu |
-| `correlation_id` | İstek zinciri kimliği — destek talebinde paylaşın (yanıt header'ı `X-Correlation-Id` ile aynı) |
+| `correlationId` | İstek zinciri kimliği — destek talebinde paylaşın (yanıt header'ı `X-Correlation-Id` ile aynı değer) |
+
+<Note>
+Problem+json yanıtındaki alanlar (`type`, `title`, `correlationId` vb.) RFC 9457
+ve ASP.NET ProblemDetails konvansiyonu gereği **camelCase**'tir. Diğer tüm istek
+ve yanıt gövdelerinde standart **snake_case** kullanılır.
+</Note>
 
 Tam hata kodu kataloğu: [Hata Yönetimi](/documentation/concepts/errors).
 
@@ -118,7 +122,7 @@ Liste endpoint'lerinde ortak query parametreleri:
 |---|---|---|---|
 | `page` | int | `1` | Sayfa numarası (1-tabanlı) |
 | `page_size` | int | `25` | Sayfa başı kayıt (1–100) |
-| `search_term` | string | `null` | Adı/kodu içerinde arama (≤ 100 karakter) |
+| `search_term` | string | `null` | Adı veya kodu içinde arama (≤ 100 karakter) |
 | `include_inactive` | bool | `false` | Pasif kayıtları da getir |
 
 ## HTTP durum kodları
@@ -138,18 +142,19 @@ Liste endpoint'lerinde ortak query parametreleri:
 | `429 Too Many Requests` | Rate limit aşıldı (`Retry-After` header gönderilir) | `application/problem+json` |
 | `5xx` | Sunucu hatası — exponential backoff ile retry edin | `application/problem+json` |
 
-<Warning>
-**HTTP `200` her zaman ödeme başarılı demek değildir.** Gateway'e ulaşmış ama bankada
-reddedilen bir işlem `200` ile dönüp gövdesinde `is_success: false` ve `error_code:
-"bank_declined"` taşıyabilir. Asıl başarı kararını yanıttaki `is_success` ve `status`
-alanlarına bakarak verin.
-</Warning>
+<Note>
+**Banka reddi de hata yanıtıdır.** Gateway'e ulaşmış ama banka tarafında reddedilen
+bir ödeme `422 Unprocessable Entity` + `application/problem+json` ile döner;
+gövdede `code: "bank_declined"` ve banka ham yanıt kodu (`provider_error_code`,
+örn. `"51"`) yer alır. Sonuç değerlendirmesi yalnız HTTP durum kodu üzerinden
+yapılır — istek başarılı mıydı diye envelope alanına bakmanız gerekmez.
+</Note>
 
 ## Standart yanıt header'ları
 
 | Header | Açıklama |
 |---|---|
-| `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Hata gövdesindeki `correlation_id` ile aynı değer |
+| `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Hata gövdesindeki `correlationId` ile aynı değer |
 | `X-RateLimit-Limit` / `X-RateLimit-Remaining` / `X-RateLimit-Reset` | Rate limit durumu — bkz. [Rate Limiting](/documentation/concepts/rate-limiting) |
 | `Retry-After` | Yalnız `429` yanıtında — kaç saniye sonra tekrar denemeniz gerektiği |
 | `Idempotent-Replayed` | Yalnız idempotent replay'lerde — yanıt cache'den döndüyse `true`. Bkz. [Idempotency](/documentation/concepts/idempotency) |

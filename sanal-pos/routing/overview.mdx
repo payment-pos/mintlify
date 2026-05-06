@@ -1,6 +1,6 @@
 ---
 title: "Akıllı Yönlendirme — Genel Bakış"
-description: "Composite-score tabanlı dinamik banka yönlendirme motoru."
+description: "Bileşik skor tabanlı dinamik banka yönlendirme motoru."
 ---
 
 Akıllı Yönlendirme, her ödeme isteğini **gerçek zamanlı koşullara** göre en uygun konnektöre (bankaya) yönlendiren motordur. Hangi bankaya gideceği:
@@ -15,7 +15,7 @@ Akıllı Yönlendirme, her ödeme isteğini **gerçek zamanlı koşullara** gör
 - Komisyon oranları
 - Trafik dağıtım hedefi
 
-gibi parametrelerin **kompozit skoruna** göre belirlenir.
+gibi parametrelerin **bileşik skoruna** göre belirlenir.
 
 ## Neden akıllı yönlendirme?
 
@@ -52,7 +52,7 @@ Engine kuralları **sırayla** değerlendirir. Bir kural eşleşirse o konnektö
 ## Yönlendirme adımları
 
 1. **Kuralları sırayla değerlendir** — istek koşullara karşı kontrol edilir.
-2. **Skor hesapla** — eşleşen her kural için bir kompozit skor üretilir (banka sağlığı, komisyon, ağırlık).
+2. **Skor hesapla** — eşleşen her kural için bir bileşik skor üretilir (banka sağlığı, komisyon, ağırlık).
 3. **En yüksek skorlu konnektörü seç**.
 4. **Smart Retry hazır olsun** — birinci konnektör başarısız olursa fallback için sıralanmış alternatifler.
 
@@ -88,7 +88,7 @@ Yönlendirilen banka geçici hata verirse istek **otomatik olarak** alternatif k
 
 Kurallar konsoldan veya API üzerinden yönetilir. **İki kural seti** vardır:
 
-- **`/routing-rules`** — gelişmiş kompozit-skor motoru (BIN + tutar + taksit + sağlık + ağırlık)
+- **`/routing-rules`** — gelişmiş bileşik skor motoru (BIN + tutar + taksit + sağlık + ağırlık)
 - **`/simple-routing-rules`** — basit "şu koşulda şu konnektör" kuralları (yeni başlayanlar için)
 
 ```http

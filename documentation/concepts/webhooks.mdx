@@ -29,7 +29,7 @@ sequenceDiagram
     Note over Payven: Olay tetiklenir<br/>(payment.completed)
     Payven->>Net: POST /webhooks/payven
     Net->>You: HTTP isteği
-    You-->>Net: HTTP 200 (≤ 5sn içinde)
+    You-->>Net: HTTP 2xx (≤ 15sn içinde)
     Net-->>Payven: Onay
     Note over Payven: Teslim başarılı<br/>kayıt edilir
 ```
@@ -40,7 +40,7 @@ Webhook endpoint'iniz aşağıdaki kurallara uymalıdır:
 
 <Check>**HTTPS zorunlu** — HTTP URL'leri reddedilir.</Check>
 <Check>**Public erişilebilir** — özel ağ veya VPN arkasında olamaz.</Check>
-<Check>**5 saniye içinde HTTP 2xx döner** — uzun süren işler için iş kuyruğa atılmalıdır.</Check>
+<Check>**15 saniye içinde HTTP 2xx döner** — Payven delivery timeout'u 15 saniyedir; performans için handler'ınızı 5 saniyenin altında tamamlamayı hedefleyin, uzun süren işler için iş kuyruğa atılmalıdır.</Check>
 <Check>**Idempotent çalışır** — aynı olay birden fazla kez gelebilir.</Check>
 <Check>**İmzayı doğrular** — sahte istekleri reddeder.</Check>
 
@@ -51,24 +51,26 @@ POST /webhooks/payven HTTP/1.1
 Host: example.com
 Content-Type: application/json
 X-Payven-Event: payment.completed
-X-Payven-Delivery: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
+X-Payven-Event-Id: evt_8e3f5c129a7b4c8dbc4e2c963f66afa6
+X-Payven-Delivery-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 X-Payven-Signature: sha256=4f1d8c92ab7e3...
 X-Payven-Timestamp: 1714742400
 
 {
-  "id": "evt_8e3f5c12",
+  "id": "evt_8e3f5c129a7b4c8dbc4e2c963f66afa6",
   "type": "payment.completed",
-  "created_at": "2026-05-03T12:34:56Z",
+  "created_at": "2026-05-03T12:34:56.789+00:00",
   "data": { ... }
 }
 ```
 
 | Header | Açıklama |
 |---|---|
-| `X-Payven-Event` | Olay tipi (örn. `payment.completed`) |
-| `X-Payven-Delivery` | Teslim kimliği — debug için kullanılır |
-| `X-Payven-Signature` | HMAC-SHA256 imza |
-| `X-Payven-Timestamp` | İmzalanan Unix zaman damgası |
+| `X-Payven-Event` | Olay tipi (örn. `payment.completed`). |
+| `X-Payven-Event-Id` | **Olay kimliği** — aynı olay birden fazla teslim edilse bile aynı kalır. Idempotent handler'ınızda bu değeri kullanın. |
+| `X-Payven-Delivery-Id` | **Teslim kimliği** — her teslim denemesinde farklıdır. Debug ve teslim kaydı eşleştirmesi için kullanılır. |
+| `X-Payven-Signature` | İstek gövdesinin HMAC-SHA256 imzası — `sha256=<hex>` formatında. |
+| `X-Payven-Timestamp` | İmzalanan Unix zaman damgası (saniye). Replay saldırılarına karşı 5 dakika tolerans dışındaki istekleri reddedin. |
 
 ## İmza doğrulama (kısa)
 
@@ -91,6 +93,8 @@ signature_header = "sha256=" + hex(hmac)
 | 4 | 30 dakika |
 | 5 | 2 saat |
 | 6 | 24 saat |
+
+Tüm bekleme süreleri ±%20 jitter ile uygulanır. 6. denemeden sonra hâlâ başarılı olunmamışsa teslim "kalıcı başarısız" olarak işaretlenir; konsoldan manuel olarak yeniden tetiklenebilir.
 
 Detay: [Yeniden Deneme Politikası](/sanal-pos/webhooks/retry-policy).
 

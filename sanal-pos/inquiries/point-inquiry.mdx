@@ -36,18 +36,14 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":              "pending",
-  "is_success":          true,
-  "message":             "Puan bakiyesi sorgulandı",
-  "error_code":          null,
-  "provider_error_code": null,
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":         "pending",
   "extra_properties": {
-    "processed_at":              "2026-05-03T12:34:57.123+00:00",
-    "point_balance":             "12500",
-    "point_program":             "Bonus",
-    "point_currency":            "TRY",
-    "max_usable_points":         "12500"
+    "processed_at":      "2026-05-03T12:34:57.123+00:00",
+    "point_balance":     "12500",
+    "point_program":     "Bonus",
+    "point_currency":    "TRY",
+    "max_usable_points": "12500"
   }
 }
 ```
@@ -84,12 +80,14 @@ Banka talebi onaylarsa kalan tutar (10.000 kuruş) karttan çekilir, 5.000 puan 
 
 ## Hata yanıtları
 
-| HTTP | `error_code` | Anlam |
+Hata gövdesi RFC 9457 problem+json formatındadır:
+
+| HTTP | `code` | Anlam |
 |---|---|---|
-| `200` (gövdede `is_success: false`) | `POINT_INQUIRY_NOT_SUPPORTED` | Bu konnektör puan sorgusu desteklemiyor |
-| `200` (gövdede `is_success: false`) | `POINT_INQUIRY_FAILED` | Banka puan sorgusunu reddetti |
-| `200` (gövdede `is_success: false`) | `POINT_INQUIRY_EXCEPTION` | Sorgu sırasında exception |
-| `404` | `PV_TRANSACTION_NOT_FOUND` | İşlem bulunamadı |
+| `404` | `payment_not_found` | İşlem bulunamadı |
+| `422` | `point_inquiry_not_supported` | Bu konnektör puan sorgusu desteklemiyor |
+| `422` | `point_inquiry_failed` | Banka puan sorgusunu reddetti |
+| `502` | `point_inquiry_exception` | Sorgu sırasında konnektör tarafında beklenmeyen hata |
 
 ## Konnektör desteği matrisi
 

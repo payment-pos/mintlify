@@ -11,7 +11,7 @@ Rotasyon, anahtarın **`client_id` değerini korur** (servisinizdeki konfigüras
 POST /api/v1/tenants/me/api-keys/{id}/rotate-secret
 ```
 
-JWT Bearer auth + `tenant-admin` rolü gerektirir.
+Bearer access token + `tenant-admin` rolü gerektirir.
 
 ## İstek
 
@@ -31,7 +31,7 @@ Body gerekmez.
 {
   "api_key": {
     "id":                       "8e3f5c12-...",
-    "keycloak_client_id":       "pvk-payven-a1b2c3",
+    "client_id":       "pvk-payven-a1b2c3",
     "display_name":             "Production — Ödeme Servisi",
     "is_active":                true,
     "created":                  "2026-01-15T10:00:00.000+00:00"
@@ -55,7 +55,7 @@ Body gerekmez.
     Production secret store'unda yeni değeri kaydet.
   </Step>
   <Step title="Servisi rolling restart ile dağıt">
-    Yeni secret ile başlayan instance'lar JWT alıp çalışmaya başlar. Eski instance'lar hâlâ eski secret'la çalışıyor — 24 saat boyunca her iki secret geçerli.
+    Yeni secret ile başlayan instance'lar access token alıp çalışmaya başlar. Eski instance'lar hâlâ eski secret'la çalışıyor — 24 saat boyunca her iki secret geçerli.
   </Step>
   <Step title="24 saat sonra eski secret otomatik geçersiz olur">
     Geçişin sorunsuz olduğunu konsoldan **API Kayıtları** ekranıyla doğrula.

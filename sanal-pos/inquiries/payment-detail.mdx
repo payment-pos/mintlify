@@ -28,8 +28,11 @@ curl https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66
 {
   "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
   "status":              "completed",
-  "is_success":          true,
-  "message":             "Onaylandı",
+  "amount":              15000,
+  "currency":            "TRY",
+  "is_3d_secure":        false,
+  "created":             "2026-05-03T12:34:56.789+00:00",
+  "basket_id":           "BASKET-2026-001",
   "error_code":          null,
   "provider_error_code": null,
   "extra_properties": {
@@ -37,12 +40,7 @@ curl https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66
     "auth_code":               "123456",
     "host_reference":          "PAYVEN-REF-789",
     "provider_transaction_id": "9f3d2b8e-..."
-  },
-  "amount":      15000,
-  "currency":    "TRY",
-  "is_3d_secure": false,
-  "created":     "2026-05-03T12:34:56.789+00:00",
-  "basket_id":   "BASKET-2026-001"
+  }
 }
 ```
 
@@ -66,7 +64,7 @@ manuel replay tetikleyebilirsiniz.
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `PV_TRANSACTION_NOT_FOUND` | Verilen `transaction_id` bulunamadı veya bu merchant'a ait değil |
+| `404` | `payment_not_found` | Verilen `transaction_id` bulunamadı veya bu merchant'a ait değil |
 | `403` | `forbidden` | Yetki yok |
 
 Hata zarfı RFC 9457 problem+json formatındadır.

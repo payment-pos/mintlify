@@ -1,20 +1,30 @@
 {
   "openapi": "3.0.4",
   "info": {
-    "title": "Payven Composer API",
-    "description": "Payven Composer Service API",
-    "termsOfService": "https://payven.com.tr",
+    "title": "Payven Para Transferi API",
+    "description": "Payven Para Transferi — çoklu banka EFT, FAST, havale ve banka hesabı transferi altyapısı.",
+    "termsOfService": "https://payven.com.tr/sozlesmeler",
     "contact": {
-      "name": "Payven",
-      "url": "https://payven.com.tr",
-      "email": "safak@payven.com.tr"
+      "name": "Payven Developer Support",
+      "url": "https://docs.payven.com.tr",
+      "email": "destek@payven.com.tr"
     },
     "license": {
-      "name": "Api License",
-      "url": "https://payven.com.tr"
+      "name": "Payven API License",
+      "url": "https://payven.com.tr/sozlesmeler/api-lisansi"
     },
     "version": "1.0"
   },
+  "servers": [
+    {
+      "url": "https://transfer-sandbox.payven.com.tr",
+      "description": "Sandbox"
+    },
+    {
+      "url": "https://transfer.payven.com.tr",
+      "description": "Production"
+    }
+  ],
   "paths": {
     "/api/v1/accounts": {
       "get": {
@@ -8499,16 +8509,6 @@
     },
     {
       "name": "Webhooks"
-    }
-  ],
-  "servers": [
-    {
-      "url": "https://transfer.payven.com.tr",
-      "description": "Production"
-    },
-    {
-      "url": "https://transfer-sandbox.payven.com.tr",
-      "description": "Sandbox"
     }
   ]
 }

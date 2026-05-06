@@ -14,12 +14,8 @@ Yazma endpoint'lerinden dönen temel yapı:
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":              "completed",
-  "is_success":          true,
-  "message":             "Onaylandı",
-  "error_code":          null,
-  "provider_error_code": null,
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":         "completed",
   "extra_properties": {
     "processed_at":            "2026-05-03T12:34:58.123+00:00",
     "receipt_id":              "RCPT-20260503-0001",
@@ -35,11 +31,9 @@ Yazma endpoint'lerinden dönen temel yapı:
 |---|---|---|
 | `transaction_id` | UUID | Payven tarafından atanan benzersiz işlem kimliği. Sorgulama / aksiyon endpoint'lerinde URL parametresi olarak kullanılır. |
 | `status` | enum | İşlemin mevcut durumu — bkz. [Status değerleri](#status-degerleri) |
-| `is_success` | bool | İşlemin başarı/başarısızlığı. **HTTP 200 olsa bile bu alan `false` olabilir** (örn. banka reddi). |
-| `message` | string \| null | Banka veya Payven tarafından dönen açıklama (insan-okur, Türkçe) |
-| `error_code` | string \| null | Hata kodu — başarısız işlemlerde dolar (snake_case). Örn. `bank_declined`, `insufficient_funds` |
-| `provider_error_code` | string \| null | Bankanın orijinal yanıt kodu (Visa/MC/banka spec'i, örn. `51` = yetersiz bakiye) |
 | `extra_properties` | object \| null | Banka-spesifik ek alanlar — anahtarları konnektöre göre değişir |
+
+İşlem başarılı mı bilgisini **HTTP durum kodundan** okuyun (`2xx` → başarılı). Hata durumunda yanıt `application/problem+json` formatında döner (aşağıda).
 
 ### `extra_properties` içeriği
 
@@ -58,33 +52,32 @@ Konnektöre özgü ek alanlar (HalkBank `tax_certificate_no`, NestPay `xid`, vb.
 
 ## PaymentStatus
 
-`GET /api/v1/payments/{transaction_id}` ile sorgulamada `PaymentOperationResult` üzerine **ek alanlar** koyar:
+`GET /api/v1/payments/{transaction_id}` ile sorgulamada `PaymentOperationResult` üzerine **ek alanlar** koyar. Başarısız ödemenin sorgusunda da yanıt `200 OK` döner (kaynak vardır, yalnızca `status: "failed"`); banka tarafından gelen hata detayı `error_code` ve `provider_error_code` alanlarıyla birlikte taşınır.
 
 ```json
 {
   "transaction_id":      "8e3f5c12-...",
   "status":              "completed",
-  "is_success":          true,
-  "message":             "Onaylandı",
+  "amount":              15000,
+  "currency":            "TRY",
+  "is_3d_secure":        false,
+  "created":             "2026-05-03T12:34:56.789+00:00",
+  "basket_id":           "BASKET-2026-001",
   "error_code":          null,
   "provider_error_code": null,
-  "extra_properties":    { ... },
-
-  "amount":      15000,
-  "currency":    "TRY",
-  "is_3d_secure": false,
-  "created":     "2026-05-03T12:34:56.789+00:00",
-  "basket_id":   "BASKET-2026-001"
+  "extra_properties":    { ... }
 }
 ```
 
 | Ek alan | Tip | Açıklama |
 |---|---|---|
-| `amount` | int (kuruş) | İşlem tutarı |
-| `currency` | string | `TRY`, `USD`, `EUR`, `GBP` |
+| `amount` | long (kuruş) | İşlem tutarı |
+| `currency` | string | İşlem para birimi (genelde `TRY`; DCC akışında yabancı kart için yerel kart para birimi) |
 | `is_3d_secure` | bool | İşlem 3D Secure ile mi yapıldı |
 | `created` | datetime | İşlemin Payven tarafında oluşturulma zamanı |
 | `basket_id` | string \| null | İstek body'sinden gelen sepet kimliği |
+| `error_code` | string \| null | Yalnız `failed` ödemelerde dolar — örn. `bank_declined` |
+| `provider_error_code` | string \| null | Yalnız `failed` ödemelerde dolar — bankanın orijinal yanıt kodu (örn. `51` yetersiz bakiye) |
 
 ## Status değerleri
 
@@ -125,21 +118,28 @@ stateDiagram-v2
 
 ## Hata yanıtları
 
-İşlem reddi / iş kuralı ihlali durumunda Payven [RFC 9457 problem+json](/documentation/concepts/errors) zarfı döner. Banka tarafı reddinde HTTP `200` ile birlikte `is_success: false` ve `error_code: "bank_declined"` da gelebilir — başarı kararını sadece HTTP koduna değil, gövdeye de bakarak verin:
+İşlem reddi, iş kuralı ihlali ve **banka reddi** dahil tüm hata durumları [RFC 9457 problem+json](/documentation/concepts/errors) formatında, uygun HTTP durum koduyla döner. Yetersiz bakiye için tipik yanıt:
+
+```http
+HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/problem+json
+```
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-...",
-  "status":              "failed",
-  "is_success":          false,
-  "message":             "Yetersiz bakiye",
-  "error_code":          "bank_declined",
-  "provider_error_code": "51",
-  "extra_properties":    { "processed_at": "2026-05-03T12:34:58.123+00:00" }
+  "type":          "https://docs.payven.com.tr/errors/bank_declined",
+  "title":         "Banka işlemi reddetti",
+  "status":        422,
+  "code":          "bank_declined",
+  "detail":        "Yetersiz bakiye (banka kodu: 51)",
+  "instance":      "/api/v1/payments",
+  "correlationId": "9f1c8e76-..."
 }
 ```
 
-`provider_error_code` banka tarafından dönen orijinal koddur. Tam liste: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
+Yanıt başarılı mı diye HTTP durum kodunu kontrol edin (`2xx` → başarı, `4xx`/`5xx` → hata). Banka tarafı detayını (orijinal banka kodu, auth_code vb.) görmek için işlem sonradan `GET /api/v1/payments/{id}` ile sorgulanabilir — failed ödemenin sorgusu `200 OK` döner ve `error_code` / `provider_error_code` alanları yanıt gövdesinde data olarak taşınır.
+
+Tam banka yanıt kodu listesi: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
 
 ## Yol haritası — zenginleştirilmiş alanlar
 

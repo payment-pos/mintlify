@@ -31,8 +31,8 @@ Production'da yaygın etkili bir sorunla karşılaşıyorsanız:
 
 Hızlı çözüm için:
 
-<Check>**Payven Request ID** — `X-Payven-Request-Id` yanıt başlığından</Check>
-<Check>**Payment ID veya externalId** — varsa</Check>
+<Check>**Correlation ID** — `X-Correlation-Id` yanıt header'ından (hata gövdesinde de `correlationId` alanında)</Check>
+<Check>**transaction_id veya external_id** — varsa</Check>
 <Check>**Zaman damgası** (UTC) — sorun ne zaman başladı</Check>
 <Check>**Reproduce edilebilir adımlar** — minimum istek/yanıt örneği</Check>
 <Check>**Etki kapsamı** — kaç işlem etkilendi, hangi merchant'lar</Check>

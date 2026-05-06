@@ -56,16 +56,14 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/3d/init \
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":              "authorized",
-  "is_success":          true,
-  "message":             "Ön provizyon onaylandı",
-  "amount":              50000,
-  "currency":            "TRY",
-  "is_3d_secure":        true,
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":         "authorized",
+  "amount":         50000,
+  "currency":       "TRY",
+  "is_3d_secure":   true,
   "extra_properties": {
-    "processed_at": "2026-05-03T12:34:58.123+00:00",
-    "auth_code":    "123456",
+    "processed_at":   "2026-05-03T12:34:58.123+00:00",
+    "auth_code":      "123456",
     "host_reference": "PAYVEN-PA-789"
   }
 }
@@ -101,18 +99,14 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":              "completed",
-  "is_success":          true,
-  "message":             "Çekim onaylandı",
-  "error_code":          null,
-  "provider_error_code": null,
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":         "completed",
   "extra_properties": {
-    "processed_at":     "2026-05-03T18:00:01.234+00:00",
-    "auth_code":        "789012",
-    "host_reference":   "PAYVEN-CAP-790",
-    "captured_amount":  "47500",
-    "released_amount":  "2500"
+    "processed_at":    "2026-05-03T18:00:01.234+00:00",
+    "auth_code":       "789012",
+    "host_reference":  "PAYVEN-CAP-790",
+    "captured_amount": "47500",
+    "released_amount": "2500"
   }
 }
 ```

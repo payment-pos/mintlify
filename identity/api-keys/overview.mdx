@@ -1,26 +1,26 @@
 ---
 title: "API Anahtarı Yönetimi"
-description: "Server-to-server entegrasyonlar için Keycloak service-account credential'ları."
+description: "Server-to-server entegrasyonlar için OAuth 2.0 Client Credentials çiftleri."
 ---
 
-Payven'de "API anahtarı", **Keycloak service-account client'ıdır**. Bir API anahtarı oluşturduğunuzda Identity arka tarafta Keycloak'a yeni bir client kaydeder ve size `client_id` + `client_secret` çifti verir. Bu çift ile [`/auth/{slug}/token`](/identity/auth/login) endpoint'inden JWT alır, ürün servislerine `Authorization: Bearer ...` ile çağrı yaparsınız.
+Payven'de "API anahtarı", **OAuth 2.0 Client Credentials çiftidir**. Bir API anahtarı oluşturduğunuzda Identity arka tarafta yeni bir OAuth client kaydeder ve size `client_id` + `client_secret` çifti verir. Bu çift ile [`/auth/{slug}/token`](/identity/auth/login) endpoint'inden access token alır, ürün servislerine `Authorization: Bearer ...` ile çağrı yaparsınız.
 
 <Note>
-**JWT vs API Key kavramı:** Burada "API Key" diye bahsettiğimiz şey **uzun ömürlü kimlik bilgisi** (client_id + client_secret). API çağrılarında doğrudan kullanılmaz; **kısa ömürlü JWT alıp** onu kullanırsınız. Tek başına `client_id` ile API çağrısı yapamazsınız.
+**Uzun ömürlü vs kısa ömürlü:** `client_id` + `client_secret` çifti **uzun ömürlü** kimlik bilgisidir; API çağrılarında doğrudan kullanılmaz. Bunlarla **kısa ömürlü access token** üretilir; istek başına gönderilen Bearer token budur. Tek başına `client_id` ile API çağrısı yapamazsınız.
 </Note>
 
 ## Anahtar yapısı
 
 | Bileşen | Açıklama | Örnek |
 |---|---|---|
-| `client_id` | Public tanımlayıcı, Keycloak client ID | `pvk-payven-a1b2c3` |
+| `client_id` | Public tanımlayıcı (OAuth client ID) | `pvk-payven-a1b2c3` |
 | `client_secret` | Gizli — yalnızca oluşturma + rotasyon anında bir kez gösterilir | `whsec_AbC...XyZ` |
 
 Client ID prefix'i `pvk-{tenant-slug}-{rastgele}` formatındadır. Sandbox/production ayrımı **tenant slug'ı** üzerinden yapılır (sandbox tenant'ı için ayrı slug + ayrı API key).
 
 ## Endpoint'ler
 
-JWT Bearer auth gerektirir (kullanıcı `tenant-admin` rolünde olmalı).
+Bearer access token gerektirir (kullanıcı `tenant-admin` rolünde olmalı).
 
 ```http
 GET    /api/v1/tenants/me/api-keys                    # Liste (sayfalı)
@@ -46,7 +46,7 @@ Yanıt — sayfalı `ApiKeyDto` listesi:
     {
       "id":                       "8e3f5c12-...",
       "tenant_id":                "1a2b3c4d-...",
-      "keycloak_client_id":       "pvk-payven-a1b2c3",
+      "client_id":       "pvk-payven-a1b2c3",
       "display_name":             "Production — Ödeme Servisi",
       "contact_email":            "ops@example.com",
       "merchant_id":              "M-IST-001",
@@ -75,12 +75,12 @@ Yanıt — sayfalı `ApiKeyDto` listesi:
 
 | Alan | Açıklama |
 |---|---|
-| `keycloak_client_id` | API çağrılarında `client_id` olarak kullanılır |
+| `client_id` | OAuth Client Credentials akışında `client_id` olarak kullanılan public tanımlayıcı |
 | `display_name` | İnsan-okur ad (raporlama için) |
-| `merchant_id` | Bu anahtarın "default merchant"ı — JWT claim'ine yansır |
+| `merchant_id` | Bu anahtarın "default merchant"ı — access token claim'ine yansır |
 | `plan_*` | Atanmış plan (rate limit + günlük/aylık limit kaynağı) |
 | `*_override` | Plan default'unu override eden tenant-spesifik limit |
-| `effective_*` | Override'lar uygulanmış nihai limit (JWT claim olarak token'a basılır) |
+| `effective_*` | Override'lar uygulanmış nihai limit (access token claim'ine basılır) |
 | `allowed_ips` | CSV IP / CIDR listesi |
 | `expires_at` | Anahtarın otomatik pasifleşeceği tarih (boş = sınırsız) |
 | `is_active` | Pasif anahtarlar token üretemez |
@@ -123,7 +123,7 @@ Detay: [API Anahtarı En İyi Uygulamaları](/documentation/security/api-key-bes
   <Card title="Anahtar revoke" icon="trash" href="/identity/api-keys/revoke">
     Pasif/sil — kullanılmayan anahtarları temizle.
   </Card>
-  <Card title="JWT alma akışı" icon="key" href="/documentation/concepts/authentication">
+  <Card title="Token alma akışı" icon="key" href="/documentation/concepts/authentication">
     Aldığınız client_id+secret ile token nasıl alınır?
   </Card>
 </CardGroup>

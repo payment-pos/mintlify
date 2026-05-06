@@ -3,7 +3,13 @@ title: "Tutarlar ve Para Birimleri"
 description: "Payven'de tutarlar her zaman kuruş cinsinden tam sayıdır."
 ---
 
-Tüm Payven API'lerinde tutarlar **kuruş** cinsinden, tam sayı (`integer`) olarak iletilir. Ondalıklı (`float`, `decimal`) değer **kabul edilmez**.
+Tüm Payven API'lerinde tutarlar **kuruş** cinsinden, **64-bit tam sayı** (`long`) olarak iletilir. Ondalıklı (`float`, `decimal`) değer **kabul edilmez**. İstemci tarafında 32-bit `int` kullanmayın — yüksek tutarlı işlemlerde taşma riskine girersiniz.
+
+Tutar her zaman bir para birimiyle birlikte taşınır:
+
+```json
+{ "amount": 15000, "currency": "TRY" }
+```
 
 ## Çevrim kuralı
 
@@ -76,14 +82,14 @@ def kurus_to_lira(kurus: int) -> Decimal:
 
 ## Para birimleri
 
-| Kod | Para birimi | Durum |
-|---|---|---|
-| `TRY` | Türk Lirası | ✅ Birincil |
-| `USD` | Amerikan Doları | ✅ DCC ile destekli |
-| `EUR` | Euro | ✅ DCC ile destekli |
-| `GBP` | İngiliz Sterlini | ✅ DCC ile destekli |
+| Kod | Para birimi | Doğrudan kabul | DCC çıktısı |
+|---|---|---|---|
+| `TRY` | Türk Lirası | ✅ | — |
+| `USD` | Amerikan Doları | — | ✅ |
+| `EUR` | Euro | — | ✅ |
+| `GBP` | İngiliz Sterlini | — | ✅ |
 
-Yabancı para biriminde işlem için kullanılan **DCC (Dynamic Currency Conversion)** akışı, müşteriye işlem anında kart para biriminde tutarı gösterir. Detay: [DCC Akışı](/sanal-pos/payments/dcc).
+İstek gövdesinde `currency` alanına şu an yalnız `"TRY"` gönderilir. Yabancı kartlarda **DCC (Dynamic Currency Conversion)** akışı devreye girerse Payven, kart para birimindeki çevrilmiş tutarı yanıt gövdesinde döner — istemci `USD`/`EUR`/`GBP` değerini doğrudan göndermez. Detay: [DCC Akışı](/sanal-pos/payments/dcc).
 
 ## Sınır değerler
 

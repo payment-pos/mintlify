@@ -37,12 +37,8 @@ Standart `POST /payments` veya `POST /payments/3d/init` isteği yapın. Payven y
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":              "dcc_pending",
-  "is_success":          true,
-  "message":             "DCC teklifi hazır",
-  "error_code":          null,
-  "provider_error_code": null,
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":         "dcc_pending",
   "extra_properties": {
     "dcc_alternative_currency": "USD",
     "dcc_alternative_amount":   "480",
@@ -99,21 +95,17 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-...",
-  "status":              "completed",
-  "is_success":          true,
-  "message":             "Onaylandı",
-  "error_code":          null,
-  "provider_error_code": null,
+  "transaction_id": "8e3f5c12-...",
+  "status":         "completed",
   "extra_properties": {
-    "processed_at":      "2026-05-03T12:38:01.234+00:00",
-    "auth_code":         "123456",
-    "host_reference":    "PAYVEN-REF-789",
-    "dcc_charged_currency": "USD",
-    "dcc_charged_amount":   "480",
-    "dcc_original_amount":  "15000",
+    "processed_at":          "2026-05-03T12:38:01.234+00:00",
+    "auth_code":             "123456",
+    "host_reference":        "PAYVEN-REF-789",
+    "dcc_charged_currency":  "USD",
+    "dcc_charged_amount":    "480",
+    "dcc_original_amount":   "15000",
     "dcc_original_currency": "TRY",
-    "dcc_exchange_rate":    "31.25"
+    "dcc_exchange_rate":     "31.25"
   }
 }
 ```

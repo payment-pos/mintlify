@@ -2,7 +2,7 @@
   "openapi": "3.0.4",
   "info": {
     "title": "Payven Fraud API",
-    "description": "Payven Fraud — gercek zamanli risk skorlama ve fraud kural motoru.",
+    "description": "Payven Fraud — gerçek zamanlı risk skorlama ve fraud kural motoru.",
     "termsOfService": "https://payven.com.tr/sozlesmeler",
     "contact": {
       "name": "Payven Developer Support",
@@ -17,12 +17,12 @@
   },
   "servers": [
     {
-      "url": "https://fraud.payven.com.tr",
-      "description": "Production"
-    },
-    {
       "url": "https://fraud-sandbox.payven.com.tr",
       "description": "Sandbox"
+    },
+    {
+      "url": "https://fraud.payven.com.tr",
+      "description": "Production"
     }
   ],
   "paths": {

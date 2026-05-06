@@ -18,7 +18,7 @@ DELETE /api/v1/lookups/bank-bins/{id}            # Silme (admin)
 POST   /api/v1/lookups/bank-bins/import          # Toplu import (admin)
 ```
 
-JWT Bearer auth gerektirir. CRUD operasyonları `tenant-admin` veya `platform-admin` rolü gerektirir.
+Bearer access token gerektirir. CRUD operasyonları `tenant-admin` veya `platform-admin` rolü gerektirir.
 
 ## Liste / arama
 
@@ -62,16 +62,6 @@ curl "https://identity.payven.com.tr/api/v1/lookups/bank-bins?bin_prefix=454671&
   "has_next_page":     false
 }
 ```
-
-## Internal resolver (composer-to-composer)
-
-Backend servisleriniz arasında düşük gecikmeli BIN çözümleme için `internal` namespace'i mevcuttur:
-
-```http
-GET /api/v1/internal/lookups/bank-bins/resolve?prefix=454671
-```
-
-Bu endpoint **anonymous** çalışır (composer'lar arası iç çağrı). Yalnız güvenli ağ içinden — public erişim için load balancer / firewall katmanında bloke edilmelidir. Sanal POS Composer içindeki `IBankBinResolver` 5dk memory cache ile bu endpoint'i kullanır.
 
 ## Tipik kullanım: dinamik checkout
 
@@ -127,4 +117,4 @@ Yanıtta her satır için durum (`inserted`, `updated`, `skipped_duplicate`, `er
 
 ## Caching
 
-BIN tablosu nadiren değişir — istemcinizde **24 saatlik** cache önerilir. Composer'ların kendi içinde 1 saatlik cache zaten vardır.
+BIN tablosu nadiren değişir — istemcinizde **24 saatlik** cache önerilir.

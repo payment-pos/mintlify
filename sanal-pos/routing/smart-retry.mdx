@@ -13,7 +13,7 @@ Smart Retry, **birinci tercih konnektör geçici hata** verdiğinde işlemi alte
 | Yetersiz bakiye, expired card, fraud | ❌ Müşteri/kart kaynaklı — retry sonuç değiştirmez |
 | Limit aşımı, kart blokajı | ❌ Müşteri kaynaklı |
 | Banka HTTP 5xx | ✅ Alternatif konnektöre yönlendirilir |
-| Banka timeout (`PV_TIMEOUT`) | ✅ Yönlendirilir |
+| Banka timeout | ✅ Yönlendirilir |
 | Bağlantı / TLS hatası | ✅ Yönlendirilir |
 | Connector circuit breaker açık | ✅ Yönlendirilir |
 
@@ -70,10 +70,8 @@ Müşteri tarafından bakıldığında Smart Retry **görünmez** — tek bir ba
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-...",
-  "status":              "completed",
-  "is_success":          true,
-  "message":             "Onaylandı",
+  "transaction_id": "8e3f5c12-...",
+  "status":         "completed",
   "extra_properties": {
     "processed_at":            "2026-05-03T12:34:58.123+00:00",
     "auth_code":               "789012",

@@ -23,13 +23,13 @@ Bir versiyon içinde aşağıdaki değişiklikler **kırıcı (breaking)** kabul
 - Yeni hata kodu eklenmesi
 - Yeni webhook olayı eklenmesi
 - Yanıt alanlarının sıralamasının değişmesi
-- `message` alanlarındaki metin değişiklikleri
+- Hata yanıtındaki `title` ve `detail` metinlerinde dil/ifade değişiklikleri (kod (`code`) sabit kalır)
 
 İstemcinizi bu tip değişikliklere **toleranslı** yazın:
 
 <Check>Bilmediğiniz alanları yok sayın.</Check>
-<Check>Yeni hata kodlarını genel `code` prefix'i (`AUTH_*`, `VALIDATION_*`) bazında yakalayın.</Check>
-<Check>Webhook payload'unda bilmediğiniz `eventType` değerlerini yok sayın, hata fırlatmayın.</Check>
+<Check>Bilmediğiniz hata kodlarında HTTP durum kodu kategorisine (4xx / 5xx) göre fallback davranış tanımlayın.</Check>
+<Check>Webhook payload'unda bilmediğiniz `type` değerlerini yok sayın, hata fırlatmayın.</Check>
 
 ## Kırıcı değişiklikler
 

@@ -9,9 +9,9 @@ Bu rehber, Payven Sanal POS API'sine yapılan **ilk başarılı test ödemesi** 
 **Ön koşul:** [Konsol](https://dashboard.payven.com.tr) üzerinde bir tenant'ınız ve `client_id` / `client_secret` çiftiniz olmalıdır. Onboarding için satış ekibimize ulaşın.
 </Note>
 
-## 1. JWT alın
+## 1. Access token alın
 
-Identity servisinden OAuth 2.0 `client_credentials` akışıyla token alın:
+Payven Identity servisinden OAuth 2.0 `client_credentials` akışıyla token alın. URL'deki `payven` yerine onboarding sırasında size verilen **tenant slug'ı** kullanın:
 
 <CodeGroup>
 ```bash cURL
@@ -65,7 +65,7 @@ Yanıt:
 }
 ```
 
-**Token 5 dakika geçerli.** Production'da bunu cache'leyip auto-refresh ile yönetin — örnek SDK: [Kimlik Doğrulama](/documentation/concepts/authentication#sdk-ornekleri-auto-refresh).
+**Access token 5 dakika geçerli.** Production'da bunu cache'leyip auto-refresh ile yönetin — örnek istemciler: [Kimlik Doğrulama → Kod örnekleri](/documentation/concepts/authentication#sdk-ornekleri-auto-refresh).
 
 <Warning>
 `client_secret` değerini hiçbir zaman istemci tarafı (tarayıcı, mobil uygulama, public repo) koduna gömmeyin. Tüm Payven API çağrıları yalnızca **sunucu tarafından** yapılmalıdır.
@@ -92,11 +92,6 @@ curl -X POST https://vpos-sandbox.payven.com.tr/api/v1/payments \
       "expire_month": "12",
       "expire_year":  "2030",
       "cvv":          "000"
-    },
-    "buyer": {
-      "id":         "cust-001",
-      "email":      "test@example.com",
-      "ip_address": "85.105.10.10"
     }
   }'
 ```
@@ -123,7 +118,6 @@ const res = await fetch(
         expire_year:  "2030",
         cvv:          "000",
       },
-      buyer: { id: "cust-001", email: "test@example.com", ip_address: "85.105.10.10" },
     }),
   },
 );
@@ -186,16 +180,12 @@ var payment  = await response.Content.ReadFromJsonAsync<Payment>();
 ```
 </CodeGroup>
 
-Başarılı yanıt:
+Başarılı yanıt (`HTTP 200`):
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":              "completed",
-  "is_success":          true,
-  "message":             "Onaylandı",
-  "error_code":          null,
-  "provider_error_code": null,
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":         "completed",
   "extra_properties": {
     "processed_at":            "2026-05-03T12:34:58.123+00:00",
     "auth_code":               "123456",
@@ -205,7 +195,9 @@ Başarılı yanıt:
 }
 ```
 
-`status: "completed"` ve `is_success: true` → ödeme başarıyla tamamlandı. `transaction_id` değerini saklayın — sonraki adımlarda iade, sorgulama veya webhook eşleştirmesinde kullanacaksınız.
+`HTTP 200` + `status: "completed"` → ödeme başarıyla tamamlandı. `transaction_id` değerini saklayın — sonraki adımlarda iade, sorgulama veya webhook eşleştirmesinde kullanacaksınız.
+
+Hata durumunda yanıt `application/problem+json` formatında döner (RFC 9457). Detaylar: [Hata Yönetimi](/documentation/concepts/errors).
 
 <Tip>
 **API Referansı'nda Try It paneli** ile bu isteği tarayıcınızdan canlı olarak deneyebilirsiniz: [POST /payments](/api-reference/sanal-pos).
@@ -236,7 +228,7 @@ curl -X POST https://vpos-sandbox.payven.com.tr/api/v1/webhooks \
 
 Webhook isteklerini doğrularken HMAC-SHA256 imzasını kontrol edin — bkz. [İmza Doğrulama](/sanal-pos/webhooks/signature). Lokal geliştirmede [ngrok](https://ngrok.com) veya [Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/) ile localhost'unuzu internete açabilirsiniz.
 
-## 5. Test kart numaraları
+## Test kart numaraları
 
 Sandbox'ta gerçek banka çağrısı yapılmaz; senaryoları aşağıdaki kartlarla simüle edebilirsiniz:
 
@@ -247,7 +239,7 @@ Sandbox'ta gerçek banka çağrısı yapılmaz; senaryoları aşağıdaki kartla
 | 3DS challenge başarılı | `4111111111111111` | Test bank — şifre `a` |
 | 3DS challenge başarısız | `4111111111111129` | Test bank |
 | Yetersiz bakiye | `4022770000000005` | Test bank — `provider_error_code: "51"` |
-| Expired card | `4022770000000013` | Test bank — `provider_error_code: "54"` |
+| Süresi geçmiş kart | `4022770000000013` | Test bank — `provider_error_code: "54"` |
 
 Tam liste ve özel senaryolar: [Test Kartları](/sanal-pos/test/test-cards).
 
@@ -260,7 +252,7 @@ Tam liste ve özel senaryolar: [Test Kartları](/sanal-pos/test/test-cards).
   <Card title="Hosted Checkout ile PCI yükünü düşür" icon="window-maximize" href="/sanal-pos/payments/hosted-checkout">
     Kart girişini Payven sayfasında yapın, SAQ-A kapsamına inin.
   </Card>
-  <Card title="Akışlar" icon="diagram-project" href="/flows/3d-secure">
+  <Card title="Akışlar" icon="diagram-project" href="/flows/overview">
     Uçtan uca senaryoları sequence diagram'larıyla kavrayın.
   </Card>
   <Card title="Recipes" icon="book" href="/recipes/overview">
@@ -270,4 +262,4 @@ Tam liste ve özel senaryolar: [Test Kartları](/sanal-pos/test/test-cards).
 
 ## Yardım
 
-Bir adımda takılırsanız: yanıttaki `correlation_id` (veya `X-Correlation-Id` header'ı) ile birlikte [destek ekibine](/resources/support) yazın — log zincirini saniyeler içinde bulabiliriz.
+Bir adımda takılırsanız: yanıt header'larındaki `X-Correlation-Id` değerini (veya hata gövdesindeki `correlationId` alanını) [destek ekibine](/resources/support) iletin — log zincirini saniyeler içinde bulabiliriz.

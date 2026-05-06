@@ -25,14 +25,14 @@ Sandbox'ta **gerçek kart numarası kullanmayın** — yalnızca aşağıdaki te
 
 ## Banka tarafından red senaryoları
 
-| Kart | Senaryo | `provider_error_code` (`error_code`) |
+| Kart | Senaryo | `provider_error_code` (Payven `code`) |
 |---|---|---|
-| `4111111111111111` | Yetersiz bakiye | `51` (PV_INSUFFICIENT_FUNDS) |
-| `5555555555554444` | Limit aşımı | `61` (PV_LIMIT_EXCEEDED) |
-| `4012888888881881` | Şüpheli işlem | `59` (PV_FRAUD_SUSPECTED) |
-| `4242424242424242` | Banka timeout | `91` (PV_TIMEOUT) |
-| `4444333322221111` | Kart bloke | `41` (PV_BANK_DECLINED) |
-| `5105105105105100` | Geçersiz CVV | `82` (PV_INVALID_CVV) |
+| `4111111111111111` | Yetersiz bakiye | `51` (`insufficient_funds`) |
+| `5555555555554444` | Limit aşımı | `61` (`limit_exceeded`) |
+| `4012888888881881` | Şüpheli işlem | `59` (`fraud_suspected`) |
+| `4242424242424242` | Banka timeout | `91` (`bank_timeout`) |
+| `4444333322221111` | Kart bloke | `41` (`bank_declined`) |
+| `5105105105105100` | Geçersiz CVV | `82` (`invalid_cvv`) |
 
 ## 3DS senaryoları
 
@@ -56,7 +56,7 @@ Aşağıdaki kartlarla taksit testleri yapabilirsiniz:
 
 ## Pre-Auth + Capture
 
-Tüm başarılı kartlar Pre-Auth akışını destekler. Capture sonrası status `Captured` olur.
+Tüm başarılı kartlar Pre-Auth akışını destekler. Capture sonrası status `completed` olur (öncesinde `authorized`).
 
 ## DCC testi
 

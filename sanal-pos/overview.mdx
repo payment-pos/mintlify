@@ -9,19 +9,19 @@ Payven Sanal POS, ödeme kuruluşları ve büyük platformlar için **çoklu ban
 
 <CardGroup cols={2}>
   <Card title="Çoklu Banka" icon="building-columns">
-    Tek API ile 12+ banka entegrasyonu. Konnektör ekleme yeni anlaşma değil, konfigürasyon meselesidir.
+    Tek API ile 14 banka entegrasyonu. Yeni konnektör eklemek anlaşma değil, konfigürasyon meselesidir.
   </Card>
   <Card title="Akıllı Yönlendirme" icon="route">
-    BIN, tutar, taksit, kart birliği, banka sağlığı bazlı kompozit-skor ile dinamik yönlendirme.
+    BIN, tutar, taksit, kart birliği ve banka sağlığını dikkate alan bileşik skor motoru ile dinamik yönlendirme.
   </Card>
-  <Card title="3D Secure 2.0" icon="shield-check">
+  <Card title="3D Secure 2.x" icon="shield-check">
     Tüm bankalar için tek tip 3DS akışı. Frictionless ve challenge mode ayrımı otomatiktir.
   </Card>
   <Card title="Smart Retry" icon="arrows-rotate">
-    Geçici banka hatasında işlem alternatif konnektöre yönlendirilir, kullanıcı yeniden ödeme yapmaz.
+    Geçici banka hatasında işlem alternatif konnektöre yönlendirilir; kullanıcı yeniden ödeme yapmaz.
   </Card>
   <Card title="Hosted Checkout" icon="window-maximize">
-    Payven barındırır, siz yönlendirme URL'si alır. PCI-DSS yükünü minimize eder.
+    Kart girişi Payven'in barındırdığı sayfada yapılır; siz sadece yönlendirme URL'si alırsınız. PCI-DSS yükünü minimize eder.
   </Card>
   <Card title="Tek Mutabakat" icon="scale-balanced">
     Tüm bankaların gün sonu hareketleri tek bir mutabakat akışında konsolide edilir.
@@ -80,12 +80,12 @@ Payven Sanal POS, ödeme kuruluşları ve büyük platformlar için **çoklu ban
 
 | Kategori | Endpoint örnekleri | Auth |
 |---|---|---|
-| Ödeme oluşturma | `POST /payments`, `POST /payments/3d/init`, `POST /checkout/sessions` | JWT Bearer |
-| Ödeme aksiyonları | `POST /payments/{id}/refund`, `/void`, `/capture` | JWT Bearer |
-| Sorgulama | `GET /transactions`, `GET /payments/{id}` | JWT Bearer |
-| Webhook yönetimi | `POST /webhooks` | JWT Bearer |
-| Mutabakat | `POST /reconciliations/start` | JWT Bearer |
-| Backoffice | `GET /connectors`, `/connector-configurations` | JWT Bearer |
+| Ödeme oluşturma | `POST /payments`, `POST /payments/3d/init`, `POST /checkout/sessions` | Bearer |
+| Ödeme aksiyonları | `POST /payments/{id}/refund`, `/void`, `/capture` | Bearer |
+| Sorgulama | `GET /transactions`, `GET /payments/{id}` | Bearer |
+| Webhook yönetimi | `POST /webhooks` | Bearer |
+| Mutabakat | `POST /reconciliations/start` | Bearer |
+| Backoffice | `GET /connectors`, `/connector-configurations` | Bearer |
 
 ## İşlem yaşam döngüsü
 

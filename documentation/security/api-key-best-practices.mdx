@@ -1,16 +1,12 @@
 ---
-title: "Credentials (Kimlik Bilgileri) En İyi Uygulamaları"
-description: "OAuth client_secret yönetimi, sızıntı önleme ve operasyonel güvenlik."
+title: "API Anahtarı En İyi Uygulamaları"
+description: "client_secret yönetimi, sızıntı önleme ve operasyonel güvenlik."
 ---
 
-Payven API'lerine erişim **OAuth 2.0 client credentials** akışı ile sağlanır:
-`client_id` + `client_secret` → access token (JWT). `client_secret`, kuruluşunuz adına işlem yapma yetkisidir.
-Aşağıdaki kurallara uymak sızıntı riskini ve sızıntı sonrası etkiyi minimuma indirir.
+Payven API'lerine erişim **OAuth 2.0 Client Credentials** akışı ile sağlanır:
+`client_id` + `client_secret` → access token. `client_secret`, kuruluşunuz adına işlem yapma yetkisidir; sızdığında saldırganın elinde sizin adınıza ödeme oluşturma kapısı olur.
 
-<Note>
-Daha önceki API key + secret modeli artık desteklenmemektedir. Auth akışı için bkz.
-[Authentication](/documentation/concepts/authentication).
-</Note>
+Aşağıdaki kurallara uymak sızıntı riskini ve sızıntı sonrası etkiyi minimuma indirir. Auth akışının tamamı için: [Kimlik Doğrulama](/documentation/concepts/authentication).
 
 ## Kuralname
 
@@ -53,7 +49,7 @@ Sıfır kesinti ile rotasyon:
 
 <Steps>
   <Step title="Yeni client veya secret üretin">
-    Konsol → API Anahtarları → **Yeni Client Oluştur** (veya mevcut client için **Secret Rotate**). Mevcut secret'ı **silmeyin** — Keycloak iki secret'ı da geçici olarak kabul eder.
+    Konsol → API Anahtarları → **Yeni Client Oluştur** (veya mevcut client için **Secret Rotate**). Mevcut secret'ı **silmeyin** — Identity, geçiş süresince eski ve yeni secret'ı geçici olarak birlikte kabul eder.
   </Step>
   <Step title="Yeni secret'ı secret store'a yazın">
     Production secret manager'ında yeni değeri kaydedin.

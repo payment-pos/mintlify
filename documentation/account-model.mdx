@@ -12,7 +12,7 @@ Payven'i doğru kullanmak için **kuruluş**, **merchant** ve **API anahtarı** 
     Payven'in birincil müşterisidir. Lisanslı ödeme kuruluşu, banka veya büyük e-ticaret platformu. Bir kuruluşun:
 
     - Birden fazla **merchant**'ı,
-    - Birden fazla **API anahtarı**,
+    - Birden fazla **API anahtarı** (`client_id` / `client_secret` çifti),
     - Birden fazla **banka konfigürasyonu**,
     - Bir **plan**'ı (kullanım kotaları) olur.
 
@@ -34,12 +34,14 @@ Payven'i doğru kullanmak için **kuruluş**, **merchant** ve **API anahtarı** 
     Alt merchant kullanımı **opsiyoneldir**. İhtiyacınız yoksa merchant seviyesinde kalabilirsiniz.
   </Tab>
   <Tab title="API Anahtarı">
-    API'ye erişim için kullanılan kimlik bilgisi:
+    API'ye erişim için OAuth 2.0 Client Credentials çifti kullanılır:
 
-    - `apiKey`: Public tanımlayıcı (`pvk-` ile başlar).
-    - `apiSecret`: Gizli imza anahtarı.
+    - `client_id`: Public tanımlayıcı (`pvk_live_…` veya `pvk_test_…` ile başlar).
+    - `client_secret`: Gizli secret — yalnızca oluşturma anında gösterilir, güvenli bir vault'ta saklayın.
 
-    Anahtarlar **kuruluş seviyesindedir** — yani aynı anahtarla kuruluşa bağlı tüm merchant'lar adına işlem yapabilirsiniz. Hangi merchant'ın adına işlem yaptığınızı her istekte ilgili header ile belirtirsiniz.
+    Bu çift ile [Payven Identity'den](/documentation/concepts/authentication) bir **access token** alır, sonraki tüm istekleri `Authorization: Bearer <access_token>` header'ı ile yaparsınız.
+
+    API anahtarı **kuruluş seviyesindedir** — aynı çiftle kuruluşa bağlı tüm merchant'lar adına işlem yapabilirsiniz. Hangi merchant adına işlem yaptığınızı her istekte ilgili merchant header'ı ile belirtirsiniz.
   </Tab>
 </Tabs>
 
@@ -49,12 +51,12 @@ Payven'i doğru kullanmak için **kuruluş**, **merchant** ve **API anahtarı** 
 Kuruluş (Tenant)
 ├── Plan ve kotalar
 ├── Kullanıcılar (konsol erişimi)
-├── API Anahtarları
-├── Banka Konfigürasyonları
-├── Akıllı Yönlendirme Kuralları
+├── API anahtarları (client_id + client_secret çiftleri)
+├── Banka konfigürasyonları
+├── Akıllı yönlendirme kuralları
 └── Merchant'lar
     ├── Merchant 1
-    │   ├── Vergi/iletişim bilgileri
+    │   ├── Vergi / iletişim bilgileri
     │   ├── Banka profilleri
     │   └── Alt Merchant'lar (opsiyonel)
     ├── Merchant 2
@@ -74,25 +76,28 @@ Her API isteğinde merchant'ı **iki şekilde** belirtebilirsiniz. Hangisini kul
 
 ## Çoklu ürün senaryosu
 
-Aynı API anahtarı çiftiyle birden fazla ürünü kullanabilirsiniz:
+Aynı `client_id` / `client_secret` çiftiyle alınan tek bir access token, planınızdaki tüm ürünlerde geçerlidir:
 
 ```mermaid
 flowchart LR
-    Key["API Key + Secret"]
-    Key --> VPOS["Sanal POS"]
-    Key --> Transfer["Para Transferi"]
-    Key --> Fraud["Fraud Yönetimi"]
+    Key["client_id + client_secret"] -->|"client_credentials"| Identity["Payven Identity"]
+    Identity -->|"access_token"| Token["Access Token"]
+    Token --> VPOS["Sanal POS"]
+    Token --> Transfer["Para Transferi"]
+    Token --> Fraud["Fraud"]
 ```
 
-Her ürün için ayrı anahtar oluşturmanıza gerek yoktur. Plan, hangi ürünlerin etkin olduğunu belirler.
+Her ürün için ayrı API anahtarı oluşturmanıza gerek yoktur. **Plan**, hangi ürünlerin etkin olduğunu belirler.
 
 ## Sınırlar ve kotalar
 
 Plan seviyenize bağlı olarak:
 
-- Saniyede istek sayısı,
+- Saniyede istek sayısı (rate limit),
 - Aylık işlem hacmi,
 - Eşzamanlı webhook hedefi,
 - Aktif merchant sayısı
 
 gibi limitler uygulanır. Mevcut planınızı ve kullanımınızı [Konsol → Plan ve Kullanım](https://dashboard.payven.com.tr/my-plan) ekranından izleyebilirsiniz.
+
+Rate limit davranışı, `429` yanıtı ve `Retry-After` header'ı için: [Rate Limiting](/documentation/concepts/rate-limiting).

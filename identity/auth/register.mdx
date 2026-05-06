@@ -38,8 +38,8 @@ curl -X POST https://identity.payven.com.tr/api/v1/auth/payven/register \
 | `first_name` | string | ✅ | İsim |
 | `last_name` | string | ✅ | Soyisim |
 | `email` | string | ✅ | Geçerli e-posta — kullanıcı adı olarak kullanılır |
-| `company_name` | string | ✅ | Şirket adı (Keycloak attribute olarak saklanır) |
-| `password` | string | ✅ | Keycloak parola politikasına uygun (min uzunluk + karakter çeşitliliği) |
+| `company_name` | string | ✅ | Şirket adı (profil özniteliği olarak saklanır) |
+| `password` | string | ✅ | Sistem parola politikasına uygun (min uzunluk + karakter çeşitliliği) |
 
 ## Yanıt
 
@@ -54,14 +54,14 @@ curl -X POST https://identity.payven.com.tr/api/v1/auth/payven/register \
 
 | Alan | Açıklama |
 |---|---|
-| `user_id` | Keycloak'ta oluşturulan kullanıcının kimliği |
+| `user_id` | Oluşturulan kullanıcının kimliği |
 | `email` | Doğrulanmış e-posta adresi |
 
 ## Onay süreci
 
 ```mermaid
 flowchart LR
-    A[POST /register] --> B[Keycloak'ta user oluştu<br/>Enabled=false<br/>pendingApproval=true]
+    A[POST /register] --> B[Kullanıcı oluşturuldu<br/>Enabled=false<br/>pendingApproval=true]
     B --> C{Tenant admin onaylar mı?}
     C -->|Evet| D[Enabled=true<br/>rol atanır]
     C -->|Hayır| E[user disabled kalır]
@@ -80,5 +80,5 @@ Hata zarfı RFC 9457 problem+json.
 | `404` | `realm_not_found` | Slug bulunamadı veya `platform` denendi |
 | `403` | `tenant_inactive` | Tenant askıya alınmış |
 | `409` | `user_already_exists` | Bu e-posta zaten kayıtlı (aynı tenant içinde) |
-| `422` | `weak_password` | Parola Keycloak politikasına uymuyor |
+| `422` | `weak_password` | Parola güvenlik politikasına uymuyor |
 | `429` | `rate_limit_exceeded` | Çok fazla deneme — `Retry-After` header'ına uyun |

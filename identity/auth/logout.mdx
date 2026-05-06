@@ -3,7 +3,7 @@ title: "Logout"
 description: "Aktif oturumu sonlandırma ve refresh token'ı geçersiz kılma."
 ---
 
-Logout endpoint'i Keycloak tarafında refresh token'ı geçersiz kılar — access token kalan süresince hâlâ kullanılabilir, ama refresh edilemez. Tam logout için access token'ı da istemci tarafında imha edin.
+Logout endpoint'i Identity tarafında refresh token'ı geçersiz kılar — access token kalan süresince hâlâ kullanılabilir, ama refresh edilemez. Tam logout için access token'ı da istemci tarafında imha edin.
 
 ## Endpoint
 
@@ -45,4 +45,4 @@ Bu endpoint anonim erişilebilir — `Authorization: Bearer ...` header'ı gerek
 <Check>**Logout her zaman çağrılsın** — sadece istemci tarafında token silmek yetersiz; çalınmış bir refresh token hâlâ kullanılabilir.</Check>
 <Check>İstemci tarafında tüm token'ları temizleyin (cookie, in-memory state, localStorage).</Check>
 <Check>Cross-tab senaryoda diğer sekmelere `storage` event'i ile haber verin → her sekme kendi state'ini sıfırlasın.</Check>
-<Check>Logout başarısız olsa bile (network kesintisi, vb.) istemci tarafında token'ları silin — Keycloak refresh denildiğinde reddedecektir.</Check>
+<Check>Logout başarısız olsa bile (network kesintisi, vb.) istemci tarafında token'ları silin — Identity refresh denildiğinde reddedecektir.</Check>

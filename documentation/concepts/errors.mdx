@@ -20,8 +20,8 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
   "status":         422,
   "code":           "refund_exceeds_original",
   "detail":         "Toplam iade tutarı orijinal tutarı (15000 kuruş) aşamaz.",
-  "instance":       "/api/v1/payments/8e3f5c12-.../refund",
-  "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
+  "instance":      "/api/v1/payments/8e3f5c12-.../refund",
+  "correlationId": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
 }
 ```
 
@@ -33,7 +33,7 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 | `code` | ✅ | Programatik hata kodu (`snake_case`). `type` URI'sinin son segmenti. |
 | `detail` | — | Bu özel duruma ilişkin açıklayıcı mesaj. |
 | `instance` | — | Hatanın oluştuğu kaynak yolu. |
-| `correlation_id` | — | İstek zinciri kimliği. Yanıt header'ı `X-Correlation-Id` ile aynı. Destek talebinde paylaşın. |
+| `correlationId` | — | İstek zinciri kimliği. Yanıt header'ı `X-Correlation-Id` ile aynı. Destek talebinde paylaşın. |
 
 ## HTTP kategorileri
 
@@ -50,10 +50,11 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 | Network timeout | Ağ veya gateway timeout | — | ✅ Idempotency-Key ile |
 
 <Note>
-**HTTP `200` her zaman ödeme başarılı demek değildir.** Banka tarafında reddedilen bir
-işlem `200` ile dönüp gövdesinde `is_success: false`, `error_code: "bank_declined"`,
-`provider_error_code: "51"` (yetersiz bakiye) taşıyabilir. Asıl başarı kararını
-yanıttaki `is_success` ve `status` alanlarına bakarak verin.
+**Banka reddi de bir hata yanıtıdır.** Gateway'e ulaşmış ama banka tarafında reddedilen
+ödeme `422 Unprocessable Entity` + `application/problem+json` ile döner; gövdede
+`code: "bank_declined"` ve banka ham yanıt kodu (`provider_error_code`, örn. `"51"` —
+yetersiz bakiye) yer alır. Sonuç değerlendirmesini yalnız HTTP durum kodu üzerinden
+yapın.
 </Note>
 
 ## Yaygın hata kodları
@@ -63,7 +64,7 @@ yanıttaki `is_success` ve `status` alanlarına bakarak verin.
 | `code` | HTTP | Anlam |
 |---|---|---|
 | `unauthorized` | 401 | `Authorization` header eksik |
-| `invalid_token` | 401 | JWT geçersiz veya tampere edilmiş |
+| `invalid_token` | 401 | Access token geçersiz veya kurcalanmış |
 | `token_expired` | 401 | Access token süresi doldu — refresh edin |
 | `invalid_credentials` | 401 | `client_id` / `client_secret` yanlış |
 | `invalid_refresh_token` | 401 | Refresh token expire / revoke edilmiş |
@@ -81,7 +82,7 @@ yanıttaki `is_success` ve `status` alanlarına bakarak verin.
 |---|---|---|
 | `bad_request` | 400 | Genel istek hatası |
 | `invalid_json` | 400 | Gövde geçersiz JSON |
-| `validation_failed` | 422 | FluentValidation kuralı ihlali — `errors[]` ile alan listesi |
+| `validation_failed` | 422 | Validasyon kuralı ihlali — `errors[]` ile alan listesi |
 | `invalid_amount` | 422 | Tutar pozitif değil veya minimum altında |
 | `invalid_currency` | 422 | Para birimi desteklenmiyor (`TRY` dışı için kapalı) |
 | `invalid_card` | 422 | Kart numarası Luhn checksum'ı geçmiyor |
@@ -244,11 +245,11 @@ function userMessage(problem) {
 
 ## Destek talebi açarken
 
-Her hata yanıtında dönen **`correlation_id`** değerini paylaşın — log zincirini saniyeler içinde bulabiliriz. Yanıt header'ındaki `X-Correlation-Id` ile gövdedeki `correlation_id` aynı değerdir.
+Her hata yanıtında dönen **`correlationId`** değerini paylaşın — log zincirini saniyeler içinde bulabiliriz. Yanıt header'ındaki `X-Correlation-Id` ile gövdedeki `correlationId` aynı değerdir.
 
 ```text
 Konu:   Refund 422 — refund_exceeds_original
-Detay:  correlation_id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
-        instance:       /api/v1/payments/8e3f5c12-.../refund
-        zaman:          2026-05-05T14:23:11+03:00
+Detay:  correlationId: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
+        instance:      /api/v1/payments/8e3f5c12-.../refund
+        zaman:         2026-05-05T14:23:11+03:00
 ```

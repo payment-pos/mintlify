@@ -35,7 +35,7 @@ Sanal POS API'sini hızlı denemek için iki koleksiyon sunuyoruz:
     - `vpos_base_url`: `https://vpos-sandbox.payven.com.tr` veya `https://vpos.payven.com.tr`
   </Step>
   <Step title="Token alın (otomatik)">
-    Koleksiyonun **Pre-request Script**'i ilk istekten önce Identity'den JWT alır ve `{{access_token}}` değişkenine yazar; expiry geldiğinde otomatik refresh.
+    Koleksiyonun **Pre-request Script**'i ilk istekten önce Identity'den access token alır ve `{{access_token}}` değişkenine yazar; expiry geldiğinde otomatik refresh.
   </Step>
   <Step title="Bir isteği gönderin">
     "Quickstart" klasöründeki **Non-3D Payment** isteğini açın ve **Send** edin.
@@ -66,7 +66,7 @@ VS Code'da [REST Client](https://marketplace.visualstudio.com/items?itemName=hum
 # Dosyayı açın
 code payven-sanalpos.http
 
-# Üst kısımdaki @apiKey, @apiSecret, @merchantId değişkenlerini doldurun
+# Üst kısımdaki @clientId, @clientSecret, @slug ve @merchantId değişkenlerini doldurun
 # İstek bloğunun üstündeki "Send Request" linkine tıklayın
 ```
 

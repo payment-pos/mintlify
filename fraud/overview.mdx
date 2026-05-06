@@ -43,30 +43,29 @@ parçası olarak sunulur. Standalone fraud servisi olarak da kullanılabilir
 
 ## Fraud kararı
 
-Her ödeme isteğinde Sanal POS, fraud servisinden iki çağrı yapar:
+Sanal POS her ödeme isteğinde fraud servisini otomatik çağırır — sizin tarafınızdan ek bir API çağrısı gerekmez. Sonuç üç karardan biri olur:
 
 ```mermaid
 sequenceDiagram
     participant App as Sunucunuz
     participant POS as Sanal POS
-    participant Fraud
+    participant Fraud as Fraud Engine
     participant Bank as Banka
 
     App->>POS: POST /payments
-    POS->>Fraud: POST /internal/fraud/evaluate
+    POS->>Fraud: Risk değerlendirme
     alt Karar: allow
-        Fraud-->>POS: { decision: "allow", score: 12 }
+        Fraud-->>POS: allow (skor 12)
         POS->>Bank: Otorizasyon
         Bank-->>POS: Onay
-        POS->>Fraud: POST /internal/fraud/finalize
-        POS-->>App: completed
+        POS-->>App: 200 completed
     else Karar: block
-        Fraud-->>POS: { decision: "block", score: 92, rules_triggered: [...] }
+        Fraud-->>POS: block (skor 92, kural listesi)
         POS-->>App: 422 fraud_blocked
     else Karar: review
-        Fraud-->>POS: { decision: "review", score: 64 }
+        Fraud-->>POS: review (skor 64)
         POS-->>App: 422 fraud_review_required
-        Note over POS: İşlem holding'de — operatör onayı bekleniyor
+        Note over POS: İşlem beklemede — operatör onayı bekleniyor
     end
 ```
 
@@ -105,12 +104,16 @@ curl -X POST https://fraud-sandbox.payven.com.tr/api/v1/fraud/rules \
 
 ## Endpoint kategorileri
 
+Aşağıdaki endpoint'ler kuruluşunuzun fraud politikasını yönetmek içindir:
+
 | Kategori | Açıklama |
 |---|---|
-| `/internal/fraud/*` | Sanal POS'un dahili kullanımı — `evaluate`, `finalize` |
-| `/fraud/rules` | Tenant kuralları CRUD |
-| `/tenant/fraud/{rules,blacklist,alerts,logs,merchant-policies}` | Tenant bazlı yönetim |
-| `/platform/fraud/*` | Platform-level (multi-tenant) kara liste, alert havuzu |
+| `/fraud/rules` | Kuruluş kurallarının CRUD'u |
+| `/fraud/blacklist`, `/fraud/whitelist` | Kara/beyaz liste yönetimi (kart, BIN, IP, e-posta) |
+| `/fraud/alerts` | Eşik aşımlarında üretilen uyarıların listesi |
+| `/fraud/logs` | Fraud kararlarının audit kaydı |
+| `/fraud/merchant-policies` | Merchant başına kural override'ları |
+| `/fraud/reviews` | `review` durumundaki işlemlerin manuel onay/red'i |
 
 ## Webhook olayları
 

@@ -33,7 +33,7 @@ sequenceDiagram
     Browser->>App: success_url
     App->>Payven: GET /checkout/sessions/{session_id}
     Payven-->>App: Session durumu
-    Payven-)App: webhook (asenkron — payment.succeeded)
+    Payven-)App: webhook (asenkron — payment.completed)
 ```
 
 ## 1. Oturum oluşturun
@@ -49,8 +49,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/checkout/sessions \
   -H "Content-Type: application/json" \
   -d '{
     "merchant_name":         "Acme Mağaza",
-    "amount":                15000,
-    "currency":              "TRY",
+    "amount":                { "amount": 15000, "currency": "TRY" },
     "allowed_installments":  [1, 2, 3, 6, 9],
     "description":           "Sipariş ödemesi",
     "external_id":           "ORDER-1001",
@@ -70,8 +69,8 @@ curl -X POST https://vpos.payven.com.tr/api/v1/checkout/sessions \
 
 | Alan | Tip | Zorunlu | Açıklama |
 |---|---|---|---|
-| `amount` | int (kuruş) | ✅ | Toplam tutar |
-| `currency` | string | ❌ | `TRY` (varsayılan), `USD`, `EUR`, `GBP` |
+| `amount.amount` | long (kuruş) | ✅ | Toplam tutar |
+| `amount.currency` | enum | ✅ | Şu an yalnız `"TRY"` kabul edilir |
 | `merchant_name` | string | ❌ | Sayfa başlığında gösterilen isim |
 | `allowed_installments` | int[] | ❌ | İzin verilen taksit seçenekleri. Boş → `[1, 2, 3, 6, 9, 12]` varsayılanı |
 | `external_id`, `basket_id`, `description` | string | ❌ | Sipariş referansları |

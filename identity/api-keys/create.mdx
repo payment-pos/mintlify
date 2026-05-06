@@ -1,6 +1,6 @@
 ---
 title: "Yeni API Anahtarı Oluşturma"
-description: "Konsoldan veya API üzerinden Keycloak service-account client'ı üretin."
+description: "Konsoldan veya API üzerinden OAuth Client Credentials çifti üretin."
 ---
 
 Yeni anahtarlar konsol veya programatik olarak oluşturulabilir. İki durumda da **`client_secret` yalnızca yanıtta bir kez** döner — sonradan tekrar erişilemez.
@@ -32,7 +32,7 @@ Yeni anahtarlar konsol veya programatik olarak oluşturulabilir. İki durumda da
 POST /api/v1/tenants/me/api-keys
 ```
 
-JWT Bearer auth gerektirir + kullanıcı `tenant-admin` rolünde olmalı.
+Bearer access token gerektirir + kullanıcı `tenant-admin` rolünde olmalı.
 
 ```bash
 curl -X POST https://identity.payven.com.tr/api/v1/tenants/me/api-keys \
@@ -56,7 +56,7 @@ curl -X POST https://identity.payven.com.tr/api/v1/tenants/me/api-keys \
 |---|---|---|---|
 | `display_name` | string | ✅ | Anahtar için açıklayıcı ad |
 | `contact_email` | string | ❌ | Alarm / uyarı e-postası |
-| `merchant_id` | string | ❌ | Default merchant external ID — JWT claim olarak token'a yansır |
+| `merchant_id` | string | ❌ | Default merchant external ID — access token claim'ine yansır |
 | `plan_id` | UUID | ❌ | Atanacak plan — boş bırakılırsa tenant default'u |
 | `daily_limit_override` | int | ❌ | Plan günlük limitini override eder (kuruş) |
 | `monthly_limit_override` | int | ❌ | Plan aylık limit override |
@@ -73,7 +73,7 @@ curl -X POST https://identity.payven.com.tr/api/v1/tenants/me/api-keys \
   "api_key": {
     "id":                       "8e3f5c12-...",
     "tenant_id":                "1a2b3c4d-...",
-    "keycloak_client_id":       "pvk-payven-a1b2c3",
+    "client_id":       "pvk-payven-a1b2c3",
     "display_name":             "Production — Ödeme Servisi",
     "contact_email":            "ops@example.com",
     "merchant_id":              "M-IST-001",
@@ -99,7 +99,7 @@ Hemen secret manager'ınıza (HashiCorp Vault, AWS Secrets Manager, Azure Key Va
 
 ## Hemen kullanmaya başlama
 
-Aldığınız `client_id` + `secret` ile [Identity'den JWT alın](/documentation/concepts/authentication):
+Aldığınız `client_id` + `secret` ile [Identity'den access token alın](/documentation/concepts/authentication):
 
 ```bash
 TOKEN=$(curl -s https://identity.payven.com.tr/api/v1/auth/payven/token \
@@ -114,7 +114,7 @@ curl https://vpos.payven.com.tr/api/v1/transactions \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-JWT içinde `tenant_id`, `merchant_id`, `plan_code`, `daily_limit`, `monthly_limit`, `rate_limit` claim'leri taşınır — Composer'lar bunları doğrudan validate eder, Identity'ye HTTP atmaz.
+Access token içinde `tenant_id`, `merchant_id`, `plan_code`, `daily_limit`, `monthly_limit`, `rate_limit` gibi claim'ler taşınır — ürün servisleri bunları doğrudan doğrular, ek bir kimlik akışı gerekmez.
 
 ## Hata yanıtları
 

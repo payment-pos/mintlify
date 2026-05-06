@@ -236,7 +236,7 @@ $response = json_decode(curl_exec($ch), true);
 | `external_id` | string | önerilir | Sizin sisteminizdeki sipariş kimliği. İdeal olarak `Idempotency-Key` ile aynı seed'den üretin. |
 | `basket_id` | string | ❌ | Sepet kimliği (raporlama için) |
 | `amount.amount` | int (kuruş) | ✅ | Tutar — kuruş cinsinden tam sayı |
-| `amount.currency` | enum | ✅ | `TRY` (varsayılan), `USD`, `EUR`, `GBP` |
+| `amount.currency` | enum | ✅ | Şu an yalnız `"TRY"` kabul edilir. Yabancı kart için DCC akışında çevrim yanıtta döner — bkz. [Tutarlar](/documentation/concepts/amounts) |
 | `installment` | int | ✅ | Taksit sayısı (`1` = peşin). Banka & BIN desteği gerekir. |
 | `operation_type` | enum | ❌ | `sale` (varsayılan, anında çekim) veya `pre_auth` (ön provizyon — sonradan `/capture` gerekir) |
 | `card.holder_name` | string | ✅ | Kart üzerindeki isim |
@@ -255,7 +255,7 @@ $response = json_decode(curl_exec($ch), true);
 
 <Note>
 İlgili headers — bu istek için zorunlu olanlar:
-- `Authorization: Bearer <token>` (Identity'den alınan JWT)
+- `Authorization: Bearer <token>` (Identity'den alınan access token)
 - `Idempotency-Key` (önerilir — yeniden gönderim koruması için bkz. [Idempotency](/documentation/concepts/idempotency))
 - `Content-Type: application/json`
 </Note>
@@ -270,12 +270,8 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":              "completed",
-  "is_success":          true,
-  "message":             "Onaylandı",
-  "error_code":          null,
-  "provider_error_code": null,
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":         "completed",
   "extra_properties": {
     "processed_at":            "2026-05-03T12:34:58.123+00:00",
     "receipt_id":              "RCPT-20260503-0001",
@@ -287,33 +283,32 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 }
 ```
 
-`status: "completed"` ve `is_success: true` → ödeme başarıyla tamamlandı. Detaylı alan referansı: [Payment Objesi](/sanal-pos/payment-object).
+`HTTP 200` + `status: "completed"` → ödeme başarıyla tamamlandı. Detaylı alan referansı: [Payment Objesi](/sanal-pos/payment-object).
 
 ## Banka tarafından red
 
-Banka işlemi reddederse HTTP `200` döner ama gövdede `is_success: false` olur:
+Banka işlemi reddederse yanıt **`422 Unprocessable Entity` + `application/problem+json`** olarak döner:
+
+```http
+HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/problem+json
+```
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-...",
-  "status":              "failed",
-  "is_success":          false,
-  "message":             "Yetersiz bakiye",
-  "error_code":          "bank_declined",
-  "provider_error_code": "51",
-  "extra_properties": {
-    "processed_at": "2026-05-03T12:34:58.123+00:00",
-    "external_id":  "ORDER-1001"
-  }
+  "type":          "https://docs.payven.com.tr/errors/bank_declined",
+  "title":         "Banka işlemi reddetti",
+  "status":        422,
+  "code":          "bank_declined",
+  "detail":        "Yetersiz bakiye (banka kodu: 51)",
+  "instance":      "/api/v1/payments",
+  "correlationId": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
 }
 ```
 
-| Alan | Anlam |
-|---|---|
-| `error_code` | Payven kategorik hata kodu (`bank_declined`, `fraud_blocked`, vb.) |
-| `provider_error_code` | Bankanın orijinal yanıt kodu (`51` = yetersiz bakiye, `54` = expired card) |
+Yanıt başarılı mı diye HTTP durum kodunu kontrol edin. Banka tarafı detayını (orijinal banka kodu, auth_code vb.) görmek için işlem sonradan `GET /api/v1/payments/{id}` ile sorgulanabilir — failed ödemenin sorgusu `200 OK` döner ve `error_code` / `provider_error_code` alanları yanıt gövdesinde data olarak taşınır.
 
-Tam liste: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
+Tam banka yanıt kodu listesi: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
 
 ## Validasyon hatası
 

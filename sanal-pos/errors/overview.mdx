@@ -3,50 +3,50 @@ title: "Hata Kodları — Genel Bakış"
 description: "Sanal POS hata kodu kategorileri ve çözüm yaklaşımları."
 ---
 
-Sanal POS hata kodları **üç kategoriye** ayrılır:
+Sanal POS hata kodları **üç kategoriye** ayrılır. Tüm Payven kodları **lowercase snake_case** formatındadır.
 
 | Kategori | Kaynak | Örnek değerler |
 |---|---|---|
-| **Payven domain kodları** | Payven iş kuralı + connector katmanı | `PV_INSUFFICIENT_FUNDS`, `PV_BANK_DECLINED`, `THREEDS_VERIFY_FAILED`, `REFUND_AMOUNT_EXCEEDS_REMAINING` |
+| **Payven domain kodları** | Payven iş kuralı + konnektör katmanı | `insufficient_funds`, `bank_declined`, `three_ds_verify_failed`, `refund_exceeds_original` |
 | **HTTP canonical kodlar** | Generic 4xx/5xx altyapı | `bad_request`, `unauthorized`, `validation_failed`, `rate_limit_exceeded`, `idempotency_key_in_use` |
-| **Provider (banka) kodları** | İşlemi yürüten banka — ISO 8583 spec'i | `00` (başarı), `51` (yetersiz bakiye), `54` (expired card) |
+| **Provider (banka) kodları** | İşlemi yürüten banka — ISO 8583 spec'i | `00` (başarı), `51` (yetersiz bakiye), `54` (süresi geçmiş kart) |
 
 Yanıttaki alan eşleşmesi:
 
 | Yanıt alanı | Kategori |
 |---|---|
-| `code` (problem+json) | Payven domain veya HTTP canonical |
-| `error_code` (PaymentOperationResult.extra) | Payven domain (örn. `PV_BANK_DECLINED`) |
-| `provider_error_code` | Banka (örn. `51`) |
+| `code` (problem+json hata gövdesinde) | Payven domain veya HTTP canonical |
+| `error_code` (failed ödeme sorgusunda data alanı olarak) | Payven domain |
+| `provider_error_code` (failed ödeme sorgusunda data alanı olarak) | Banka — ISO 8583 |
 
 ## Detay sayfaları
 
 <CardGroup cols={2}>
   <Card title="Payven Domain Kodları" icon="bug" href="/sanal-pos/errors/payven-codes">
-    `PV_*`, `THREEDS_*`, `VOID_*`, `REFUND_*`, `CAPTURE_*` — tam liste.
+    Tüm domain kodlarının kategorize edilmiş tam listesi.
   </Card>
   <Card title="Banka Yanıt Kodları" icon="building-columns" href="/sanal-pos/errors/bank-codes">
-    Bankaların döndürdüğü ISO 8583 standartı + bankaya özgü kodlar.
+    Bankaların döndürdüğü ISO 8583 standardı + bankaya özgü kodlar.
   </Card>
 </CardGroup>
 
 ## Hata zarfı
 
-Tüm hatalar [RFC 9457 problem+json](/documentation/concepts/errors) zarfında döner:
+Tüm hatalar — banka reddi dahil — [RFC 9457 problem+json](/documentation/concepts/errors) zarfında uygun HTTP durum koduyla döner:
 
 ```json
 {
-  "type":           "https://docs.payven.com.tr/errors/PV_INSUFFICIENT_FUNDS",
-  "title":          "Yetersiz bakiye",
-  "status":         422,
-  "code":           "PV_INSUFFICIENT_FUNDS",
-  "detail":         "Banka kart bakiyesinin yetersiz olduğunu bildirdi.",
-  "instance":       "/api/v1/payments/8e3f5c12-...",
-  "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
+  "type":          "https://docs.payven.com.tr/errors/insufficient_funds",
+  "title":         "Yetersiz bakiye",
+  "status":        422,
+  "code":          "insufficient_funds",
+  "detail":        "Banka kart bakiyesinin yetersiz olduğunu bildirdi (banka kodu: 51).",
+  "instance":      "/api/v1/payments",
+  "correlationId": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
 }
 ```
 
-Banka tarafı reddinde HTTP `200` döndüğü ve hata bilgisinin `PaymentOperationResult` gövdesinde `error_code` + `provider_error_code` alanlarında geldiği özel duruma da dikkat edin — bkz. [Payment Objesi](/sanal-pos/payment-object).
+Sonradan `GET /api/v1/payments/{id}` ile sorgulanan **failed** ödemenin yanıtı `200 OK` döner; banka detayları `error_code` ve `provider_error_code` data alanlarında taşınır — bkz. [Payment Objesi](/sanal-pos/payment-object).
 
 ## Konsoldaki canlı katalog
 
@@ -62,12 +62,12 @@ Bu ekran her bankanın özel kod açıklamalarını, Payven domain kodu eşlemes
 |---|---|
 | `validation_failed`, `invalid_*` | İsteği düzeltip yeniden gönderin (retry yok) |
 | `unauthorized`, `invalid_token` | Token alın / refresh edin |
-| `forbidden`, `merchant_inactive`, `product_not_licensed` | İlgili kuruluş başkanlığıyla / Payven satışla iletişime geçin |
+| `forbidden`, `merchant_inactive`, `product_not_licensed` | İlgili kuruluş yöneticisi / Payven satış ile iletişime geçin |
 | `rate_limit_exceeded` | `Retry-After` header'ına uyup backoff ile retry edin |
 | `idempotency_key_in_use` | Aynı anahtarla farklı body göndermeyi durdurun veya farklı anahtar üretin |
-| `PV_BANK_DECLINED` | Müşteriye nazik mesaj gösterip başka kart önerin (`provider_error_code` daha spesifik bilgi) |
-| `PV_BANK_TIMEOUT` | Smart Retry zaten devreye girer — istemci tarafında ek bir şey yapmayın |
-| `PV_FRAUD_SUSPECTED` | Müşteriye genel "işlem onaylanmadı" mesajı gösterin (spesifik sebep paylaşmayın — fraud signal'i sızdırır) |
+| `bank_declined` | Müşteriye nazik mesaj gösterip başka kart önerin (`provider_error_code` daha spesifik bilgi) |
+| `bank_timeout` | Smart Retry zaten devreye girer — istemci tarafında ek bir şey yapmayın |
+| `fraud_suspected`, `fraud_blocked` | Müşteriye genel "işlem onaylanmadı" mesajı gösterin (spesifik sebep paylaşmayın — fraud sinyalini sızdırır) |
 | `5xx` (sunucu hatası) | Aynı `Idempotency-Key` ile exponential backoff retry |
 
 Genel hata yönetimi prensibi ve retry kodu örnekleri: [Hata Yönetimi (Konsept)](/documentation/concepts/errors).

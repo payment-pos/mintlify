@@ -1,9 +1,9 @@
 ---
 title: "Kimlik Doğrulama"
-description: "Sanal POS API'sine JWT Bearer token ile erişim."
+description: "Sanal POS API'sine Bearer access token ile erişim."
 ---
 
-Sanal POS API'si Payven'in standart OAuth 2.0 + JWT Bearer akışını kullanır. Token Identity servisinden alınır, Sanal POS endpoint'lerine `Authorization: Bearer <token>` ile gidersiniz.
+Sanal POS API'si Payven'in standart OAuth 2.0 Client Credentials akışını kullanır. Identity'den alınan access token, Sanal POS endpoint'lerine `Authorization: Bearer <access_token>` header'ı ile gönderilir.
 
 <Note>
 **Genel akış, SDK örnekleri ve token süreleri** için kanonik [Kimlik Doğrulama](/documentation/concepts/authentication) sayfasına bakın. Bu sayfa Sanal POS'a özgü endpoint URL'lerini ve örneklerini içerir.
@@ -49,7 +49,7 @@ curl https://vpos.payven.com.tr/api/v1/payments \
 
 ## Merchant kimliği
 
-JWT token'ı içinde `merchantId` claim'i taşınır — tek-merchant tenant'larda ek bir header göndermenize gerek yoktur. Backend, claim'den okuyarak işlemi doğru merchant adına kayıt eder.
+Access token içinde merchant kimliği claim olarak taşınır — tek-merchant tenant'larda ek bir header göndermenize gerek yoktur. Backend bu claim'den okuyup işlemi doğru merchant adına kayıt eder.
 
 **Multi-merchant senaryolar** (bir tenant altında birden çok merchant'a işlem alıyorsanız) için override header'ları:
 
@@ -67,7 +67,7 @@ Her ikisi gönderilirse `X-Merchant-Id` öncelikli olur.
 
 | Header | Tip | Anlam | Kaynak |
 |---|---|---|---|
-| `X-Merchant-Id` | UUID | Payven internal kimlik | Konsoldan kopyalanır (Merchant.id) |
+| `X-Merchant-Id` | UUID | Payven'in atadığı dahili kimlik | Konsoldan kopyalanır (Merchant.id) |
 | `X-External-Merchant-Id` | string | Sizin sisteminizdeki kimlik | Onboarding sırasında belirlenir (Merchant.external_id) |
 
 ## Yanıt header'ları

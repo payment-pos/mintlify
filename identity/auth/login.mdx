@@ -1,9 +1,13 @@
 ---
 title: "Login (Portal Kullanıcısı)"
-description: "Insan kullanıcılar için username/password ile JWT alma."
+description: "Konsola insan kullanıcı oturumu için username/password ile token alma."
 ---
 
-Identity servisi üzerinden **portal kullanıcısı** (insan) oturumu başlatır. Backend kanalları (server-to-server) için bu yerine [Token (Client Credentials)](/documentation/concepts/authentication) endpoint'ini kullanın.
+<Warning>
+**API entegrasyonu için bu endpoint kullanılmaz.** Backend'den server-to-server ödeme alacaksanız [OAuth 2.0 Client Credentials akışını](/documentation/concepts/authentication) kullanın. Bu sayfa **konsol (dashboard) insan kullanıcı oturumu** içindir.
+</Warning>
+
+Konsola giriş yapan insan kullanıcılar için username/password ile access token üretir.
 
 ## Endpoint
 
@@ -37,7 +41,7 @@ curl -X POST https://identity.payven.com.tr/api/v1/auth/payven/login \
 
 ## Yanıt
 
-`200 OK` — Keycloak token sonucu (`KeycloakTokenResult`):
+`200 OK` — token yanıtı:
 
 ```json
 {
@@ -83,4 +87,4 @@ Hata zarfı [RFC 9457 problem+json](/documentation/concepts/errors).
 <Check>Login isteklerini **sadece HTTPS** üzerinden atın.</Check>
 <Check>Tarayıcıda `access_token`'ı in-memory veya `httpOnly` cookie'de tutun, `localStorage`'a yazmayın.</Check>
 <Check>`refresh_token`'ı sadece sunucu tarafında saklayın (BFF pattern öneriyoruz).</Check>
-<Check>Brute-force koruması: ardışık başarısız giriş denemelerinde rate limit + Keycloak account lockout devreye girer.</Check>
+<Check>Brute-force koruması: ardışık başarısız giriş denemelerinde rate limit + otomatik hesap kilitleme devreye girer.</Check>

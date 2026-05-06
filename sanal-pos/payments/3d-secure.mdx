@@ -80,21 +80,17 @@ Content-Type: application/json
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":              "pending_3ds",
-  "is_success":          true,
-  "message":             "3DS yönlendirme başlatıldı",
-  "error_code":          null,
-  "provider_error_code": null,
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":         "pending_3ds",
   "extra_properties": {
-    "redirect_url":     "https://3ds.example-bank.com/auth?token=abc123",
-    "redirect_method":  "GET",
-    "external_id":      "ORDER-1001"
+    "redirect_url":    "https://3ds.example-bank.com/auth?token=abc123",
+    "redirect_method": "GET",
+    "external_id":     "ORDER-1001"
   }
 }
 ```
 
-`extra_properties.redirect_url`'e müşteriyi **HTTP 302** ile yönlendirin (veya tarayıcıda `window.location.href`).
+`extra_properties.redirect_url` adresine müşteriyi **HTTP 302** ile yönlendirin (veya tarayıcıda `window.location.href`).
 
 ## 2. Adım — 3DS sayfasında doğrulama
 
@@ -133,8 +129,11 @@ Yanıt [`PaymentStatus`](/sanal-pos/payment-object#paymentstatus) yapısındadı
 {
   "transaction_id":      "8e3f5c12-...",
   "status":              "completed",
-  "is_success":          true,
-  "message":             "Onaylandı",
+  "amount":              15000,
+  "currency":            "TRY",
+  "is_3d_secure":        true,
+  "created":             "2026-05-03T12:34:56.789+00:00",
+  "basket_id":           "BASKET-2026-001",
   "error_code":          null,
   "provider_error_code": null,
   "extra_properties": {
@@ -142,12 +141,7 @@ Yanıt [`PaymentStatus`](/sanal-pos/payment-object#paymentstatus) yapısındadı
     "auth_code":               "654321",
     "host_reference":          "PAYVEN-REF-790",
     "provider_transaction_id": "9f3d2b8e-..."
-  },
-  "amount":      15000,
-  "currency":    "TRY",
-  "is_3d_secure": true,
-  "created":     "2026-05-03T12:34:56.789+00:00",
-  "basket_id":   "BASKET-2026-001"
+  }
 }
 ```
 

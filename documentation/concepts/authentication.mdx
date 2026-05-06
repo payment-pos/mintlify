@@ -1,25 +1,24 @@
 ---
 title: "Kimlik Doğrulama"
-description: "Keycloak OAuth 2.0 üzerinden JWT Bearer token ile Payven API'lerine erişim."
+description: "OAuth 2.0 Client Credentials akışıyla access token alın ve Payven API'lerine erişin."
 ---
 
-Payven tüm public API'lerinde **OAuth 2.0 + JWT Bearer** kullanır. Token, Identity servisinden alınır; ürün API'lerine `Authorization: Bearer <token>` header'ı ile gidersiniz.
+Payven API'leri **OAuth 2.0 Client Credentials** akışı ile çalışır. Backend'inizden Identity servisinden bir access token alır, ürün API'lerine `Authorization: Bearer <token>` header'ı ile istek atarsınız.
 
-| Akış | Kullanım | Grant type |
-|---|---|---|
-| **Server-to-server (M2M)** | Backend entegrasyonları, otomasyonlar — bu sayfanın konusu | `client_credentials` |
-| **Portal kullanıcı** | İnsan kullanıcılar (dashboard.payven.com.tr) | `password` |
-| **Swagger UI / interaktif** | Local geliştirme için Swagger üzerinden interaktif login | `authorization_code` (PKCE) |
+İki kısa adım:
 
-Bu sayfa **server-to-server** akışını anlatır. Portal kullanıcı login'i için: [Identity → Login](/identity/auth/login).
+1. **Token al** — `client_id` + `client_secret` ile Identity'den `access_token` iste.
+2. **API'yi çağır** — `Authorization: Bearer <access_token>` header'ı ile Sanal POS, Para Transferi, Fraud veya Identity endpoint'lerini kullan.
+
+Token süresi dolduğunda yenisini alır veya `refresh_token` ile yenilersin. SDK örnekleri bu döngüyü sizin için yönetir.
 
 ## Akış (özet)
 
 ```mermaid
 sequenceDiagram
     participant App as Sizin Backend
-    participant Id as Identity (identity.payven.com.tr)
-    participant API as Ürün API (vpos / transfer / fraud)
+    participant Id as Payven Identity
+    participant API as Ürün API (Sanal POS / Para Transferi / Fraud)
 
     App->>Id: POST /auth/{slug}/token<br/>{ client_id, client_secret }
     Id-->>App: { access_token, refresh_token, expires_in: 300, ... }
@@ -66,7 +65,7 @@ curl https://identity.payven.com.tr/api/v1/auth/payven/token \
 
 | Alan | Anlam |
 |---|---|
-| `access_token` | API çağrılarında kullanacağınız JWT |
+| `access_token` | API çağrılarında kullanacağınız Bearer token (imzalı JWT formatında) |
 | `refresh_token` | Access token expire olunca yenisini almak için |
 | `expires_in` | Access token kaç saniye geçerli (varsayılan **300s = 5 dakika**) |
 | `refresh_expires_in` | Refresh token süresi (`0` = idle timeout uygulanır, bkz. tablo) |
@@ -94,7 +93,7 @@ curl https://vpos.payven.com.tr/api/v1/payments \
   }'
 ```
 
-JWT içinde `tenantId`, `merchantId`, `planCode` claim'leri taşınır — backend bunları okuyup işlem yetkisini doğrular. Ek bir merchant header'ı gerekmez. (Multi-merchant senaryolar için `X-Merchant-Id` ile override yapılabilir; bkz. [Sanal POS → Kimlik Doğrulama](/sanal-pos/authentication).)
+Access token içinde `tenant_id`, `merchant_id`, `plan_code` claim'leri taşınır — ürün servisleri bunları okuyup işlem yetkisini doğrular. Ek bir merchant header'ı gerekmez. (Multi-merchant senaryolar için `X-Merchant-Id` ile override yapılabilir; bkz. [Sanal POS → Kimlik Doğrulama](/sanal-pos/authentication).)
 
 ## 3. Adım — Token yenile
 
@@ -114,10 +113,8 @@ Yanıt yine `access_token` + (rotasyonlu) `refresh_token` döner. Eski `refresh_
 
 | Token | Varsayılan süre | Anlam |
 |---|---|---|
-| **Access token** | **5 dakika** (300s) | API isteklerinde kullanılır. Süre dolunca refresh ile yenilenir. |
-| **SSO oturum (idle)** | 30 dakika | 30dk hareketsiz kalan oturum kapanır. |
-| **SSO oturum (max)** | 10 saat | Mutlak üst sınır — refresh edilse bile 10 saat sonra yeniden token alın. |
-| **Refresh token (idle)** | 30 gün | Refresh token 30 gün hareketsiz kalırsa expire olur. Düzenli kullanımda sürekli rotate olur, expire olmaz. |
+| **Access token** | 5 dakika (300s) | API isteklerinde kullanılır. Süre dolunca refresh ile yenilenir. |
+| **Refresh token** | 30 gün (idle) | 30 gün hareketsiz kalırsa expire olur. Düzenli kullanımda her refresh'te rotate edilir, pratikte expire olmaz. Şüpheli durumda `client_credentials` ile baştan token alın. |
 
 <Note>
 **Pratik öneri:** Access token'ı **expiry'sine 60 saniye kala** yenileyin (clock-skew + network latency için margin). Aşağıdaki SDK örnekleri bunu otomatik yapar.
@@ -394,7 +391,7 @@ class PayvenClient {
 | HTTP | `code` | Anlam | Çözüm |
 |---|---|---|---|
 | `400` | `bad_request` | İstek gövdesi geçersiz JSON veya zorunlu alan eksik | `client_id` / `client_secret` alanlarını kontrol edin |
-| `401` | `invalid_credentials` | `client_id` / `client_secret` yanlış | Konsoldan kimlik bilgilerini doğrulayın |
+| `401` | `invalid_credentials` | `client_id` / `client_secret` yanlış | Konsoldan API anahtarınızı kontrol edin |
 | `401` | `invalid_token` | Access token geçersiz | Refresh akışını çalıştırın |
 | `401` | `token_expired` | Access token süresi geçti | Refresh edin |
 | `401` | `invalid_refresh_token` | Refresh token expire / revoke | Yeni `client_credentials` ile baştan token alın |
@@ -422,12 +419,12 @@ Tam hata zarfı şekli için: [Hata Yönetimi](/documentation/concepts/errors).
     Standart yapılandırmada 5dk access / 30 gün refresh idle. Daha uzun süre ihtiyacı için müşteri başarısı ekibine ulaşın — `offline_access` scope ile expire olmayan refresh token tahsis edilebilir.
   </Accordion>
   <Accordion title="Birden fazla servisi tek token'la çağırabilir miyim?">
-    Evet — Identity'den alınan JWT, planınızdaki tüm aktif ürünlerde geçerlidir. Sanal POS, Para Transferi, Fraud, Identity — hepsi aynı token ile çağrılır.
+    Evet — Identity'den alınan access token, planınızdaki tüm aktif ürünlerde geçerlidir. Sanal POS, Para Transferi, Fraud, Identity — hepsi aynı token ile çağrılır.
   </Accordion>
   <Accordion title="Test (sandbox) ortamı?">
     Sandbox endpoint'leri ayrı bir tenant slug ile yayında: `https://identity-sandbox.payven.com.tr` ve `https://vpos-sandbox.payven.com.tr`. Sandbox `client_id`'leri canlıdan ayrıdır; üretim parasıyla işlem yapılmaz, kart numarası test BIN'leri kullanır.
   </Accordion>
   <Accordion title="API key (X-API-Key + X-API-Secret) hâlâ destekleniyor mu?">
-    Evet — eski entegrasyonlar için `ApiKey` scheme aktif kalmaya devam ediyor. Yeni entegrasyonlarınız için **JWT Bearer'ı tercih edin** — daha standart, daha esnek, multi-service token tek tutuyor. API key flow'unu kullanmak zorundaysanız: bkz. [Sanal POS → Kimlik Doğrulama](/sanal-pos/authentication).
+    Evet — eski entegrasyonlar için `ApiKey` scheme aktif kalmaya devam ediyor. Yeni entegrasyonlarınız için **OAuth 2.0 Bearer akışını tercih edin** — daha standart, daha esnek, planınızdaki tüm ürünleri tek token ile çağırır. API key flow'unu kullanmak zorundaysanız: bkz. [Sanal POS → Kimlik Doğrulama](/sanal-pos/authentication).
   </Accordion>
 </AccordionGroup>

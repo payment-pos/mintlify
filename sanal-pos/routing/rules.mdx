@@ -59,7 +59,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules \
 | `card_bin_end` | string | ❌ | BIN aralığı sonu — `card_bin`–`card_bin_end` aralığı eşleşir |
 | `installment_count` | short | ❌ | Spesifik taksit sayısı (boş = her taksit) |
 | `min_amount`, `max_amount` | long (kuruş) | ✅ | Tutar aralığı |
-| `currency` | string | ❌ | `TRY`, `USD`, `EUR`, `GBP` (boş = her para birimi) |
+| `currency` | string | ❌ | Para birimi filtresi (boş = her para birimi). Şu an üretimde yalnız `TRY` aktif. |
 | `card_brand_filter` | enum | ❌ | `bonus`, `maximum`, `axess`, `world`, `paraf`, `cardfinans`, `wings` |
 | `card_type_filter` | enum | ❌ | `credit`, `debit`, `prepaid` |
 | `target_connector_config_id` | UUID | ✅ | Birinci tercih — hangi konnektör konfigürasyonu yanıtlayacak |
@@ -72,7 +72,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules \
 
 ## Skor formülü
 
-Engine kuralı eşleşen aday konnektörler için kompozit skor üretir:
+Engine kuralı eşleşen aday konnektörler için bileşik skor üretir:
 
 ```
 score = (weight × 0.30) + (success_rate × 0.30) + ((1000 − response_ms) × 0.20) + (cost_score × 0.20)
@@ -139,7 +139,7 @@ POST   /api/v1/simple-routing-rules/{id}/deactivate
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `PV_CONNECTOR_NOT_FOUND` | `target_connector_config_id` veya `fallback_connector_config_id` bulunamadı |
+| `404` | `connector_not_found` | `target_connector_config_id` veya `fallback_connector_config_id` bulunamadı |
 | `422` | `validation_failed` | `min_amount > max_amount`, BIN format hatası, vb. |
 | `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
 

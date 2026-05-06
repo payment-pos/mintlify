@@ -1,20 +1,30 @@
 {
   "openapi": "3.0.4",
   "info": {
-    "title": "Payven Composer API",
-    "description": "Payven Composer Service API",
-    "termsOfService": "https://payven.com.tr",
+    "title": "Payven Sanal POS API",
+    "description": "Payven Sanal POS — çoklu banka kart ödemeleri, 3D Secure, akıllı yönlendirme, mutabakat ve webhook altyapısı.",
+    "termsOfService": "https://payven.com.tr/sozlesmeler",
     "contact": {
-      "name": "Payven",
-      "url": "https://payven.com.tr",
-      "email": "safak@payven.com.tr"
+      "name": "Payven Developer Support",
+      "url": "https://docs.payven.com.tr",
+      "email": "destek@payven.com.tr"
     },
     "license": {
-      "name": "Api License",
-      "url": "https://payven.com.tr"
+      "name": "Payven API License",
+      "url": "https://payven.com.tr/sozlesmeler/api-lisansi"
     },
     "version": "1.0"
   },
+  "servers": [
+    {
+      "url": "https://vpos-sandbox.payven.com.tr",
+      "description": "Sandbox"
+    },
+    {
+      "url": "https://vpos.payven.com.tr",
+      "description": "Production"
+    }
+  ],
   "paths": {
     "/api/v1/api-request-logs": {
       "get": {
@@ -16444,16 +16454,6 @@
     },
     {
       "name": "Webhooks"
-    }
-  ],
-  "servers": [
-    {
-      "url": "https://vpos.payven.com.tr",
-      "description": "Production"
-    },
-    {
-      "url": "https://vpos-sandbox.payven.com.tr",
-      "description": "Sandbox"
     }
   ]
 }

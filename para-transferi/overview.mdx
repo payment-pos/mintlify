@@ -3,28 +3,28 @@ title: "Para Transferi"
 description: "Çoklu banka EFT, FAST, havale ve banka hesabı transferi altyapısı."
 ---
 
-Payven Para Transferi modülü; lisanslı ödeme kuruluşları ve büyük platformlar için **çoklu banka transfer altyapısı** sunar. EFT, FAST ve havale işlemlerini tek API üzerinden 6 banka konnektörü üzerinden yürütür; toplu işlem desteği, otomatik mutabakat ve transfer iade yönetimi içerir.
+Payven Para Transferi modülü; lisanslı ödeme kuruluşları ve büyük platformlar için **çoklu banka transfer altyapısı** sunar. EFT, FAST ve havale işlemlerini tek API üzerinden çoklu banka konnektörü üzerinden yürütür; toplu işlem desteği, otomatik mutabakat ve transfer iade yönetimi içerir.
 
 ## Temel özellikler
 
 <CardGroup cols={2}>
   <Card title="Çoklu Banka Konnektörleri" icon="building-columns">
-    Kuveyt Türk, Fibabanka, İş Bankası, Intertech, Akbank, HalkBank — REST/SOAP/OAuth2 farklarını Payven yönetir.
+    Kuveyt Türk, Fibabanka, İş Bankası, Akbank, HalkBank ve diğerleri — banka entegrasyonlarının teknik farklarını Payven soyutlar; sizin payload'unuz tüm bankalarda aynıdır.
   </Card>
   <Card title="EFT + FAST + Havale" icon="arrow-right-arrow-left">
-    Tek API ile üç transfer tipi. Bankaya göre otomatik FAST/EFT seçimi.
+    Tek API ile üç transfer tipi. Bankaya göre otomatik FAST / EFT seçimi.
   </Card>
   <Card title="Bulk İşlem" icon="layer-group">
     Onlarca-yüzlerce transferi tek istekte gönderin; banka batch API'leri otomatik kullanılır.
   </Card>
-  <Card title="Polly Resilience" icon="arrows-rotate">
-    HTTP retry (3x exponential backoff), circuit breaker (3 failure → 30sn), token retry — hepsi otomatik.
+  <Card title="Otomatik Resilience" icon="arrows-rotate">
+    Geçici hatalarda exponential backoff retry, eşik aşımında devre kesici, token tazeleme — hepsi otomatik.
   </Card>
-  <Card title="Webhook + SignalR Dashboard" icon="bell">
-    Transfer status değişimleri webhook ile teslim edilir; dashboard SignalR ile gerçek zamanlı güncellenir.
+  <Card title="Webhook + Realtime Dashboard" icon="bell">
+    Transfer durum değişimleri webhook ile teslim edilir; konsol gerçek zamanlı güncellenir.
   </Card>
-  <Card title="Multi-Tenant Soft Delete" icon="shield-keyhole">
-    Tenant bazlı izolasyon (`X-Tenant-Id`), EF Core query filter ile otomatik kapsam.
+  <Card title="Tenant İzolasyonu" icon="shield-keyhole">
+    Her kuruluşun verisi diğer kuruluşlardan tamamen yalıtılmıştır.
   </Card>
 </CardGroup>
 
@@ -114,19 +114,18 @@ curl -X POST https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/send \
 
 ## Konnektör kapasitesi
 
-| Konnektör | Auth | EFT | FAST | Havale | Kart Transferi | Dekont PDF | Bulk |
-|---|---|---|---|---|---|---|---|
-| Kuveyt Türk | OAuth2 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Fibabanka | REST + mTLS opsiyonel | — | — | — | ✅ | — | ✅ |
-| İş Bankası | OAuth2 (scope: EFT/Fast/Remittance/Credit) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Akbank | OAuth2 | ✅ | ✅ | ✅ | ✅ | ✅ | Native bulk |
-| HalkBank | SOAP/WCF | ✅ | ✅ | ✅ | — | ✅ | ✅ |
-| Intertech | REST | (stub) | (stub) | (stub) | (stub) | — | — |
+| Konnektör | EFT | FAST | Havale | Kart Transferi | Dekont PDF | Bulk |
+|---|---|---|---|---|---|---|
+| Kuveyt Türk | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Fibabanka | — | — | — | ✅ | — | ✅ |
+| İş Bankası | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Akbank | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| HalkBank | ✅ | ✅ | ✅ | — | ✅ | ✅ |
+| Intertech | 🔧 Yakında | 🔧 Yakında | 🔧 Yakında | 🔧 Yakında | — | — |
 
 <Note>
-Konnektör isimleri ve auth yöntemleri **konfigürasyon** üzerinden gelir; sizin
-istek payload'unuz tüm bankalar için aynı şekildedir. Hangi banka kullanılacağı
-**connector configuration**'a göre seçilir.
+İstek payload'unuz tüm bankalarda aynıdır. Hangi banka konnektörünün kullanılacağı
+konsoldan tanımlanan **konnektör konfigürasyonuna** göre seçilir.
 </Note>
 
 ## Webhook olayları
@@ -140,7 +139,7 @@ istek payload'unuz tüm bankalar için aynı şekildedir. Hangi banka kullanıla
 | `transfer.delivered` | Banka asenkron kabul etti (FAST) |
 | `transfer.failed` | Banka reddi veya teknik hata |
 
-Webhook delivery: HMAC-SHA256 imzalı, 6 retry (1m / 5m / 30m / 2h / 24h), 15sn timeout, dead letter queue.
+Webhook delivery: HMAC-SHA256 imzalı, 5 retry deneme (1m / 5m / 30m / 2h / 24h, ±%20 jitter), 15sn timeout. Tüm denemeler başarısız olursa olay konsoldan manuel olarak yeniden tetiklenebilir.
 
 ## Sorumlu kullanım
 

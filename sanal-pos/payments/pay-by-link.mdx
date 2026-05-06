@@ -28,7 +28,7 @@ sequenceDiagram
     Customer->>Bank: Link'e tıklar
     Bank-->>Customer: Ödeme + 3DS akışı
     Bank-)Payven: Banka callback
-    Payven-)App: webhook (payment.succeeded)
+    Payven-)App: webhook (payment.completed)
 ```
 
 ## Endpoint
@@ -46,8 +46,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/order-link \
   -H "Content-Type: application/json" \
   -d '{
     "external_id":    "ORDER-1001",
-    "amount":         15000,
-    "currency":       "TRY",
+    "amount":         { "amount": 15000, "currency": "TRY" },
     "installment":    1,
     "description":    "Sipariş #1001 ödemesi",
     "customer_email": "musteri@example.com",
@@ -59,8 +58,8 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/order-link \
 
 | Alan | Tip | Zorunlu | Açıklama |
 |---|---|---|---|
-| `amount` | int (kuruş) | ✅ | Tutar |
-| `currency` | string | ❌ | `TRY` (varsayılan), `USD`, `EUR`, `GBP` |
+| `amount.amount` | long (kuruş) | ✅ | Tutar |
+| `amount.currency` | enum | ✅ | Şu an yalnız `"TRY"` kabul edilir |
 | `installment` | int | ❌ | Sabit taksit (varsayılan `1`). Banka linkinde müşteriye sunulur. |
 | `external_id` | string | önerilir | Sipariş kimliğiniz |
 | `description` | string | ❌ | Müşteriye gösterilecek ödeme açıklaması |
@@ -74,12 +73,8 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/order-link \
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":              "processing",
-  "is_success":          true,
-  "message":             "Sipariş linki oluşturuldu",
-  "error_code":          null,
-  "provider_error_code": null,
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":         "pending",
   "extra_properties": {
     "payment_link":      "https://hosted.bank.example.com/pay/abc123def456",
     "provider_order_id": "BANK-ORDER-789",
@@ -96,7 +91,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/order-link \
 | `processed_at` | Linkin oluşturulduğu zaman |
 | `expires_at` | Linkin geçerlilik süresi (banka politikasına göre belirlenir, genelde 24 saat) |
 
-`status: "processing"` → işlem oluşturuldu, müşteri ödeme yapana kadar bu durumda kalır.
+`status: "pending"` → işlem oluşturuldu, müşteri ödeme yapana kadar bu durumda kalır.
 
 ## Müşteriye iletme
 
@@ -147,7 +142,7 @@ Detay: [Webhook Olayları](/sanal-pos/webhooks/events).
     1. CRM'den `POST /payments/order-link` çağrısı.
     2. `payment_link`'i alır, kendi SMS / e-posta sisteminden gönderir.
     3. Operatör müşterinin ödeme yapmasını beklemeden çağrıyı kapatabilir.
-    4. Webhook ile `payment.succeeded` geldiğinde sipariş onaylanır.
+    4. Webhook ile `payment.completed` geldiğinde sipariş onaylanır.
   </Accordion>
   <Accordion title="Abonelik yenileme">
     Otomatik recurring kullanmıyorsanız:

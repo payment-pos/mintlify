@@ -40,7 +40,7 @@ Her akış sayfası şunları içerir:
 
 <CardGroup cols={2}>
   <Card title="Webhook Teslimi" icon="bell" href="/sanal-pos/webhooks/overview">
-    Olay → imzalı POST → 2xx, 6 deneme retry, manuel replay.
+    Olay → imzalı POST → 2xx; başarısız olursa 5 retry (1m / 5m / 30m / 2h / 24h) + manuel replay.
   </Card>
   <Card title="Smart Retry" icon="arrows-rotate" href="/sanal-pos/routing/smart-retry">
     Banka geçici arızasında işlem otomatik alternatif konnektöre yönlendirilir.
@@ -72,7 +72,7 @@ Akış tasarlarken Payven'in altta yatan kuralları:
 |---|---|
 | **Idempotent yazma** | Her POST'ta anlamlı `Idempotency-Key`. Operatör butonu iki kez basarsa tek işlem oluşur. |
 | **HTTP-doğru durum kodları** | `200/201/202/204` başarı; `4xx` istemci hatası; `5xx` sunucu hatası. Body'de "wrapped success" yok. |
-| **RFC 9457 hata zarfı** | `application/problem+json` — `type`, `title`, `status`, `code`, `detail`, `correlation_id`. |
+| **RFC 9457 hata zarfı** | `application/problem+json` — `type`, `title`, `status`, `code`, `detail`, `correlationId`. |
 | **Asenkron önceliği** | UI'da redirect, sunucuda webhook + sorgulama. Müşteri tarayıcısı kapanırsa sonuç kaybolmaz. |
 | **Korelasyon zinciri** | Her isteğin `X-Correlation-Id`'si vardır; webhook'ta da aynı zincir devam eder. Destek talebinde bu kimliği paylaşın. |
 

@@ -1,69 +1,93 @@
 ---
 title: "Payven Developer Portal"
 sidebarTitle: "Genel Bakış"
-description: "Türkiye'nin finansal teknoloji altyapısı. Tek API ile sanal POS, para transferi, fraud, mutabakat, fatura ödeme ve açık bankacılık."
+description: "Türkiye'nin finansal teknoloji altyapısı. Tek API ile sanal POS, para transferi, fraud yönetimi ve mutabakat."
 ---
 
-Payven, Türkiye'nin finansal teknoloji altyapısıdır. **14 banka** ile entegre tek bir API üzerinden sanal POS, para transferi, fraud yönetimi, mutabakat, fatura ödeme ve açık bankacılık modüllerini kullanırsınız. Lisanslı ödeme kuruluşları ve büyük platformlar; banka entegrasyonlarının teknik karmaşıklığını Payven'e bırakır, kendi ürünlerine odaklanır.
+Payven, Türkiye'nin finansal teknoloji altyapısıdır. **14 banka** ile entegre tek bir API üzerinden sanal POS, para transferi, fraud yönetimi ve mutabakat modüllerini kullanırsınız. Lisanslı ödeme kuruluşları ve büyük platformlar; banka entegrasyonlarının teknik karmaşıklığını Payven'e bırakır, kendi ürünlerine odaklanır.
+
+Fatura ödeme ve açık bankacılık modülleri yol haritasındadır — bkz. [Yol haritası](#yol-haritasi).
 
 <CardGroup cols={2}>
   <Card title="5 dakikada ilk ödeme" icon="bolt" href="/documentation/quickstart">
-    JWT al, ödeme oluştur, sonucu webhook ile yakala. Kopyala-yapıştır curl ile çalışır örnekler.
+    Token al, ödeme oluştur, sonucu webhook ile yakala. Kopyala-yapıştır curl ile çalışır örnekler.
   </Card>
   <Card title="API Referansı" icon="code" href="/api-reference/sanal-pos">
-    Tüm endpoint'ler, parametre şemaları ve **Try It** ile tarayıcıdan canlı deneme.
+    Tüm endpoint'ler, parametre şemaları ve **Try It** ile tarayıcıdan sandbox üzerinden deneme.
   </Card>
-  <Card title="Akışlar" icon="diagram-project" href="/flows/3d-secure">
-    Uçtan uca senaryoların görsel sequence diagram'ları — 3DS, Pre-Auth, Webhook retry, Mutabakat.
+  <Card title="Akışlar" icon="diagram-project" href="/flows/overview">
+    Uçtan uca senaryoların görsel sequence diagram'ları — 3DS, ön provizyon, webhook retry, mutabakat.
   </Card>
   <Card title="Recipes" icon="book" href="/recipes/overview">
-    "Şunu nasıl yaparım?" cevapları. Taksitli ödeme, BIN kampanyası, idempotent webhook handler, smart-retry.
+    "Şunu nasıl yaparım?" cevapları — taksit kampanyaları, idempotent webhook handler, smart-retry.
   </Card>
 </CardGroup>
+
+## API'a ilk bakış
+
+Authorization header'ı + JSON body — beklediğiniz gibi:
+
+```bash
+curl https://vpos.payven.com.tr/api/v1/payments \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: order-1001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "external_id": "ORDER-1001",
+    "amount":      { "amount": 15000, "currency": "TRY" },
+    "installment": 1,
+    "card": {
+      "holder_name":  "Test Kullanici",
+      "number":       "4546711234567894",
+      "expire_month": "12",
+      "expire_year":  "2030",
+      "cvv":          "000"
+    }
+  }'
+```
+
+Token alımı, 3D Secure akışı ve webhook doğrulaması için: [Hızlı Başlangıç](/documentation/quickstart).
 
 ## Ürün ailesi
 
 <CardGroup cols={2}>
   <Card title="Sanal POS" icon="credit-card" href="/sanal-pos/overview">
-    14 banka, akıllı yönlendirme, 3D Secure 2.x, ön provizyon, hosted checkout, pay-by-link, taksit kampanyaları, recurring, DCC, point inquiry.
+    Akıllı yönlendirme, 3D Secure 2.x, ön provizyon, hosted checkout, pay-by-link, taksit kampanyaları, recurring, DCC, puan sorgulama.
   </Card>
   <Card title="Para Transferi" icon="arrow-right-arrow-left" href="/para-transferi/overview">
-    EFT, FAST, havale ve banka hesabı transferi. 6 banka konnektörü, Polly resilience, otomatik mutabakat.
+    EFT, FAST, havale ve banka hesabı transferi. Çoklu banka konnektörü, otomatik retry ve devre kesici, otomatik mutabakat.
   </Card>
   <Card title="Fraud" icon="shield-halved" href="/fraud/overview">
-    Gerçek zamanlı kural motoru, hız kontrolü, kara/beyaz liste, BIN kısıtlama, manual review queue.
+    Gerçek zamanlı kural motoru, hız kontrolü, kara/beyaz liste, BIN kısıtlama, manuel inceleme kuyruğu.
   </Card>
   <Card title="Identity & Auth" icon="shield-keyhole" href="/identity/overview">
-    OAuth 2.0 + Keycloak, multi-tenant realm yönetimi, API key rotasyonu, BIN/banka/MCC lookup servisleri.
+    OAuth 2.0 Client Credentials, multi-tenant kimlik yönetimi, API anahtar rotasyonu, BIN / banka / MCC sorgu servisleri.
   </Card>
   <Card title="Mutabakat" icon="scale-balanced" href="/sanal-pos/reconciliation/overview">
     Banka dosyalarının otomatik çözümlenmesi, eşleştirme, tutarsızlık yönetimi, settlement raporları.
   </Card>
-  <Card title="Fatura Ödeme & Açık Bankacılık" icon="circle-info" href="/resources/coming-soon">
-    Yol haritasında — fatura ödeme entegrasyonları ve PSD2-uyumlu açık bankacılık.
-  </Card>
 </CardGroup>
 
-## Beş dakikada ilk ödeme
+## Entegrasyon adımları
 
 <Steps>
   <Step title="Kuruluş hesabınızı açın">
     [Konsola](https://dashboard.payven.com.tr) erişim için satış ekibimizle iletişime geçin. Onboarding 1-2 iş günü sürer.
   </Step>
-  <Step title="API kimlik bilgilerinizi alın">
+  <Step title="API anahtarınızı oluşturun">
     Konsoldan **client_id** ve **client_secret** çifti üretin. Secret yalnızca oluşturma anında gösterilir, güvenli bir vault'ta saklayın.
   </Step>
-  <Step title="Sandbox'ta JWT alın">
-    Identity'den OAuth 2.0 client_credentials akışıyla token alın. SDK örnekleri auto-refresh dahil hazır.
+  <Step title="Sandbox'ta token alın">
+    Identity'den OAuth 2.0 client_credentials akışıyla access token alın. Kod örnekleri (Node, Python, C#, Go, PHP) auto-refresh dahil hazır.
   </Step>
   <Step title="İlk ödemeyi gerçekleştirin">
-    [Hızlı Başlangıç](/documentation/quickstart) — curl ile çalışan örneklerle 3DS akışını canlandırın.
+    [Hızlı Başlangıç](/documentation/quickstart) — curl ile çalışan örneklerle 3DS akışını test edin.
   </Step>
   <Step title="Webhook ile asenkron yakalayın">
     HTTPS endpoint'inizi kaydedin, [HMAC-SHA256 imzasını](/sanal-pos/webhooks/signature) doğrulayın.
   </Step>
   <Step title="Production'a geçin">
-    [Go-live kontrol listesi](/documentation/security/go-live-checklist) — IP whitelist, sırlar, rate limit, monitoring.
+    [Go-live kontrol listesi](/documentation/security/go-live-checklist) — IP whitelist, secret yönetimi, rate limit, izleme.
   </Step>
 </Steps>
 
@@ -71,13 +95,13 @@ Payven, Türkiye'nin finansal teknoloji altyapısıdır. **14 banka** ile entegr
 
 <CardGroup cols={2}>
   <Card title="Tek Kimlik, Tüm Ürünler" icon="layer-group">
-    Identity'den aldığınız tek JWT, planınızdaki tüm modüllere geçer. Sanal POS, transfer, fraud, identity — hepsi aynı token ile çağrılır.
+    Tek bir access token planınızdaki bütün modüllere geçer. Sanal POS, para transferi, fraud — hepsi aynı bearer token ile çağrılır, ayrı kimlik akışı yok.
   </Card>
   <Card title="Akıllı Yönlendirme + Smart Retry" icon="route">
-    Composite-score motoru BIN, tutar, taksit, kart birliği, banka sağlığına göre yönlendirir. Banka arızasında işlem otomatik alternatife düşer.
+    Bileşik skor motoru; BIN, tutar, taksit, kart birliği ve banka sağlığını dikkate alarak yönlendirir. Banka arızasında işlem otomatik olarak alternatif konnektöre düşer.
   </Card>
-  <Card title="REST + RFC 9457" icon="check-double">
-    HTTP semantiğine sıkı uyum: doğru status kodları, problem+json hata zarfı, cursor + page pagination, Idempotency-Key, snake_case taşıma.
+  <Card title="Standartlara uyumlu API" icon="check-double">
+    HTTP semantiğine sıkı uyum: doğru status kodları, RFC 9457 `application/problem+json` hata zarfı, `Idempotency-Key` desteği, sayfalı listelemeler, tutarlı snake_case alan adları.
   </Card>
   <Card title="Operasyonel Şeffaflık" icon="chart-line">
     Konsolda her API çağrısının korelasyon zinciri, banka yanıt detayı, retry geçmişi ve webhook teslim logu — debug saatleri değil dakikaları alır.
@@ -96,11 +120,20 @@ Payven doğrudan son tüketiciye hizmet vermez. **Lisanslı ödeme kuruluşları
 | Yüksek hacimli fintech / scale-up — orchestration katmanı arıyorsunuz | ✅ Uygun |
 | Bireysel geliştirici / küçük e-ticaret sitesi | ❌ Doğrudan PSP'lerle çalışmanız önerilir |
 
+## Yol haritası [#yol-haritasi]
+
+Aşağıdaki modüller geliştirme aşamasındadır; canlı API'ye dahil değildir. Erken erişim için satış ekibimizle iletişime geçin.
+
+- **Fatura Ödeme** — Kurum, GSM ve fatura tahsilat entegrasyonları.
+- **Açık Bankacılık** — Hesap bilgisi (AIS) ve ödeme başlatma (PIS) servisleri.
+
+Yenilikler ve sürüm notları için: [Changelog](/resources/changelog).
+
 ## Yardım
 
 <CardGroup cols={3}>
   <Card title="API Referansı" icon="code" href="/api-reference/sanal-pos">
-    Try It özellikli interaktif endpoint'ler.
+    Sandbox üzerinde Try It özellikli interaktif endpoint'ler.
   </Card>
   <Card title="Konsol" icon="gauge-high" href="https://dashboard.payven.com.tr">
     İşlem izleme, raporlama, anahtar yönetimi.
