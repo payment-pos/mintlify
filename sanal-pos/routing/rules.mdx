@@ -72,7 +72,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules \
 
 ## Skor formülü
 
-Engine kuralı eşleşen aday konnektörler için kompozit skor üretir:
+Engine eşleşen aday konnektörler için toplam skor üretir:
 
 ```
 score = (weight × 0.30) + (success_rate × 0.30) + ((1000 − response_ms) × 0.20) + (cost_score × 0.20)
@@ -139,7 +139,7 @@ POST   /api/v1/simple-routing-rules/{id}/deactivate
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `PV_CONNECTOR_NOT_FOUND` | `target_connector_config_id` veya `fallback_connector_config_id` bulunamadı |
+| `404` | `connector_not_found` | `target_connector_config_id` veya `fallback_connector_config_id` bulunamadı |
 | `422` | `validation_failed` | `min_amount > max_amount`, BIN format hatası, vb. |
 | `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
 

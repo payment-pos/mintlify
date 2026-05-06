@@ -98,7 +98,7 @@ async function validateCardOnBlur(cardNumber) {
   const digits = cardNumber.replace(/\D/g, "");
   if (digits.length < 13) return;
 
-  // Backend BFF üzerinden — frontend Identity'e direkt token taşımayın
+  // Kendi backend'iniz üzerinden çağırın — frontend'den Identity'e direkt token taşımayın
   const res = await fetch("/api/validation/card", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

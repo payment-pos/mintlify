@@ -66,7 +66,7 @@ Bekleme süresi dolunca breaker "HalfOpen" haline geçer. Sonraki birkaç istek 
 Banka Open haldeyken o bankaya yönlendirilecek istekler:
 
 - Routing kuralında **`fallback_connector_config_id`** tanımlanmışsa → doğrudan fallback konnektöre gider, birinci konnektör hiç denenmez (timeout süresi kaybedilmez)
-- Fallback yoksa → işlem `connector_unavailable` (`PV_CONNECTOR_NOT_FOUND` benzeri) ile reddedilir
+- Fallback yoksa → işlem `connector_unavailable` ile reddedilir
 - Karşılayan başka kural varsa engine onu değerlendirmeye devam eder
 
 ## Sağlık endpoint'i

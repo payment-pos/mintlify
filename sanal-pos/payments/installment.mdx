@@ -50,7 +50,7 @@ Müşteri kart numarasını yazdığında, BIN'e göre uygun taksit seçenekleri
     Kart numarasının ilk 6 hanesini alıp BIN'i çözümleyebilirsiniz:
 
     ```bash
-    curl https://identity.payven.com.tr/api/v1/lookups/bank-bins/resolve?prefix=454671 \
+    curl "https://identity.payven.com.tr/api/v1/lookups/bank-bins?bin_prefix=454671&page_size=1" \
       -H "Authorization: Bearer $PAYVEN_TOKEN"
     ```
 
