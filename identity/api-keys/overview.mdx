@@ -3,7 +3,7 @@ title: "API Anahtarı Yönetimi"
 description: "Server-to-server entegrasyonlar için OAuth 2.0 Client Credentials çiftleri."
 ---
 
-Payven'de "API anahtarı", **OAuth 2.0 Client Credentials çiftidir**. Bir API anahtarı oluşturduğunuzda Identity arka tarafta yeni bir OAuth client kaydeder ve size `client_id` + `client_secret` çifti verir. Bu çift ile [`/auth/{slug}/token`](/identity/auth/login) endpoint'inden access token alır, ürün servislerine `Authorization: Bearer ...` ile çağrı yaparsınız.
+Payven'de "API anahtarı", **OAuth 2.0 Client Credentials çiftidir**. Bir API anahtarı oluşturduğunuzda Identity arka tarafta yeni bir OAuth client kaydeder ve size `client_id` + `client_secret` çifti verir. Bu çift ile [`POST /auth/{slug}/token`](/documentation/concepts/authentication) endpoint'inden access token alır, ürün servislerine `Authorization: Bearer ...` ile çağrı yaparsınız.
 
 <Note>
 **Uzun ömürlü vs kısa ömürlü:** `client_id` + `client_secret` çifti **uzun ömürlü** kimlik bilgisidir; API çağrılarında doğrudan kullanılmaz. Bunlarla **kısa ömürlü access token** üretilir; istek başına gönderilen Bearer token budur. Tek başına `client_id` ile API çağrısı yapamazsınız.

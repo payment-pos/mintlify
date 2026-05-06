@@ -237,12 +237,8 @@
             "pages": ["identity/overview"]
           },
           {
-            "group": "Kimlik Doğrulama",
+            "group": "Oturum Bilgisi",
             "pages": [
-              "identity/auth/login",
-              "identity/auth/refresh",
-              "identity/auth/logout",
-              "identity/auth/register",
               "identity/auth/me",
               "identity/auth/plan"
             ]

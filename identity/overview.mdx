@@ -6,8 +6,8 @@ description: "Payven platformunun ortak kimlik, yetkilendirme ve referans veri s
 Identity & Auth servisi, Payven platformunun **omurgasıdır**. Tüm ürünler için ortak olan üç işlevi sağlar:
 
 <CardGroup cols={3}>
-  <Card title="Kimlik Doğrulama" icon="shield-keyhole" href="/identity/auth/login">
-    OAuth 2.0 Client Credentials akışıyla access token üretimi, refresh ve logout.
+  <Card title="Kimlik Doğrulama" icon="shield-keyhole" href="/documentation/concepts/authentication">
+    OAuth 2.0 Client Credentials akışıyla access token üretimi, refresh kullanımı ve süre yönetimi.
   </Card>
   <Card title="API Anahtarı Yönetimi" icon="key" href="/identity/api-keys/overview">
     Kuruluş başına `client_id` / `client_secret` çiftlerinin üretimi, rotasyonu ve revoke.
@@ -33,7 +33,7 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
 
 Identity'den alınan tek access token, planınızdaki **tüm ürün servislerinde** geçerlidir — Sanal POS, Para Transferi ve Identity'nin kendisi. Servis başına ayrı kimlik akışı yoktur.
 
-Token nasıl alınır: [Login](/identity/auth/login).
+Token nasıl alınır: [Kimlik Doğrulama](/documentation/concepts/authentication).
 
 ## Slug tabanlı oturum
 
