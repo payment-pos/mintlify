@@ -976,10 +976,13 @@
         "tags": [
           "CheckoutSessions"
         ],
+        "summary": "Hosted Checkout oturumu oluştur",
+        "description": "Payven tarafından barındırılan ödeme sayfası için bir checkout oturumu açar. Cevap olarak müşteriyi yönlendireceğiniz `checkout_url` döner. Kart bilgisi sizin sunucunuza hiç ulaşmadığı için PCI-DSS scope'unuz minimum kalır.\n\n**Kullanım:** Cevaptaki `checkout_url`'i `<iframe>` veya tam sayfa redirect olarak kullanın. Oturumun varsayılan ömrü 30 dakikadır.",
         "parameters": [
           {
             "name": "Idempotency-Key",
             "in": "header",
+            "description": "Ağ koparmalarında aynı oturumun iki kez oluşturulmasını engellemek için iletilen istek anahtarı (UUID önerilir).",
             "schema": {
               "type": "string"
             }
@@ -1086,11 +1089,14 @@
         "tags": [
           "CheckoutSessions"
         ],
+        "summary": "Checkout oturumu bilgisini getir",
+        "description": "Checkout sayfası tarafından oturum bilgilerini çekmek için kullanılır. **Kimlik doğrulama gerektirmez** — `session_id` taşıdığı için kendisi bir secret görevi görür.",
         "parameters": [
           {
             "name": "session_id",
             "in": "path",
             "required": true,
+            "description": "`POST /api/v1/checkout/sessions` cevabıyla dönen oturum kimliği.",
             "schema": {
               "type": "string"
             }
@@ -1208,11 +1214,14 @@
         "tags": [
           "CheckoutSessions"
         ],
+        "summary": "Checkout oturumunda ödemeyi başlat",
+        "description": "Hosted Checkout sayfasının kart formundan gelen verileri Payven'e gönderir. Sonuçta 3D Secure'a yönlendirme HTML/URL'i veya direkt ödeme sonucu döner.",
         "parameters": [
           {
             "name": "session_id",
             "in": "path",
             "required": true,
+            "description": "Aktif checkout oturumu kimliği.",
             "schema": {
               "type": "string"
             }
@@ -1220,6 +1229,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
+            "description": "Aynı tıklamanın iki kez işlem oluşturmasını engellemek için iletilen anahtar.",
             "schema": {
               "type": "string"
             }
@@ -3903,6 +3913,8 @@
         "tags": [
           "Payments"
         ],
+        "summary": "Non-3D ödeme oluştur",
+        "description": "Doğrudan (Non-3D) kart ödemesi başlatır. Kart bilgisi sunucudan sunucuya iletilir; bu nedenle PCI-DSS scope'u sizdedir. 3D Secure gerektiren kartlarda banka işlemi reddedebilir; bu durumda `/api/v1/payments/3d/init` endpoint'ine düşmeniz önerilir.\n\n**Idempotency:** `Idempotency-Key` header'ı ile aynı anahtarın 24 saat içinde tekrar gönderilmesi durumunda işlem yeniden çalıştırılmaz, ilk cevap döner.\n\n**Tutarlar:** `amount.value` minor unit (kuruş) cinsinden iletilir. Örneğin 199,90 TL = `19990`.\n\n**Yönlendirme:** `connector_id` belirtilmezse aktif RoutingRules kuralları çalıştırılır.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3912,6 +3924,47 @@
                     "$ref": "#/components/schemas/CreatePaymentRequest"
                   }
                 ]
+              },
+              "example": {
+                "external_id": "ORDER-2026-04-91823",
+                "amount": {
+                  "amount": 19990,
+                  "currency": "TRY"
+                },
+                "installment": 1,
+                "card": {
+                  "holder_name": "AYSE YILMAZ",
+                  "number": "4506347012345678",
+                  "expire_month": "08",
+                  "expire_year": "2028",
+                  "cvv": "123"
+                },
+                "buyer": {
+                  "id": "user_92481",
+                  "name": "Ayşe",
+                  "surname": "Yılmaz",
+                  "email": "ayse.yilmaz@example.com",
+                  "phone": "+905321234567",
+                  "ip_address": "85.34.12.7",
+                  "identity_number": "12345678901"
+                },
+                "billing_address": {
+                  "contact_name": "Ayşe Yılmaz",
+                  "city": "İstanbul",
+                  "country": "TR",
+                  "address": "Atatürk Mah. Cumhuriyet Cad. No:42 D:5",
+                  "postal_code": "34000"
+                },
+                "basket_items": [
+                  {
+                    "id": "SKU-1042",
+                    "name": "Kablosuz kulaklık",
+                    "price": 199.90,
+                    "quantity": 1
+                  }
+                ],
+                "description": "Kablosuz kulaklık siparişi",
+                "operation_type": "Auth"
               }
             },
             "text/json": {
@@ -3984,6 +4037,8 @@
         "tags": [
           "Payments"
         ],
+        "summary": "Pay-by-Link oluştur",
+        "description": "Müşteriye SMS, e-posta veya WhatsApp üzerinden gönderilebilecek tek seferlik bir ödeme linki üretir. Link açıldığında Hosted Checkout sayfası gelir; süre dolduğunda veya ödeme tamamlandığında link otomatik geçersiz olur.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4065,11 +4120,14 @@
         "tags": [
           "Payments"
         ],
+        "summary": "İşlem detayını getir",
+        "description": "Verilen `transaction_id` için ödemenin güncel durumunu, kart bilgilerinin maskelenmiş halini, banka cevap kodunu ve ilgili konektör bilgilerini döner. Webhook gelmediği veya gecikmeli geldiği durumlarda doğrulama amaçlı kullanılır.",
         "parameters": [
           {
             "name": "transaction_id",
             "in": "path",
             "required": true,
+            "description": "Ödeme oluşturulurken dönen Payven işlem kimliği (UUID).",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4105,6 +4163,8 @@
         "tags": [
           "Payments"
         ],
+        "summary": "3D Secure ödemeyi başlat",
+        "description": "3D Secure akışını başlatır. Cevap olarak ya bankanın 3DS sayfasına yönlendirilecek HTML form (`PaymentOperationResultDto.html_content`) ya da redirect URL döner. Müşteri şifre doğrulaması yaptıktan sonra `return_url`'inize POST ile dönüş yapılır; ardından `/api/v1/payments/3d/complete` çağırılarak işlem tamamlanır.\n\n**Not:** Frictionless 3DS senaryolarında işlem direkt `success` dönebilir; bu durumda yönlendirme yapılmaz.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4114,6 +4174,31 @@
                     "$ref": "#/components/schemas/Init3DRequest"
                   }
                 ]
+              },
+              "example": {
+                "external_id": "ORDER-2026-04-91823",
+                "amount": {
+                  "amount": 19990,
+                  "currency": "TRY"
+                },
+                "installment": 1,
+                "card": {
+                  "holder_name": "AYSE YILMAZ",
+                  "number": "4506347012345678",
+                  "expire_month": "08",
+                  "expire_year": "2028",
+                  "cvv": "123"
+                },
+                "buyer": {
+                  "name": "Ayşe",
+                  "surname": "Yılmaz",
+                  "email": "ayse.yilmaz@example.com",
+                  "phone": "+905321234567",
+                  "ip_address": "85.34.12.7"
+                },
+                "return_url": "https://example.com/checkout/return",
+                "cancel_url": "https://example.com/checkout/cancelled",
+                "operation_type": "Auth"
               }
             },
             "text/json": {
@@ -4162,6 +4247,8 @@
         "tags": [
           "Payments"
         ],
+        "summary": "3D callback (banka tarafından çağrılır)",
+        "description": "Banka 3D Secure doğrulaması sonrası bu uç noktayı POST ile çağırır. **Bu uç nokta size değil bankaya gösterilir; doğrudan çağırmanıza gerek yoktur.** Payven gelen verileri imza doğrulamasıyla birlikte alır ve `return_url`'inize yönlendirir.",
         "responses": {
           "200": {
             "description": "OK"
@@ -4173,6 +4260,8 @@
         "tags": [
           "Payments"
         ],
+        "summary": "3D callback (GET varyantı)",
+        "description": "Bazı bankalar 3DS sonucunu GET olarak iletir; bu uç nokta bu durum için tutulur. Doğrudan çağırılmaz.",
         "responses": {
           "200": {
             "description": "OK"
@@ -4186,6 +4275,8 @@
         "tags": [
           "Payments"
         ],
+        "summary": "3D Secure ödemeyi tamamla",
+        "description": "3DS doğrulaması başarılı olduktan sonra bankada otorizasyon (capture) çekilmesini tetikler. `return_url`'inize gelen `transaction_id` ile çağırılır. Çoğu bankada Payven bu adımı otomatik tetikler; manuel tamamlama gerektiren konektörlerde (`require_manual_complete=true`) bu uç nokta zorunludur.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4243,11 +4334,14 @@
         "tags": [
           "Payments"
         ],
+        "summary": "Ön provizyon çek (capture)",
+        "description": "`pre_auth` modunda alınmış (sadece otorizasyon yapılmış) bir işlem üzerinde provizyon çeker. Tutar belirtilmezse orijinal otorizasyon tutarının tamamı çekilir; daha düşük bir tutar belirtilirse kalan kısım banka tarafından otomatik serbest bırakılır.",
         "parameters": [
           {
             "name": "transaction_id",
             "in": "path",
             "required": true,
+            "description": "Pre-auth modunda oluşturulmuş ödemenin Payven işlem kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4335,11 +4429,14 @@
         "tags": [
           "Payments"
         ],
+        "summary": "İşlem iadesi (refund)",
+        "description": "Settle olmuş bir işlem üzerinde tam veya kısmi iade yapar. Aynı işlem üzerinde toplam iade tutarı orijinal işlem tutarını aşamaz. Eğer işlem henüz settle olmadıysa (`void` mümkünse) `/void` endpoint'ini tercih edin — komisyon iadesi farklı işler.\n\n**Not:** Bazı bankalar gün içi iadeyi void olarak işler; cevap dönüş kodlarını kontrol edin.",
         "parameters": [
           {
             "name": "transaction_id",
             "in": "path",
             "required": true,
+            "description": "İade edilecek başarılı ödemenin Payven işlem kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4355,6 +4452,13 @@
                     "$ref": "#/components/schemas/RefundTransactionRequest"
                   }
                 ]
+              },
+              "example": {
+                "transaction_id": "9c0e1d3a-7d1b-4a2f-bdf3-9b9e1a4f6d51",
+                "amount": 5000,
+                "currency": "TRY",
+                "reason": "Müşteri kısmi iade talep etti.",
+                "reason_code": "CustomerRequest"
               }
             },
             "text/json": {
@@ -4427,11 +4531,14 @@
         "tags": [
           "Payments"
         ],
+        "summary": "İşlemi iptal et (void)",
+        "description": "Henüz settlement'a düşmemiş (genelde aynı gün içindeki) bir işlemi iptal eder. Müşterinin kartına dönüş anında yansır ve komisyon kesilmez. Settlement sonrası iptal mümkün değildir; bu durumda `/refund` kullanın.",
         "parameters": [
           {
             "name": "transaction_id",
             "in": "path",
             "required": true,
+            "description": "İptal edilecek işlemin Payven kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4519,11 +4626,14 @@
         "tags": [
           "Payments"
         ],
+        "summary": "Bankadan işlem sorgula",
+        "description": "Banka konektörüne canlı sorgu atarak işlemin gerçek durumunu döndürür. Payven veritabanı senkronize değilse veya bankadan webhook gelmemişse uzlaştırma için kullanılır. **Çağrı maliyetlidir; gerekmedikçe `/api/v1/payments/{transaction_id}` endpoint'ini tercih edin.**",
         "parameters": [
           {
             "name": "transaction_id",
             "in": "path",
             "required": true,
+            "description": "Sorgulanacak işlemin Payven kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4532,6 +4642,7 @@
           {
             "name": "transaction_id",
             "in": "query",
+            "description": "Konektör tarafında farklı bir id kullanılıyorsa belirtilebilir; çoğu durumda boş bırakılır.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4540,6 +4651,7 @@
           {
             "name": "order_id",
             "in": "query",
+            "description": "Üye işyeri sipariş numarası. Path'teki Payven id'si yerine `order_id` ile sorgulamak için kullanılabilir.",
             "schema": {
               "type": "string"
             }
@@ -4548,6 +4660,7 @@
             "name": "extra_properties",
             "in": "query",
             "style": "deepObject",
+            "description": "Konektöre özel ek parametreler (örn. bazı bankalarda terminal id zorunluluğu). Anahtar/değer çiftleri olarak iletilir.",
             "schema": {
               "type": "object",
               "additionalProperties": {
@@ -4585,11 +4698,14 @@
         "tags": [
           "Payments"
         ],
+        "summary": "Puan/maxipuan sorgula",
+        "description": "Kart üzerindeki kullanılabilir puanı banka konektöründen sorgular (Bonus, Maximum, World, Axess gibi). Sorgudan dönen puan tutarı kadar `point_amount` parametresi ile bir sonraki ödemede indirim uygulanabilir.",
         "parameters": [
           {
             "name": "transaction_id",
             "in": "path",
             "required": true,
+            "description": "Puan sorgusunun ilişkilendirileceği işlem kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4677,11 +4793,14 @@
         "tags": [
           "Payments"
         ],
+        "summary": "DCC kur onayı",
+        "description": "Dynamic Currency Conversion (DCC) önerisini kabul ya da reddeder. Yabancı kart sahibinin kendi para birimi cinsinden ödeme yapmasını isteyip istemediğini bildirir; onaylanırsa banka kura göre tutarı dönüştürerek işler.",
         "parameters": [
           {
             "name": "transaction_id",
             "in": "path",
             "required": true,
+            "description": "DCC önerisi sunulmuş ödemenin Payven işlem kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4769,11 +4888,14 @@
         "tags": [
           "Payments"
         ],
+        "summary": "Sipariş hareket geçmişi",
+        "description": "Sipariş üzerindeki tüm hareketleri (auth, capture, refund, void) banka konektöründen sıralı olarak getirir. Mutabakat süreçlerinde ve müşteri hizmetlerinin destek araştırmasında kullanılır.",
         "parameters": [
           {
             "name": "transaction_id",
             "in": "path",
             "required": true,
+            "description": "Geçmişi sorgulanacak siparişin Payven kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4782,6 +4904,7 @@
           {
             "name": "transaction_id",
             "in": "query",
+            "description": "Bazı konektörler aynı id'yi kabul etmediğinde alternatif iletim yolu.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4790,6 +4913,7 @@
           {
             "name": "order_id",
             "in": "query",
+            "description": "Üye işyeri sipariş numarası ile sorgulama.",
             "schema": {
               "type": "string"
             }
@@ -4798,6 +4922,7 @@
             "name": "extra_properties",
             "in": "query",
             "style": "deepObject",
+            "description": "Konektöre özel ek parametreler (anahtar/değer).",
             "schema": {
               "type": "object",
               "additionalProperties": {
@@ -4835,6 +4960,8 @@
         "tags": [
           "Payments"
         ],
+        "summary": "Recurring (otomatik tekrarlayan) ödeme oluştur",
+        "description": "Saklı kart üzerinden gelecekte tekrarlanacak ödeme planı tanımlar (abonelik, üyelik vb.). İlk ödemede `card` bilgisi tam gönderilir; sonraki ödemeler `parent_transaction_id` üzerinden cardless çekilir.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4916,11 +5043,14 @@
         "tags": [
           "Payments"
         ],
+        "summary": "Recurring planı iptal et",
+        "description": "Aktif bir recurring ödeme planını sonlandırır. Geçmiş çekilen ödemeler iade edilmez; yalnızca bundan sonraki tekrarlar durdurulur.",
         "parameters": [
           {
             "name": "transaction_id",
             "in": "path",
             "required": true,
+            "description": "İptal edilecek recurring planının kök işlem kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -10777,10 +10907,12 @@
       },
       "CaptureTransactionRequest": {
         "type": "object",
+        "description": "Pre-auth tutarını kısmen veya tamamen çekmek için kullanılır.",
         "properties": {
           "transaction_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Pre-auth modunda oluşturulmuş işlemin Payven kimliği."
           },
           "amount": {
             "allOf": [
@@ -10788,10 +10920,13 @@
                 "$ref": "#/components/schemas/PaymentAmountRequestDto"
               }
             ],
+            "description": "Çekilecek tutar. Boş bırakılırsa orijinal otorizasyon tutarının tamamı çekilir.",
             "nullable": true
           },
           "reason": {
             "type": "string",
+            "description": "Capture nedeni (operasyon notu).",
+            "example": "Sipariş kargoya verildi.",
             "nullable": true
           },
           "extra_properties": {
@@ -10799,6 +10934,7 @@
             "additionalProperties": {
               "type": "string"
             },
+            "description": "Konektöre özel ek alanlar.",
             "nullable": true
           }
         },
@@ -11983,13 +12119,18 @@
       },
       "CreatePaymentRequest": {
         "type": "object",
+        "description": "Non-3D (doğrudan) ödeme isteği. Kart bilgisi sunucu tarafından gönderildiği için bu yöntem PCI-DSS scope'unu sizde tutar.",
         "properties": {
           "external_id": {
             "type": "string",
+            "description": "Üye işyeri sipariş kimliği. Tenant bazında benzersiz olması önerilir.",
+            "example": "ORDER-2026-04-91823",
             "nullable": true
           },
           "basket_id": {
             "type": "string",
+            "description": "Sepet kimliği.",
+            "example": "BASKET-91823",
             "nullable": true
           },
           "amount": {
@@ -11998,11 +12139,14 @@
                 "$ref": "#/components/schemas/PaymentAmountRequestDto"
               }
             ],
+            "description": "Ödenecek tutar ve para birimi.",
             "nullable": true
           },
           "installment": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "description": "Taksit sayısı (1 = tek çekim).",
+            "example": 1
           },
           "card": {
             "allOf": [
@@ -12010,10 +12154,12 @@
                 "$ref": "#/components/schemas/PaymentCardInfoRequestDto"
               }
             ],
+            "description": "Kart bilgileri. Bu uç noktada zorunludur.",
             "nullable": true
           },
           "description": {
             "type": "string",
+            "description": "İşlem açıklaması.",
             "nullable": true
           },
           "buyer": {
@@ -12022,6 +12168,7 @@
                 "$ref": "#/components/schemas/PaymentBuyerRequestDto"
               }
             ],
+            "description": "Alıcı bilgileri. Fraud servisi için doldurulması önerilir.",
             "nullable": true
           },
           "billing_address": {
@@ -12030,6 +12177,7 @@
                 "$ref": "#/components/schemas/PaymentAddressRequestDto"
               }
             ],
+            "description": "Fatura adresi.",
             "nullable": true
           },
           "shipping_address": {
@@ -12038,6 +12186,7 @@
                 "$ref": "#/components/schemas/PaymentAddressRequestDto"
               }
             ],
+            "description": "Teslimat adresi.",
             "nullable": true
           },
           "basket_items": {
@@ -12045,6 +12194,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentBasketItemRequestDto"
             },
+            "description": "Sepet kalemleri.",
             "nullable": true
           },
           "operation_type": {
@@ -12052,13 +12202,15 @@
               {
                 "$ref": "#/components/schemas/OperationType"
               }
-            ]
+            ],
+            "description": "İşlem tipi: `Auth` (varsayılan, otorizasyon + provizyon) veya `PreAuth` (sadece otorizasyon)."
           },
           "extra_properties": {
             "type": "object",
             "additionalProperties": {
               "type": "string"
             },
+            "description": "Konektöre özel ek alanlar.",
             "nullable": true
           }
         },
@@ -12827,13 +12979,18 @@
       },
       "Init3DRequest": {
         "type": "object",
+        "description": "3D Secure ödeme başlatma isteği. Cevap olarak ya bankanın 3DS sayfasına yönlendirme HTML/URL'i ya da frictionless akışta direkt ödeme sonucu döner.",
         "properties": {
           "external_id": {
             "type": "string",
+            "description": "Üye işyeri tarafındaki sipariş kimliği. Sorgulama, mutabakat ve webhook eşleştirmesinde kullanılır. Tenant bazında benzersiz olması önerilir.",
+            "example": "ORDER-2026-04-91823",
             "nullable": true
           },
           "basket_id": {
             "type": "string",
+            "description": "Sipariş sepet kimliği (alt grup tanımlamak için).",
+            "example": "BASKET-91823",
             "nullable": true
           },
           "amount": {
@@ -12842,11 +12999,14 @@
                 "$ref": "#/components/schemas/PaymentAmountRequestDto"
               }
             ],
+            "description": "Ödenecek tutar ve para birimi.",
             "nullable": true
           },
           "installment": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "description": "Taksit sayısı. Tek çekim için `1` veya `0` gönderilir; taksitli işlemler için 2–18 arası bir değer (banka destekledikçe).",
+            "example": 1
           },
           "card": {
             "allOf": [
@@ -12854,10 +13014,13 @@
                 "$ref": "#/components/schemas/PaymentCardInfoRequestDto"
               }
             ],
+            "description": "Kart bilgileri. Hosted Checkout kullanıyorsanız bu alanı boş bırakın; Payven sayfası kart verisini sizin yerinize toplar.",
             "nullable": true
           },
           "description": {
             "type": "string",
+            "description": "İşlem açıklaması. Kart sahibinin ekstresinde görünebilir (banka destekledikçe).",
+            "example": "Kablosuz kulaklık siparişi",
             "nullable": true
           },
           "buyer": {
@@ -12866,6 +13029,7 @@
                 "$ref": "#/components/schemas/PaymentBuyerRequestDto"
               }
             ],
+            "description": "Alıcı (müşteri) bilgileri. 3DS 2.x risk değerlendirmesinde kullanılır.",
             "nullable": true
           },
           "billing_address": {
@@ -12874,6 +13038,7 @@
                 "$ref": "#/components/schemas/PaymentAddressRequestDto"
               }
             ],
+            "description": "Fatura adresi.",
             "nullable": true
           },
           "shipping_address": {
@@ -12882,6 +13047,7 @@
                 "$ref": "#/components/schemas/PaymentAddressRequestDto"
               }
             ],
+            "description": "Teslimat adresi (fiziksel ürünler için).",
             "nullable": true
           },
           "basket_items": {
@@ -12889,18 +13055,25 @@
             "items": {
               "$ref": "#/components/schemas/PaymentBasketItemRequestDto"
             },
+            "description": "Sepet kalemleri. Toplam fiyatları `amount.value` ile uyumlu olmalı.",
             "nullable": true
           },
           "callback_url": {
             "type": "string",
+            "description": "Banka 3DS sonucu için arayacak URL (server-to-server). Genellikle Payven'in default'u kullanılır; sadece özel durumlar için override edin.",
+            "example": "https://api.example.com/payven/callback",
             "nullable": true
           },
           "cancel_url": {
             "type": "string",
+            "description": "Kullanıcı 3DS sayfasında ödemeyi iptal ederse yönlendirileceği URL.",
+            "example": "https://example.com/checkout/cancelled",
             "nullable": true
           },
           "return_url": {
             "type": "string",
+            "description": "3DS doğrulama sonucu sonrası kullanıcının yönlendirileceği URL. Bu URL'e gelen `transaction_id` ile `/api/v1/payments/{transaction_id}` çağırarak sonucu doğrulamalısınız.",
+            "example": "https://example.com/checkout/return",
             "nullable": true
           },
           "operation_type": {
@@ -12908,13 +13081,15 @@
               {
                 "$ref": "#/components/schemas/OperationType"
               }
-            ]
+            ],
+            "description": "İşlem tipi: `Auth` (otorizasyon + provizyon, varsayılan), `PreAuth` (sadece otorizasyon — sonra `/capture` ile çekilir)."
           },
           "extra_properties": {
             "type": "object",
             "additionalProperties": {
               "type": "string"
             },
+            "description": "Konektöre özel ek alanlar. Örn. bazı bankalarda terminal id veya kampanya kodu.",
             "nullable": true
           }
         },
@@ -13166,25 +13341,36 @@
       },
       "PaymentAddressRequestDto": {
         "type": "object",
+        "description": "Fatura veya teslimat adresi. 3D Secure 2.x'te risk değerlendirmesinde kullanılır; doldurulması başarı oranını arttırır.",
         "properties": {
           "contact_name": {
             "type": "string",
+            "description": "Adres üzerindeki kişi adı.",
+            "example": "Ayşe Yılmaz",
             "nullable": true
           },
           "city": {
             "type": "string",
+            "description": "Şehir adı (Türkçe karakterler kabul edilir).",
+            "example": "İstanbul",
             "nullable": true
           },
           "country": {
             "type": "string",
+            "description": "ISO-3166 alpha-2 ülke kodu.",
+            "example": "TR",
             "nullable": true
           },
           "address": {
             "type": "string",
+            "description": "Açık adres satırı.",
+            "example": "Atatürk Mah. Cumhuriyet Cad. No:42 D:5",
             "nullable": true
           },
           "postal_code": {
             "type": "string",
+            "description": "Posta kodu.",
+            "example": "34000",
             "nullable": true
           }
         },
@@ -13192,13 +13378,18 @@
       },
       "PaymentAmountRequestDto": {
         "type": "object",
+        "description": "Tutar nesnesi. Tüm tutarlar minor unit (kuruş) cinsindendir; örn. 100 TL = `10000`.",
         "properties": {
           "amount": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Tahsil edilecek tutar (kuruş).",
+            "example": 19990
           },
           "currency": {
             "type": "string",
+            "description": "ISO-4217 para birimi kodu. TRY dışındaki bir değer DCC veya çoklu para birimi konektör konfigürasyonu gerektirir.",
+            "example": "TRY",
             "nullable": true
           }
         },
@@ -13206,55 +13397,79 @@
       },
       "PaymentBasketItemRequestDto": {
         "type": "object",
+        "description": "Sepet kalemi. 3DS 2.x risk skorlaması ve bazı bankaların komisyon hesaplaması için kullanılır.",
         "properties": {
           "id": {
             "type": "string",
+            "description": "Kalemin sizin sisteminizdeki kimliği (SKU).",
+            "example": "SKU-1042",
             "nullable": true
           },
           "name": {
             "type": "string",
+            "description": "Ürün adı.",
+            "example": "Kablosuz kulaklık",
             "nullable": true
           },
           "price": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Birim fiyat (TL cinsinden, ondalık). Toplam tutar `price * quantity` olarak hesaplanır.",
+            "example": 199.90
           },
           "quantity": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "description": "Adet.",
+            "example": 1
           }
         },
         "additionalProperties": false
       },
       "PaymentBuyerRequestDto": {
         "type": "object",
+        "description": "Alıcı bilgileri. 3DS 2.x ve fraud servisinin değerlendirmesi için doldurulması önerilir.",
         "properties": {
           "id": {
             "type": "string",
+            "description": "Alıcının sizin sisteminizdeki sabit kimliği (müşteri numarası).",
+            "example": "user_92481",
             "nullable": true
           },
           "name": {
             "type": "string",
+            "description": "Alıcının adı.",
+            "example": "Ayşe",
             "nullable": true
           },
           "surname": {
             "type": "string",
+            "description": "Alıcının soyadı.",
+            "example": "Yılmaz",
             "nullable": true
           },
           "email": {
             "type": "string",
+            "description": "Alıcı e-posta adresi. Slip ve makbuzlar bu adrese gönderilir.",
+            "example": "ayse.yilmaz@example.com",
             "nullable": true
           },
           "phone": {
             "type": "string",
+            "description": "Cep telefonu numarası (E.164 format önerilir).",
+            "example": "+905321234567",
             "nullable": true
           },
           "ip_address": {
             "type": "string",
+            "description": "Alıcının ödeme yaparkenki IP adresi. 3DS 2.x ve fraud kuralları için kritik.",
+            "example": "85.34.12.7",
             "nullable": true
           },
           "identity_number": {
             "type": "string",
+            "description": "TCKN veya VKN. Bazı kuruluş kartları için zorunlu olabilir.",
+            "example": "12345678901",
             "nullable": true
           }
         },
@@ -13262,25 +13477,36 @@
       },
       "PaymentCardInfoRequestDto": {
         "type": "object",
+        "description": "Kart bilgileri. **PCI-DSS uyarısı:** Bu nesneyi gönderiyorsanız sisteminiz PCI scope'a girer. Kart bilgisini Payven'in barındırdığı checkout sayfası üzerinden almak için Hosted Checkout (`POST /api/v1/checkout/sessions`) kullanın.",
         "properties": {
           "holder_name": {
             "type": "string",
+            "description": "Kart üzerindeki ad-soyad.",
+            "example": "AYSE YILMAZ",
             "nullable": true
           },
           "number": {
             "type": "string",
+            "description": "Kart numarası (PAN). 13–19 hane, boşluksuz.",
+            "example": "4506347012345678",
             "nullable": true
           },
           "expire_month": {
             "type": "string",
+            "description": "Son kullanma ayı (`MM`). 1–12 arası, sıfır dolgulu önerilir.",
+            "example": "08",
             "nullable": true
           },
           "expire_year": {
             "type": "string",
+            "description": "Son kullanma yılı (4 haneli `YYYY` veya 2 haneli `YY`).",
+            "example": "2028",
             "nullable": true
           },
           "cvv": {
             "type": "string",
+            "description": "Kart güvenlik kodu (3-4 hane). Saklanması yasaktır; sadece istek sırasında iletilir.",
+            "example": "123",
             "nullable": true
           }
         },
@@ -14001,21 +14227,29 @@
       },
       "RefundTransactionRequest": {
         "type": "object",
+        "description": "İade isteği. Tutar atlanırsa veya `0` gönderilirse tam iade, küçük bir değer gönderilirse kısmi iade yapılır.",
         "properties": {
           "transaction_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "İade edilecek başarılı işlemin Payven kimliği. Path'teki id ile eşleşmelidir."
           },
           "amount": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "İade tutarı (kuruş). Boş veya `0` ise işlem tutarının tamamı iade edilir.",
+            "example": 5000
           },
           "currency": {
             "type": "string",
+            "description": "ISO-4217 kod. Orijinal işlemle aynı olmalı.",
+            "example": "TRY",
             "nullable": true
           },
           "reason": {
             "type": "string",
+            "description": "Serbest metin iade gerekçesi (operasyon notu).",
+            "example": "Müşteri talep etti, ürün geri iade alındı.",
             "nullable": true
           },
           "reason_code": {
@@ -14024,6 +14258,7 @@
                 "$ref": "#/components/schemas/RefundReasonCode"
               }
             ],
+            "description": "Standart iade sebebi kodu (raporlama için).",
             "nullable": true
           },
           "extra_properties": {
@@ -14031,6 +14266,7 @@
             "additionalProperties": {
               "type": "string"
             },
+            "description": "Konektöre özel ek alanlar.",
             "nullable": true
           }
         },
@@ -16262,13 +16498,17 @@
       },
       "VoidTransactionRequest": {
         "type": "object",
+        "description": "İptal isteği. Settlement öncesi (genellikle aynı gün) işlemler için kullanılır.",
         "properties": {
           "transaction_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "İptal edilecek işlemin Payven kimliği."
           },
           "reason": {
             "type": "string",
+            "description": "İptal nedeni (operasyon notu).",
+            "example": "Müşteri vazgeçti.",
             "nullable": true
           },
           "extra_properties": {
@@ -16276,6 +16516,7 @@
             "additionalProperties": {
               "type": "string"
             },
+            "description": "Konektöre özel ek alanlar.",
             "nullable": true
           }
         },
@@ -16374,76 +16615,100 @@
   ],
   "tags": [
     {
-      "name": "ApiRequestLogs"
+      "name": "Payments",
+      "description": "Ödeme oluşturma, 3D Secure başlatma/tamamlama, ön provizyon (capture), iptal (void), iade (refund), DCC onayı, recurring (otomatik tekrarlayan) ödemeler ve sorgulama uç noktaları. Tüm para tutarları minor unit (kuruş) olarak iletilir; ör. 100 TL = 10000."
     },
     {
-      "name": "CancellationRequests"
+      "name": "CheckoutSessions",
+      "description": "Hosted Checkout oturumları. Müşteriyi Payven barındırmalı ödeme sayfasına yönlendirip kart bilgisini sizden uzakta tutmak için kullanılır; PCI-DSS scope'unu küçültür."
     },
     {
-      "name": "Chargebacks"
+      "name": "Refunds",
+      "description": "Tam veya kısmi iade kayıtları. İade hayat döngüsü pending → approved → settled adımlarını izler; aynı işlem üzerinde birden çok kısmi iade yapılabilir."
     },
     {
-      "name": "CheckoutSessions"
+      "name": "CancellationRequests",
+      "description": "Operasyon ekibinin onayını gerektiren iptal talepleri. Approve/reject endpoint'leri ile iş akışı yönetilir."
     },
     {
-      "name": "ConnectorConfigurations"
+      "name": "Chargebacks",
+      "description": "Banka tarafından gelen ters ibraz (chargeback) kayıtlarının listelenmesi, durum güncellenmesi ve itiraz dosyalarının takibi."
     },
     {
-      "name": "ConnectorErrorCodes"
+      "name": "Transactions",
+      "description": "Tüm işlemlerin listelenmesi, detay görüntüleme ve hayat döngüsü geçmişi (history) sorgulama."
     },
     {
-      "name": "Connectors"
+      "name": "Connectors",
+      "description": "Banka/ödeme kuruluşu konektör tanımları (örn. Garanti, İş Bankası, Yapı Kredi). Etkinleştirme, sağlık (health) durumu ve detay endpoint'leri içerir."
     },
     {
-      "name": "Dashboard"
+      "name": "ConnectorConfigurations",
+      "description": "Üye işyeri seviyesinde konektör konfigürasyonları (terminal id, merchant id, secret key vb.). Sandbox ve production ortamları için ayrı kayıtlar tutulur."
     },
     {
-      "name": "FraudCallback"
+      "name": "ConnectorErrorCodes",
+      "description": "Konektör/banka cevap kodlarının Payven standart hata kodlarına eşlenmesi. Bulk işlem desteklenir."
     },
     {
-      "name": "Health"
+      "name": "RoutingRules",
+      "description": "Akıllı yönlendirme (smart routing) kuralları. Kart BIN, tutar, taksit, başarı oranı gibi kriterlere göre işlemleri uygun konektöre yönlendirir."
     },
     {
-      "name": "MerchantBankProfiles"
+      "name": "SimpleRoutingRules",
+      "description": "Basit (tek kriterli) yönlendirme kuralları. Karmaşık skorlama yerine doğrudan eşleşmeyle çalışır."
     },
     {
-      "name": "Payments"
+      "name": "Reconciliations",
+      "description": "Banka mutabakat dosyalarının yüklenmesi, eşleştirilmesi ve farkların çözülmesi. Detay ve toplu çözüm (bulk-resolve) endpoint'leri içerir."
     },
     {
-      "name": "Reconciliations"
+      "name": "Settlements",
+      "description": "Hak ediş (settlement) kayıtları. Banka ödeme tarihleri, brüt/net tutarlar ve durum bilgileri."
     },
     {
-      "name": "Refunds"
+      "name": "MerchantBankProfiles",
+      "description": "Üye işyerlerinin banka profilleri. POS atama, MCC ve komisyon yapılandırmaları."
     },
     {
-      "name": "RoutingRules"
+      "name": "Webhooks",
+      "description": "Webhook abonelikleri ve teslimat (delivery) geçmişi. Secret rotation desteklenir; imza doğrulama HMAC-SHA256 ile yapılır."
     },
     {
-      "name": "Settings"
+      "name": "TestCards",
+      "description": "Sandbox ortamında kullanılan test kart havuzu. Kart üretme, etkinleştirme ve farklı senaryolar (3DS başarılı/başarısız, yetersiz bakiye vb.) için filtreleme."
     },
     {
-      "name": "Settlements"
+      "name": "Validation",
+      "description": "Kart numarası şifreleme/çözümleme yardımcı endpoint'leri. PAN'ın istemci tarafında şifrelenip Payven'e gönderilmesini sağlar."
     },
     {
-      "name": "SimpleRoutingRules"
+      "name": "Settings",
+      "description": "Tenant seviyesi konfigürasyon ayarları (key/value). Özellik bayrakları ve ortam değişkenleri."
     },
     {
-      "name": "Tenants"
+      "name": "Dashboard",
+      "description": "Konsolda gösterilen özet istatistikler (gün/hafta/ay bazında işlem hacmi, başarı oranı, ortalama tutar)."
     },
     {
-      "name": "TestCards"
+      "name": "ApiRequestLogs",
+      "description": "Konektörlere giden ham HTTP isteklerinin loglarını sorgulama. Hata ayıklama için correlation_id ile zincir izlenebilir."
     },
     {
-      "name": "Trace"
+      "name": "Trace",
+      "description": "Bir correlation_id'ye bağlı tüm sistem olaylarının dağıtık izleme (distributed trace) görünümü."
     },
     {
-      "name": "Transactions"
+      "name": "Health",
+      "description": "Servis sağlık ve hazırlık (liveness/readiness) probu. Kubernetes ve dış izleme araçlarınca kullanılır."
     },
     {
-      "name": "Validation"
+      "name": "FraudCallback",
+      "description": "Fraud servisinden gelen alarm sonuç callback'leri. Sanal POS bu callback'leri dinleyerek işlemi durdurabilir veya devam ettirir."
     },
     {
-      "name": "Webhooks"
+      "name": "Tenants",
+      "description": "Tenant (müşteri kuruluş) kurulum (seed) ve başlangıç yapılandırması. Operasyon kullanımı içindir."
     }
   ],
   "servers": [

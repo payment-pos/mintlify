@@ -3847,10 +3847,13 @@
         "tags": [
           "Transfers"
         ],
+        "summary": "Transferleri listele",
+        "description": "Tenant'a ait transferleri filtreli ve sayfalı olarak listeler. `status`, tarih aralığı, alıcı/gönderen hesap ve tutar aralığı ile daraltılabilir.",
         "parameters": [
           {
             "name": "page",
             "in": "query",
+            "description": "Sayfa numarası (1'den başlar).",
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -3859,6 +3862,7 @@
           {
             "name": "page_size",
             "in": "query",
+            "description": "Sayfa boyutu (varsayılan 20, maksimum 200).",
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -3867,6 +3871,7 @@
           {
             "name": "search_term",
             "in": "query",
+            "description": "IBAN, alıcı adı, açıklama veya transfer id üzerinde serbest metin araması.",
             "schema": {
               "type": "string"
             }
@@ -3874,6 +3879,7 @@
           {
             "name": "status",
             "in": "query",
+            "description": "Transfer durumu (örn. `Pending`, `Completed`, `Failed`).",
             "schema": {
               "allOf": [
                 {
@@ -3885,6 +3891,7 @@
           {
             "name": "transfer_type",
             "in": "query",
+            "description": "Transfer tipi: `Eft`, `Havale`, `Fast`.",
             "schema": {
               "allOf": [
                 {
@@ -3896,6 +3903,7 @@
           {
             "name": "connector_account_id",
             "in": "query",
+            "description": "Gönderen konektör hesap kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -3904,6 +3912,7 @@
           {
             "name": "receiver_account_id",
             "in": "query",
+            "description": "Alıcı hesap kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -3912,6 +3921,7 @@
           {
             "name": "from_date",
             "in": "query",
+            "description": "Başlangıç tarihi (ISO-8601, dahil).",
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -3920,6 +3930,7 @@
           {
             "name": "to_date",
             "in": "query",
+            "description": "Bitiş tarihi (ISO-8601, dahil).",
             "schema": {
               "type": "string",
               "format": "date-time"
@@ -3928,6 +3939,7 @@
           {
             "name": "min_amount",
             "in": "query",
+            "description": "Minimum tutar (kuruş).",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -3936,6 +3948,7 @@
           {
             "name": "max_amount",
             "in": "query",
+            "description": "Maksimum tutar (kuruş).",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -3971,11 +3984,14 @@
         "tags": [
           "Transfers"
         ],
+        "summary": "Transfer detayı",
+        "description": "Verilen transfer kaydının güncel durumunu, bankadan dönen referans numarasını ve hayat döngüsü olaylarını döner.",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "Transfer kaydının Payven kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4011,6 +4027,8 @@
         "tags": [
           "Transfers"
         ],
+        "summary": "Toplu transfer oluştur",
+        "description": "Tek istekle birden çok transferi `Pending` durumda oluşturur. Onay akışı kullanılıyorsa transferler `bulk/approve` ile onaylanmadan banka tarafına gönderilmez. Maksimum 1000 transfer/istek.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4071,6 +4089,8 @@
         "tags": [
           "Transfers"
         ],
+        "summary": "Bekleyen transferleri onayla",
+        "description": "`Pending` durumundaki transferleri toplu olarak onaylar; bunlar bir sonraki seansta banka tarafına gönderilir. Çift kontrol (maker-checker) iş akışında onaylayan kullanıcı, transferleri oluşturan kullanıcıdan farklı olmalıdır.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4131,6 +4151,8 @@
         "tags": [
           "Transfers"
         ],
+        "summary": "Bekleyen transferleri reddet",
+        "description": "Onay akışında bekleyen bir grup transferi reddeder. Reddedilen transferler `Cancelled` durumuna geçer ve banka'ya iletilmez.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4191,6 +4213,8 @@
         "tags": [
           "Transfers"
         ],
+        "summary": "Onaylı transferleri bankaya gönder",
+        "description": "Onaylanmış transferleri seçili konektör hesabı üzerinden bankaya iletir. EFT'ler bir sonraki uygun seansta, FAST işlemleri saniyeler içinde gerçekleşir.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4251,11 +4275,14 @@
         "tags": [
           "Transfers"
         ],
+        "summary": "Dekont indir (PDF)",
+        "description": "Tamamlanmış bir transfer için banka dekontunu PDF olarak döner (`application/pdf`).",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "Dekontu istenen transfer kaydı.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4274,11 +4301,14 @@
         "tags": [
           "Transfers"
         ],
+        "summary": "Dekont (base64)",
+        "description": "PDF dekontu base64 string olarak JSON içinde döner. E-postaya iliştirme veya dahili sistemde saklama için kullanışlıdır.",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "Dekontu istenen transfer kaydı.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -8450,55 +8480,72 @@
   ],
   "tags": [
     {
-      "name": "Accounts"
+      "name": "Transfers",
+      "description": "Para transferi (havale/EFT/FAST) işlemleri. Tek seferlik transfer oluşturma, durum sorgulama ve iptal. FAST limitleri (anlık 7/24) ve EFT seans saatleri konektör bazında uygulanır."
     },
     {
-      "name": "ApiRequestLogs"
+      "name": "RecurringTransfers",
+      "description": "Tekrarlayan transfer planları (maaş ödemeleri, otomatik kira vb.). Frekans, başlangıç/bitiş tarihi ve hedef alıcı tanımlanır."
     },
     {
-      "name": "BankBins"
+      "name": "Recipients",
+      "description": "Sık kullanılan alıcı kayıtları. IBAN, ad-soyad/unvan ve TCKN/VKN bilgilerini saklayarak her transferde tekrar girmeyi engeller."
     },
     {
-      "name": "Banks"
+      "name": "ReceiverAccounts",
+      "description": "Alıcı hesap (counterparty) tanımları."
     },
     {
-      "name": "ConnectorAccounts"
+      "name": "Accounts",
+      "description": "Tenant'ın bilanço (cüzdan) hesapları. Bakiye, hareket geçmişi ve mizan."
     },
     {
-      "name": "ConnectorAccountTransferRules"
+      "name": "ConnectorAccounts",
+      "description": "Banka konektörleri üzerindeki firma hesaplarınız. Hangi konektörden hangi IBAN ile transfer yapılacağı bu hesaplara bağlıdır."
     },
     {
-      "name": "ConnectorConfigurations"
+      "name": "ConnectorAccountTransferRules",
+      "description": "Konektör hesabı bazında transfer limitleri ve yönlendirme kuralları."
     },
     {
-      "name": "Connectors"
+      "name": "Connectors",
+      "description": "Banka/ödeme kuruluşu konektör tanımları ve sağlık durumu."
     },
     {
-      "name": "Dashboard"
+      "name": "ConnectorConfigurations",
+      "description": "Konektörlerin tenant seviyesindeki yapılandırması (kullanıcı adı, terminal id, anahtarlar)."
     },
     {
-      "name": "Me"
+      "name": "Banks",
+      "description": "Türkiye banka kataloğu. EFT/havale yönlendirmesinde ve form doğrulamada kullanılır."
     },
     {
-      "name": "ReceiverAccounts"
+      "name": "BankBins",
+      "description": "Banka BIN aralıkları (kart için değil, alıcı banka tespiti için kullanılır)."
     },
     {
-      "name": "Recipients"
+      "name": "Validation",
+      "description": "IBAN ve hesap numarası doğrulama uçları."
     },
     {
-      "name": "RecurringTransfers"
+      "name": "Webhooks",
+      "description": "Transfer servisi webhook abonelikleri."
     },
     {
-      "name": "Settings"
+      "name": "Settings",
+      "description": "Tenant transferi ayarları (varsayılan açıklamalar, limit konfigürasyonları)."
     },
     {
-      "name": "Transfers"
+      "name": "Me",
+      "description": "Mevcut kullanıcı/tenant özet bilgisi."
     },
     {
-      "name": "Validation"
+      "name": "Dashboard",
+      "description": "Transfer servisi konsol istatistikleri."
     },
     {
-      "name": "Webhooks"
+      "name": "ApiRequestLogs",
+      "description": "Konektör çağrılarının ham HTTP logları."
     }
   ],
   "servers": [

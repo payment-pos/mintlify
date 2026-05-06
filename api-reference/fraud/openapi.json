@@ -2805,31 +2805,40 @@
   ],
   "tags": [
     {
-      "name": "InternalFraud"
+      "name": "TenantFraudRules",
+      "description": "Tenant'ın kendi fraud kurallarını yönetmesi. Tutar, ülke, BIN, IP, hız (velocity) gibi kriterlerle skorlama yapılır; kural eşleşmesi uyarı (alert) üretebilir veya işlemi bloklayabilir."
     },
     {
-      "name": "PlatformFraudAlerts"
+      "name": "TenantFraudAlerts",
+      "description": "Tenant kullanıcısının kendi fraud uyarılarını listelemesi, detay görmesi ve karar uygulaması (allow/reject)."
     },
     {
-      "name": "PlatformFraudBlacklist"
+      "name": "TenantFraudBlacklist",
+      "description": "Tenant'ın kart, IP, e-posta veya cihaz parmak izi bazında kara liste yönetmesi."
     },
     {
-      "name": "PlatformFraudRules"
+      "name": "TenantFraudLogs",
+      "description": "Fraud motorunun verdiği kararların ayrıntılı log kayıtları. Hangi kuralın eşleştiği ve skor değerleri görülebilir."
     },
     {
-      "name": "TenantFraudAlerts"
+      "name": "TenantFraudMerchantPolicies",
+      "description": "Üye işyeri (merchant) bazında fraud politika atamaları. Alt merchant'lara farklı kurallar uygulanmasını sağlar."
     },
     {
-      "name": "TenantFraudBlacklist"
+      "name": "PlatformFraudRules",
+      "description": "Platform yöneticisinin tüm tenant'lara global olarak uygulanan kural yönetmesi."
     },
     {
-      "name": "TenantFraudLogs"
+      "name": "PlatformFraudAlerts",
+      "description": "Platform genelinde tüm tenant'ların fraud uyarılarını izleme."
     },
     {
-      "name": "TenantFraudMerchantPolicies"
+      "name": "PlatformFraudBlacklist",
+      "description": "Platform genelinde geçerli olan global kara liste."
     },
     {
-      "name": "TenantFraudRules"
+      "name": "InternalFraud",
+      "description": "Sanal POS ve diğer servislerin fraud servisini çağırdığı dahili uçlar. Public kullanım için değildir."
     }
   ]
 }

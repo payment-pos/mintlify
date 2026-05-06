@@ -39,6 +39,25 @@
       "linkedin": "https://www.linkedin.com/company/payven"
     }
   },
+  "api": {
+    "playground": {
+      "display": "interactive"
+    },
+    "examples": {
+      "languages": ["curl", "javascript", "python", "php", "go", "csharp"],
+      "defaults": "required"
+    },
+    "mdx": {
+      "server": [
+        "https://vpos-sandbox.payven.com.tr",
+        "https://vpos.payven.com.tr"
+      ],
+      "auth": {
+        "method": "bearer",
+        "name": "Authorization"
+      }
+    }
+  },
   "navigation": {
     "tabs": [
       {

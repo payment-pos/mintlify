@@ -10,11 +10,14 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Kullanıcı adı/parola ile giriş",
+        "description": "Tenant'ın kendi Keycloak realm'ında oturum açar. Cevap olarak `access_token` (kısa ömürlü), `refresh_token` (uzun ömürlü) ve `expires_in` saniye değerini döner. Konsol/dashboard kullanıcıları için tasarlanmıştır; sunucu-sunucu entegrasyonlarda `/api/v1/auth/{slug}/token` (client credentials) tercih edilmelidir.",
         "parameters": [
           {
             "name": "slug",
             "in": "path",
             "required": true,
+            "description": "Tenant slug'ı (URL-dostu kısa ad). Tenant kayıt sırasında belirlenir; örn. `acme`, `globex`.",
             "schema": {
               "type": "string"
             }
@@ -22,6 +25,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
+            "description": "Aynı login denemesinin iki kez işlenmesini engellemek için iletilen isteğe bağlı anahtar.",
             "schema": {
               "type": "string"
             }
@@ -116,11 +120,14 @@
         "tags": [
           "Auth"
         ],
+        "summary": "API anahtarı ile token al (client credentials)",
+        "description": "Sunucu-sunucu entegrasyonlar için OAuth2 client credentials grant'ı. `client_id` ve `client_secret`'i Konsol > API Anahtarları'ndan alıp burada token'a çevirirsiniz. Dönen `access_token` Sanal POS, Para Transferi ve Fraud servislerinde Bearer header ile kullanılır.\n\n**Token süresi:** Varsayılan 15 dakikadır; süresi dolmadan token'ı bellekte saklayın, her istek için yeniden çağırmayın.",
         "parameters": [
           {
             "name": "slug",
             "in": "path",
             "required": true,
+            "description": "Tenant slug'ı.",
             "schema": {
               "type": "string"
             }
@@ -128,6 +135,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
+            "description": "İsteğe bağlı idempotency anahtarı.",
             "schema": {
               "type": "string"
             }
@@ -138,6 +146,10 @@
             "application/json; ver=1.0": {
               "schema": {
                 "$ref": "#/components/schemas/ClientCredentialsRequest"
+              },
+              "example": {
+                "client_id": "acme-prod",
+                "client_secret": "f8c4d2a1-8f8b-4f0c-9fbd-2c17a4ff90b1"
               }
             },
             "text/json; ver=1.0": {
@@ -242,11 +254,14 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Yeni kullanıcı kaydı",
+        "description": "Tenant realm'ında yeni bir Keycloak kullanıcısı oluşturur. Kullanıcının ilk giriş yapabilmesi için belirlenen e-posta adresine doğrulama maili gönderilir.",
         "parameters": [
           {
             "name": "slug",
             "in": "path",
             "required": true,
+            "description": "Kullanıcının kayıt olacağı tenant slug'ı.",
             "schema": {
               "type": "string"
             }
@@ -254,6 +269,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
+            "description": "Aynı kaydın iki kez oluşturulmasını engelleyen anahtar.",
             "schema": {
               "type": "string"
             }
@@ -328,11 +344,14 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Token'ı yenile",
+        "description": "`refresh_token` ile yeni bir `access_token` alır. Erişim token'ının süresi dolmadan bu uç noktaya çağırarak kullanıcının oturumunu kesintisiz sürdürün.",
         "parameters": [
           {
             "name": "slug",
             "in": "path",
             "required": true,
+            "description": "Tenant slug'ı.",
             "schema": {
               "type": "string"
             }
@@ -427,11 +446,14 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Oturumu sonlandır",
+        "description": "Verilen `refresh_token`'ı geçersiz kılar; aynı oturumdaki access token'lar süresi dolduğunda yenilenemez.",
         "parameters": [
           {
             "name": "slug",
             "in": "path",
             "required": true,
+            "description": "Tenant slug'ı.",
             "schema": {
               "type": "string"
             }
@@ -489,11 +511,14 @@
         "tags": [
           "Auth"
         ],
+        "summary": "Mevcut kullanıcı bilgisi",
+        "description": "Bearer token üzerinden Keycloak'tan oturum açmış kullanıcının id, e-posta, rol ve tenant bilgilerini döner. Frontend'in oturum hidrate etmesi için kullanılır.",
         "parameters": [
           {
             "name": "slug",
             "in": "path",
             "required": true,
+            "description": "Tenant slug'ı.",
             "schema": {
               "type": "string"
             }
@@ -1949,6 +1974,8 @@
         "tags": [
           "Me"
         ],
+        "summary": "Mevcut oturum profili",
+        "description": "Bearer token'a karşılık gelen kullanıcının ve bağlı olduğu tenant/merchant'ın özet bilgilerini, rolleri ve aktif feature flag'leri döner. Konsolun açılışında oturumu hidrate etmek için kullanılır.",
         "responses": {
           "200": {
             "description": "OK",
@@ -1998,6 +2025,8 @@
         "tags": [
           "Me"
         ],
+        "summary": "Aktif plan bilgisi",
+        "description": "Tenant'ın güncel abonelik planını, kalan kotalarını (günlük/aylık) ve faturalandırma dönemini döner.",
         "responses": {
           "200": {
             "description": "OK",
@@ -4124,10 +4153,13 @@
         "tags": [
           "TenantApiKeys"
         ],
+        "summary": "API anahtarlarını listele",
+        "description": "Tenant'a ait API anahtarlarının ad/etiket ve durum özetini sayfalı olarak döner. **Secret değerleri sadece oluşturma/rotate cevaplarında bir kez görünür**, listede görünmez.",
         "parameters": [
           {
             "name": "page",
             "in": "query",
+            "description": "Sayfa numarası (1'den başlar).",
             "schema": {
               "type": "integer",
               "format": "int32",
@@ -4137,6 +4169,7 @@
           {
             "name": "page_size",
             "in": "query",
+            "description": "Sayfa boyutu.",
             "schema": {
               "type": "integer",
               "format": "int32",
@@ -4146,6 +4179,7 @@
           {
             "name": "search_term",
             "in": "query",
+            "description": "Görüntüleme adı veya client_id üzerinde arama.",
             "schema": {
               "type": "string"
             }
@@ -4153,6 +4187,7 @@
           {
             "name": "include_inactive",
             "in": "query",
+            "description": "Devre dışı (revoke edilmiş) anahtarları da listeye dahil eder.",
             "schema": {
               "type": "boolean",
               "default": false
@@ -4206,10 +4241,13 @@
         "tags": [
           "TenantApiKeys"
         ],
+        "summary": "Yeni API anahtarı oluştur",
+        "description": "Yeni bir API anahtarı çifti (`client_id` + `client_secret`) üretir. **Secret cevap içinde yalnızca tek seferlik döner — saklayın.** Kaybedilirse `rotate-secret` çağırılması gerekir.",
         "parameters": [
           {
             "name": "Idempotency-Key",
             "in": "header",
+            "description": "Aynı oluşturma isteğinin iki kez işlenmesini engelleyen anahtar.",
             "schema": {
               "type": "string"
             }
@@ -4283,11 +4321,14 @@
         "tags": [
           "TenantApiKeys"
         ],
+        "summary": "API anahtarı detayı",
+        "description": "Verilen API anahtarının metadata'sını (display name, kullanım istatistikleri, plan, IP whitelist) döner. Secret değeri içermez.",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "API anahtarı kaydının kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4461,11 +4502,14 @@
         "tags": [
           "TenantApiKeys"
         ],
+        "summary": "API anahtarı secret'ını yenile",
+        "description": "Yeni bir secret üretir; eski secret 24 saatlik bir geçiş süresi boyunca çalışmaya devam eder, ardından geçersiz olur. Bu süre içinde tüm istemcileri yeni secret ile güncellemeniz beklenir.\n\n**Güvenlik:** Secret'ın sızdığından şüpheleniyorsanız önce `rotate-secret` çağırın, sonra eski secret'ı acil olarak `revoke` edebilirsiniz.",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "Secret'ı yenilenecek API anahtarı kimliği.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -4474,6 +4518,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
+            "description": "Aynı rotate isteğinin tekrar işlenmesini engellemek için iletilen anahtar.",
             "schema": {
               "type": "string"
             }
@@ -5288,10 +5333,13 @@
         "tags": [
           "Validation"
         ],
+        "summary": "Kart numarasını doğrula",
+        "description": "Kart numarasının Luhn algoritmasına göre geçerliliğini, BIN'den banka/kart şemasını (Visa/Mastercard/Troy) ve kart tipini (kredi/debit/prepaid) döner. Form validasyonunda kullanışlıdır; kart bilgisi loglanmaz.",
         "parameters": [
           {
             "name": "Idempotency-Key",
             "in": "header",
+            "description": "İsteğe bağlı idempotency anahtarı.",
             "schema": {
               "type": "string"
             }
@@ -5345,10 +5393,13 @@
         "tags": [
           "Validation"
         ],
+        "summary": "IBAN doğrula",
+        "description": "IBAN'ın matematiksel geçerliliğini (mod-97 kontrolü) ve banka kodundan kayıtlı bankayı tespit eder. Geçersiz IBAN'larda formatı/yapısı sebep olarak işaretlenir.",
         "parameters": [
           {
             "name": "Idempotency-Key",
             "in": "header",
+            "description": "İsteğe bağlı idempotency anahtarı.",
             "schema": {
               "type": "string"
             }
@@ -5706,13 +5757,18 @@
       },
       "ClientCredentialsRequest": {
         "type": "object",
+        "description": "OAuth2 client credentials isteği. Konsol > API Anahtarları'ndan oluşturulan key/secret çiftiyle doldurulur.",
         "properties": {
           "client_id": {
             "type": "string",
+            "description": "API anahtarı kimliği (public id).",
+            "example": "acme-prod",
             "nullable": true
           },
           "client_secret": {
             "type": "string",
+            "description": "API anahtarı secret'ı. **Repo'ya commitlemeyin**, ortam değişkeni / secret manager'da saklayın.",
+            "example": "f8c4d2a1-8f8b-4f0c-9fbd-2c17a4ff90b1",
             "nullable": true
           }
         },
@@ -6394,13 +6450,19 @@
       },
       "LoginRequest": {
         "type": "object",
+        "description": "Kullanıcı adı/parola tabanlı login isteği.",
         "properties": {
           "username": {
             "type": "string",
+            "description": "Kullanıcı adı (e-posta veya benzersiz kullanıcı kodu).",
+            "example": "ayse.yilmaz@example.com",
             "nullable": true
           },
           "password": {
             "type": "string",
+            "format": "password",
+            "description": "Hesap parolası. Loglanmaz ve repo'ya commitlenmez.",
+            "example": "S3cret!Pass",
             "nullable": true
           }
         },
@@ -6408,9 +6470,11 @@
       },
       "LogoutRequest": {
         "type": "object",
+        "description": "Logout isteği.",
         "properties": {
           "refresh_token": {
             "type": "string",
+            "description": "Geçersiz kılınacak refresh token.",
             "nullable": true
           }
         },
@@ -6995,9 +7059,11 @@
       },
       "RefreshRequest": {
         "type": "object",
+        "description": "Token yenileme isteği.",
         "properties": {
           "refresh_token": {
             "type": "string",
+            "description": "Login/Token uçlarından dönen refresh token. Süresi dolmadan kullanılmalıdır.",
             "nullable": true
           }
         },
@@ -7005,25 +7071,37 @@
       },
       "RegisterUserRequest": {
         "type": "object",
+        "description": "Yeni kullanıcı kayıt isteği.",
         "properties": {
           "first_name": {
             "type": "string",
+            "description": "Kullanıcının adı.",
+            "example": "Ayşe",
             "nullable": true
           },
           "last_name": {
             "type": "string",
+            "description": "Kullanıcının soyadı.",
+            "example": "Yılmaz",
             "nullable": true
           },
           "email": {
             "type": "string",
+            "description": "E-posta adresi. Doğrulama maili buraya gönderilir; aynı tenant içinde benzersiz olmalı.",
+            "example": "ayse.yilmaz@example.com",
             "nullable": true
           },
           "company_name": {
             "type": "string",
+            "description": "İşyeri/firma adı (görüntüleme amaçlı).",
+            "example": "Acme Ticaret A.Ş.",
             "nullable": true
           },
           "password": {
             "type": "string",
+            "format": "password",
+            "description": "İlk parola. Minimum 8 karakter, en az bir büyük harf ve bir rakam içermelidir.",
+            "example": "S3cret!Pass",
             "nullable": true
           }
         },
@@ -7798,26 +7876,36 @@
       },
       "ValidateCardRequest": {
         "type": "object",
+        "description": "Kart doğrulama isteği.",
         "properties": {
           "card_number": {
             "type": "string",
+            "description": "Kart numarası (PAN). 13–19 hane, boşluksuz.",
+            "example": "4506347012345678",
             "nullable": true
           },
           "resolve": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "`true` ise BIN üzerinden banka, kart şeması ve tipi de çözümlenir; `false` ise yalnızca Luhn kontrolü yapılır.",
+            "example": true
           }
         },
         "additionalProperties": false
       },
       "ValidateIbanRequest": {
         "type": "object",
+        "description": "IBAN doğrulama isteği.",
         "properties": {
           "iban": {
             "type": "string",
+            "description": "Doğrulanacak IBAN. Boşluk/tire içerebilir; sunucu temizler.",
+            "example": "TR320010009999901234567890",
             "nullable": true
           },
           "resolve": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "`true` ise IBAN'ın ait olduğu banka kataloğdan çözümlenip cevaba eklenir.",
+            "example": true
           }
         },
         "additionalProperties": false
@@ -7839,55 +7927,72 @@
   ],
   "tags": [
     {
-      "name": "Auth"
+      "name": "Auth",
+      "description": "Tenant'a özel kimlik doğrulama uçları (Keycloak realm'ları üstünde). Login, register, refresh, logout ve `me` endpoint'lerini içerir; tüm path'lerde `{slug}` tenant kimliğidir."
     },
     {
-      "name": "InternalLookups"
+      "name": "Me",
+      "description": "Oturum açmış kullanıcının profili ve plan bilgisi."
     },
     {
-      "name": "InternalMerchants"
+      "name": "Users",
+      "description": "Tenant içi kullanıcı yönetimi: oluşturma, listeleme, rol atama ve şifre sıfırlama."
     },
     {
-      "name": "InternalPermissions"
+      "name": "TenantApiKeys",
+      "description": "Tenant'ın kendi API anahtarlarını yönetmesi: oluştur, listele, secret rotate, devre dışı bırak."
     },
     {
-      "name": "InternalTenantFeatures"
+      "name": "TenantRoles",
+      "description": "Tenant içi RBAC rolleri ve role atanan izinler."
     },
     {
-      "name": "Lookups"
+      "name": "Permissions",
+      "description": "Kullanıcılara verilen izin (grant) yönetimi."
     },
     {
-      "name": "Me"
+      "name": "Merchants",
+      "description": "Üye işyeri (merchant) kayıtları. Hiyerarşik yapı destekler — `parent_id` üzerinden alt merchant'lar tanımlanabilir."
     },
     {
-      "name": "Merchants"
+      "name": "Lookups",
+      "description": "Şehir, ilçe, banka, BIN ve MCC kodu gibi referans veriler. Form doldurma ve kart bilgisi tanıma için kullanılır."
     },
     {
-      "name": "Permissions"
+      "name": "Validation",
+      "description": "Kart numarası ve IBAN doğrulama yardımcı endpoint'leri."
     },
     {
-      "name": "PlatformFeatures"
+      "name": "PlatformTenants",
+      "description": "Platform yöneticisinin tenant kayıtlarını yönetmesi (Payven operasyon kullanımı). Tenant açma, askıya alma, plan değiştirme."
     },
     {
-      "name": "PlatformPlans"
+      "name": "PlatformTenantApiKeys",
+      "description": "Platform yöneticisinin herhangi bir tenant adına API anahtarı yönetmesi."
     },
     {
-      "name": "PlatformTenantApiKeys"
+      "name": "PlatformPlans",
+      "description": "Platform abonelik planları (Starter, Growth, Enterprise vb.) tanımları."
     },
     {
-      "name": "PlatformTenants"
+      "name": "PlatformFeatures",
+      "description": "Platform genelinde tanımlı özellik (feature) kataloğu."
     },
     {
-      "name": "TenantApiKeys"
+      "name": "InternalLookups",
+      "description": "Diğer Payven mikroservislerinden çağrılan dahili lookup uçları. Public kullanım için değildir."
     },
     {
-      "name": "TenantRoles"
+      "name": "InternalMerchants",
+      "description": "Diğer Payven mikroservislerinden merchant çözümleme uçları. Public kullanım için değildir."
     },
     {
-      "name": "Users"
+      "name": "InternalPermissions",
+      "description": "Servisler arası izin senkronizasyonu için dahili uç noktalar."
     },
     {
-      "name": "Validation"
+      "name": "InternalTenantFeatures",
+      "description": "Tenant feature flag'lerini diğer servislere açan dahili endpoint'ler."
     }
   ],
   "servers": [
