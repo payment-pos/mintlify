@@ -138,12 +138,10 @@
             ]
           },
           {
-            "group": "Backoffice",
+            "group": "Raporlama & İzleme",
             "pages": [
-              "sanal-pos/backoffice/connectors",
-              "sanal-pos/backoffice/configurations",
-              "sanal-pos/backoffice/settlements",
-              "sanal-pos/backoffice/chargebacks"
+              "sanal-pos/reporting/settlements",
+              "sanal-pos/reporting/chargebacks"
             ]
           },
           {
