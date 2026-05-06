@@ -187,7 +187,30 @@
         "groups": [
           {
             "group": "Genel Bakış",
-            "pages": ["para-transferi/overview"]
+            "pages": [
+              "para-transferi/overview",
+              "para-transferi/authentication",
+              "para-transferi/transfer-object"
+            ]
+          },
+          {
+            "group": "Transfer Akışı (4-Eyes)",
+            "pages": [
+              "para-transferi/transfers/bulk-create",
+              "para-transferi/transfers/bulk-approve",
+              "para-transferi/transfers/bulk-send"
+            ]
+          },
+          {
+            "group": "Webhook'lar",
+            "pages": [
+              "para-transferi/webhooks/overview",
+              "para-transferi/webhooks/events"
+            ]
+          },
+          {
+            "group": "Hata Kodları",
+            "pages": ["para-transferi/errors/overview"]
           }
         ]
       },

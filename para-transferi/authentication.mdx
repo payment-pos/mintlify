@@ -1,0 +1,113 @@
+---
+title: "Kimlik Doğrulama"
+description: "Para Transferi API'sine Bearer access token ile erişim."
+---
+
+Para Transferi API'si Payven'in standart OAuth 2.0 Client Credentials akışını kullanır. Identity'den alınan access token, `Authorization: Bearer <access_token>` header'ı ile tüm transfer endpoint'lerine gönderilir.
+
+<Note>
+**Genel akış, kod örnekleri ve token süreleri** için kanonik [Kimlik Doğrulama](/documentation/concepts/authentication) sayfasına bakın. Bu sayfa Para Transferi'ne özgü endpoint URL'lerini, zorunlu header'ları ve örnekleri içerir.
+</Note>
+
+## Endpoint URL'leri
+
+| Ortam | Identity (token alma) | Para Transferi API |
+|---|---|---|
+| **Sandbox** | `https://identity-sandbox.payven.com.tr` | `https://transfer-sandbox.payven.com.tr` |
+| **Production** | `https://identity.payven.com.tr` | `https://transfer.payven.com.tr` |
+
+## Hızlı başlangıç
+
+```bash
+# 1. Token al
+TOKEN=$(curl -s https://identity.payven.com.tr/api/v1/auth/payven/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_id":     "'"$PAYVEN_CLIENT_ID"'",
+    "client_secret": "'"$PAYVEN_CLIENT_SECRET"'"
+  }' | jq -r .access_token)
+
+# 2. Para Transferi API'yi çağır
+curl https://transfer.payven.com.tr/api/v1/transfers \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID"
+```
+
+## Zorunlu header'lar
+
+Tüm Para Transferi istekleri aşağıdaki header'ları içermelidir:
+
+| Header | Tip | Açıklama |
+|---|---|---|
+| `Authorization` | `Bearer <token>` | Identity'den alınan access token |
+| `X-Tenant-Id` | UUID | Kuruluşunuzun tenant kimliği. Multi-tenant izolasyon için zorunludur. |
+| `X-Request-Id` | UUID (opsiyonel) | İstek korelasyon kimliği. Vermezseniz Payven üretir; yanıt header'ı `X-Correlation-Id` ile karşılığı döner. |
+| `Idempotency-Key` | string | **POST istekleri için zorunlu önerilir.** Aynı isteğin iki kez işlenmesini engeller. Bkz. [Idempotency](/documentation/concepts/idempotency). |
+
+<Warning>
+**`X-Tenant-Id` zorunludur.** Para Transferi servisi, tenant izolasyonu için bu header'a güvenir. Eksik isteklere `400 Bad Request` döner.
+</Warning>
+
+## Merchant kimliği
+
+Access token içinde `tenant_id` ve varsa `merchant_id` claim olarak taşınır. Çoklu merchant senaryolarında override için:
+
+```http
+X-Merchant-Id:          3fa85f64-5717-4562-b3fc-2c963f66afa6
+X-External-Merchant-Id: M-IST-001
+```
+
+İki header birden gönderilirse `X-Merchant-Id` öncelikli olur. Detay: [Hesap Modeli](/documentation/account-model#merchant-kimligi-iki-form).
+
+## Yanıt header'ları
+
+```http
+X-Correlation-Id:       9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
+X-RateLimit-Limit:      200
+X-RateLimit-Remaining:  187
+X-RateLimit-Reset:      1746450896
+```
+
+| Header | Açıklama |
+|---|---|
+| `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Destek talebi açarken paylaşın. |
+| `X-RateLimit-*` | Mevcut kota durumu. [Detay](/documentation/concepts/rate-limiting). |
+| `Retry-After` | Yalnız `429` yanıtında — kaç saniye sonra tekrar denemeniz gerektiği. |
+| `Idempotent-Replayed` | Yalnız idempotent replay'lerde — yanıt cache'den döndüyse `true`. |
+
+## Yetkilendirme rolleri
+
+Para Transferi endpoint'leri **rol-bazlı yetkilendirme** gerektirir. 4-eyes principle gereği farklı adımlar farklı rolleri zorunlu kılar:
+
+| Rol | Yetki |
+|---|---|
+| `transfer-admin` | Tüm para transferi operasyonları (oluşturma + onay + gönderim + yönetim) |
+| `transfer-operator` | Transfer oluşturma + sorgulama (onay yetkisi yok) |
+| `transfer-viewer` | Salt okunur erişim |
+| `transfer-merchant-admin` | Bayi tarafı tam yetki |
+| `transfer-merchant-user` | Bayi tarafı operatör |
+
+`tenant-admin` rolü, transfer rollerini de kapsar (composite). Detay: kuruluşunuzun rol matrisini konsoldan **Ayarlar → Kullanıcılar** ekranından inceleyebilirsiniz.
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam | Çözüm |
+|---|---|---|---|
+| `400` | `tenant_id_required` | `X-Tenant-Id` header'ı eksik | Header'ı ekleyin |
+| `401` | `invalid_token` | `Authorization` header eksik / geçersiz | Token alın veya refresh edin |
+| `401` | `token_expired` | Access token süresi doldu | Refresh akışı |
+| `403` | `forbidden` | Bu rol bu kaynağı göremez | Kullanıcı rolünü kontrol edin |
+| `403` | `merchant_inactive` | Belirtilen merchant pasif statüde | Konsol → Merchants |
+| `403` | `product_not_licensed` | Para Transferi modülü planınızda etkin değil | Plan yükseltme |
+| `429` | `rate_limit_exceeded` | Limit aşıldı | `Retry-After` header'ına uyun |
+
+Tam hata kataloğu: [Hata Yönetimi](/documentation/concepts/errors).
+
+## Güvenlik kuralları
+
+<Check>**Token cache** — Her API çağrısında token alıp Identity'yi yormayın. Bellek-içi cache + 60sn margin ile auto-refresh kullanın.</Check>
+<Check>**Sadece sunucu tarafı** — `client_secret`'ı frontend, mobil veya public repo'ya **asla** koymayın.</Check>
+<Check>**HTTPS zorunlu** — HTTP istekleri reddedilir.</Check>
+<Check>**Production = ayrı client** — Production ve sandbox için ayrı `client_id`/`client_secret` kullanın.</Check>
+<Check>**IP whitelist** — Production client'ları için zorunlu kabul edin (Identity tarafında enforce edilir).</Check>
+<Check>**Loglarda maskele** — `access_token`, `client_secret`, hesap numaraları ve IBAN değerlerini log'lara yazmayın.</Check>

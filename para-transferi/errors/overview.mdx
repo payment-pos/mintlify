@@ -1,0 +1,142 @@
+---
+title: "Hata Kodları"
+description: "Para Transferi domain hata kodları ve banka yanıt kodları."
+---
+
+Para Transferi hata kodları üç kategoride döner: **Payven domain kodları** (transfer iş kuralı), **HTTP canonical kodlar** (auth, validation, rate limit) ve **banka yanıt kodları** (`provider_error_code`).
+
+Tüm hatalar [RFC 9457 problem+json](/documentation/concepts/errors) zarfında uygun HTTP durum koduyla döner:
+
+```http
+HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/problem+json
+```
+
+```json
+{
+  "type":          "https://docs.payven.com.tr/errors/insufficient_balance",
+  "title":         "Kaynak hesapta yeterli bakiye yok",
+  "status":        422,
+  "code":          "insufficient_balance",
+  "detail":        "Talep edilen tutar (1.500.000 kuruş) hesap bakiyesini aşıyor.",
+  "instance":      "/api/v1/transfers/bulk/send",
+  "correlationId": "9f1c8e76-..."
+}
+```
+
+## Transfer yaşam döngüsü
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `transfer_not_found` | Verilen `transfer_id` bulunamadı veya bu tenant'a ait değil |
+| `404` | `source_account_not_found` | `source_account_id` bulunamadı |
+| `404` | `recipient_not_found` | `recipient_id` bulunamadı |
+| `422` | `invalid_state_transition` | Transfer mevcut durumdan istenen aksiyona geçemez (örn. `pending` olmayan transfer onaylanamaz) |
+| `422` | `payment_already_approved` | Transfer zaten onaylanmış |
+| `422` | `payment_already_sent` | Transfer zaten gönderilmiş |
+| `422` | `payment_already_rejected` | Transfer zaten reddedilmiş |
+| `409` | `duplicate_external_id` | Aynı `external_id` ile başka bir transfer zaten var |
+
+## Tutar ve hesap kuralları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `422` | `invalid_amount` | Tutar pozitif değil, sıfır veya minimum altında |
+| `422` | `invalid_currency` | Para birimi desteklenmiyor (şu an yalnız `TRY`) |
+| `422` | `insufficient_balance` | Kaynak hesapta yeterli bakiye yok |
+| `422` | `daily_limit_exceeded` | Hesap günlük transfer limiti aşıldı |
+| `422` | `monthly_limit_exceeded` | Hesap aylık transfer limiti aşıldı |
+| `422` | `single_transfer_limit_exceeded` | Tek transferde izin verilen üst tutar aşıldı |
+| `403` | `source_account_inactive` | Kaynak hesap pasif |
+| `403` | `source_account_unauthorized` | Bu kullanıcı kaynak hesaba yetkili değil |
+
+## Alıcı / IBAN
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `422` | `invalid_iban` | IBAN checksum'ı geçmiyor |
+| `422` | `iban_not_eligible` | IBAN seçilen transfer tipinde işlenemez (örn. yurtdışı IBAN'a FAST) |
+| `422` | `recipient_blocked` | Alıcı kara listede |
+| `422` | `recipient_validation_failed` | TC kimlik / vergi kimliği IBAN sahibiyle eşleşmiyor (banka tarafı kontrolü) |
+| `422` | `invalid_card` | Kart numarası Luhn checksum'ı geçmiyor (kart transferi) |
+
+## Transfer tipi
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `422` | `unsupported_transfer_type` | Bu kaynak hesap bu transfer tipini desteklemiyor |
+| `422` | `fast_amount_limit` | FAST için maksimum tutar (200.000 TL) aşıldı |
+| `422` | `fast_window_closed` | FAST sistemi geçici olarak hizmet dışı |
+| `422` | `eft_window_closed` | EFT saatleri dışında EFT talebi |
+
+## Banka tarafı
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `422` | `bank_declined` | Banka transferi reddetti — `provider_error_code` daha spesifik bilgi taşır |
+| `504` | `bank_timeout` | Banka yanıt vermedi (otomatik retry tetiklenmiş olabilir) |
+| `503` | `connector_unavailable` | Banka konnektörü geçici olarak devre dışı (circuit breaker açık) |
+| `502` | `bank_system_error` | Banka tarafında bilinmeyen hata |
+
+## Validasyon ve auth
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `400` | `validation_failed` | İstek alanları geçersiz — `errors[]` ile detay |
+| `400` | `tenant_id_required` | `X-Tenant-Id` header'ı eksik |
+| `401` | `invalid_token` | Token eksik / geçersiz |
+| `403` | `forbidden` | Rol yetersiz (örn. `transfer-admin` gerektiren endpoint'e `transfer-operator` ile istek) |
+| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
+| `429` | `rate_limit_exceeded` | İstek limiti aşıldı — `Retry-After` header'ına uyun |
+
+## Banka yanıt kodları (`provider_error_code`)
+
+`bank_declined` durumunda banka tarafından dönen orijinal kod `provider_error_code` alanında taşınır. Yaygın kodlar:
+
+| Kod | Açıklama | Müşteriye gösterim |
+|---|---|---|
+| `01` | Yetersiz bakiye | "Hesabınızda yeterli bakiye yok." |
+| `02` | Hesap bulunamadı | "Alıcı IBAN'ı geçersiz veya kapalı." |
+| `03` | Hesap dondurulmuş / blokeli | "Alıcı hesabı işleme uygun değil." |
+| `04` | Limit aşımı | "Bu transfer banka limitlerini aşıyor." |
+| `05` | TC kimlik eşleşmiyor | "Alıcı bilgilerinde uyumsuzluk." |
+| `91` | Banka sistemi yanıt vermedi | (Otomatik retry devreye girer) |
+| `96` | Sistem hatası | (Otomatik retry) |
+
+Banka-spesifik tam kod listesi konsoldaki **Konnektör Hata Kodları** ekranında bulunabilir.
+
+## Müşteriye gösterme
+
+`detail` alanı son kullanıcıya gösterilebilir nitelikte yazılır. Yine de hassas durumlarda (recipient_blocked, fraud şüphesi) genel bir mesajla geçiştirmek daha güvenlidir:
+
+```javascript
+function userMessage(problem) {
+  switch (problem.code) {
+    case "insufficient_balance":
+    case "daily_limit_exceeded":
+    case "monthly_limit_exceeded":
+      return problem.detail;
+    case "recipient_blocked":
+    case "recipient_validation_failed":
+      return "Transfer gerçekleştirilemedi. Lütfen alıcı bilgilerinizi kontrol edin.";
+    case "bank_declined":
+      return "Bankanız transferi onaylamadı. Lütfen sonra tekrar deneyin.";
+    default:
+      return "Transfer şu an gerçekleştirilemedi. Lütfen tekrar deneyin.";
+  }
+}
+```
+
+## Destek talebi
+
+Her hata yanıtında dönen **`correlationId`** değerini paylaşın — log zincirini saniyeler içinde bulabiliriz. Yanıt header'ındaki `X-Correlation-Id` ile gövdedeki `correlationId` aynı değerdir.
+
+```text
+Konu:    Transfer 422 — insufficient_balance
+Detay:   correlationId: 9f1c8e76-...
+         transfer_id:   8e3f5c12-...
+         external_id:   PAYROLL-001
+         zaman:         2026-05-03T15:34:58+03:00
+```
+
+Genel hata yönetimi prensibi: [Hata Yönetimi (Konsept)](/documentation/concepts/errors).

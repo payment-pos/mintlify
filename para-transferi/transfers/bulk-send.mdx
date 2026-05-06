@@ -1,0 +1,148 @@
+---
+title: "3. Adım — Bankaya Gönder (Send)"
+description: "Onaylı transferleri bankaya gönder, işlemi başlat."
+---
+
+Send, 4-eyes akışının son adımıdır. **`approved`** durumdaki transferler bankaya gönderilir, işlem başlatılır. Bu adımdan sonra para hesaplarınızdan çekilir.
+
+## Endpoint
+
+```http
+POST /api/v1/transfers/bulk/send
+```
+
+**Yetki:** `transfer-admin` rolü gerektirir.
+
+<Warning>
+**Bu adım geri alınamaz.** Bankaya gönderim başladıktan sonra `processing` aşamasına geçen transfer ancak banka tarafında reddedilirse `failed` olur. Hesaplarınızdan para çekilir.
+</Warning>
+
+## İstek
+
+```bash
+curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/send \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "Idempotency-Key: payroll-2026-05-01-send" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transfer_ids": [
+      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "9f3d2b8e-..."
+    ]
+  }'
+```
+
+| Alan | Tip | Zorunlu | Açıklama |
+|---|---|---|---|
+| `transfer_ids[]` | UUID array | ✅ | Gönderilecek transfer kimlikleri (max 1000 / istek) |
+
+## Yanıt
+
+```http
+HTTP/1.1 202 Accepted
+Content-Type: application/json
+```
+
+```json
+{
+  "sent": [
+    {
+      "id":           "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "status":       "processing",
+      "sent_date":    "2026-05-03T12:34:58.000+00:00"
+    },
+    {
+      "id":           "9f3d2b8e-...",
+      "status":       "completed",
+      "sent_date":    "2026-05-03T12:34:58.500+00:00",
+      "processed_date":"2026-05-03T12:34:59.234+00:00",
+      "receipt_no":   "TRF-20260503-0001"
+    }
+  ],
+  "skipped": [],
+  "total_sent": 2
+}
+```
+
+`202 Accepted` — istek alındı, banka çağrıları yapıldı. Yanıttaki status'lar:
+
+| Status | Anlam | Sonraki adım |
+|---|---|---|
+| `processing` | Bankaya gönderildi, yanıt bekleniyor | Webhook bekleyin veya `GET /transfers/{id}` ile sorgulayın |
+| `completed` | Banka senkron onayladı (genellikle remittance, küçük tutarlar) | İşlem tamam |
+| `delivered` | Banka FAST kanalında kabul etti, hesap geçişi asenkron | Sonradan `completed` olur, webhook gelir |
+| `failed` | Banka reddi (yetersiz bakiye, blok vb.) | `error_code` inceleyin |
+
+## Asenkron sonuç
+
+FAST ve EFT işlemleri çoğu zaman asenkron tamamlanır. `processing` veya `delivered` döndüğünde nihai sonucu **webhook** ile yakalayın:
+
+| Webhook olayı | Tetikleyici |
+|---|---|
+| `transfer.succeeded` | Transfer başarıyla tamamlandı (`completed`) |
+| `transfer.failed` | Banka reddi veya teknik hata |
+
+Detay: [Webhook Olayları](/para-transferi/webhooks/events).
+
+Webhook gelmemişse `GET /api/v1/transfers/{id}` ile son durumu sorgulayabilirsiniz — bkz. [Transfer Detayı](/para-transferi/inquiries/transfer-detail).
+
+## Banka tarafından red
+
+Banka isteği reddederse yanıt **`422 Unprocessable Entity` + `application/problem+json`** olarak döner:
+
+```http
+HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/problem+json
+```
+
+```json
+{
+  "type":          "https://docs.payven.com.tr/errors/insufficient_balance",
+  "title":         "Kaynak hesapta yeterli bakiye yok",
+  "status":        422,
+  "code":          "insufficient_balance",
+  "detail":        "Talep edilen tutar (1.500.000 kuruş) hesap bakiyesini aşıyor.",
+  "instance":      "/api/v1/transfers/bulk/send",
+  "correlationId": "9f1c8e76-..."
+}
+```
+
+Banka tarafı detayını sonradan `GET /api/v1/transfers/{id}` ile sorgulayabilirsiniz; `error_code` ve `provider_error_code` alanları yanıt gövdesinde data olarak taşınır.
+
+## Akıllı yönlendirme ve fallback
+
+Sender hesabınız birden fazla banka konnektörüne bağlıysa, Payven uygun olanı seçer. Birinci konnektör hata verirse otomatik fallback'e düşer (`success_sender_account_id` yanıtta gerçek kullanılan hesabı taşır). Bu sırada `retry_count` artar.
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `403` | `forbidden` | `transfer-admin` rolü yok |
+| `404` | `transfer_not_found` | Tüm verilen ID'ler bulunamadı |
+| `422` | `invalid_state_transition` | Transfer `approved` durumunda değil |
+| `422` | `insufficient_balance` | Kaynak hesapta yeterli bakiye yok |
+| `422` | `bank_declined` | Banka reddetti — `provider_error_code` daha spesifik bilgi taşır |
+| `422` | `recipient_blocked` | Alıcı kara listede |
+| `422` | `iban_not_eligible` | IBAN seçilen transfer tipinde işlenemez (örn. yurtdışı IBAN'a FAST) |
+| `503` | `connector_unavailable` | Banka konnektörü geçici olarak devre dışı |
+| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
+
+Hata zarfı RFC 9457 problem+json. Detay: [Hata Yönetimi](/documentation/concepts/errors).
+
+## Sonraki adımlar
+
+<CardGroup cols={2}>
+  <Card title="Webhook entegrasyonu" icon="bell" href="/para-transferi/webhooks/overview">
+    Asenkron sonuçları gerçek zamanlı yakalayın.
+  </Card>
+  <Card title="Transfer detayı" icon="file-magnifying-glass" href="/para-transferi/inquiries/transfer-detail">
+    Tek bir transferin son durumunu sorgulayın.
+  </Card>
+  <Card title="Dekont indirme" icon="file-arrow-down" href="/para-transferi/transfers/receipt">
+    Tamamlanmış transferin makbuz PDF'i.
+  </Card>
+  <Card title="Tekrarlayan transfer" icon="repeat" href="/para-transferi/transfers/recurring">
+    Periyodik (maaş, kira, abonelik) transferler.
+  </Card>
+</CardGroup>
