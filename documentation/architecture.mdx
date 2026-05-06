@@ -94,6 +94,6 @@ Her servis kendi alt-domain'i üzerinden hizmet verir. Tüm path'ler `/api/v1` i
 | **Sanal POS** | `https://vpos-sandbox.payven.com.tr` | `https://vpos.payven.com.tr` |
 | **Para Transferi** | `https://transfer-sandbox.payven.com.tr` | `https://transfer.payven.com.tr` |
 
-Fraud servisi bağımsız bir API olarak değil, **Sanal POS akışlarının içinde** çağrılır — ayrı bir base URL'e ihtiyaç duymazsınız (bkz. [Fraud Genel Bakış](/fraud/overview)). Konsol ([dashboard.payven.com.tr](https://dashboard.payven.com.tr)) tarayıcıdan kullanılır, programatik bir API değildir.
+Fraud kontrolü Sanal POS akışlarının içinde **otomatik** çalışır — sizin tarafınızdan ayrı bir API çağrısı gerekmez. Kural yönetimi konsoldan yapılır. Konsol ([dashboard.payven.com.tr](https://dashboard.payven.com.tr)) tarayıcıdan kullanılır, programatik bir API değildir.
 
 Sandbox ortamı, kuruluşunuzun konnektör konfigürasyonuna göre ya simülasyonla yanıt üretir ya da bankanın test ortamına gerçek çağrı atar — bkz. [Sandbox Ortamı](/sanal-pos/test/sandbox#banka-cagri-modu). Production geçişi öncesinde [Go-live kontrol listesini](/documentation/security/go-live-checklist) tamamlayın.

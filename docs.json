@@ -230,15 +230,6 @@
         ]
       },
       {
-        "tab": "Fraud",
-        "groups": [
-          {
-            "group": "Genel Bakış",
-            "pages": ["fraud/overview"]
-          }
-        ]
-      },
-      {
         "tab": "Identity & Auth",
         "groups": [
           {
@@ -298,13 +289,6 @@
             "openapi": {
               "source": "/api-reference/transfer/openapi.json",
               "directory": "api-reference/transfer"
-            }
-          },
-          {
-            "group": "Fraud",
-            "openapi": {
-              "source": "/api-reference/fraud/openapi.json",
-              "directory": "api-reference/fraud"
             }
           },
           {
