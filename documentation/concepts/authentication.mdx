@@ -10,7 +10,7 @@ Payven API'leri **OAuth 2.0 Client Credentials** akışı ile çalışır. Backe
 1. **Token al** — `client_id` + `client_secret` ile Identity'den `access_token` iste.
 2. **API'yi çağır** — `Authorization: Bearer <access_token>` header'ı ile Sanal POS, Para Transferi, Fraud veya Identity endpoint'lerini kullan.
 
-Token süresi dolduğunda yenisini alır veya `refresh_token` ile yenilersin. SDK örnekleri bu döngüyü sizin için yönetir.
+Token süresi dolduğunda yenisini alır veya `refresh_token` ile yenilersin. Kod örnekleri bu döngüyü sizin için yönetir.
 
 ## Akış (özet)
 
@@ -117,7 +117,7 @@ Yanıt yine `access_token` + (rotasyonlu) `refresh_token` döner. Eski `refresh_
 | **Refresh token** | 30 gün (idle) | 30 gün hareketsiz kalırsa expire olur. Düzenli kullanımda her refresh'te rotate edilir, pratikte expire olmaz. Şüpheli durumda `client_credentials` ile baştan token alın. |
 
 <Note>
-**Pratik öneri:** Access token'ı **expiry'sine 60 saniye kala** yenileyin (clock-skew + network latency için margin). Aşağıdaki SDK örnekleri bunu otomatik yapar.
+**Pratik öneri:** Access token'ı **expiry'sine 60 saniye kala** yenileyin (clock-skew + network latency için margin). Aşağıdaki kod örnekleri bunu otomatik yapar.
 </Note>
 
 <Warning>
@@ -126,7 +126,7 @@ rate limit vardır (token endpoint'i IP başına dakikada 10). Token'ı bellekte
 expire olana kadar yeniden kullanın.
 </Warning>
 
-## SDK örnekleri (auto-refresh)
+## Kod örnekleri (auto-refresh)
 
 <CodeGroup>
 ```javascript Node.js
@@ -412,8 +412,8 @@ Tam hata zarfı şekli için: [Hata Yönetimi](/documentation/concepts/errors).
 ## SSS
 
 <AccordionGroup>
-  <Accordion title="Stripe gibi tek 'sk_live_xxx' secret'la çağıramaz mıyım?">
-    Hayır — Payven OAuth 2.0 Client Credentials standardını kullanır. İki adımda olsa da SDK'lar bu adımı sizin için saklar; yukarıdaki örneklerde `client.call(...)` tek bir çağrıdır. Standard tabanlı olması, herhangi bir OIDC kitaplığıyla çalışabilmesini sağlar.
+  <Accordion title="Tek bir secret ile doğrudan API çağıramaz mıyım?">
+    Hayır — Payven OAuth 2.0 Client Credentials standardını kullanır. Bu iki adımlı bir akıştır: önce `client_id` + `client_secret` ile kısa ömürlü bir access token alırsınız, sonra her API çağrısında bu token'ı kullanırsınız. Üstteki kod örneklerindeki istemci sınıfı bu adımı sizin için saklar; tek bir `call(...)` ile çağırırsınız. Standart tabanlı olması, herhangi bir OAuth 2.0 / OIDC kitaplığıyla çalışabilmesini sağlar.
   </Accordion>
   <Accordion title="Token süresini uzatabilir miyim?">
     Standart yapılandırmada 5dk access / 30 gün refresh idle. Daha uzun süre ihtiyacı için müşteri başarısı ekibine ulaşın — `offline_access` scope ile expire olmayan refresh token tahsis edilebilir.
