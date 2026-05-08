@@ -16,16 +16,16 @@ Fatura ödeme ve açık bankacılık modülleri geliştirme aşamasındadır.
     Tüm endpoint'ler, parametre şemaları ve **deneme paneli** ile tarayıcıdan sandbox üzerinden deneme.
   </Card>
   <Card title="Mimari" icon="diagram-project" href="/documentation/architecture">
-    Servis topolojisi, kuruluş & merchant modeli, ortam URL'leri — 5 dakikada ekosistem.
+    Servis topolojisi, organizasyon & merchant modeli, ortam URL'leri — 5 dakikada ekosistem.
   </Card>
   <Card title="Hesap Modeli" icon="layer-group" href="/documentation/account-model">
-    Kuruluş, merchant ve API anahtarı arasındaki ilişki — onboarding'den önce 5 dakika.
+    Organizasyon, merchant ve API anahtarı arasındaki ilişki — onboarding'den önce 5 dakika.
   </Card>
 </CardGroup>
 
 ## API'a ilk bakış
 
-Authorization header'ı + JSON body — beklediğiniz gibi:
+Sanal POS üzerinde tek isteklik bir Non-3D ödeme örneği. İstek; OAuth 2.0 Bearer token ile yetkilendirilir, kart bilgisi JSON gövdesinde iletilir, akıllı yönlendirme motoru uygun konnektörü seçer ve banka onayını eş zamanlı döndürür.
 
 ```bash
 curl https://vpos.payven.com.tr/api/v1/payments \
@@ -46,7 +46,7 @@ curl https://vpos.payven.com.tr/api/v1/payments \
   }'
 ```
 
-Token alımı, 3D Secure akışı ve webhook doğrulaması için: [Hızlı Başlangıç](/documentation/quickstart).
+Tutarlar kuruş cinsindendir (`15000` = 150,00 ₺). Başarılı yanıt `200 OK` döner; gövdede Payven `transaction_id` ile banka yanıt detayları yer alır. Token alımı, 3D Secure akışı ve webhook doğrulaması için: [Hızlı Başlangıç](/documentation/quickstart).
 
 ## Ürün ailesi
 
@@ -70,7 +70,7 @@ Sanal POS akışları içinde **gerçek zamanlı fraud kontrolü** otomatik çal
 ## Entegrasyon adımları
 
 <Steps>
-  <Step title="Kuruluş hesabınızı açın">
+  <Step title="Organizasyon hesabınızı açın">
     [Konsola](https://dashboard.payven.com.tr) erişim için satış ekibimizle iletişime geçin. Onboarding 1-2 iş günü sürer.
   </Step>
   <Step title="API anahtarınızı oluşturun">

@@ -62,7 +62,7 @@ Bu ekran her bankanın özel kod açıklamalarını, Payven domain kodu eşlemes
 |---|---|
 | `validation_failed`, `invalid_*` | İsteği düzeltip yeniden gönderin (retry yok) |
 | `unauthorized`, `invalid_token` | Token alın / refresh edin |
-| `forbidden`, `merchant_inactive`, `product_not_licensed` | İlgili kuruluş yöneticisi / Payven satış ile iletişime geçin |
+| `forbidden`, `merchant_inactive`, `product_not_licensed` | İlgili organizasyon yöneticisi / Payven satış ile iletişime geçin |
 | `rate_limit_exceeded` | `Retry-After` header'ına uyup backoff ile retry edin |
 | `idempotency_key_in_use` | Aynı anahtarla farklı body göndermeyi durdurun veya farklı anahtar üretin |
 | `bank_declined` | Müşteriye nazik mesaj gösterip başka kart önerin (`provider_error_code` daha spesifik bilgi) |

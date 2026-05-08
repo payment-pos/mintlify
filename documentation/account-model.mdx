@@ -1,25 +1,25 @@
 ---
 title: "Hesap Modeli"
-description: "Kuruluş, merchant ve API anahtarı arasındaki ilişki."
+description: "Organizasyon, merchant ve API anahtarı arasındaki ilişki."
 ---
 
-Payven'i doğru kullanmak için **kuruluş**, **merchant** ve **API anahtarı** arasındaki farkı anlamak gerekir.
+Payven'i doğru kullanmak için **organizasyon**, **merchant** ve **API anahtarı** arasındaki farkı anlamak gerekir.
 
 ## Kavramlar
 
 <Tabs>
-  <Tab title="Kuruluş (Tenant)">
-    Payven'in birincil müşterisidir. Lisanslı ödeme kuruluşu, banka veya büyük e-ticaret platformu. Bir kuruluşun:
+  <Tab title="Organizasyon (Tenant)">
+    Payven'in birincil müşterisidir. Lisanslı ödeme kuruluşu, banka veya büyük e-ticaret platformu. Bir organizasyonun:
 
     - Birden fazla **merchant**'ı,
     - Birden fazla **API anahtarı** (`client_id` / `client_secret` çifti),
     - Birden fazla **banka konfigürasyonu**,
     - Bir **plan**'ı (kullanım kotaları) olur.
 
-    Tüm idari işlemler — kullanıcı yönetimi, plan, banka credential'ları, akıllı yönlendirme kuralları — kuruluş seviyesindedir.
+    Tüm idari işlemler — kullanıcı yönetimi, plan, banka credential'ları, akıllı yönlendirme kuralları — organizasyon seviyesindedir.
   </Tab>
   <Tab title="Merchant">
-    Kuruluşa bağlı bayi veya alt müşteridir. Her ödeme bir merchant adına gerçekleştirilir. Bir merchant'ın:
+    Organizasyona bağlı bayi veya alt müşteridir. Her ödeme bir merchant adına gerçekleştirilir. Bir merchant'ın:
 
     - **Kimliği** (`merchantId` — UUID),
     - **Dış kimliği** (`externalId` — sizin sisteminizdeki kimlik),
@@ -41,14 +41,14 @@ Payven'i doğru kullanmak için **kuruluş**, **merchant** ve **API anahtarı** 
 
     Bu çift ile [Payven Identity'den](/documentation/concepts/authentication) bir **access token** alır, sonraki tüm istekleri `Authorization: Bearer <access_token>` header'ı ile yaparsınız.
 
-    API anahtarı **kuruluş seviyesindedir** — aynı çiftle kuruluşa bağlı tüm merchant'lar adına işlem yapabilirsiniz. Hangi merchant adına işlem yaptığınızı her istekte ilgili merchant header'ı ile belirtirsiniz.
+    API anahtarı **organizasyon seviyesindedir** — aynı çiftle organizasyona bağlı tüm merchant'lar adına işlem yapabilirsiniz. Hangi merchant adına işlem yaptığınızı her istekte ilgili merchant header'ı ile belirtirsiniz.
   </Tab>
 </Tabs>
 
 ## Bir bakışta hiyerarşi
 
 ```
-Kuruluş (Tenant)
+Organizasyon (Tenant)
 ├── Plan ve kotalar
 ├── Kullanıcılar (konsol erişimi)
 ├── API anahtarları (client_id + client_secret çiftleri)

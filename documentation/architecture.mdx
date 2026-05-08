@@ -25,7 +25,7 @@ flowchart LR
 
 | Servis | Sorumluluk |
 |---|---|
-| **Identity** | Kuruluş ve kullanıcı yönetimi, API anahtarı yaşam döngüsü, OAuth 2.0 token üretimi, ortak referans veriler (banka, BIN, MCC, şehir/ilçe) |
+| **Identity** | Organizasyon ve kullanıcı yönetimi, API anahtarı yaşam döngüsü, OAuth 2.0 token üretimi, ortak referans veriler (banka, BIN, MCC, şehir/ilçe) |
 | **Sanal POS** | Kart ödemeleri, 3D Secure, akıllı yönlendirme, mutabakat, webhook teslimi |
 | **Para Transferi** | Çoklu banka üzerinden FAST, EFT ve havale yönlendirme |
 | **Fraud** | Sanal POS akışlarının içinde otomatik çalışan risk motoru — kural yönetimi, kara/beyaz liste, manuel inceleme kuyruğu |
@@ -36,13 +36,13 @@ Tüm ürün servisleri aynı **Bearer access token** ile kimliklendirilir; servi
 **Yol haritasında:** Fatura Ödeme ve Açık Bankacılık modülleri geliştirme aşamasındadır. Bu servisler henüz canlı API'ye dahil değildir. [Yol haritası](/#yol-haritasi).
 </Note>
 
-## Kuruluş ve merchant modeli
+## Organizasyon ve merchant modeli
 
 Payven üç katmanlı bir hesap yapısı kullanır:
 
 ```mermaid
 flowchart TB
-    T["Kuruluş (Tenant)<br/><i>Lisanslı ödeme kuruluşu</i>"]
+    T["Organizasyon (Tenant)<br/><i>Lisanslı ödeme kuruluşu</i>"]
     M1["Merchant 1<br/><i>Bayi / Müşteri</i>"]
     M2["Merchant 2"]
     M3["Merchant 3"]
@@ -56,8 +56,8 @@ flowchart TB
     M1 --> SM2
 ```
 
-- **Kuruluş (Tenant):** Payven'in birincil müşterisi. Lisanslı ödeme kuruluşu, banka veya büyük platform. Tüm API anahtarları ve banka konfigürasyonları bu seviyede yönetilir.
-- **Merchant:** Kuruluşa bağlı bayi veya alt müşteri. Her ödeme bir merchant adına gerçekleştirilir.
+- **Organizasyon (Tenant):** Payven'in birincil müşterisi. Lisanslı ödeme kuruluşu, banka veya büyük platform. Tüm API anahtarları ve banka konfigürasyonları bu seviyede yönetilir.
+- **Merchant:** Organizasyona bağlı bayi veya alt müşteri. Her ödeme bir merchant adına gerçekleştirilir.
 - **Alt Merchant:** İsteğe bağlı olarak merchant ağacında ek seviye (örneğin marketplace satıcıları).
 
 Detay: [Hesap Modeli](/documentation/account-model).
@@ -96,4 +96,4 @@ Her servis kendi alt-domain'i üzerinden hizmet verir. Tüm path'ler `/api/v1` i
 
 Fraud kontrolü Sanal POS akışlarının içinde **otomatik** çalışır — sizin tarafınızdan ayrı bir API çağrısı gerekmez. Kural yönetimi konsoldan yapılır. Konsol ([dashboard.payven.com.tr](https://dashboard.payven.com.tr)) tarayıcıdan kullanılır, programatik bir API değildir.
 
-Sandbox ortamı, kuruluşunuzun konnektör konfigürasyonuna göre ya simülasyonla yanıt üretir ya da bankanın test ortamına gerçek çağrı atar — bkz. [Sandbox Ortamı](/sanal-pos/test/sandbox#banka-cagri-modu). Production geçişi öncesinde [Go-live kontrol listesini](/documentation/security/go-live-checklist) tamamlayın.
+Sandbox ortamı, organizasyonunuzun konnektör konfigürasyonuna göre ya simülasyonla yanıt üretir ya da bankanın test ortamına gerçek çağrı atar — bkz. [Sandbox Ortamı](/sanal-pos/test/sandbox#banka-cagri-modu). Production geçişi öncesinde [Go-live kontrol listesini](/documentation/security/go-live-checklist) tamamlayın.

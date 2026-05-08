@@ -10,7 +10,7 @@ Identity & Auth servisi, Payven platformunun **omurgasıdır**. Tüm ürünler i
     OAuth 2.0 Client Credentials akışıyla access token üretimi, refresh kullanımı ve süre yönetimi.
   </Card>
   <Card title="API Anahtarı Yönetimi" icon="key" href="/identity/api-keys/overview">
-    Kuruluş başına `client_id` / `client_secret` çiftlerinin üretimi, rotasyonu ve revoke.
+    Organizasyon başına `client_id` / `client_secret` çiftlerinin üretimi, rotasyonu ve revoke.
   </Card>
   <Card title="Referans Veriler" icon="database" href="/identity/lookups/banks">
     Banka, BIN, MCC, şehir/ilçe gibi ortak lookup tabloları.
@@ -37,7 +37,7 @@ Token nasıl alınır: [Kimlik Doğrulama](/documentation/concepts/authenticatio
 
 ## Slug tabanlı oturum
 
-Identity, çoklu kuruluş (multi-tenant) yapısı için **slug tabanlı** URL'ler kullanır:
+Identity, çoklu organizasyon (multi-tenant) yapısı için **slug tabanlı** URL'ler kullanır:
 
 ```
 POST /api/v1/auth/{slug}/token
@@ -46,7 +46,7 @@ POST /api/v1/auth/{slug}/logout
 GET  /api/v1/auth/{slug}/me
 ```
 
-`slug` kuruluşunuzun benzersiz tanımlayıcısıdır (örn. `acme-bank`); onboarding sırasında atanır.
+`slug` organizasyonunuzun benzersiz tanımlayıcısıdır (örn. `acme-bank`); onboarding sırasında atanır.
 
 ## Akış
 

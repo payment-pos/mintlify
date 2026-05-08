@@ -6,7 +6,7 @@ description: "Yabancı kart sahibine işlem tutarını kart para biriminde sunma
 DCC (Dynamic Currency Conversion), yabancı kart sahibine **kendi kart para biriminde** işlem tutarını gösteren akıştır. Müşteri TRY veya kart para birimi (USD, EUR, GBP) arasında seçim yapar.
 
 <Note>
-DCC özelliği kuruluşunuzun banka anlaşmasında etkin olmalıdır ve **DCC'yi destekleyen
+DCC özelliği organizasyonunuzun banka anlaşmasında etkin olmalıdır ve **DCC'yi destekleyen
 konnektör** üzerinden işlem geçmelidir. Etkinlik durumu için [destek ekibinize](/resources/support)
 danışın.
 </Note>
@@ -122,7 +122,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
 | HTTP | `code` | Anlam |
 |---|---|---|
 | `404` | `payment_not_found` | İşlem bulunamadı |
-| `422` | `dcc_not_available` | Kuruluşunuz veya kart için DCC etkin değil |
+| `422` | `dcc_not_available` | Organizasyonunuz veya kart için DCC etkin değil |
 | `422` | `dcc_offer_expired` | Teklif süresi doldu — yeni `POST /payments` ile baştan başlayın |
 | `422` | `dcc_invalid_state` | İşlem `dcc_pending` durumunda değil |
 

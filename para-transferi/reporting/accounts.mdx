@@ -1,9 +1,9 @@
 ---
-title: "Kuruluş Hesapları"
+title: "Organizasyon Hesapları"
 description: "Para transferi için kullanılan kaynak banka hesaplarınızı ve bakiyelerini görüntüleyin."
 ---
 
-Kuruluş hesapları, kuruluşunuzun **transfer çıkışında kullanılan** banka hesaplarıdır. Her hesap bir konnektör konfigürasyonuyla eşleşir — yani Payven üzerinden gerçek bir bankada gerçek bakiyenizdir.
+Organizasyon hesapları, organizasyonunuzun **transfer çıkışında kullanılan** banka hesaplarıdır. Her hesap bir konnektör konfigürasyonuyla eşleşir — yani Payven üzerinden gerçek bir bankada gerçek bakiyenizdir.
 
 Bu sayfa **raporlama / izleme** odaklıdır: bakiye sorgulama, hesap hareketlerini listeleme, muhasebe sistemine besleme.
 
@@ -28,7 +28,7 @@ curl https://transfer.payven.com.tr/api/v1/accounts \
   -H "X-Tenant-Id: $TENANT_ID"
 ```
 
-Yanıt (sayfasız, kuruluş başına tipik olarak <50 hesap):
+Yanıt (sayfasız, organizasyon başına tipik olarak <50 hesap):
 
 ```json
 {
