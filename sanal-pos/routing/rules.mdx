@@ -50,25 +50,25 @@ curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules \
 
 ## Alan referansı
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `name` | string | ✅ | İnsan-okur ad (raporlamada görünür) |
-| `priority` | short | ✅ | Değerlendirme sırası (düşük sayı = önce). 0-32767. |
-| `is_active` | bool | ❌ | Varsayılan `true` |
-| `card_bin` | string | ❌ | BIN başlangıcı (1-6 hane). Tek BIN için `card_bin_end` ile aynı verin. |
-| `card_bin_end` | string | ❌ | BIN aralığı sonu — `card_bin`–`card_bin_end` aralığı eşleşir |
-| `installment_count` | short | ❌ | Spesifik taksit sayısı (boş = her taksit) |
-| `min_amount`, `max_amount` | long (kuruş) | ✅ | Tutar aralığı |
-| `currency` | string | ❌ | Para birimi filtresi (boş = her para birimi). Şu an üretimde yalnız `TRY` aktif. |
-| `card_brand_filter` | enum | ❌ | `bonus`, `maximum`, `axess`, `world`, `paraf`, `cardfinans`, `wings` |
-| `card_type_filter` | enum | ❌ | `credit`, `debit`, `prepaid` |
-| `target_connector_config_id` | UUID | ✅ | Birinci tercih — hangi konnektör konfigürasyonu yanıtlayacak |
-| `fallback_connector_config_id` | UUID | ❌ | Birinci başarısız olursa Smart Retry hangisini denesin |
-| `weight` | short | ❌ | 0-100 — A/B trafik dağılımı veya skoring katkısı |
-| `success_rate` | decimal | ❌ | Son ölçülen başarı oranı (0-100) — score motoruna girer |
-| `average_response_time_ms` | int | ❌ | Son ortalama yanıt süresi — skor motoruna girer |
-| `cost_score` | short | ❌ | 0-100 (yüksek = daha ucuz). Skor motoruna girer. |
-| `daily_transaction_limit` | int | ❌ | Günlük işlem limiti — aşılırsa kural pas geçilir |
+| `name` | string | Zorunlu | İnsan-okur ad (raporlamada görünür) |
+| `priority` | short | Zorunlu | Değerlendirme sırası (düşük sayı = önce). 0-32767. |
+| `is_active` | bool | Opsiyonel | Varsayılan `true` |
+| `card_bin` | string | Opsiyonel | BIN başlangıcı (1-6 hane). Tek BIN için `card_bin_end` ile aynı verin. |
+| `card_bin_end` | string | Opsiyonel | BIN aralığı sonu — `card_bin`–`card_bin_end` aralığı eşleşir |
+| `installment_count` | short | Opsiyonel | Spesifik taksit sayısı (boş = her taksit) |
+| `min_amount`, `max_amount` | long (kuruş) | Zorunlu | Tutar aralığı |
+| `currency` | string | Opsiyonel | Para birimi filtresi (boş = her para birimi). Şu an üretimde yalnız `TRY` aktif. |
+| `card_brand_filter` | enum | Opsiyonel | `bonus`, `maximum`, `axess`, `world`, `paraf`, `cardfinans`, `wings` |
+| `card_type_filter` | enum | Opsiyonel | `credit`, `debit`, `prepaid` |
+| `target_connector_config_id` | UUID | Zorunlu | Birinci tercih — hangi konnektör konfigürasyonu yanıtlayacak |
+| `fallback_connector_config_id` | UUID | Opsiyonel | Birinci başarısız olursa Smart Retry hangisini denesin |
+| `weight` | short | Opsiyonel | 0-100 — A/B trafik dağılımı veya skoring katkısı |
+| `success_rate` | decimal | Opsiyonel | Son ölçülen başarı oranı (0-100) — score motoruna girer |
+| `average_response_time_ms` | int | Opsiyonel | Son ortalama yanıt süresi — skor motoruna girer |
+| `cost_score` | short | Opsiyonel | 0-100 (yüksek = daha ucuz). Skor motoruna girer. |
+| `daily_transaction_limit` | int | Opsiyonel | Günlük işlem limiti — aşılırsa kural pas geçilir |
 
 ## Skor formülü
 

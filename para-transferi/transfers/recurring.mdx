@@ -58,17 +58,17 @@ curl -X POST https://transfer.payven.com.tr/api/v1/recurringtransfers \
   }'
 ```
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `name` | string | ✅ | İnsan-okur ad (raporlama için) |
-| `external_id` | string | önerilir | Sizin sisteminizdeki kayıt kimliği |
-| `source_account_id` | UUID | ✅ | Hangi hesaptan çekilecek |
-| `recipient_id` | UUID | ✅ | Saklı alıcı kimliği (tek kullanımlık IBAN desteklenmez) |
-| `amount.value` | long (kuruş) | ✅ | Sabit tutar |
-| `transfer_type` | enum | ✅ | `fast`, `eft`, `remittance` |
-| `schedule` | object | ✅ | Takvim — bkz. aşağıda |
-| `starts_at` | datetime | ✅ | İlk üretim zamanı |
-| `ends_at` | datetime | ❌ | Son tarih (boş = sınırsız) |
+| `name` | string | Zorunlu | İnsan-okur ad (raporlama için) |
+| `external_id` | string | Önerilir | Sizin sisteminizdeki kayıt kimliği |
+| `source_account_id` | UUID | Zorunlu | Hangi hesaptan çekilecek |
+| `recipient_id` | UUID | Zorunlu | Saklı alıcı kimliği (tek kullanımlık IBAN desteklenmez) |
+| `amount.value` | long (kuruş) | Zorunlu | Sabit tutar |
+| `transfer_type` | enum | Zorunlu | `fast`, `eft`, `remittance` |
+| `schedule` | object | Zorunlu | Takvim — bkz. aşağıda |
+| `starts_at` | datetime | Zorunlu | İlk üretim zamanı |
+| `ends_at` | datetime | Opsiyonel | Son tarih (boş = sınırsız) |
 
 ### Schedule yapısı
 

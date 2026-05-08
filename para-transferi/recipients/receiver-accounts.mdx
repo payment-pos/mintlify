@@ -46,14 +46,14 @@ curl -X POST https://transfer.payven.com.tr/api/v1/receiveraccounts \
   }'
 ```
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `recipient_id` | UUID | ✅ | Hangi alıcıya bağlı |
-| `iban` | string | ✅ | TR ile başlayan 26 haneli IBAN |
-| `bank_id` | UUID | ❌ | IBAN'dan otomatik çözümlenir; manuel override için |
-| `label` | string | ❌ | "Maaş hesabı", "Vergi hesabı" gibi operatör etiketi |
-| `is_default` | bool | ❌ | Bu alıcının default hesabı mı? Aynı alıcıda yalnız bir default olabilir; `true` set edilirse diğeri otomatik `false` olur. |
-| `external_id` | string | önerilir | Sizin sisteminizdeki kayıt kimliği |
+| `recipient_id` | UUID | Zorunlu | Hangi alıcıya bağlı |
+| `iban` | string | Zorunlu | TR ile başlayan 26 haneli IBAN |
+| `bank_id` | UUID | Opsiyonel | IBAN'dan otomatik çözümlenir; manuel override için |
+| `label` | string | Opsiyonel | "Maaş hesabı", "Vergi hesabı" gibi operatör etiketi |
+| `is_default` | bool | Opsiyonel | Bu alıcının default hesabı mı? Aynı alıcıda yalnız bir default olabilir; `true` set edilirse diğeri otomatik `false` olur. |
+| `external_id` | string | Önerilir | Sizin sisteminizdeki kayıt kimliği |
 
 <Note>
 **IBAN doğrulama** önceden yapılır: oluşturma sırasında IBAN checksum kontrol edilir, geçersizse `422 invalid_iban` döner. Banka kimliği IBAN'ın 5-6. hanelerinden otomatik çözümlenir. Detay: [IBAN Doğrulama](/para-transferi/validation/iban).

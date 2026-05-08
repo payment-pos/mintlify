@@ -66,17 +66,17 @@ curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/create \
 
 ### İstek alanları
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `items[]` | array | ✅ | Bir veya daha fazla transfer kalemi (max 1000 / istek) |
-| `items[].source_account_id` | UUID | ✅ | Organizasyonunuzun hangi hesabından gönderim yapılacağı |
-| `items[].external_id` | string | önerilir | Sizin sisteminizdeki transfer kimliği (raporlama + idempotency için) |
-| `items[].description` | string | ❌ | Banka ekstresi açıklaması (max 100 karakter) |
-| `items[].transfer_type` | enum | ✅ | `fast`, `eft`, `remittance` veya `credit_card` |
-| `items[].amount.value` | long (kuruş) | ✅ | Tutar — kuruş cinsinden 64-bit tam sayı |
-| `items[].amount.currency_code` | string | ✅ | Şu an yalnız `"TRY"` |
-| `items[].recipient` | object | ✅ | Alıcı bilgisi (aşağıdaki üç moddan biri) |
-| `items[].scheduled_date` | datetime | ❌ | İleri tarihli transfer için. Boş = anlık. |
+| `items[]` | array | Zorunlu | Bir veya daha fazla transfer kalemi (max 1000 / istek) |
+| `items[].source_account_id` | UUID | Zorunlu | Organizasyonunuzun hangi hesabından gönderim yapılacağı |
+| `items[].external_id` | string | Önerilir | Sizin sisteminizdeki transfer kimliği (raporlama + idempotency için) |
+| `items[].description` | string | Opsiyonel | Banka ekstresi açıklaması (max 100 karakter) |
+| `items[].transfer_type` | enum | Zorunlu | `fast`, `eft`, `remittance` veya `credit_card` |
+| `items[].amount.value` | long (kuruş) | Zorunlu | Tutar — kuruş cinsinden 64-bit tam sayı |
+| `items[].amount.currency_code` | string | Zorunlu | Şu an yalnız `"TRY"` |
+| `items[].recipient` | object | Zorunlu | Alıcı bilgisi (aşağıdaki üç moddan biri) |
+| `items[].scheduled_date` | datetime | Opsiyonel | İleri tarihli transfer için. Boş = anlık. |
 
 ### Alıcı bilgisi — üç mod
 

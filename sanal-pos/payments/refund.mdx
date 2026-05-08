@@ -26,13 +26,13 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
   }'
 ```
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `amount` | int (kuruş) | ❌ | İade tutarı. Boş bırakılırsa **kalan tüm tutar** iade edilir. |
-| `currency` | string | ❌ | Para birimi. Belirtilmezse orijinal işlemin para birimi kullanılır. |
-| `reason` | string | ❌ | Serbest metin iade notu (max 500 karakter). Raporlamada görünür. |
-| `reason_code` | enum | ❌ | Yapılandırılmış iade sebebi: `customer_request`, `duplicate`, `fraudulent`, `product_not_received`, `product_unsatisfactory`, `subscription_canceled`, `other` |
-| `extra_properties` | object | ❌ | Konnektör-spesifik özel alanlar |
+| `amount` | int (kuruş) | Opsiyonel | İade tutarı. Boş bırakılırsa **kalan tüm tutar** iade edilir. |
+| `currency` | string | Opsiyonel | Para birimi. Belirtilmezse orijinal işlemin para birimi kullanılır. |
+| `reason` | string | Opsiyonel | Serbest metin iade notu (max 500 karakter). Raporlamada görünür. |
+| `reason_code` | enum | Opsiyonel | Yapılandırılmış iade sebebi: `customer_request`, `duplicate`, `fraudulent`, `product_not_received`, `product_unsatisfactory`, `subscription_canceled`, `other` |
+| `extra_properties` | object | Opsiyonel | Konnektör-spesifik özel alanlar |
 
 <Warning>
 **Idempotency-Key kullanın.** Operatör arayüzünde butonun iki kez basılması veya client tarafı retry sırasında **iki kez iade gerçekleşmesini** engeller. Önerilen pattern: `refund-{transaction_id}-{slot}` (slot = 1, 2, 3 ... her kısmi iade için artar).

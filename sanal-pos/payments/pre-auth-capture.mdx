@@ -88,12 +88,12 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
   }'
 ```
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `amount.amount` | int (kuruş) | ❌ | Çekilecek tutar. Boş veya `0` gönderilirse **kalan tüm rezerve tutar** çekilir. |
-| `amount.currency` | string | ❌ | Para birimi (boşsa orijinal işlemin para birimi) |
-| `reason` | string | ❌ | Capture sebebi (raporlama için) |
-| `extra_properties` | object | ❌ | Konnektör-spesifik özel alanlar |
+| `amount.amount` | int (kuruş) | Opsiyonel | Çekilecek tutar. Boş veya `0` gönderilirse **kalan tüm rezerve tutar** çekilir. |
+| `amount.currency` | string | Opsiyonel | Para birimi (boşsa orijinal işlemin para birimi) |
+| `reason` | string | Opsiyonel | Capture sebebi (raporlama için) |
+| `extra_properties` | object | Opsiyonel | Konnektör-spesifik özel alanlar |
 
 ### Başarılı response
 

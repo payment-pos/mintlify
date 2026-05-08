@@ -45,15 +45,15 @@ curl -X POST https://transfer.payven.com.tr/api/v1/recipients \
   }'
 ```
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `holder_name` | string | ✅ | Alıcının adı (max 100 karakter) |
-| `tax_id` | string | ✅ | TC kimlik no (gerçek kişi) veya vergi numarası (tüzel kişi) |
-| `tax_id_type` | enum | ✅ | `tckn` (gerçek kişi) veya `vkn` (tüzel kişi) |
-| `email` | string | ❌ | Bilgilendirme e-postası gönderilecek adres (raporlama için) |
-| `phone` | string | ❌ | İletişim numarası |
-| `label` | string | ❌ | Operatör için etiket (örn. "Maaş listesi 2026 Mayıs") |
-| `external_id` | string | önerilir | Sizin sisteminizdeki kayıt kimliği |
+| `holder_name` | string | Zorunlu | Alıcının adı (max 100 karakter) |
+| `tax_id` | string | Zorunlu | TC kimlik no (gerçek kişi) veya vergi numarası (tüzel kişi) |
+| `tax_id_type` | enum | Zorunlu | `tckn` (gerçek kişi) veya `vkn` (tüzel kişi) |
+| `email` | string | Opsiyonel | Bilgilendirme e-postası gönderilecek adres (raporlama için) |
+| `phone` | string | Opsiyonel | İletişim numarası |
+| `label` | string | Opsiyonel | Operatör için etiket (örn. "Maaş listesi 2026 Mayıs") |
+| `external_id` | string | Önerilir | Sizin sisteminizdeki kayıt kimliği |
 
 <Note>
 **Alıcı = master kayıt**, **alıcı hesabı = IBAN**. Bir alıcının birden fazla IBAN'ı olabilir (örn. farklı bankalardaki hesapları). IBAN'lar [Alıcı Hesapları](/para-transferi/recipients/receiver-accounts) ile ayrı yönetilir.

@@ -18,7 +18,7 @@ sequenceDiagram
     Net->>You: HTTP isteği<br/>(imzalı, idempotent)
     You-->>Net: HTTP 2xx (≤ 15sn)
     Net-->>Payven: Onay
-    Note over Payven: Teslim başarılı<br/>kayıt edilir
+    Note over Payven: Teslim başarılı<br/>kaydedilir
 
     Note over Payven: 4xx/5xx veya timeout
     Payven->>Net: 1m / 5m / 30m / 2h / 24h sonra retry

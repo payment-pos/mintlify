@@ -23,10 +23,10 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
   }'
 ```
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `reason` | string | ❌ | İptal sebebi (raporlama için) |
-| `extra_properties` | object | ❌ | Konnektör-spesifik özel alanlar |
+| `reason` | string | Opsiyonel | İptal sebebi (raporlama için) |
+| `extra_properties` | object | Opsiyonel | Konnektör-spesifik özel alanlar |
 
 Request body tamamen opsiyoneldir — sadece header'lar yeterlidir.
 

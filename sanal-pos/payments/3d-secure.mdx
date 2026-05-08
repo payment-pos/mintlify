@@ -63,13 +63,13 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/3d/init \
   }'
 ```
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `external_id`, `amount`, `installment`, `card`, `buyer`, `billing_address`, `shipping_address`, `basket_items` | — | — | [Non-3D](/sanal-pos/payments/non-3d) ile aynı |
-| `operation_type` | enum | ❌ | `sale` (varsayılan) veya `pre_auth` |
-| `callback_url` | url | ✅ | Bankanın 3DS sonrası form-post yapacağı endpoint. **Sunucu tarafında** Payven'in `/3d/callback` endpoint'ini kullanmanız önerilir; bu alanı yalnızca özel akışlarda kendi endpoint'inizle override edin. |
-| `return_url` | url | ✅ | Müşterinin son olarak yönlendirileceği URL. Genellikle frontend sayfası. |
-| `cancel_url` | url | ❌ | Müşteri 3DS sayfasını iptal ederse yönlendirileceği URL |
+| `external_id`, `amount`, `installment`, `card`, `buyer`, `billing_address`, `shipping_address`, `basket_items` | Opsiyonel | — | [Non-3D](/sanal-pos/payments/non-3d) ile aynı |
+| `operation_type` | enum | Opsiyonel | `sale` (varsayılan) veya `pre_auth` |
+| `callback_url` | url | Zorunlu | Bankanın 3DS sonrası form-post yapacağı endpoint. **Sunucu tarafında** Payven'in `/3d/callback` endpoint'ini kullanmanız önerilir; bu alanı yalnızca özel akışlarda kendi endpoint'inizle override edin. |
+| `return_url` | url | Zorunlu | Müşterinin son olarak yönlendirileceği URL. Genellikle frontend sayfası. |
+| `cancel_url` | url | Opsiyonel | Müşteri 3DS sayfasını iptal ederse yönlendirileceği URL |
 
 ### Yanıt
 

@@ -84,10 +84,10 @@ def kurus_to_lira(kurus: int) -> Decimal:
 
 | Kod | Para birimi | Doğrudan kabul | DCC çıktısı |
 |---|---|---|---|
-| `TRY` | Türk Lirası | ✅ | — |
-| `USD` | Amerikan Doları | — | ✅ |
-| `EUR` | Euro | — | ✅ |
-| `GBP` | İngiliz Sterlini | — | ✅ |
+| `TRY` | Türk Lirası | Evet | — |
+| `USD` | Amerikan Doları | — | Evet |
+| `EUR` | Euro | — | Evet |
+| `GBP` | İngiliz Sterlini | — | Evet |
 
 Request body'sinde `currency` alanına şu an yalnız `"TRY"` gönderilir. Yabancı kartlarda **DCC (Dynamic Currency Conversion)** akışı devreye girerse Payven, kart para birimindeki çevrilmiş tutarı response body'sinde döner — istemci `USD`/`EUR`/`GBP` değerini doğrudan göndermez. Detay: [DCC Akışı](/sanal-pos/payments/dcc).
 

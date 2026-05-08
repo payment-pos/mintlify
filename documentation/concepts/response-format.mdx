@@ -137,11 +137,7 @@ Liste endpoint'lerinde ortak query parametreleri:
 | `5xx` | Sunucu hatası — exponential backoff ile retry edin | `application/problem+json` |
 
 <Note>
-**Banka reddi de hata response'udur.** Gateway'e ulaşmış ama banka tarafında reddedilen
-bir ödeme `422 Unprocessable Entity` + `application/problem+json` ile döner;
-response body'de `code: "bank_declined"` ve banka ham yanıt kodu (`provider_error_code`,
-örn. `"51"`) yer alır. Sonuç değerlendirmesi yalnız HTTP durum kodu üzerinden
-yapılır — istek başarılı mıydı diye response body'sindeki ek alanlara bakmanız gerekmez.
+Banka reddi de bir hata response'udur — `422 Unprocessable Entity` + `application/problem+json` döner. Detay: [Hata Yönetimi](/documentation/concepts/errors#http-kategorileri).
 </Note>
 
 ## Standart response header'ları

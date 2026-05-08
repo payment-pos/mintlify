@@ -25,15 +25,15 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 }
 ```
 
-| Alan | Zorunlu | Açıklama |
+| Alan | Zorunluluk | Açıklama |
 |---|---|---|
-| `type` | ✅ | Hata tipinin kanonik URI'si. Aynı zamanda dokümantasyon linki olarak çalışır. |
-| `title` | ✅ | Kısa, insan-okur başlık (Türkçe). |
-| `status` | ✅ | HTTP status kodu (header ile aynı değer, gövdede yinelenir). |
-| `code` | ✅ | Programatik hata kodu (`snake_case`). `type` URI'sinin son segmenti. |
-| `detail` | — | Bu özel duruma ilişkin açıklayıcı mesaj. |
-| `instance` | — | Hatanın oluştuğu kaynak yolu. |
-| `correlation_id` | — | İstek zinciri kimliği. Response header'ı `X-Correlation-Id` ile aynı. Destek talebinde paylaşın. |
+| `type` | Zorunlu | Hata tipinin kanonik URI'si. Aynı zamanda dokümantasyon linki olarak çalışır. |
+| `title` | Zorunlu | Kısa, insan-okur başlık (Türkçe). |
+| `status` | Zorunlu | HTTP status kodu (header ile aynı değer, gövdede yinelenir). |
+| `code` | Zorunlu | Programatik hata kodu (`snake_case`). `type` URI'sinin son segmenti. |
+| `detail` | Opsiyonel | Bu özel duruma ilişkin açıklayıcı mesaj. |
+| `instance` | Opsiyonel | Hatanın oluştuğu kaynak yolu. |
+| `correlation_id` | Opsiyonel | İstek zinciri kimliği. Response header'ı `X-Correlation-Id` ile aynı. Destek talebinde paylaşın. |
 
 ## HTTP kategorileri
 

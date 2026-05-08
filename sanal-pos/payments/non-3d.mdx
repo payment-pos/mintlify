@@ -231,27 +231,27 @@ $response = json_decode(curl_exec($ch), true);
 
 ## İstek alanları
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `external_id` | string | önerilir | Sizin sisteminizdeki sipariş kimliği. İdeal olarak `Idempotency-Key` ile aynı seed'den üretin. |
-| `basket_id` | string | ❌ | Sepet kimliği (raporlama için) |
-| `amount.amount` | int (kuruş) | ✅ | Tutar — kuruş cinsinden tam sayı |
-| `amount.currency` | enum | ✅ | Şu an yalnız `"TRY"` kabul edilir. Yabancı kart için DCC akışında çevrim yanıtta döner — bkz. [Tutarlar](/documentation/concepts/amounts) |
-| `installment` | int | ✅ | Taksit sayısı (`1` = peşin). Banka & BIN desteği gerekir. |
-| `operation_type` | enum | ❌ | `sale` (varsayılan, anında çekim) veya `pre_auth` (ön provizyon — sonradan `/capture` gerekir) |
-| `card.holder_name` | string | ✅ | Kart üzerindeki isim |
-| `card.number` | string | ✅ | 13-19 haneli kart numarası (boşluksuz, Luhn checksum geçerli) |
-| `card.expire_month` | string | ✅ | İki hane (`01`–`12`) |
-| `card.expire_year` | string | ✅ | Dört hane (`2030`) |
-| `card.cvv` | string | ✅ | 3 hane (Amex için 4) |
-| `buyer.id` | string | önerilir | Müşteri kimliğiniz (fraud sinyalleri için) |
-| `buyer.name`, `surname`, `email`, `phone` | string | önerilir | Müşteri bilgileri (banka risk skoru için) |
-| `buyer.ip_address` | string | önerilir | Müşterinin IP adresi (fraud için kritik) |
-| `buyer.identity_number` | string | ❌ | TC kimlik no (yüksek tutarlı işlemlerde bazı bankalar zorunlu kılar) |
-| `billing_address`, `shipping_address` | object | ❌ | Adres alanları — bazı bankalar/3DS senaryoları için risk skoruna girer |
-| `basket_items[]` | array | ❌ | Sepet kalemleri (`name`, `price`, `quantity`) |
-| `description` | string | ❌ | İşlem açıklaması (banka ekstresi açıklamasına yansıyabilir) |
-| `extra_properties` | object | ❌ | Konnektör-spesifik özel alanlar (advanced) |
+| `external_id` | string | Önerilir | Sizin sisteminizdeki sipariş kimliği. İdeal olarak `Idempotency-Key` ile aynı seed'den üretin. |
+| `basket_id` | string | Opsiyonel | Sepet kimliği (raporlama için) |
+| `amount.amount` | int (kuruş) | Zorunlu | Tutar — kuruş cinsinden tam sayı |
+| `amount.currency` | enum | Zorunlu | Şu an yalnız `"TRY"` kabul edilir. Yabancı kart için DCC akışında çevrim yanıtta döner — bkz. [Tutarlar](/documentation/concepts/amounts) |
+| `installment` | int | Zorunlu | Taksit sayısı (`1` = peşin). Banka & BIN desteği gerekir. |
+| `operation_type` | enum | Opsiyonel | `sale` (varsayılan, anında çekim) veya `pre_auth` (ön provizyon — sonradan `/capture` gerekir) |
+| `card.holder_name` | string | Zorunlu | Kart üzerindeki isim |
+| `card.number` | string | Zorunlu | 13-19 haneli kart numarası (boşluksuz, Luhn checksum geçerli) |
+| `card.expire_month` | string | Zorunlu | İki hane (`01`–`12`) |
+| `card.expire_year` | string | Zorunlu | Dört hane (`2030`) |
+| `card.cvv` | string | Zorunlu | 3 hane (Amex için 4) |
+| `buyer.id` | string | Önerilir | Müşteri kimliğiniz (fraud sinyalleri için) |
+| `buyer.name`, `surname`, `email`, `phone` | string | Önerilir | Müşteri bilgileri (banka risk skoru için) |
+| `buyer.ip_address` | string | Önerilir | Müşterinin IP adresi (fraud için kritik) |
+| `buyer.identity_number` | string | Opsiyonel | TC kimlik no (yüksek tutarlı işlemlerde bazı bankalar zorunlu kılar) |
+| `billing_address`, `shipping_address` | object | Opsiyonel | Adres alanları — bazı bankalar/3DS senaryoları için risk skoruna girer |
+| `basket_items[]` | array | Opsiyonel | Sepet kalemleri (`name`, `price`, `quantity`) |
+| `description` | string | Opsiyonel | İşlem açıklaması (banka ekstresi açıklamasına yansıyabilir) |
+| `extra_properties` | object | Opsiyonel | Konnektör-spesifik özel alanlar (advanced) |
 
 <Note>
 İlgili headers — bu istek için zorunlu olanlar:

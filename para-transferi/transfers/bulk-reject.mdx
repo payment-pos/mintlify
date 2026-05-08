@@ -43,10 +43,10 @@ curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/reject \
   }'
 ```
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `transfer_ids[]` | UUID array | ✅ | Reddedilecek transfer kimlikleri (max 1000 / istek) |
-| `reason` | string | ❌ | Operatör notu (audit kaydında saklanır, max 500 karakter) |
+| `transfer_ids[]` | UUID array | Zorunlu | Reddedilecek transfer kimlikleri (max 1000 / istek) |
+| `reason` | string | Opsiyonel | Operatör notu (audit kaydında saklanır, max 500 karakter) |
 
 ## Yanıt
 

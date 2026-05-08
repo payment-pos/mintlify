@@ -56,18 +56,18 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/order-link \
   }'
 ```
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `amount.amount` | long (kuruş) | ✅ | Tutar |
-| `amount.currency` | enum | ✅ | Şu an yalnız `"TRY"` kabul edilir |
-| `installment` | int | ❌ | Sabit taksit (varsayılan `1`). Banka linkinde müşteriye sunulur. |
-| `external_id` | string | önerilir | Sipariş kimliğiniz |
-| `description` | string | ❌ | Müşteriye gösterilecek ödeme açıklaması |
-| `customer_email` | string | ❌ | Müşteri e-posta (raporlama için) |
-| `customer_phone` | string | ❌ | Müşteri telefon (raporlama için) |
-| `return_url` | url | ✅ | Ödeme sonrası müşterinin dönmesi gereken URL |
-| `callback_url` | url | ❌ | Bankanın callback gönderdiği endpoint (sunucu-sunucu) |
-| `extra_properties` | object | ❌ | Konnektör-spesifik özel alanlar |
+| `amount.amount` | long (kuruş) | Zorunlu | Tutar |
+| `amount.currency` | enum | Zorunlu | Şu an yalnız `"TRY"` kabul edilir |
+| `installment` | int | Opsiyonel | Sabit taksit (varsayılan `1`). Banka linkinde müşteriye sunulur. |
+| `external_id` | string | Önerilir | Sipariş kimliğiniz |
+| `description` | string | Opsiyonel | Müşteriye gösterilecek ödeme açıklaması |
+| `customer_email` | string | Opsiyonel | Müşteri e-posta (raporlama için) |
+| `customer_phone` | string | Opsiyonel | Müşteri telefon (raporlama için) |
+| `return_url` | url | Zorunlu | Ödeme sonrası müşterinin dönmesi gereken URL |
+| `callback_url` | url | Opsiyonel | Bankanın callback gönderdiği endpoint (sunucu-sunucu) |
+| `extra_properties` | object | Opsiyonel | Konnektör-spesifik özel alanlar |
 
 ## Yanıt
 

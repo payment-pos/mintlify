@@ -67,15 +67,15 @@ curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/start \
   }'
 ```
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `scope` | enum | ✅ | `connector` veya `merchant` |
+| `scope` | enum | Zorunlu | `connector` veya `merchant` |
 | `connector_config_id` | UUID | scope=connector | Hangi konnektör konfigürasyonu için |
 | `merchant_id` | UUID | scope=merchant | Hangi alt-merchant için |
-| `period` | enum | ✅ | `daily`, `monthly`, `yearly`, `custom` |
-| `period_start` | datetime | ✅ | Dönem başlangıcı (UTC) |
+| `period` | enum | Zorunlu | `daily`, `monthly`, `yearly`, `custom` |
+| `period_start` | datetime | Zorunlu | Dönem başlangıcı (UTC) |
 | `period_end` | datetime | period=custom | Dönem sonu — `custom` için zorunlu |
-| `bank_transactions[]` | array | ❌ | Banka satır listesi. Boş bırakılırsa sadece DB tarafı ile çalışılır (banka veriden bağımsız Payven self-reconciliation). |
+| `bank_transactions[]` | array | Opsiyonel | Banka satır listesi. Boş bırakılırsa sadece DB tarafı ile çalışılır (banka veriden bağımsız Payven self-reconciliation). |
 
 ### `bank_transactions[]` satır yapısı
 

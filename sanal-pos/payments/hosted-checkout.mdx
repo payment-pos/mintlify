@@ -67,20 +67,20 @@ curl -X POST https://vpos.payven.com.tr/api/v1/checkout/sessions \
   }'
 ```
 
-| Alan | Tip | Zorunlu | Açıklama |
+| Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `amount.amount` | long (kuruş) | ✅ | Toplam tutar |
-| `amount.currency` | enum | ✅ | Şu an yalnız `"TRY"` kabul edilir |
-| `merchant_name` | string | ❌ | Sayfa başlığında gösterilen isim |
-| `allowed_installments` | int[] | ❌ | İzin verilen taksit seçenekleri. Boş → `[1, 2, 3, 6, 9, 12]` varsayılanı |
-| `external_id`, `basket_id`, `description` | string | ❌ | Sipariş referansları |
-| `customer_email`, `customer_phone` | string | ❌ | Müşteri bilgileri (önerilir — fraud için) |
-| `payment_mode` | enum | ❌ | `non_3d` / `three_d_secure` / `three_d_pay` / `three_d_pay_hosting`. Boş → tenant'ın `preferred_three_d_flow` ayarından türetilir. |
-| `allow_pre_auth` | bool | ❌ | Checkout sayfasında "Ön provizyon" seçeneği gösterilsin mi (default `false`) |
-| `is_test_session` | bool | ❌ | Test araçları (Void/Refund/Capture butonları) gösterilsin mi |
-| `success_url` | url | ❌ | Başarılı ödeme sonrası yönlendirme |
-| `cancel_url` | url | ❌ | Başarısız / iptal sonrası yönlendirme |
-| `metadata` | object | ❌ | Anahtar-değer çiftleri (raporlama) |
+| `amount.amount` | long (kuruş) | Zorunlu | Toplam tutar |
+| `amount.currency` | enum | Zorunlu | Şu an yalnız `"TRY"` kabul edilir |
+| `merchant_name` | string | Opsiyonel | Sayfa başlığında gösterilen isim |
+| `allowed_installments` | int[] | Opsiyonel | İzin verilen taksit seçenekleri. Boş → `[1, 2, 3, 6, 9, 12]` varsayılanı |
+| `external_id`, `basket_id`, `description` | string | Opsiyonel | Sipariş referansları |
+| `customer_email`, `customer_phone` | string | Opsiyonel | Müşteri bilgileri (önerilir — fraud için) |
+| `payment_mode` | enum | Opsiyonel | `non_3d` / `three_d_secure` / `three_d_pay` / `three_d_pay_hosting`. Boş → tenant'ın `preferred_three_d_flow` ayarından türetilir. |
+| `allow_pre_auth` | bool | Opsiyonel | Checkout sayfasında "Ön provizyon" seçeneği gösterilsin mi (default `false`) |
+| `is_test_session` | bool | Opsiyonel | Test araçları (Void/Refund/Capture butonları) gösterilsin mi |
+| `success_url` | url | Opsiyonel | Başarılı ödeme sonrası yönlendirme |
+| `cancel_url` | url | Opsiyonel | Başarısız / iptal sonrası yönlendirme |
+| `metadata` | object | Opsiyonel | Anahtar-değer çiftleri (raporlama) |
 
 <Note>
 **Tenant policy uyumu:** `payment_mode: "non_3d"` istenirse ancak tenant policy'sinde
