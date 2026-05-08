@@ -3,7 +3,7 @@ title: "API Yanıt Formatı"
 description: "Payven API yanıt yapısı, sayfalama ve tarih/tutar konvansiyonları."
 ---
 
-Payven API'leri **REST + HTTP semantiği** üzerinde çalışır: HTTP durum kodu başarıyı, yanıt gövdesi veriyi taşır. Hata gövdeleri [RFC 9457 — Problem Details](https://www.rfc-editor.org/rfc/rfc9457) standardına uyar.
+Payven API'leri **REST + HTTP semantiği** üzerinde çalışır: HTTP durum kodu başarıyı, response body veriyi taşır. Hata gövdeleri [RFC 9457 — Problem Details](https://www.rfc-editor.org/rfc/rfc9457) standardına uyar.
 
 ## Başarılı yanıt
 
@@ -63,7 +63,7 @@ Content-Type: application/problem+json
 | `code` | Programatik hata kodu (snake_case). `type` URI'sinin son segmenti |
 | `detail` | Bu özel duruma ilişkin açıklayıcı mesaj |
 | `instance` | Hatanın oluştuğu kaynak yolu |
-| `correlation_id` | İstek zinciri kimliği — destek talebinde paylaşın (yanıt header'ı `X-Correlation-Id` ile aynı değer) |
+| `correlation_id` | İstek zinciri kimliği — destek talebinde paylaşın (response header'ı `X-Correlation-Id` ile aynı değer) |
 
 Tam hata kodu kataloğu: [Hata Yönetimi](/documentation/concepts/errors).
 
@@ -121,7 +121,7 @@ Liste endpoint'lerinde ortak query parametreleri:
 
 ## HTTP durum kodları
 
-| Kod | Anlam | Hata gövdesi MIME |
+| Kod | Anlam | Hata yanıtı MIME tipi |
 |---|---|---|
 | `200 OK` | Başarılı senkron işlem | `application/json` |
 | `201 Created` | Yeni kayıt oluşturuldu | `application/json` |
@@ -144,11 +144,11 @@ gövdede `code: "bank_declined"` ve banka ham yanıt kodu (`provider_error_code`
 yapılır — istek başarılı mıydı diye envelope alanına bakmanız gerekmez.
 </Note>
 
-## Standart yanıt header'ları
+## Standart response header'ları
 
 | Header | Açıklama |
 |---|---|
-| `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Hata gövdesindeki `correlation_id` ile aynı değer |
+| `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Hata yanıtlarında body içindeki `correlation_id` alanıyla aynı değeri taşır |
 | `X-RateLimit-Limit` / `X-RateLimit-Remaining` / `X-RateLimit-Reset` | Rate limit durumu — bkz. [Rate Limiting](/documentation/concepts/rate-limiting) |
 | `Retry-After` | Yalnız `429` yanıtında — kaç saniye sonra tekrar denemeniz gerektiği |
 | `Idempotent-Replayed` | Yalnız idempotent replay'lerde — yanıt cache'den döndüyse `true`. Bkz. [Idempotency](/documentation/concepts/idempotency) |

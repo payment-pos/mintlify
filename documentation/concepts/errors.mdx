@@ -3,7 +3,7 @@ title: "Hata Yönetimi"
 description: "Payven hata zarfı (RFC 9457), HTTP kategorileri, hata kodları ve retry stratejisi."
 ---
 
-Payven hata yanıtları [RFC 9457 — Problem Details for HTTP APIs](https://www.rfc-editor.org/rfc/rfc9457) standardına uyar. Tüm hata gövdeleri `application/problem+json` MIME tipindedir; HTTP durum kodu kategoriyi, gövdedeki `code` alanı ise hatanın programatik tipini belirtir.
+Payven hata yanıtları [RFC 9457 — Problem Details for HTTP APIs](https://www.rfc-editor.org/rfc/rfc9457) standardına uyar. Tüm hata response'larının body'leri `application/problem+json` MIME tipindedir; HTTP durum kodu kategoriyi, gövdedeki `code` alanı ise hatanın programatik tipini belirtir.
 
 ## Hata zarfı
 
@@ -33,7 +33,7 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 | `code` | ✅ | Programatik hata kodu (`snake_case`). `type` URI'sinin son segmenti. |
 | `detail` | — | Bu özel duruma ilişkin açıklayıcı mesaj. |
 | `instance` | — | Hatanın oluştuğu kaynak yolu. |
-| `correlation_id` | — | İstek zinciri kimliği. Yanıt header'ı `X-Correlation-Id` ile aynı. Destek talebinde paylaşın. |
+| `correlation_id` | — | İstek zinciri kimliği. Response header'ı `X-Correlation-Id` ile aynı. Destek talebinde paylaşın. |
 
 ## HTTP kategorileri
 
@@ -245,7 +245,7 @@ function userMessage(problem) {
 
 ## Destek talebi açarken
 
-Her hata yanıtında dönen **`correlation_id`** değerini paylaşın — log zincirini saniyeler içinde bulabiliriz. Yanıt header'ındaki `X-Correlation-Id` ile gövdedeki `correlation_id` aynı değerdir.
+Her hata yanıtında dönen **`correlation_id`** değerini paylaşın — log zincirini saniyeler içinde bulabiliriz. Response header'ındaki `X-Correlation-Id` ile gövdedeki `correlation_id` aynı değerdir.
 
 ```text
 Konu:   Refund 422 — refund_exceeds_original

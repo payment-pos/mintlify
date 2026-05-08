@@ -157,6 +157,6 @@ stateDiagram-v2
 }
 ```
 
-`failed` durumda olan bir transferin sebebi sonradan `GET /api/v1/transfers/{id}` ile sorgulanabilir; banka detayları yanıt gövdesindeki `error_code` ve `provider_error_code` alanlarında taşınır.
+`failed` durumda olan bir transferin sebebi sonradan `GET /api/v1/transfers/{id}` ile sorgulanabilir; banka detayları response body'sindeki `error_code` ve `provider_error_code` alanlarında taşınır.
 
 Tam hata kodu listesi: [Hata Kodları](/para-transferi/errors/overview).

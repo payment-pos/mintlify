@@ -390,7 +390,7 @@ class PayvenClient {
 
 | HTTP | `code` | Anlam | Çözüm |
 |---|---|---|---|
-| `400` | `bad_request` | İstek gövdesi geçersiz JSON veya zorunlu alan eksik | `client_id` / `client_secret` alanlarını kontrol edin |
+| `400` | `bad_request` | Request body geçersiz JSON veya zorunlu alan eksik | `client_id` / `client_secret` alanlarını kontrol edin |
 | `401` | `invalid_credentials` | `client_id` / `client_secret` yanlış | Konsoldan API anahtarınızı kontrol edin |
 | `401` | `invalid_token` | Access token geçersiz | Refresh akışını çalıştırın |
 | `401` | `token_expired` | Access token süresi geçti | Refresh edin |

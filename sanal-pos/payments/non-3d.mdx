@@ -306,7 +306,7 @@ Content-Type: application/problem+json
 }
 ```
 
-Yanıt başarılı mı diye HTTP durum kodunu kontrol edin. Banka tarafı detayını (orijinal banka kodu, auth_code vb.) görmek için işlem sonradan `GET /api/v1/payments/{id}` ile sorgulanabilir — failed ödemenin sorgusu `200 OK` döner ve `error_code` / `provider_error_code` alanları yanıt gövdesinde data olarak taşınır.
+Yanıt başarılı mı diye HTTP durum kodunu kontrol edin. Banka tarafı detayını (orijinal banka kodu, auth_code vb.) görmek için işlem sonradan `GET /api/v1/payments/{id}` ile sorgulanabilir — failed ödemenin sorgusu `200 OK` döner ve `error_code` / `provider_error_code` alanları response body'sinde data olarak taşınır.
 
 Tam banka yanıt kodu listesi: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
 

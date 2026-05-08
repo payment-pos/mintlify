@@ -3,7 +3,7 @@ title: "Banka Yanıt Kodları"
 description: "Bankaların döndürdüğü ISO 8583 standardı kodları."
 ---
 
-Bankalar, ödeme yanıtında **ISO 8583** standardına dayanan 2 haneli kod döner. Banka reddi durumunda Payven `application/problem+json` (RFC 9457) yanıtı döner; bankanın orijinal kodu hata gövdesindeki `detail` ve sonrasında `GET /payments/{id}` ile sorgulandığında `provider_error_code` alanında bulunur.
+Bankalar, ödeme yanıtında **ISO 8583** standardına dayanan 2 haneli kod döner. Banka reddi durumunda Payven `application/problem+json` (RFC 9457) yanıtı döner; bankanın orijinal kodu response body'sindeki `detail` alanında, sonrasında `GET /payments/{id}` ile sorgulandığında `provider_error_code` alanında bulunur.
 
 ```http
 HTTP/1.1 422 Unprocessable Entity

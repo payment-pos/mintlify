@@ -74,7 +74,7 @@ X-Payven-Timestamp: 1714742400
 
 ## İmza doğrulama (kısa)
 
-İstek gövdesi ile timestamp'i `subscription.secret` ile HMAC-SHA256 hashlenir. Detay ve kod örnekleri: [İmza Doğrulama](/sanal-pos/webhooks/signature).
+Request body ile timestamp'i `subscription.secret` ile HMAC-SHA256 hashlenir. Detay ve kod örnekleri: [İmza Doğrulama](/sanal-pos/webhooks/signature).
 
 ```
 hmac = HMAC_SHA256(secret, timestamp + "." + body)
@@ -119,7 +119,7 @@ Yanıttaki `secret` değerini saklayın — imza doğrulamasında kullanacaksın
 Konsol → **Webhook Teslim Kayıtları** ekranından her teslim denemesinin:
 
 - HTTP yanıt kodunu,
-- Yanıt gövdesini,
+- Response body'sini,
 - Süresini,
 - Yeniden deneme sayısını,
 - Tam request/response payload'unu

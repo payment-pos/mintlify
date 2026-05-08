@@ -63,7 +63,7 @@ Mevcut bir gateway entegrasyonunuz varsa Payven'e geçiş genelde **birkaç gün
 | Token geçersiz | `200 OK` + body içinde error | `401 Unauthorized` + `{ code: "invalid_token" }` |
 | Rate limit | `403`/`429` farklı providerlar | `429 Too Many Requests` + `Retry-After` |
 
-**Migration sonrası kodunuzu düzeltmeniz gereken yer**: `if (res.status === 200)` koşulundan `if (res.ok)` veya `if (res.status >= 200 && res.status < 300)` koşuluna geçin. Hata gövdesini `code` üzerinden okuyun, sayısal `errorCode` üzerinden değil.
+**Migration sonrası kodunuzu düzeltmeniz gereken yer**: `if (res.status === 200)` koşulundan `if (res.ok)` veya `if (res.status >= 200 && res.status < 300)` koşuluna geçin. Hata yanıtını `code` alanı üzerinden okuyun, sayısal `errorCode` üzerinden değil.
 
 ## Idempotency
 

@@ -36,7 +36,7 @@ Tüm Para Transferi istekleri aşağıdaki header'ları içermelidir:
 |---|---|---|
 | `Authorization` | `Bearer <token>` | Identity'den alınan access token |
 | `X-Tenant-Id` | UUID | Organizasyonunuzun tenant kimliği. Multi-tenant izolasyon için zorunludur. |
-| `X-Request-Id` | UUID (opsiyonel) | İstek korelasyon kimliği. Vermezseniz Payven üretir; yanıt header'ı `X-Correlation-Id` ile karşılığı döner. |
+| `X-Request-Id` | UUID (opsiyonel) | İstek korelasyon kimliği. Vermezseniz Payven üretir; response header'ı `X-Correlation-Id` ile karşılığı döner. |
 | `Idempotency-Key` | string | **POST istekleri için zorunlu önerilir.** Aynı isteğin iki kez işlenmesini engeller. Bkz. [Idempotency](/documentation/concepts/idempotency). |
 
 <Warning>
@@ -54,7 +54,7 @@ X-External-Merchant-Id: M-IST-001
 
 İki header birden gönderilirse `X-Merchant-Id` öncelikli olur. Detay: [Hesap Modeli](/documentation/account-model#merchant-kimligi-iki-form).
 
-## Yanıt header'ları
+## Response header'ları
 
 ```http
 X-Correlation-Id:       9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8

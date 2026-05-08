@@ -25,7 +25,7 @@ Reçeteler, Payven'i belirli bir iş akışı için entegre etmek isteyen geliş
 Tüm reçetelerde aşağıdaki kurallar geçerlidir:
 
 <Check>**`Idempotency-Key`** kullanın — özellikle ödeme, iade, transfer endpoint'lerinde. Bkz. [Idempotency](/documentation/concepts/idempotency).</Check>
-<Check>**`X-Correlation-Id`** yanıt header'ını saklayın — destek talebi açarken bu ID ile log zinciri saniyede bulunur.</Check>
+<Check>**`X-Correlation-Id`** response header'ını saklayın — destek talebi açarken bu ID ile log zinciri saniyede bulunur.</Check>
 <Check>**Webhook kullanın** — uzun süreli akışlarda (3DS, mutabakat, manuel inceleme) sonucu polling ile değil webhook ile yakalayın.</Check>
 <Check>**Hata yanıtlarını HTTP durum kodu ile değerlendirin** — gövdedeki `code` programatik karar için, `detail` log için, `correlation_id` destek için.</Check>
 
