@@ -65,7 +65,7 @@ Yanıt:
 }
 ```
 
-**Access token 5 dakika geçerlidir.** Production'da bunu cache'leyip auto-refresh ile yönetin — örnek istemciler: [Kimlik Doğrulama → Kod örnekleri](/documentation/concepts/authentication#kod-ornekleri-auto-refresh).
+**Access token 5 dakika geçerlidir.** Production'da bunu cache'leyip auto-refresh ile yönetin — Node, Python, C#, Go ve PHP için hazır implementasyonlar: [Kimlik Doğrulama → Kod örnekleri](/documentation/concepts/authentication#kod-ornekleri-auto-refresh).
 
 <Warning>
 `client_secret` değerini hiçbir zaman istemci tarafı (tarayıcı, mobil uygulama, public repo) koduna gömmeyin. Tüm Payven API çağrıları yalnızca **sunucu tarafından** yapılmalıdır.
@@ -73,7 +73,7 @@ Yanıt:
 
 ## 2. İlk ödemeyi gerçekleştirin
 
-Aşağıdaki örnek, sandbox'ta bir **Non-3D test ödemesi** başlatır. Tutar **kuruş** cinsindendir — `15000` değeri 150,00 ₺'dir.
+Aşağıdaki örnek, sandbox'ta bir **Non-3D test ödemesi** başlatır. Tutar **kuruş** cinsindendir. `15000` değeri 150,00 ₺'dir.
 
 <CodeGroup>
 ```bash cURL
