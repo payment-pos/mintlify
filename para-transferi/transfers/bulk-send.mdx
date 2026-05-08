@@ -123,7 +123,7 @@ Sender hesabınız birden fazla banka konnektörüne bağlıysa, Payven uygun ol
 | `422` | `invalid_state_transition` | Transfer `approved` durumunda değil |
 | `422` | `insufficient_balance` | Kaynak hesapta yeterli bakiye yok |
 | `422` | `bank_declined` | Banka reddetti — `provider_error_code` daha spesifik bilgi taşır |
-| `422` | `recipient_blocked` | Alıcı kara listede |
+| `422` | `recipient_blocked` | Alıcı blacklist'te |
 | `422` | `iban_not_eligible` | IBAN seçilen transfer tipinde işlenemez (örn. yurtdışı IBAN'a FAST) |
 | `503` | `connector_unavailable` | Banka konnektörü geçici olarak devre dışı |
 | `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |

@@ -56,7 +56,7 @@ Content-Type: application/problem+json
 |---|---|---|
 | `422` | `invalid_iban` | IBAN checksum'ı geçmiyor |
 | `422` | `iban_not_eligible` | IBAN seçilen transfer tipinde işlenemez (örn. yurtdışı IBAN'a FAST) |
-| `422` | `recipient_blocked` | Alıcı kara listede |
+| `422` | `recipient_blocked` | Alıcı blacklist'te |
 | `422` | `recipient_validation_failed` | TC kimlik / vergi kimliği IBAN sahibiyle eşleşmiyor (banka tarafı kontrolü) |
 | `422` | `invalid_card` | Kart numarası Luhn checksum'ı geçmiyor (kart transferi) |
 

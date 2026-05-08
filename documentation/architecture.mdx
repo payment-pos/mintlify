@@ -25,12 +25,12 @@ flowchart LR
 
 | Servis | Sorumluluk |
 |---|---|
-| **Identity** | Organizasyon ve kullanıcı yönetimi, API anahtarı yaşam döngüsü, OAuth 2.0 token üretimi, ortak referans veriler (banka, BIN, MCC, şehir/ilçe) |
+| **Identity** | Organizasyon ve kullanıcı yönetimi, API anahtarı yaşam döngüsü, OAuth 2.0 token üretimi |
 | **Sanal POS** | Kart ödemeleri, 3D Secure, akıllı yönlendirme, mutabakat, webhook teslimi |
 | **Para Transferi** | Çoklu banka üzerinden FAST, EFT ve havale yönlendirme |
-| **Fraud** | Sanal POS akışlarının içinde otomatik çalışan risk motoru — kural yönetimi, kara/beyaz liste, manuel inceleme kuyruğu |
+| **Fraud** | Sanal POS akışlarının içinde otomatik çalışan risk motoru — kural yönetimi, blacklist/whitelist, manuel inceleme kuyruğu |
 
-Tüm ürün servisleri aynı **Bearer access token** ile kimliklendirilir; servis başına ayrı kimlik akışı yoktur. Fraud servisinin endpoint'leri (kural CRUD, manuel inceleme) Sanal POS API'siyle birlikte sunulur.
+Tüm ürün servisleri aynı **Bearer access token**'ı kabul eder; servis başına ayrı kimlik akışı yoktur. Fraud servisinin endpoint'leri (kural CRUD, manuel inceleme) Sanal POS API'siyle birlikte sunulur.
 
 <Note>
 **Yol haritasında:** Fatura Ödeme ve Açık Bankacılık modülleri geliştirme aşamasındadır. Bu servisler henüz canlı API'ye dahil değildir. [Yol haritası](/#yol-haritasi).

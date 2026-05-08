@@ -1,6 +1,6 @@
 ---
 title: "Fraud Yönetimi"
-description: "Sanal POS işlemlerini gerçek zamanlı kural motoru ile değerlendirin: kara liste, hız kontrolü, manuel inceleme kuyruğu."
+description: "Sanal POS işlemlerini gerçek zamanlı kural motoru ile değerlendirin: blacklist, hız kontrolü, manuel inceleme kuyruğu."
 ---
 
 Payven Fraud modülü, Sanal POS akışlarına gömülü olarak çalışan **gerçek zamanlı bir kural motorudur**. Her ödeme isteği banka çağrısından önce kural setinden geçer; bir kural tetiklenirse işlem `fraud_blocked` veya `fraud_review_required` ile yanıtlanır.
@@ -12,7 +12,7 @@ Fraud modülü Sanal POS akışı içinde **otomatik** çalışır — ayrı bir
 ## Bileşenler
 
 <CardGroup cols={2}>
-  <Card title="Kara Liste" icon="ban" href="/api-reference/fraud/tenantfraudblacklist">
+  <Card title="Blacklist" icon="ban" href="/api-reference/fraud/tenantfraudblacklist">
     Kart, e-posta, IP veya cihaz parmak izi tabanlı engelleme listesi.
   </Card>
   <Card title="Fraud Kuralları" icon="shield-halved" href="/api-reference/fraud/tenantfraudrules">
@@ -34,7 +34,7 @@ Fraud modülü Sanal POS akışı içinde **otomatik** çalışır — ayrı bir
 | **Amount limit (tutar limiti)** | İşlem tutarı eşiğini aşan işlemleri engeller veya inceleme kuyruğuna düşürür | "10.000 ₺ üzeri işlem manuel inceleme" |
 | **BIN restriction** | Belirli BIN aralıklarını engelle / izin ver | "Yurtdışı BIN'ler 3DS zorunlu" |
 | **3DS enforcement** | Belirli koşullarda 3D Secure'u zorunlu kılar | "5.000 ₺ üzeri işlem 3DS zorunlu" |
-| **Blacklist match** | Kara liste eşleşmesi | "Kart numarası kara listede → engelle" |
+| **Blacklist match** | Blacklist eşleşmesi | "Kart numarası blacklist'te → engelle" |
 
 ## Karar tipleri
 
