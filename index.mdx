@@ -6,7 +6,7 @@ description: "Türkiye'nin finansal teknoloji altyapısı. Tek API ile sanal POS
 
 Payven, Türkiye'nin finansal teknoloji altyapısıdır. Türkiye'nin önde gelen bankalarıyla entegre tek bir API üzerinden sanal POS, para transferi, fraud yönetimi ve mutabakat modüllerini kullanırsınız. Lisanslı ödeme kuruluşları ve büyük platformlar; banka entegrasyonlarının teknik karmaşıklığını Payven'e bırakır, kendi ürünlerine odaklanır.
 
-Fatura ödeme ve açık bankacılık modülleri yol haritasındadır — bkz. [Yol haritası](#yol-haritasi).
+Fatura ödeme ve açık bankacılık modülleri geliştirme aşamasındadır.
 
 <CardGroup cols={2}>
   <Card title="5 dakikada ilk ödeme" icon="bolt" href="/documentation/quickstart">
@@ -107,19 +107,18 @@ Sanal POS akışları içinde **gerçek zamanlı fraud kontrolü** otomatik çal
   </Card>
 </CardGroup>
 
-## Ne zaman Payven'i tercih etmelisiniz?
+## Hedef kitle
 
-Payven doğrudan son tüketiciye hizmet vermez. **Lisanslı ödeme kuruluşları, bankalar ve büyük platformlar** için altyapı sağlar.
+Payven, son tüketiciye veya bireysel satıcılara doğrudan hizmet vermez. Müşterilerimiz Türkiye'de lisanslı veya yüksek hacimli kurumsal yapılardır:
 
-| Profil | Uygun mu? |
-|---|---|
-| TCMB lisanslı ödeme veya elektronik para kuruluşu — alt bayilerinize ödeme hizmeti sunuyorsunuz | ✅ Birincil hedef |
-| Banka — sanal POS gateway altyapınızı modernize etmek istiyorsunuz | ✅ Uygun |
-| Büyük e-ticaret / marketplace — birden fazla bankayı tek API'den yönetmek istiyorsunuz | ✅ Uygun |
-| Yüksek hacimli fintech / scale-up — orchestration katmanı arıyorsunuz | ✅ Uygun |
-| Bireysel geliştirici / küçük e-ticaret sitesi | ❌ Doğrudan PSP'lerle çalışmanız önerilir |
+- TCMB lisanslı ödeme ve elektronik para kuruluşları — alt bayilerine ödeme hizmeti sunan
+- Bankalar — sanal POS gateway altyapısını modernize eden
+- Büyük e-ticaret platformları ve marketplace'ler — birden fazla bankayı tek API'den yöneten
+- Yüksek hacimli fintech'ler — orchestration katmanı arayan
 
-## Yol haritası [#yol-haritasi]
+Bireysel geliştiriciler veya küçük ölçekli e-ticaret siteleri için doğrudan bir PSP ile çalışmak daha uygundur.
+
+## Yol haritası
 
 Aşağıdaki modüller geliştirme aşamasındadır; canlı API'ye dahil değildir. Erken erişim için satış ekibimizle iletişime geçin.
 
