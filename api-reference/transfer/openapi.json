@@ -45,24 +45,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountInfoListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountInfoListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AccountInfoListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listAccounts",
+        "summary": "Hesapları listele"
       }
     },
     "/api/v1/accounts/transactions": {
@@ -116,24 +123,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountTransactionListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountTransactionListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AccountTransactionListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listAccountTransactions",
+        "summary": "Hesap hareketlerini listele"
       }
     },
     "/api/v1/apirequestlogs": {
@@ -245,24 +259,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiRequestLogDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiRequestLogDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiRequestLogDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listApiRequestLogs",
+        "summary": "API istek kayıtlarını listele"
       }
     },
     "/api/v1/bankbins": {
@@ -280,24 +301,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateBankBinCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateBankBinCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -305,24 +308,40 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createBankBin",
+        "summary": "Banka BIN'i oluştur"
       },
       "get": {
         "tags": [
@@ -387,24 +406,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BankBinsDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BankBinsDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BankBinsDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listBankBins",
+        "summary": "Banka BIN'lerini listele"
       }
     },
     "/api/v1/bankbins/{id}": {
@@ -427,24 +453,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteBankBin",
+        "summary": "Banka BIN'ini sil"
       },
       "put": {
         "tags": [
@@ -471,24 +516,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateBankBinCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateBankBinCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -496,24 +523,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateBankBin",
+        "summary": "Banka BIN'ini güncelle"
       }
     },
     "/api/v1/bankbins/by-bank/{bank_id}": {
@@ -554,24 +600,34 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BankBinsDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BankBinsDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BankBinsDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "operationId": "listBankBinsByBank",
+        "summary": "Banka BIN'lerini listele (bankaya göre)"
       }
     },
     "/api/v1/banks": {
@@ -589,24 +645,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateBankCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateBankCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -614,24 +652,40 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createBank",
+        "summary": "Banka oluştur"
       },
       "get": {
         "tags": [
@@ -673,24 +727,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BanksDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BanksDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BanksDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listBanks",
+        "summary": "Bankaları listele"
       }
     },
     "/api/v1/banks/{id}": {
@@ -713,24 +774,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteBank",
+        "summary": "Bankayı sil"
       },
       "put": {
         "tags": [
@@ -757,24 +837,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateBankCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateBankCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -782,24 +844,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateBank",
+        "summary": "Bankayı güncelle"
       }
     },
     "/api/v1/connectoraccounts": {
@@ -865,24 +946,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectorAccountDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectorAccountDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConnectorAccountDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listConnectorAccounts",
+        "summary": "Konnektör hesaplarını listele"
       },
       "post": {
         "tags": [
@@ -898,24 +986,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateConnectorAccountCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateConnectorAccountCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -923,24 +993,40 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createConnectorAccount",
+        "summary": "Konnektör hesabı oluştur"
       }
     },
     "/api/v1/connectoraccounts/bank-accounts": {
@@ -1085,24 +1171,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BankAccountDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BankAccountDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BankAccountDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listConnectorBankAccounts",
+        "summary": "Konnektör banka hesaplarını listele"
       }
     },
     "/api/v1/connectoraccounts/by-connector-configuration/{connector_configuration_id}": {
@@ -1149,24 +1242,34 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectorAccountDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectorAccountDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConnectorAccountDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "operationId": "listConnectorAccountsByConnectorConfiguration",
+        "summary": "Konnektör hesaplarını listele (konnektör konfigürasyonuna göre)"
       }
     },
     "/api/v1/connectoraccounts/{id}": {
@@ -1195,24 +1298,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateConnectorAccountCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateConnectorAccountCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -1220,24 +1305,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateConnectorAccount",
+        "summary": "Konnektör hesabını güncelle"
       },
       "delete": {
         "tags": [
@@ -1258,24 +1362,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BooleanApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BooleanApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BooleanApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteConnectorAccount",
+        "summary": "Konnektör hesabını sil"
       }
     },
     "/api/v1/connectoraccounttransferrules": {
@@ -1293,24 +1416,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateConnectorAccountTransferRuleCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateConnectorAccountTransferRuleCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -1318,24 +1423,40 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createConnectorAccountTransferRule",
+        "summary": "Konnektör hesap transfer kuralı oluştur"
       },
       "get": {
         "tags": [
@@ -1371,24 +1492,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectorAccountTransferRulesDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectorAccountTransferRulesDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConnectorAccountTransferRulesDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listConnectorAccountTransferRules",
+        "summary": "Konnektör hesap transfer kurallarını listele"
       }
     },
     "/api/v1/connectoraccounttransferrules/{id}": {
@@ -1411,24 +1539,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteConnectorAccountTransferRule",
+        "summary": "Konnektör hesap transfer kuralını sil"
       },
       "put": {
         "tags": [
@@ -1455,24 +1602,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateConnectorAccountTransferRuleCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateConnectorAccountTransferRuleCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -1480,24 +1609,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateConnectorAccountTransferRule",
+        "summary": "Konnektör hesap transfer kuralını güncelle"
       }
     },
     "/api/v1/connectorconfigurations": {
@@ -1515,24 +1663,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateConnectorConfigurationCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateConnectorConfigurationCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -1540,24 +1670,40 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createConnectorConfiguration",
+        "summary": "Konnektör konfigürasyonu oluştur"
       },
       "get": {
         "tags": [
@@ -1607,24 +1753,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectorConfigurationDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectorConfigurationDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConnectorConfigurationDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listConnectorConfigurations",
+        "summary": "Konnektör konfigürasyonlarını listele"
       }
     },
     "/api/v1/connectorconfigurations/{id}": {
@@ -1647,24 +1800,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteConnectorConfiguration",
+        "summary": "Konnektör konfigürasyonunu sil"
       },
       "put": {
         "tags": [
@@ -1691,24 +1863,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateConnectorConfigurationCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateConnectorConfigurationCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -1716,24 +1870,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateConnectorConfiguration",
+        "summary": "Konnektör konfigürasyonunu güncelle"
       }
     },
     "/api/v1/connectorconfigurations/by-connector/{connector_id}": {
@@ -1774,24 +1947,34 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectorConfigurationDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectorConfigurationDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConnectorConfigurationDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "operationId": "listConnectorConfigurationsByConnector",
+        "summary": "Konnektör konfigürasyonlarını listele (konnektöre göre)"
       }
     },
     "/api/v1/connectors": {
@@ -1809,24 +1992,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateConnectorCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateConnectorCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -1834,24 +1999,40 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createConnector",
+        "summary": "Konnektör oluştur"
       },
       "get": {
         "tags": [
@@ -1922,24 +2103,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectorDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConnectorDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConnectorDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listConnectors",
+        "summary": "Konnektörleri listele"
       }
     },
     "/api/v1/connectors/{id}": {
@@ -1962,24 +2150,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteConnector",
+        "summary": "Konnektörü sil"
       },
       "put": {
         "tags": [
@@ -2006,24 +2213,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateConnectorCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateConnectorCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -2031,24 +2220,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateConnector",
+        "summary": "Konnektörü güncelle"
       }
     },
     "/api/v1/dashboard": {
@@ -2085,8 +2293,25 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getDashboard",
+        "summary": "Dashboard özetini getir"
       }
     },
     "/api/v1/dashboard/weekly": {
@@ -2097,8 +2322,25 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getDashboardWeekly",
+        "summary": "Haftalık dashboard özeti"
       }
     },
     "/api/v1/dashboard/monthly": {
@@ -2109,8 +2351,25 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getDashboardMonthly",
+        "summary": "Aylık dashboard özeti"
       }
     },
     "/api/v1/dashboard/range": {
@@ -2139,8 +2398,25 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getDashboardRange",
+        "summary": "Tarih aralığına göre dashboard özeti"
       }
     },
     "/api/v1/me/permissions": {
@@ -2152,24 +2428,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserPermissionsResponseApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserPermissionsResponseApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UserPermissionsResponseApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getMyPermissions",
+        "summary": "Oturum sahibinin izinlerini listele"
       }
     },
     "/api/v1/receiveraccounts": {
@@ -2187,24 +2470,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateReceiverAccountCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateReceiverAccountCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -2212,24 +2477,40 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createReceiverAccount",
+        "summary": "Alıcı hesabı oluştur"
       },
       "get": {
         "tags": [
@@ -2273,24 +2554,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReceiverAccountDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReceiverAccountDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReceiverAccountDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listReceiverAccounts",
+        "summary": "Alıcı hesaplarını listele"
       }
     },
     "/api/v1/receiveraccounts/{id}": {
@@ -2313,24 +2601,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteReceiverAccount",
+        "summary": "Alıcı hesabını sil"
       },
       "put": {
         "tags": [
@@ -2357,24 +2664,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateReceiverAccountCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateReceiverAccountCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -2382,24 +2671,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateReceiverAccount",
+        "summary": "Alıcı hesabını güncelle"
       }
     },
     "/api/v1/receiveraccounts/by-bank/{bank_id}": {
@@ -2440,24 +2748,34 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReceiverAccountDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReceiverAccountDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReceiverAccountDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "operationId": "listReceiverAccountsByBank",
+        "summary": "Alıcı hesaplarını listele (bankaya göre)"
       }
     },
     "/api/v1/receiveraccounts/by-saved-account/{recipient_id}": {
@@ -2498,24 +2816,34 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReceiverAccountDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReceiverAccountDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReceiverAccountDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "operationId": "listReceiverAccountsBySavedAccount",
+        "summary": "Alıcı hesaplarını listele (kayıtlı hesaba göre)"
       }
     },
     "/api/v1/recipients": {
@@ -2533,24 +2861,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateRecipientCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateRecipientCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -2558,24 +2868,40 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createRecipient",
+        "summary": "Alıcı oluştur"
       },
       "get": {
         "tags": [
@@ -2667,24 +2993,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecipientDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecipientDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RecipientDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listRecipients",
+        "summary": "Alıcıları listele"
       }
     },
     "/api/v1/recipients/{id}": {
@@ -2707,24 +3040,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteRecipient",
+        "summary": "Alıcıyı sil"
       },
       "put": {
         "tags": [
@@ -2751,24 +3103,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateRecipientCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateRecipientCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -2776,24 +3110,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateRecipient",
+        "summary": "Alıcıyı güncelle"
       }
     },
     "/api/v1/recipients/by-bank/{bank_id}": {
@@ -2834,24 +3187,34 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecipientDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecipientDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RecipientDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "operationId": "listRecipientsByBank",
+        "summary": "Alıcıları listele (bankaya göre)"
       }
     },
     "/api/v1/recurringtransfers": {
@@ -2958,24 +3321,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecurringTransferDtoPaginatedListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecurringTransferDtoPaginatedListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RecurringTransferDtoPaginatedListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listRecurringTransfers",
+        "summary": "Tekrarlayan transferleri listele"
       },
       "post": {
         "tags": [
@@ -2991,24 +3361,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateRecurringTransferCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateRecurringTransferCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -3016,17 +3368,7 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
@@ -3036,31 +3378,7 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
               "application/json": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
-              "text/json": {
                 "schema": {
                   "oneOf": [
                     {
@@ -3073,8 +3391,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createRecurringTransfer",
+        "summary": "Tekrarlayan transfer oluştur"
       }
     },
     "/api/v1/recurringtransfers/{id}": {
@@ -3097,17 +3438,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecurringTransferDtoApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecurringTransferDtoApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RecurringTransferDtoApiResponseDto"
                 }
@@ -3117,31 +3448,7 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
               "application/json": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
-              "text/json": {
                 "schema": {
                   "oneOf": [
                     {
@@ -3154,8 +3461,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getRecurringTransfer",
+        "summary": "Tekrarlayan transferi getir"
       },
       "put": {
         "tags": [
@@ -3182,24 +3506,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateRecurringTransferCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateRecurringTransferCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -3207,17 +3513,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
@@ -3227,31 +3523,7 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
               "application/json": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
-              "text/json": {
                 "schema": {
                   "oneOf": [
                     {
@@ -3264,8 +3536,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateRecurringTransfer",
+        "summary": "Tekrarlayan transferi güncelle"
       },
       "delete": {
         "tags": [
@@ -3286,17 +3584,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BooleanApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BooleanApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BooleanApiResponseDto"
                 }
@@ -3306,31 +3594,7 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
               "application/json": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
-              "text/json": {
                 "schema": {
                   "oneOf": [
                     {
@@ -3343,8 +3607,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteRecurringTransfer",
+        "summary": "Tekrarlayan transferi sil"
       }
     },
     "/api/v1/recurringtransfers/{id}/pause": {
@@ -3367,17 +3657,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BooleanApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BooleanApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BooleanApiResponseDto"
                 }
@@ -3387,31 +3667,7 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
               "application/json": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
-              "text/json": {
                 "schema": {
                   "oneOf": [
                     {
@@ -3428,31 +3684,7 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
               "application/json": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
-              "text/json": {
                 "schema": {
                   "oneOf": [
                     {
@@ -3465,8 +3697,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "pauseRecurringTransfer",
+        "summary": "Tekrarlayan transferi duraklat"
       }
     },
     "/api/v1/recurringtransfers/{id}/resume": {
@@ -3489,17 +3744,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BooleanApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BooleanApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BooleanApiResponseDto"
                 }
@@ -3509,31 +3754,7 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
               "application/json": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
-              "text/json": {
                 "schema": {
                   "oneOf": [
                     {
@@ -3550,31 +3771,7 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
               "application/json": {
-                "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/ProblemDetails"
-                    },
-                    {
-                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                    }
-                  ]
-                }
-              },
-              "text/json": {
                 "schema": {
                   "oneOf": [
                     {
@@ -3587,8 +3784,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "resumeRecurringTransfer",
+        "summary": "Tekrarlayan transferi devam ettir"
       }
     },
     "/api/v1/settings": {
@@ -3606,24 +3826,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateSettingCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateSettingCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -3631,24 +3833,40 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GuidApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GuidApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createSetting",
+        "summary": "Ayar oluştur"
       },
       "get": {
         "tags": [
@@ -3723,24 +3941,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ObjectApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ObjectApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ObjectApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getSettingSettings",
+        "summary": "Setting ayarlarını getir"
       }
     },
     "/api/v1/settings/{id}": {
@@ -3769,24 +3994,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateSettingCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateSettingCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -3794,24 +4001,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BooleanApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BooleanApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BooleanApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateSettingSettings",
+        "summary": "Setting ayarlarını güncelle"
       },
       "delete": {
         "tags": [
@@ -3832,24 +4058,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BooleanApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BooleanApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BooleanApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteSetting",
+        "summary": "Ayarı sil"
       }
     },
     "/api/v1/transfers": {
@@ -3956,24 +4201,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/TransferDtoPaginatedList"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TransferDtoPaginatedList"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TransferDtoPaginatedList"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listTransfers",
+        "summary": "Transferleri listele"
       }
     },
     "/api/v1/transfers/{id}": {
@@ -3996,24 +4248,66 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/TransferDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TransferDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TransferDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "operationId": "getTransfer",
+        "summary": "Transferi getir",
+        "x-codeSamples": [
+          {
+            "lang": "curl",
+            "label": "cURL",
+            "source": "curl -X GET https://transfer-sandbox.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6 \\\n  -H \"Authorization: Bearer $PAYVEN_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "Node.js",
+            "source": "const res = await fetch(\n  \"https://transfer-sandbox.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6\",\n  {\n    method: \"GET\",\n    headers: {\n      Authorization: `Bearer ${accessToken}`,\n      \"Content-Type\": \"application/json\",\n    },\n  },\n);\nconst data = await res.json();"
+          },
+          {
+            "lang": "python",
+            "label": "Python",
+            "source": "import httpx\nres = httpx.get(\n    \"https://transfer-sandbox.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6\",\n    headers={\n        \"Authorization\": f\"Bearer {access_token}\",\n    },\n)\ndata = res.json()"
+          },
+          {
+            "lang": "csharp",
+            "label": "C#",
+            "source": "var req = new HttpRequestMessage(HttpMethod.Get, \"https://transfer-sandbox.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6\");\nreq.Headers.Authorization = new AuthenticationHeaderValue(\"Bearer\", accessToken);\nvar resp = await http.SendAsync(req);"
+          },
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"https://transfer-sandbox.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+accessToken)\nresp, _ := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "php",
+            "label": "PHP",
+            "source": "$ch = curl_init(\"https://transfer-sandbox.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6\");\ncurl_setopt_array($ch, [\n  CURLOPT_CUSTOMREQUEST => \"GET\",\n  CURLOPT_RETURNTRANSFER => true,\n  CURLOPT_HTTPHEADER => [\n    \"Authorization: Bearer $accessToken\",\n  ],\n]);\n$data = json_decode(curl_exec($ch), true);"
+          }
+        ]
       }
     },
     "/api/v1/transfers/bulk/create": {
@@ -4031,24 +4325,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateTransfersCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateTransfersCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -4056,24 +4332,73 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateTransferModelListApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateTransferModelListApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateTransferModelListApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "bulkCreateTransfers",
+        "summary": "Toplu transfer paketi oluştur",
+        "description": "Para Transferi 4-eyes akışının bir aşaması.",
+        "x-codeSamples": [
+          {
+            "lang": "curl",
+            "label": "cURL",
+            "source": "curl -X POST https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/create \\\n  -H \"Authorization: Bearer $PAYVEN_TOKEN\" \\\n  -H \"Idempotency-Key: order-1001\" \\\n  -d '{ ...payload... }'"
+          },
+          {
+            "lang": "javascript",
+            "label": "Node.js",
+            "source": "const res = await fetch(\n  \"https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/create\",\n  {\n    method: \"POST\",\n    headers: {\n      Authorization: `Bearer ${accessToken}`,\n      \"Idempotency-Key\": \"order-1001\",\n      \"Content-Type\": \"application/json\",\n    },\n    body: JSON.stringify({ /* payload */ }),\n  },\n);\nconst data = await res.json();"
+          },
+          {
+            "lang": "python",
+            "label": "Python",
+            "source": "import httpx\nres = httpx.post(\n    \"https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/create\",\n    headers={\n        \"Authorization\": f\"Bearer {access_token}\",\n        \"Idempotency-Key\": \"order-1001\",\n    },\n    json={ ... },\n)\ndata = res.json()"
+          },
+          {
+            "lang": "csharp",
+            "label": "C#",
+            "source": "var req = new HttpRequestMessage(HttpMethod.Post, \"https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/create\");\nreq.Headers.Authorization = new AuthenticationHeaderValue(\"Bearer\", accessToken);\nreq.Headers.Add(\"Idempotency-Key\", \"order-1001\");\n// Content = JsonContent.Create(payload);\nvar resp = await http.SendAsync(req);"
+          },
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/create\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+accessToken)\nreq.Header.Set(\"Idempotency-Key\", \"order-1001\")\n// req.Body = bytes.NewReader(payloadJSON)\nresp, _ := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "php",
+            "label": "PHP",
+            "source": "$ch = curl_init(\"https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/create\");\ncurl_setopt_array($ch, [\n  CURLOPT_CUSTOMREQUEST => \"POST\",\n  CURLOPT_RETURNTRANSFER => true,\n  CURLOPT_HTTPHEADER => [\n    \"Authorization: Bearer $accessToken\",\n    \"Idempotency-Key: order-1001\",\n  ],\n  CURLOPT_POSTFIELDS => json_encode(\\$payload),\n]);\n$data = json_decode(curl_exec($ch), true);"
+          }
+        ]
       }
     },
     "/api/v1/transfers/bulk/approve": {
@@ -4091,24 +4416,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/ApproveTransfersCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/ApproveTransfersCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -4116,24 +4423,41 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApproveTransfersResultApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApproveTransfersResultApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApproveTransfersResultApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "bulkApproveTransfers",
+        "summary": "Toplu transfer paketini onayla",
+        "description": "Para Transferi 4-eyes akışının bir aşaması."
       }
     },
     "/api/v1/transfers/bulk/reject": {
@@ -4151,24 +4475,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/RejectTransfersCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/RejectTransfersCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -4176,24 +4482,41 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/RejectTransfersResultApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RejectTransfersResultApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RejectTransfersResultApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "bulkRejectTransfers",
+        "summary": "Toplu transfer paketini reddet",
+        "description": "Para Transferi 4-eyes akışının bir aşaması."
       }
     },
     "/api/v1/transfers/bulk/send": {
@@ -4211,24 +4534,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/SendTransfersCommand"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/SendTransfersCommand"
-                  }
-                ]
-              }
             }
           }
         },
@@ -4236,24 +4541,41 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/SendTransfersResultApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SendTransfersResultApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SendTransfersResultApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "bulkSendTransfers",
+        "summary": "Toplu transfer paketini gönder",
+        "description": "Para Transferi 4-eyes akışının bir aşaması."
       }
     },
     "/api/v1/transfers/{id}/receipt/download": {
@@ -4275,8 +4597,28 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "operationId": "downloadTransferReceipt",
+        "summary": "Transfer dekontunu indir"
       }
     },
     "/api/v1/transfers/{id}/receipt/base-64": {
@@ -4299,24 +4641,34 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "type": "string"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "operationId": "getTransferReceiptBase64",
+        "summary": "Transfer dekontunu base64 formatında getir"
       }
     },
     "/api/v1/validation/iban": {
@@ -4337,24 +4689,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/StringApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StringApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StringApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "validateIban",
+        "summary": "IBAN doğrula"
       }
     },
     "/api/v1/validation/creditcard": {
@@ -4375,100 +4734,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ObjectApiResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ObjectApiResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ObjectApiResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
-      }
-    },
-    "/api/v1/validation/encrypt-card": {
-      "get": {
-        "tags": [
-          "Validation"
-        ],
-        "parameters": [
-          {
-            "name": "card_number",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/StringApiResponseDto"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StringApiResponseDto"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StringApiResponseDto"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/validation/decrypt-card": {
-      "get": {
-        "tags": [
-          "Validation"
-        ],
-        "parameters": [
-          {
-            "name": "encrypted_card",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/StringApiResponseDto"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StringApiResponseDto"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StringApiResponseDto"
-                }
-              }
-            }
-          }
-        }
+        },
+        "operationId": "validateCreditCard",
+        "summary": "Kredi kartı doğrula"
       }
     },
     "/api/v1/webhooks/transfer-notification": {
@@ -4509,24 +4799,6 @@
                   }
                 ]
               }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/WebhookRequestDto"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/WebhookRequestDto"
-                  }
-                ]
-              }
             }
           }
         },
@@ -4534,24 +4806,40 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/WebhookResponseDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WebhookResponseDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WebhookResponseDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "postTransferNotification",
+        "summary": "Transfer bildirimi webhook'u"
       }
     },
     "/api/v1/webhooks/health": {
@@ -4562,8 +4850,25 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getWebhookHealth",
+        "summary": "Webhook sağlık durumunu getir"
       }
     }
   },
@@ -8451,6 +8756,167 @@
         "bearerFormat": "JWT",
         "description": "Identity servisinden alinan Keycloak JWT. Format: `Authorization: Bearer <token>`. Token alma: POST /api/v1/auth/{slug}/token"
       }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Gecersiz istek (eksik alan, bozuk JSON).",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/bad_request",
+              "title": "Gecersiz istek",
+              "status": 400,
+              "code": "bad_request",
+              "detail": "amount.amount alani zorunlu.",
+              "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "`Authorization` header eksik, gecersiz veya expire.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/invalid_token",
+              "title": "Gecersiz token",
+              "status": 401,
+              "code": "invalid_token",
+              "detail": "Access token gecersiz veya expire — refresh edin."
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Yetki yok, lisans yok veya merchant pasif.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/forbidden",
+              "title": "Yetki yok",
+              "status": 403,
+              "code": "forbidden",
+              "detail": "Bu rol bu kaynagi goremez."
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Kaynak bulunamadi.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/resource_not_found",
+              "title": "Kaynak bulunamadi",
+              "status": 404,
+              "code": "resource_not_found"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Idempotency cakismasi veya gecersiz durum gecisi.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/idempotency_key_in_use",
+              "title": "Idempotency-Key cakismasi",
+              "status": 409,
+              "code": "idempotency_key_in_use",
+              "detail": "Bu Idempotency-Key daha once farkli bir istek govdesi ile kullanildi."
+            }
+          }
+        }
+      },
+      "UnprocessableEntity": {
+        "description": "Validasyon veya is kurali ihlali (`bank_declined`, `validation_failed`, `fraud_blocked` vb.).",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/bank_declined",
+              "title": "Banka islemi reddetti",
+              "status": 422,
+              "code": "bank_declined",
+              "detail": "Yetersiz bakiye (banka kodu: 51)",
+              "provider_error_code": "51"
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "Rate limit asildi. `Retry-After` header'ina uyun.",
+        "headers": {
+          "Retry-After": {
+            "description": "Yeniden denemeden once beklemeniz gereken saniye sayisi.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/rate_limit_exceeded",
+              "title": "Istek limiti asildi",
+              "status": 429,
+              "code": "rate_limit_exceeded"
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "Sunucu hatasi. Exponential backoff ile tekrar deneyin (idempotency-key ile).",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/internal_server_error",
+              "title": "Sunucu hatasi",
+              "status": 500,
+              "code": "internal_server_error"
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "Hedef konnektor gecici olarak devre disi (circuit breaker acik) veya bagimlilik servisi erisilemez.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/connector_unavailable",
+              "title": "Konnektor erisilemez",
+              "status": 503,
+              "code": "connector_unavailable"
+            }
+          }
+        }
+      }
     }
   },
   "security": [
@@ -8460,55 +8926,72 @@
   ],
   "tags": [
     {
-      "name": "Accounts"
+      "name": "Accounts",
+      "x-displayName": "Hesaplar"
     },
     {
-      "name": "ApiRequestLogs"
+      "name": "ApiRequestLogs",
+      "x-displayName": "API İstek Kayıtları"
     },
     {
-      "name": "BankBins"
+      "name": "BankBins",
+      "x-displayName": "Banka BIN'leri"
     },
     {
-      "name": "Banks"
+      "name": "Banks",
+      "x-displayName": "Bankalar"
     },
     {
-      "name": "ConnectorAccounts"
+      "name": "ConnectorAccounts",
+      "x-displayName": "Konnektör Hesapları"
     },
     {
-      "name": "ConnectorAccountTransferRules"
+      "name": "ConnectorAccountTransferRules",
+      "x-displayName": "Konnektör Hesap Transfer Kuralları"
     },
     {
-      "name": "ConnectorConfigurations"
+      "name": "ConnectorConfigurations",
+      "x-displayName": "Konnektör Konfigürasyonları"
     },
     {
-      "name": "Connectors"
+      "name": "Connectors",
+      "x-displayName": "Konnektörler"
     },
     {
-      "name": "Dashboard"
+      "name": "Dashboard",
+      "x-displayName": "Dashboard"
     },
     {
-      "name": "Me"
+      "name": "Me",
+      "x-displayName": "Oturum"
     },
     {
-      "name": "ReceiverAccounts"
+      "name": "ReceiverAccounts",
+      "x-displayName": "Alıcı Hesapları"
     },
     {
-      "name": "Recipients"
+      "name": "Recipients",
+      "x-displayName": "Alıcılar"
     },
     {
-      "name": "RecurringTransfers"
+      "name": "RecurringTransfers",
+      "x-displayName": "Tekrarlayan Transferler"
     },
     {
-      "name": "Settings"
+      "name": "Settings",
+      "x-displayName": "Ayarlar"
     },
     {
-      "name": "Transfers"
+      "name": "Transfers",
+      "x-displayName": "Transferler"
     },
     {
-      "name": "Validation"
+      "name": "Validation",
+      "x-displayName": "Validasyon"
     },
     {
-      "name": "Webhooks"
+      "name": "Webhooks",
+      "x-displayName": "Webhook'lar"
     }
   ]
 }

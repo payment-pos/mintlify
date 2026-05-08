@@ -1,0 +1,34 @@
+---
+title: "Reçeteler — Genel Bakış"
+description: "Yaygın iş akışları için baştan sona, çalışan örnekler."
+---
+
+Reçeteler, Payven'i belirli bir iş akışı için entegre etmek isteyen geliştiriciler için **baştan sona** rehberlerdir. Her reçete; ön koşullar, akış diyagramı, kod örnekleri (Node.js + Python + curl) ve kenar durumlar içerir.
+
+<CardGroup cols={2}>
+  <Card title="Subscription (Abonelik)" icon="rotate" href="/recipes/subscription">
+    Saved card ile aylık tekrarlayan ödeme — kart bilgisini tek seferde alın, sonraki dönemleri otomatik çekin.
+  </Card>
+  <Card title="Marketplace Onboarding" icon="store" href="/recipes/marketplace-onboarding">
+    Çoklu bayi modelinde yeni bir bayiyi sisteme alma — bayi oluştur, banka profilini bağla, yönlendirme kuralı yaz.
+  </Card>
+  <Card title="Mutabakat Eşleştirme" icon="scale-balanced" href="/recipes/reconciliation">
+    Banka EOD dosyasını Payven işlemlerine otomatik eşleştirme + tutarsızlık çözümleme.
+  </Card>
+  <Card title="4-Eyes Toplu Transfer" icon="user-group" href="/recipes/four-eyes-transfer">
+    İki onaylı toplu para transferi — paket oluştur, onaya gönder, onayla, gönder.
+  </Card>
+</CardGroup>
+
+## Ortak prensipler
+
+Tüm reçetelerde aşağıdaki kurallar geçerlidir:
+
+<Check>**`Idempotency-Key`** kullanın — özellikle ödeme, iade, transfer endpoint'lerinde. Bkz. [Idempotency](/documentation/concepts/idempotency).</Check>
+<Check>**`X-Correlation-Id`** yanıt header'ını saklayın — destek talebi açarken bu ID ile log zinciri saniyede bulunur.</Check>
+<Check>**Webhook kullanın** — uzun süreli akışlarda (3DS, mutabakat, manuel inceleme) sonucu polling ile değil webhook ile yakalayın.</Check>
+<Check>**Hata yanıtlarını HTTP durum kodu ile değerlendirin** — gövdedeki `code` programatik karar için, `detail` log için, `correlation_id` destek için.</Check>
+
+## Eksik bir reçete mi var?
+
+Sizin senaryonuzu ekleyebiliriz — [destek ekibimize](/resources/support) yazın. Tipik eklenme süresi 1 hafta.

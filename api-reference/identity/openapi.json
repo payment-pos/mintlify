@@ -127,9 +127,32 @@
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
         },
-        "security": []
+        "security": [],
+        "operationId": "loginUser",
+        "summary": "Oturum aç"
       }
     },
     "/api/v1/auth/{slug}/token": {
@@ -253,9 +276,61 @@
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
         },
-        "security": []
+        "security": [],
+        "operationId": "issueToken",
+        "summary": "Client credentials ile token üret",
+        "x-codeSamples": [
+          {
+            "lang": "curl",
+            "label": "cURL",
+            "source": "curl -X POST https://identity-sandbox.payven.com.tr/api/v1/auth/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/token \\\n  -H \"Authorization: Bearer $PAYVEN_TOKEN\" \\\n  -H \"Idempotency-Key: order-1001\" \\\n  -d '{ ...payload... }'"
+          },
+          {
+            "lang": "javascript",
+            "label": "Node.js",
+            "source": "const res = await fetch(\n  \"https://identity-sandbox.payven.com.tr/api/v1/auth/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/token\",\n  {\n    method: \"POST\",\n    headers: {\n      Authorization: `Bearer ${accessToken}`,\n      \"Idempotency-Key\": \"order-1001\",\n      \"Content-Type\": \"application/json\",\n    },\n    body: JSON.stringify({ /* payload */ }),\n  },\n);\nconst data = await res.json();"
+          },
+          {
+            "lang": "python",
+            "label": "Python",
+            "source": "import httpx\nres = httpx.post(\n    \"https://identity-sandbox.payven.com.tr/api/v1/auth/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/token\",\n    headers={\n        \"Authorization\": f\"Bearer {access_token}\",\n        \"Idempotency-Key\": \"order-1001\",\n    },\n    json={ ... },\n)\ndata = res.json()"
+          },
+          {
+            "lang": "csharp",
+            "label": "C#",
+            "source": "var req = new HttpRequestMessage(HttpMethod.Post, \"https://identity-sandbox.payven.com.tr/api/v1/auth/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/token\");\nreq.Headers.Authorization = new AuthenticationHeaderValue(\"Bearer\", accessToken);\nreq.Headers.Add(\"Idempotency-Key\", \"order-1001\");\n// Content = JsonContent.Create(payload);\nvar resp = await http.SendAsync(req);"
+          },
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"https://identity-sandbox.payven.com.tr/api/v1/auth/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/token\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+accessToken)\nreq.Header.Set(\"Idempotency-Key\", \"order-1001\")\n// req.Body = bytes.NewReader(payloadJSON)\nresp, _ := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "php",
+            "label": "PHP",
+            "source": "$ch = curl_init(\"https://identity-sandbox.payven.com.tr/api/v1/auth/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/token\");\ncurl_setopt_array($ch, [\n  CURLOPT_CUSTOMREQUEST => \"POST\",\n  CURLOPT_RETURNTRANSFER => true,\n  CURLOPT_HTTPHEADER => [\n    \"Authorization: Bearer $accessToken\",\n    \"Idempotency-Key: order-1001\",\n  ],\n  CURLOPT_POSTFIELDS => json_encode(\\$payload),\n]);\n$data = json_decode(curl_exec($ch), true);"
+          }
+        ]
       }
     },
     "/api/v1/auth/{slug}/register": {
@@ -339,9 +414,35 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
         },
-        "security": []
+        "security": [],
+        "operationId": "registerTenant",
+        "summary": "Yeni tenant kaydet"
       }
     },
     "/api/v1/auth/{slug}/refresh": {
@@ -438,9 +539,32 @@
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
         },
-        "security": []
+        "security": [],
+        "operationId": "refreshToken",
+        "summary": "Refresh token ile access token yenile"
       }
     },
     "/api/v1/auth/{slug}/logout": {
@@ -500,9 +624,35 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
         },
-        "security": []
+        "security": [],
+        "operationId": "logoutUser",
+        "summary": "Oturumu kapat"
       }
     },
     "/api/v1/auth/{slug}/me": {
@@ -580,8 +730,22 @@
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getAuthMe",
+        "summary": "Oturum sahibinin profilini getir"
       }
     },
     "/api/v1/auth/update-profile": {
@@ -628,8 +792,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateProfile",
+        "summary": "Profili güncelle"
       }
     },
     "/api/v1/auth/change-password": {
@@ -688,746 +878,31 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/v1/internal/lookups/cities": {
-      "get": {
-        "tags": [
-          "InternalLookups"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/CityDto"
-                  }
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/CityDto"
-                  }
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/CityDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": []
-      }
-    },
-    "/api/v1/internal/lookups/districts": {
-      "get": {
-        "tags": [
-          "InternalLookups"
-        ],
-        "parameters": [
-          {
-            "name": "city_code",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/DistrictDto"
-                  }
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/DistrictDto"
-                  }
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/DistrictDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": []
-      }
-    },
-    "/api/v1/internal/lookups/banks": {
-      "get": {
-        "tags": [
-          "InternalLookups"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BankDto"
-                  }
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BankDto"
-                  }
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BankDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": []
-      }
-    },
-    "/api/v1/internal/lookups/banks/resolve": {
-      "get": {
-        "tags": [
-          "InternalLookups"
-        ],
-        "parameters": [
-          {
-            "name": "code",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/BankDto"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/BankDto"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/BankDto"
-                }
-              }
-            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           },
           "400": {
-            "description": "Bad Request",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
         },
-        "security": []
-      }
-    },
-    "/api/v1/internal/lookups/bank-bins": {
-      "get": {
-        "tags": [
-          "InternalLookups"
-        ],
-        "parameters": [
-          {
-            "name": "bank_code",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BankBinDto"
-                  }
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BankBinDto"
-                  }
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/BankBinDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": []
-      }
-    },
-    "/api/v1/internal/lookups/bank-bins/resolve": {
-      "get": {
-        "tags": [
-          "InternalLookups"
-        ],
-        "parameters": [
-          {
-            "name": "bin",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResolvedBankBinDto"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResolvedBankBinDto"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResolvedBankBinDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        },
-        "security": []
-      }
-    },
-    "/api/v1/internal/lookups/mcc-codes": {
-      "get": {
-        "tags": [
-          "InternalLookups"
-        ],
-        "parameters": [
-          {
-            "name": "category",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MccCodeDto"
-                  }
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MccCodeDto"
-                  }
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MccCodeDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": []
-      }
-    },
-    "/api/v1/internal/merchants/resolve": {
-      "get": {
-        "tags": [
-          "InternalMerchants"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "external_id",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResolvedMerchantDto"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResolvedMerchantDto"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResolvedMerchantDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        },
-        "security": []
-      }
-    },
-    "/api/v1/internal/merchants/by-tenant": {
-      "get": {
-        "tags": [
-          "InternalMerchants"
-        ],
-        "parameters": [
-          {
-            "name": "tenant_id",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "include_inactive",
-            "in": "query",
-            "schema": {
-              "type": "boolean",
-              "default": false
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ResolvedMerchantDto"
-                  }
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ResolvedMerchantDto"
-                  }
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ResolvedMerchantDto"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        },
-        "security": []
-      }
-    },
-    "/api/v1/internal/permissions/features/{feature_code}/sync": {
-      "post": {
-        "tags": [
-          "InternalPermissions"
-        ],
-        "parameters": [
-          {
-            "name": "feature_code",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json; ver=1.0": {
-              "schema": {
-                "$ref": "#/components/schemas/SyncFeatureRequest"
-              }
-            },
-            "text/json; ver=1.0": {
-              "schema": {
-                "$ref": "#/components/schemas/SyncFeatureRequest"
-              }
-            },
-            "application/*+json; ver=1.0": {
-              "schema": {
-                "$ref": "#/components/schemas/SyncFeatureRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/SyncFeatureResult"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/SyncFeatureResult"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/SyncFeatureResult"
-                }
-              }
-            }
-          }
-        },
-        "security": []
-      }
-    },
-    "/api/v1/internal/permissions/grants": {
-      "get": {
-        "tags": [
-          "InternalPermissions"
-        ],
-        "parameters": [
-          {
-            "name": "tenant_id",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "feature_code",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/InternalGrantsDto"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/InternalGrantsDto"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/InternalGrantsDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        },
-        "security": []
-      }
-    },
-    "/api/v1/internal/tenants/{tenant_id}/features": {
-      "get": {
-        "tags": [
-          "InternalTenantFeatures"
-        ],
-        "parameters": [
-          {
-            "name": "tenant_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantFeaturesDto"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantFeaturesDto"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantFeaturesDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        },
-        "security": []
+        "operationId": "changePassword",
+        "summary": "Şifre değiştir"
       }
     },
     "/api/v1/lookups/cities": {
@@ -1488,8 +963,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listLookups",
+        "summary": "Lookup kayıtlarını listele"
       }
     },
     "/api/v1/lookups/districts": {
@@ -1550,8 +1042,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listLookups",
+        "summary": "Lookup kayıtlarını listele"
       }
     },
     "/api/v1/lookups/banks": {
@@ -1605,8 +1114,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listLookups",
+        "summary": "Lookup kayıtlarını listele"
       }
     },
     "/api/v1/lookups/bank-bins": {
@@ -1667,8 +1193,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listLookups",
+        "summary": "Lookup kayıtlarını listele"
       },
       "post": {
         "tags": [
@@ -1722,8 +1265,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createLookup",
+        "summary": "Lookup kaydı oluştur"
       }
     },
     "/api/v1/lookups/bank-bins/{id}": {
@@ -1801,8 +1370,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateLookup",
+        "summary": "Lookup kaydını güncelle"
       },
       "delete": {
         "tags": [
@@ -1842,65 +1437,34 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/v1/lookups/bank-bins/import": {
-      "post": {
-        "tags": [
-          "Lookups"
-        ],
-        "parameters": [
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json; ver=1.0": {
-              "schema": {
-                "$ref": "#/components/schemas/ImportBankBinsRequest"
-              }
-            },
-            "text/json; ver=1.0": {
-              "schema": {
-                "$ref": "#/components/schemas/ImportBankBinsRequest"
-              }
-            },
-            "application/*+json; ver=1.0": {
-              "schema": {
-                "$ref": "#/components/schemas/ImportBankBinsRequest"
-              }
-            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
         },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImportBankBinsResult"
-                }
-              },
-              "application/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImportBankBinsResult"
-                }
-              },
-              "text/json; ver=1.0": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImportBankBinsResult"
-                }
-              }
-            }
-          }
-        }
+        "operationId": "deleteLookup",
+        "summary": "Lookup kaydını sil"
       }
     },
     "/api/v1/lookups/mcc-codes": {
@@ -1961,8 +1525,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listLookups",
+        "summary": "Lookup kayıtlarını listele"
       }
     },
     "/api/v1/me": {
@@ -2010,8 +1591,22 @@
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getMe",
+        "summary": "Oturum sahibini getir"
       }
     },
     "/api/v1/me/plan": {
@@ -2039,8 +1634,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getMyPlan",
+        "summary": "Oturum sahibinin aktif planını getir"
       }
     },
     "/api/v1/merchants": {
@@ -2145,8 +1757,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listMerchants",
+        "summary": "Bayileri listele"
       },
       "post": {
         "tags": [
@@ -2220,8 +1849,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createMerchant",
+        "summary": "Bayi oluştur"
       }
     },
     "/api/v1/merchants/me": {
@@ -2269,8 +1921,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getMyMerchant",
+        "summary": "Oturum sahibinin bayi bilgilerini getir"
       }
     },
     "/api/v1/merchants/{id}": {
@@ -2329,8 +1998,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getMerchant",
+        "summary": "Bayiyi getir"
       },
       "put": {
         "tags": [
@@ -2426,8 +2112,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateMerchant",
+        "summary": "Bayiyi güncelle"
       },
       "delete": {
         "tags": [
@@ -2467,8 +2176,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteMerchant",
+        "summary": "Bayiyi sil"
       }
     },
     "/api/v1/permissions/grants": {
@@ -2553,8 +2288,22 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listPermissionGrants",
+        "summary": "İzin atamalarını listele"
       },
       "put": {
         "tags": [
@@ -2628,8 +2377,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updatePermissionGrants",
+        "summary": "İzin atamalarını güncelle"
       }
     },
     "/api/v1/platform/features": {
@@ -2696,8 +2468,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listPlatformFeatures",
+        "summary": "Platform özelliklerini listele"
       },
       "post": {
         "tags": [
@@ -2771,8 +2560,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createPlatformFeature",
+        "summary": "Platform özelliği oluştur"
       }
     },
     "/api/v1/platform/features/{id}": {
@@ -2850,8 +2662,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updatePlatformFeature",
+        "summary": "Platform özelliğini güncelle"
       },
       "delete": {
         "tags": [
@@ -2891,8 +2729,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deletePlatformFeature",
+        "summary": "Platform özelliğini sil"
       }
     },
     "/api/v1/platform/plans": {
@@ -2952,8 +2816,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listPlatformPlans",
+        "summary": "Platform planlarını listele"
       },
       "post": {
         "tags": [
@@ -3027,8 +2908,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createPlatformPlan",
+        "summary": "Platform planı oluştur"
       }
     },
     "/api/v1/platform/plans/{id}": {
@@ -3087,8 +2991,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getPlatformPlan",
+        "summary": "Platform planını getir"
       },
       "put": {
         "tags": [
@@ -3164,8 +3085,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updatePlatformPlan",
+        "summary": "Platform planını güncelle"
       },
       "delete": {
         "tags": [
@@ -3225,8 +3172,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deletePlatformPlan",
+        "summary": "Platform planını sil"
       }
     },
     "/api/v1/platform/tenants/{tenant_id}/api-keys": {
@@ -3298,8 +3268,28 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "operationId": "listPlatformTenantApiKeys",
+        "summary": "Tenant API anahtarlarını listele"
       },
       "post": {
         "tags": [
@@ -3382,8 +3372,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createPlatformTenantApiKey",
+        "summary": "Tenant API anahtarı oluştur"
       }
     },
     "/api/v1/platform/tenants/{tenant_id}/api-keys/{id}": {
@@ -3451,8 +3467,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getPlatformTenantApiKey",
+        "summary": "Tenant API anahtarını getir"
       },
       "put": {
         "tags": [
@@ -3557,8 +3590,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updatePlatformTenantApiKey",
+        "summary": "Tenant API anahtarını güncelle"
       },
       "delete": {
         "tags": [
@@ -3607,8 +3663,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deletePlatformTenantApiKey",
+        "summary": "Tenant API anahtarını sil"
       }
     },
     "/api/v1/platform/tenants/{tenant_id}/api-keys/{id}/rotate-secret": {
@@ -3683,8 +3765,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "rotatePlatformTenantApiKeySecret",
+        "summary": "Tenant API anahtarı secret'ini yenile"
       }
     },
     "/api/v1/platform/tenants": {
@@ -3744,8 +3852,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listPlatformTenants",
+        "summary": "Platform tenant'ları listele"
       },
       "post": {
         "tags": [
@@ -3819,8 +3944,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createPlatformTenant",
+        "summary": "Platform tenant oluştur"
       }
     },
     "/api/v1/platform/tenants/{slug}": {
@@ -3878,8 +4026,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getPlatformTenant",
+        "summary": "Platform tenant'ı getir"
       }
     },
     "/api/v1/platform/tenants/{id}/suspend": {
@@ -3928,8 +4093,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "suspendPlatformTenant",
+        "summary": "Platform tenant'ı askıya al"
       }
     },
     "/api/v1/platform/tenants/{id}/activate": {
@@ -3978,8 +4169,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "activatePlatformTenant",
+        "summary": "Platform tenant'ı etkinleştir"
       }
     },
     "/api/v1/platform/tenants/{id}/plan": {
@@ -4057,8 +4274,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateTenantPlan",
+        "summary": "Tenant planını güncelle"
       }
     },
     "/api/v1/platform/tenants/{id}/payment-policy": {
@@ -4136,8 +4379,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updatePlatformTenantPaymentPolicy",
+        "summary": "Platform tenant ödeme politikasını güncelle"
       }
     },
     "/api/v1/tenants/me/api-keys": {
@@ -4220,8 +4489,22 @@
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listTenantApiKeys",
+        "summary": "API anahtarlarını listele"
       },
       "post": {
         "tags": [
@@ -4295,8 +4578,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createTenantApiKey",
+        "summary": "API anahtarı oluştur"
       }
     },
     "/api/v1/tenants/me/api-keys/{id}": {
@@ -4355,8 +4661,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getTenantApiKey",
+        "summary": "API anahtarını getir"
       },
       "put": {
         "tags": [
@@ -4432,8 +4755,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateTenantApiKey",
+        "summary": "API anahtarını güncelle"
       },
       "delete": {
         "tags": [
@@ -4473,8 +4822,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteTenantApiKey",
+        "summary": "API anahtarını sil"
       }
     },
     "/api/v1/tenants/me/api-keys/{id}/rotate-secret": {
@@ -4540,8 +4915,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "rotateTenantApiKeySecret",
+        "summary": "API anahtarı secret'ini yenile"
       }
     },
     "/api/v1/tenants/{tenant_id}/roles": {
@@ -4609,8 +5010,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "operationId": "listTenantRoles",
+        "summary": "Rolleri listele"
       },
       "post": {
         "tags": [
@@ -4713,8 +5131,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createTenantRole",
+        "summary": "Rol oluştur"
       }
     },
     "/api/v1/tenants/{tenant_id}/roles/{role_name}": {
@@ -4820,8 +5261,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateTenantRole",
+        "summary": "Rolü güncelle"
       },
       "delete": {
         "tags": [
@@ -4889,8 +5353,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteTenantRole",
+        "summary": "Rolü sil"
       }
     },
     "/api/v1/users": {
@@ -4964,8 +5451,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listUsers",
+        "summary": "Kullanıcıları listele"
       },
       "post": {
         "tags": [
@@ -5039,8 +5543,31 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createUser",
+        "summary": "Kullanıcı oluştur"
       }
     },
     "/api/v1/users/{id}": {
@@ -5098,8 +5625,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "getUser",
+        "summary": "Kullanıcıyı getir"
       },
       "put": {
         "tags": [
@@ -5174,8 +5718,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateUser",
+        "summary": "Kullanıcıyı güncelle"
       },
       "delete": {
         "tags": [
@@ -5214,8 +5784,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteUser",
+        "summary": "Kullanıcıyı sil"
       }
     },
     "/api/v1/users/{id}/reset-password": {
@@ -5262,8 +5858,37 @@
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "resetUserPassword",
+        "summary": "Kullanıcı şifresini sıfırla"
       }
     },
     "/api/v1/users/roles": {
@@ -5300,8 +5925,25 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listUserRoles",
+        "summary": "Kullanıcı rollerini listele"
       }
     },
     "/api/v1/validation/card": {
@@ -5357,8 +5999,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "validateCard",
+        "summary": "Kart numarası doğrula"
       }
     },
     "/api/v1/validation/iban": {
@@ -5414,8 +6082,34 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "validateIban",
+        "summary": "IBAN doğrula"
       }
     }
   },
@@ -7851,6 +8545,167 @@
         "bearerFormat": "JWT",
         "description": "Identity servisinden alinan Keycloak JWT. Format: `Authorization: Bearer <token>`. Token alma: POST /api/v1/auth/{slug}/token"
       }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Gecersiz istek (eksik alan, bozuk JSON).",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/bad_request",
+              "title": "Gecersiz istek",
+              "status": 400,
+              "code": "bad_request",
+              "detail": "amount.amount alani zorunlu.",
+              "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "`Authorization` header eksik, gecersiz veya expire.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/invalid_token",
+              "title": "Gecersiz token",
+              "status": 401,
+              "code": "invalid_token",
+              "detail": "Access token gecersiz veya expire — refresh edin."
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Yetki yok, lisans yok veya merchant pasif.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/forbidden",
+              "title": "Yetki yok",
+              "status": 403,
+              "code": "forbidden",
+              "detail": "Bu rol bu kaynagi goremez."
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Kaynak bulunamadi.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/resource_not_found",
+              "title": "Kaynak bulunamadi",
+              "status": 404,
+              "code": "resource_not_found"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Idempotency cakismasi veya gecersiz durum gecisi.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/idempotency_key_in_use",
+              "title": "Idempotency-Key cakismasi",
+              "status": 409,
+              "code": "idempotency_key_in_use",
+              "detail": "Bu Idempotency-Key daha once farkli bir istek govdesi ile kullanildi."
+            }
+          }
+        }
+      },
+      "UnprocessableEntity": {
+        "description": "Validasyon veya is kurali ihlali (`bank_declined`, `validation_failed`, `fraud_blocked` vb.).",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/bank_declined",
+              "title": "Banka islemi reddetti",
+              "status": 422,
+              "code": "bank_declined",
+              "detail": "Yetersiz bakiye (banka kodu: 51)",
+              "provider_error_code": "51"
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "Rate limit asildi. `Retry-After` header'ina uyun.",
+        "headers": {
+          "Retry-After": {
+            "description": "Yeniden denemeden once beklemeniz gereken saniye sayisi.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/rate_limit_exceeded",
+              "title": "Istek limiti asildi",
+              "status": 429,
+              "code": "rate_limit_exceeded"
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "Sunucu hatasi. Exponential backoff ile tekrar deneyin (idempotency-key ile).",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/internal_server_error",
+              "title": "Sunucu hatasi",
+              "status": 500,
+              "code": "internal_server_error"
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "Hedef konnektor gecici olarak devre disi (circuit breaker acik) veya bagimlilik servisi erisilemez.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/connector_unavailable",
+              "title": "Konnektor erisilemez",
+              "status": 503,
+              "code": "connector_unavailable"
+            }
+          }
+        }
+      }
     }
   },
   "security": [
@@ -7860,55 +8715,56 @@
   ],
   "tags": [
     {
-      "name": "Auth"
+      "name": "Auth",
+      "x-displayName": "Kimlik Doğrulama"
     },
     {
-      "name": "InternalLookups"
+      "name": "Lookups",
+      "x-displayName": "Lookup Servisleri"
     },
     {
-      "name": "InternalMerchants"
+      "name": "Me",
+      "x-displayName": "Oturum"
     },
     {
-      "name": "InternalPermissions"
+      "name": "Merchants",
+      "x-displayName": "Bayiler"
     },
     {
-      "name": "InternalTenantFeatures"
+      "name": "Permissions",
+      "x-displayName": "İzinler"
     },
     {
-      "name": "Lookups"
+      "name": "PlatformFeatures",
+      "x-displayName": "Platform Özellikleri"
     },
     {
-      "name": "Me"
+      "name": "PlatformPlans",
+      "x-displayName": "Platform Planları"
     },
     {
-      "name": "Merchants"
+      "name": "PlatformTenantApiKeys",
+      "x-displayName": "Platform Tenant API Anahtarları"
     },
     {
-      "name": "Permissions"
+      "name": "PlatformTenants",
+      "x-displayName": "Platform Tenant'lar"
     },
     {
-      "name": "PlatformFeatures"
+      "name": "TenantApiKeys",
+      "x-displayName": "API Anahtarları"
     },
     {
-      "name": "PlatformPlans"
+      "name": "TenantRoles",
+      "x-displayName": "Roller"
     },
     {
-      "name": "PlatformTenantApiKeys"
+      "name": "Users",
+      "x-displayName": "Kullanıcılar"
     },
     {
-      "name": "PlatformTenants"
-    },
-    {
-      "name": "TenantApiKeys"
-    },
-    {
-      "name": "TenantRoles"
-    },
-    {
-      "name": "Users"
-    },
-    {
-      "name": "Validation"
+      "name": "Validation",
+      "x-displayName": "Validasyon"
     }
   ]
 }

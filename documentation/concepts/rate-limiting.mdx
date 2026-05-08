@@ -17,6 +17,29 @@ Limitler planınıza göre değişir. Tipik değerler:
 
 Aktif planınızı [Konsol → Plan ve Kullanım](https://dashboard.payven.com.tr/my-plan) ekranından görebilirsiniz.
 
+## Endpoint sınıfları ve özel limitler
+
+Genel kuruluş limitinin yanında, bazı endpoint sınıflarında **endpoint-bazlı ayrı limit** uygulanır (suistimali önleme + kaynak adaleti):
+
+| Endpoint sınıfı | Örnek path | Standart plan limiti | Not |
+|---|---|---|---|
+| **Token endpoint** | `POST /auth/{slug}/token` | **10 / dk / IP** | Token cache'leyin; her istek için yeniden almayın |
+| **Refresh endpoint** | `POST /auth/{slug}/refresh` | **30 / dk / kuruluş** | — |
+| **Ödeme yazma** | `POST /payments`, `/refund`, `/void`, `/capture` | Plan limiti dahilinde | `Idempotency-Key` ile retry edin |
+| **3DS init** | `POST /payments/3d/init` | Plan limiti dahilinde | `callback_url` redirect'ine kullanıcı yönlenirken kota tüketmez |
+| **Hosted Checkout oluşturma** | `POST /checkout/sessions` | Plan limiti dahilinde | Müşteri sayfaya geçtikten sonra ek kota yok |
+| **Validasyon (BIN, IBAN, kart Luhn)** | `GET /lookups/bins/...`, `POST /validation/iban` | **500 / dk** | Cache'leyin — BIN verileri günde 1 kez güncellenir |
+| **Lookup servisleri** | `GET /lookups/banks`, `cities`, `mcc-codes` | **1000 / dk** | Long-cache (24h) tavsiye edilir |
+| **Liste / arama** (`GET` çoğul) | `GET /transactions`, `/refunds`, ... | Plan limiti dahilinde | Cursor pagination kullanın (büyük veri) |
+| **Webhook subscription yönetimi** | `POST/PUT/DELETE /webhooks` | **20 / dk** | Sık değişmemesi gereken; insan eli ile yönetilir |
+| **Mutabakat başlatma** | `POST /reconciliations/start` | **5 / dk / kuruluş** | EOD dosyaları nadir; yüksek hacim onboarding'de istenir |
+| **Toplu transfer** | `POST /transfers/bulk/create` | **10 / dk / kuruluş** | Tek pakette 1000'e kadar transfer; paketleri birleştirin |
+| **Health probe** | `GET /health/live`, `/ready` | **Limitsiz** | Container orchestrator'ı için — kotaya yansımaz |
+
+<Note>
+**Webhook teslimleri rate limit'inden muaftır** — Payven'in size gönderdiği webhook çağrıları sayılmaz; ayrı bir teslim mekanizmasına tabidir.
+</Note>
+
 ## Yanıt başlıkları
 
 Her API yanıtı, mevcut kotanızı bildiren başlıklar döner:

@@ -1,0 +1,87 @@
+---
+title: "PCI-DSS SAQ Eşleme"
+description: "Hangi entegrasyon modeli hangi SAQ tipine düşüyor — kapsamı düşürmek için karar tablosu."
+---
+
+PCI-DSS uyumu **kart verisinin nasıl işlendiğine** göre farklı seviyelerde kapsam gerektirir. Bu sayfa, Payven entegrasyon seçeneklerinin **PCI Self-Assessment Questionnaire (SAQ)** tiplerine eşleştirmesini gösterir. Doğru entegrasyon modeli, denetim yükünüzü 280 sorudan 21 soruya kadar düşürebilir.
+
+<Note>
+Resmi SAQ tanımları için: [PCI Security Standards Council — SAQs](https://www.pcisecuritystandards.org/document_library/).
+Bu tablo Payven entegrasyon modellerine göre rehber niteliğindedir; resmi onay için QSA (Qualified Security Assessor) ile doğrulayın.
+</Note>
+
+## Karar tablosu
+
+| Entegrasyon modeli | Kart verisi sizin sunucudan geçiyor mu? | SAQ tipi | Yaklaşık soru sayısı | Kapsam |
+|---|---|---|---|---|
+| **Hosted Checkout** ([Mintlify Hosted Checkout](/sanal-pos/payments/hosted-checkout)) | ❌ Hayır — kart Payven sayfasında girilir | **SAQ A** | ~22 | En düşük kapsam — yalnız e-ticaret merchant + tamamen outsource |
+| **Payven JS Drop-in** (iframe / hosted fields) | ❌ Hayır — kart Payven iframe'inde, parent DOM erişemez | **SAQ A-EP** | ~191 | Site Payven'e yönlendiriyor ama kart sayfa içinde gözüküyor |
+| **Direct API (Non-3D)** — kart sunucunuzdan POST ediliyor | ✅ Evet | **SAQ D-Merchant** | ~329 | Tam PCI-DSS denetimi |
+| **Direct API + tokenization (saved card)** — ilk kez kart bizden geçer, sonraki çağrılar token | ✅ Evet (ilk işlem) | **SAQ D-Merchant** | ~329 | İlk işlem için kapsam — sonraki MIT'lerde daralabilir |
+| **Pay-by-link** ([Hosted](/sanal-pos/payments/pay-by-link)) | ❌ Hayır — link → Payven sayfası | **SAQ A** | ~22 | En düşük kapsam |
+
+## Önerilen seçim
+
+<CardGroup cols={2}>
+  <Card title="Hosted Checkout (SAQ A)" icon="shield-check">
+    Tüketici e-ticareti, ekstra entegrasyon yükü kabul edilebilir. **En düşük PCI yükü.**
+  </Card>
+  <Card title="Drop-in iframe (SAQ A-EP)" icon="window-maximize">
+    Marka tutarlılığı önemli, kart formunu kendi sayfanızda göstermek istiyorsunuz ama kart verisini sunucularınızdan tutmak istemiyorsunuz.
+  </Card>
+  <Card title="Direct API (SAQ D)" icon="server">
+    Mobil uygulama gibi yüksek kontrol gereken senaryolar; ITSP / lisanslı ödeme kuruluşu olarak zaten SAQ D kapsamındaysanız ek yük yok.
+  </Card>
+  <Card title="Pay-by-link (SAQ A)" icon="link">
+    SMS / e-posta / WhatsApp ile ödeme talebi; geliştirme yükü en düşük.
+  </Card>
+</CardGroup>
+
+## SAQ tipi başına gereksinimler (özet)
+
+### SAQ A
+- Kart girişi 100% Payven'de (iframe + redirect)
+- Sizden istenen: **TLS 1.2+, SSL Cert geçerli, PCI-uyumlu üçüncü taraf sağlayıcı listesi (Payven dahil), yıllık SAQ A imzalama**
+- Kart verisi sunucularınızda **hiçbir zaman** olmamalı (log'da bile)
+
+### SAQ A-EP
+- iframe / drop-in modeli — kart verisi sayfanızda görünür ama Payven JS'sinden çıkmaz
+- Ek olarak: **CSP (Content Security Policy), iframe origin kısıtlamaları, sayfa güvenlik kontrolleri**
+- Sayfanızı barındıran sunucularda kart verisi log'lanmamalı
+
+### SAQ D-Merchant
+- Direct API
+- Tam PCI-DSS — 12 alan, 329 soru
+- Network segmentation, log management, FIM (file integrity monitoring), pen-test, ASV scan, çalışan eğitimi vb.
+- Çoğu ödeme kuruluşu zaten bu kapsamda — Payven'e geçiş ek yük yaratmaz
+
+## "Yanlışlıkla" kapsamı genişleten şeyler
+
+<Warning>
+**Aşağıdakilerden biri varsa otomatik SAQ D-Merchant'a düşersiniz**:
+
+- Kart numarasını **log'a yazmak** (debug, audit, hata izleme)
+- Kart verisini **e-postada / Slack'te / Jira ticket'inde** paylaşmak
+- Kart verisini **destek için hot-storage**'a kopyalamak (Redis, Memcached)
+- Mobil uygulamadan **kart verisini SMS / push notification ile** server'a göndermek
+- Web request'lerini **proxy / WAF / SIEM'de** body ile loglamak
+</Warning>
+
+## Yıllık denetim takvimi (SAQ A merchant için)
+
+| Ay | Eylem |
+|---|---|
+| Ocak | Yıllık SAQ A formunu doldur |
+| Mart | Pen-test (varsa kapsam) |
+| Çeyreklik (Mar/Jun/Sep/Dec) | ASV (Approved Scanning Vendor) ile dış ağ taraması |
+| Sürekli | Üçüncü taraf sağlayıcı listesi güncel mi? Payven AOC (Attestation of Compliance) kopyası var mı? |
+
+## Payven'in kendi uyumu
+
+Payven, **PCI-DSS Level 1 Service Provider** sertifikalıdır (yıllık QSA denetimi). AOC kopyası için: [destek ekibimize](/resources/support) yazın.
+
+## İlgili sayfalar
+
+- [PCI-DSS Genel Bakış](/documentation/security/pci-dss)
+- [API Anahtarı Best Practices](/documentation/security/api-key-best-practices)
+- [Go-live kontrol listesi](/documentation/security/go-live-checklist)

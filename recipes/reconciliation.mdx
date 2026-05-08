@@ -1,0 +1,184 @@
+---
+title: "Reçete — Mutabakat Eşleştirme"
+description: "Banka EOD dosyasını Payven işlemlerine otomatik eşleştirme + tutarsızlık çözümleme akışı."
+---
+
+Bu reçete, **gün sonu mutabakat (reconciliation)** akışını gösterir: bankanın EOD dosyasını alıp Payven'deki işlem kayıtlarıyla eşleştirir, tutarsızlıkları işaretler ve operasyon ekibinin çözümleyebileceği bir kuyruk üretir.
+
+## Akış
+
+```mermaid
+flowchart TB
+    A[Banka EOD dosyası gelir] --> B[POST /reconciliations/start]
+    B --> C{Eşleştirme<br/>algoritması}
+    C -->|Tam eşleşme| D[matched]
+    C -->|Tutar farkı / eksik kayıt| E[discrepancy]
+    E --> F[/Operasyon manuel inceleme/]
+    F --> G[POST /details/{id}/resolve]
+    D --> H[POST /reconciliations/{id}/finalize]
+    G --> H
+    H --> I[settlement raporu üretilir]
+```
+
+## 1. EOD dosyasını başlat
+
+Banka tarafından gelen mutabakat dosyasını (`.csv`, `.txt`, banka-spesifik format) Payven'e yükleyerek mutabakat sürecini başlatın. Konsoldan veya API ile:
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/start \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_code": "GARANTI",
+    "settlement_date": "2026-05-07",
+    "file_url":       "https://your-bucket/eod/garanti-20260507.csv"
+  }'
+```
+
+Yanıt:
+
+```json
+{
+  "reconciliation_id": "rec_8e3f5c12...",
+  "status":            "processing",
+  "estimated_records": 1342
+}
+```
+
+Asenkron çalışır — webhook ile sonucu bekleyin (`reconciliation.completed`) veya status polling yapın:
+
+```bash
+curl https://vpos.payven.com.tr/api/v1/reconciliations/{id} \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+## 2. Sonucu inceleme
+
+Eşleştirme tamamlandığında detayları çekin:
+
+```bash
+curl "https://vpos.payven.com.tr/api/v1/reconciliations/{id}/details?status=discrepancy&page=1&page_size=50" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+Tipik yanıt:
+
+```json
+{
+  "items": [
+    {
+      "id":             "det_...",
+      "transaction_id": "8e3f5c12-...",
+      "status":         "discrepancy",
+      "discrepancy_type": "amount_mismatch",
+      "payven_amount":   15000,
+      "bank_amount":     14850,
+      "diff":            -150,
+      "note":            null
+    }
+  ],
+  "total_count": 23,
+  "page": 1,
+  "total_pages": 1
+}
+```
+
+| `discrepancy_type` | Anlam |
+|---|---|
+| `amount_mismatch` | Tutar Payven ile banka arasında farklı (komisyon kesintisi olabilir) |
+| `missing_at_bank` | Payven'de var, bankada yok (banka teslim etmemiş) |
+| `missing_at_payven` | Bankada var, Payven'de yok (eksik webhook / başka kanaldan işlem) |
+| `status_mismatch` | Payven `completed`, banka `voided` ya da tersi |
+| `duplicate_at_bank` | Aynı işlem bankada iki kez raporlanmış |
+
+## 3. Tutarsızlık çözümleme
+
+Operasyon ekibi her detayı tek tek çözümler. Örnek: banka komisyon kesintisi nedeniyle tutar farkı varsa "kabul" karar verilir:
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/{rec_id}/details/{detail_id}/resolve \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resolution":   "accept_bank_amount",
+    "note":         "POS komisyonu — tahsis edilmiş tarafe",
+    "category":     "fee_deduction"
+  }'
+```
+
+Toplu çözümleme — aynı tip tüm detayları tek seferde işaretle:
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/{rec_id}/details/bulk-resolve \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -d '{
+    "filter": { "discrepancy_type": "amount_mismatch", "diff_max": 200 },
+    "resolution": "accept_bank_amount",
+    "note":        "≤2 TL fark — komisyon",
+    "category":    "fee_deduction"
+  }'
+```
+
+| `resolution` | Etki |
+|---|---|
+| `accept_bank_amount` | Payven kayıtları bankaya hizalanır (audit log'a kaydı düşer) |
+| `accept_payven_amount` | Banka kayıtları yanlış kabul edilir (şikâyet kaydı oluşturulur) |
+| `dispute` | Banka ile chargeback / iade görüşmesi başlatılır |
+| `manual_offset` | Manuel düzeltme (muhasebe kayıtlarına yansır) |
+
+## 4. Mutabakatı sonuçlandır
+
+Tüm detaylar `matched` veya `resolved` olduğunda mutabakatı sonuçlandırın:
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/{id}/finalize \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+Bu adım bir **settlement raporu** üretir — bayinin alacağı net tutarı (komisyonlar düşürülmüş) muhasebe sistemine yansıtmak için.
+
+```bash
+curl https://vpos.payven.com.tr/api/v1/settlements?reconciliation_id={id} \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+## 5. Otomasyon — günlük cron
+
+Tipik bir günlük mutabakat cron'u:
+
+```python
+# 09:00 her gün — bir önceki günün dosyalarını işle
+import datetime, requests
+
+YESTERDAY = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+
+for connector in ["GARANTI", "AKBANK", "ZIRAATBANK"]:
+    file_url = fetch_eod_file_from_bank_sftp(connector, YESTERDAY)
+    res = requests.post(
+        "https://vpos.payven.com.tr/api/v1/reconciliations/start",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "connector_code": connector,
+            "settlement_date": YESTERDAY,
+            "file_url": file_url,
+        },
+    )
+
+# Webhook handler tarafında: reconciliation.completed event'ı geldiğinde
+# discrepancy listesini çek, otomatik kuralları uygula (fee_deduction < 5 TL),
+# kalanı operasyona düşür.
+```
+
+## Kontrol listesi
+
+<Check>EOD dosya formatı (CSV layout, encoding, separator) Payven konnektörünün beklediği şablona uygun mu?</Check>
+<Check>SFTP / S3 vb. dosya kaynağı için Payven IP whitelist'inde mi?</Check>
+<Check>`reconciliation.completed` webhook'u operasyon kuyruğuna mesaj atıyor mu?</Check>
+<Check>Otomatik çözümleme kuralları (örn. ≤5 TL fark = `fee_deduction`) tanımlı mı?</Check>
+<Check>Settlement raporu muhasebe sistemine entegre mi?</Check>
+
+## İlgili sayfalar
+
+- [Mutabakat Genel Bakış](/sanal-pos/reconciliation/overview)
+- [Mutabakat Yaşam Döngüsü](/sanal-pos/reconciliation/lifecycle)
+- [Settlement Raporları](/sanal-pos/reporting/settlements)

@@ -26,153 +26,6 @@
     }
   ],
   "paths": {
-    "/api/v1/internal/fraud/evaluate": {
-      "post": {
-        "tags": [
-          "InternalFraud"
-        ],
-        "parameters": [
-          {
-            "name": "X-Tenant-Id",
-            "in": "header",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EvaluateFraudRequest"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EvaluateFraudRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/EvaluateFraudRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/EvaluationResultDto"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EvaluationResultDto"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EvaluationResultDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        },
-        "security": []
-      }
-    },
-    "/api/v1/internal/fraud/finalize": {
-      "post": {
-        "tags": [
-          "InternalFraud"
-        ],
-        "parameters": [
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FinalizeDecisionCommand"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FinalizeDecisionCommand"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/FinalizeDecisionCommand"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        },
-        "security": []
-      }
-    },
     "/api/v1/platform/fraud/alerts": {
       "get": {
         "tags": [
@@ -244,24 +97,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudAlertDtoPaginatedList"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudAlertDtoPaginatedList"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudAlertDtoPaginatedList"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listPlatformFraudAlerts",
+        "summary": "Platform fraud uyarılarını listele"
       }
     },
     "/api/v1/platform/fraud/alerts/{id}/approve": {
@@ -293,16 +153,6 @@
               "schema": {
                 "$ref": "#/components/schemas/ResolveBody"
               }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResolveBody"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResolveBody"
-              }
             }
           }
         },
@@ -310,17 +160,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudAlertDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudAlertDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudAlertDto"
                 }
@@ -330,24 +170,40 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "approvePlatformFraudAlert",
+        "summary": "Platform fraud uyarısını onayla"
       }
     },
     "/api/v1/platform/fraud/alerts/{id}/reject": {
@@ -379,16 +235,6 @@
               "schema": {
                 "$ref": "#/components/schemas/ResolveBody"
               }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResolveBody"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResolveBody"
-              }
             }
           }
         },
@@ -396,17 +242,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudAlertDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudAlertDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudAlertDto"
                 }
@@ -416,24 +252,40 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "rejectPlatformFraudAlert",
+        "summary": "Platform fraud uyarısını reddet"
       }
     },
     "/api/v1/platform/fraud/blacklist": {
@@ -491,24 +343,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BlacklistEntryDtoPaginatedList"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BlacklistEntryDtoPaginatedList"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BlacklistEntryDtoPaginatedList"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listPlatformFraudBlacklist",
+        "summary": "Platform kara liste kayıtlarını listele"
       },
       "post": {
         "tags": [
@@ -529,16 +388,6 @@
               "schema": {
                 "$ref": "#/components/schemas/AddBlacklistEntryRequest"
               }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AddBlacklistEntryRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/AddBlacklistEntryRequest"
-              }
             }
           }
         },
@@ -546,17 +395,7 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BlacklistEntryDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BlacklistEntryDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BlacklistEntryDto"
                 }
@@ -566,24 +405,37 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createPlatformFraudBlacklist",
+        "summary": "Platform kara liste kaydı oluştur"
       }
     },
     "/api/v1/platform/fraud/blacklist/{id}": {
@@ -609,24 +461,40 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deletePlatformFraudBlacklist",
+        "summary": "Platform kara liste kaydını sil"
       }
     },
     "/api/v1/platform/fraud/rules": {
@@ -699,24 +567,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudRuleDtoPaginatedList"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudRuleDtoPaginatedList"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudRuleDtoPaginatedList"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listPlatformFraudRules",
+        "summary": "Platform fraud kurallarını listele"
       },
       "post": {
         "tags": [
@@ -737,16 +612,6 @@
               "schema": {
                 "$ref": "#/components/schemas/CreateFraudRuleRequest"
               }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateFraudRuleRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateFraudRuleRequest"
-              }
             }
           }
         },
@@ -754,17 +619,7 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudRuleDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudRuleDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudRuleDto"
                 }
@@ -774,24 +629,37 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createPlatformFraudRule",
+        "summary": "Platform fraud kuralı oluştur"
       }
     },
     "/api/v1/platform/fraud/rules/{id}": {
@@ -816,16 +684,6 @@
               "schema": {
                 "$ref": "#/components/schemas/UpdateFraudRuleRequest"
               }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateFraudRuleRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateFraudRuleRequest"
-              }
             }
           }
         },
@@ -833,17 +691,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudRuleDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudRuleDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudRuleDto"
                 }
@@ -853,24 +701,40 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "patchPlatformFraudRule",
+        "summary": "Platform fraud kuralını kısmi güncelle"
       },
       "delete": {
         "tags": [
@@ -894,24 +758,40 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deletePlatformFraudRule",
+        "summary": "Platform fraud kuralını sil"
       }
     },
     "/api/v1/fraud/alerts": {
@@ -985,24 +865,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudAlertDtoPaginatedList"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudAlertDtoPaginatedList"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudAlertDtoPaginatedList"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listTenantFraudAlerts",
+        "summary": "Fraud uyarılarını listele"
       }
     },
     "/api/v1/fraud/alerts/{id}/approve": {
@@ -1034,16 +921,6 @@
               "schema": {
                 "$ref": "#/components/schemas/ResolveBody"
               }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResolveBody"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResolveBody"
-              }
             }
           }
         },
@@ -1051,17 +928,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudAlertDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudAlertDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudAlertDto"
                 }
@@ -1071,24 +938,40 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "approveTenantFraudAlert",
+        "summary": "Fraud uyarısını onayla"
       }
     },
     "/api/v1/fraud/alerts/{id}/reject": {
@@ -1120,16 +1003,6 @@
               "schema": {
                 "$ref": "#/components/schemas/ResolveBody"
               }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResolveBody"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResolveBody"
-              }
             }
           }
         },
@@ -1137,17 +1010,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudAlertDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudAlertDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudAlertDto"
                 }
@@ -1157,24 +1020,40 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "rejectTenantFraudAlert",
+        "summary": "Fraud uyarısını reddet"
       }
     },
     "/api/v1/fraud/blacklist": {
@@ -1232,24 +1111,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BlacklistEntryDtoPaginatedList"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BlacklistEntryDtoPaginatedList"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BlacklistEntryDtoPaginatedList"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listTenantFraudBlacklist",
+        "summary": "Kara liste kayıtlarını listele"
       },
       "post": {
         "tags": [
@@ -1270,16 +1156,6 @@
               "schema": {
                 "$ref": "#/components/schemas/AddBlacklistEntryRequest"
               }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AddBlacklistEntryRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/AddBlacklistEntryRequest"
-              }
             }
           }
         },
@@ -1287,17 +1163,7 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/BlacklistEntryDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BlacklistEntryDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BlacklistEntryDto"
                 }
@@ -1307,24 +1173,37 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createTenantFraudBlacklist",
+        "summary": "Kara liste kaydı oluştur"
       }
     },
     "/api/v1/fraud/blacklist/{id}": {
@@ -1350,24 +1229,40 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteTenantFraudBlacklist",
+        "summary": "Kara liste kaydını sil"
       }
     },
     "/api/v1/fraud/logs": {
@@ -1457,17 +1352,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudCheckLogDtoPaginatedList"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudCheckLogDtoPaginatedList"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudCheckLogDtoPaginatedList"
                 }
@@ -1477,24 +1362,28 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listTenantFraudLogs",
+        "summary": "Fraud log kayıtlarını listele"
       }
     },
     "/api/v1/fraud/merchants/{merchant_id}/policy": {
@@ -1516,24 +1405,34 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/MerchantFraudPolicyBundleDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MerchantFraudPolicyBundleDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantFraudPolicyBundleDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
-        }
+        },
+        "operationId": "getMerchantFraudPolicy",
+        "summary": "Bayi fraud politikasını getir"
       },
       "patch": {
         "tags": [
@@ -1555,16 +1454,6 @@
               "schema": {
                 "$ref": "#/components/schemas/UpsertMerchantPolicyRequest"
               }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpsertMerchantPolicyRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpsertMerchantPolicyRequest"
-              }
             }
           }
         },
@@ -1572,24 +1461,43 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/MerchantFraudPolicyBundleDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MerchantFraudPolicyBundleDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MerchantFraudPolicyBundleDto"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "updateMerchantFraudPolicy",
+        "summary": "Bayi fraud politikasını güncelle"
       }
     },
     "/api/v1/fraud/rules": {
@@ -1662,24 +1570,31 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudRuleDtoPaginatedList"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudRuleDtoPaginatedList"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudRuleDtoPaginatedList"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "operationId": "listTenantFraudRules",
+        "summary": "Fraud kurallarını listele"
       },
       "post": {
         "tags": [
@@ -1700,16 +1615,6 @@
               "schema": {
                 "$ref": "#/components/schemas/CreateFraudRuleRequest"
               }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateFraudRuleRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateFraudRuleRequest"
-              }
             }
           }
         },
@@ -1717,17 +1622,7 @@
           "201": {
             "description": "Created",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudRuleDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudRuleDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudRuleDto"
                 }
@@ -1737,24 +1632,37 @@
           "409": {
             "description": "Conflict",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "createTenantFraudRule",
+        "summary": "Fraud kuralı oluştur"
       }
     },
     "/api/v1/fraud/rules/{id}": {
@@ -1779,16 +1687,6 @@
               "schema": {
                 "$ref": "#/components/schemas/UpdateFraudRuleRequest"
               }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateFraudRuleRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateFraudRuleRequest"
-              }
             }
           }
         },
@@ -1796,17 +1694,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudRuleDto"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FraudRuleDto"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FraudRuleDto"
                 }
@@ -1816,24 +1704,40 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "patchTenantFraudRule",
+        "summary": "Fraud kuralını kısmi güncelle"
       },
       "delete": {
         "tags": [
@@ -1857,24 +1761,40 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
-        }
+        },
+        "operationId": "deleteTenantFraudRule",
+        "summary": "Fraud kuralını sil"
       }
     }
   },
@@ -2796,6 +2716,167 @@
           }
         }
       }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Gecersiz istek (eksik alan, bozuk JSON).",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/bad_request",
+              "title": "Gecersiz istek",
+              "status": 400,
+              "code": "bad_request",
+              "detail": "amount.amount alani zorunlu.",
+              "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "`Authorization` header eksik, gecersiz veya expire.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/invalid_token",
+              "title": "Gecersiz token",
+              "status": 401,
+              "code": "invalid_token",
+              "detail": "Access token gecersiz veya expire — refresh edin."
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Yetki yok, lisans yok veya merchant pasif.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/forbidden",
+              "title": "Yetki yok",
+              "status": 403,
+              "code": "forbidden",
+              "detail": "Bu rol bu kaynagi goremez."
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Kaynak bulunamadi.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/resource_not_found",
+              "title": "Kaynak bulunamadi",
+              "status": 404,
+              "code": "resource_not_found"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Idempotency cakismasi veya gecersiz durum gecisi.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/idempotency_key_in_use",
+              "title": "Idempotency-Key cakismasi",
+              "status": 409,
+              "code": "idempotency_key_in_use",
+              "detail": "Bu Idempotency-Key daha once farkli bir istek govdesi ile kullanildi."
+            }
+          }
+        }
+      },
+      "UnprocessableEntity": {
+        "description": "Validasyon veya is kurali ihlali (`bank_declined`, `validation_failed`, `fraud_blocked` vb.).",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/bank_declined",
+              "title": "Banka islemi reddetti",
+              "status": 422,
+              "code": "bank_declined",
+              "detail": "Yetersiz bakiye (banka kodu: 51)",
+              "provider_error_code": "51"
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "Rate limit asildi. `Retry-After` header'ina uyun.",
+        "headers": {
+          "Retry-After": {
+            "description": "Yeniden denemeden once beklemeniz gereken saniye sayisi.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/rate_limit_exceeded",
+              "title": "Istek limiti asildi",
+              "status": 429,
+              "code": "rate_limit_exceeded"
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "Sunucu hatasi. Exponential backoff ile tekrar deneyin (idempotency-key ile).",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/internal_server_error",
+              "title": "Sunucu hatasi",
+              "status": 500,
+              "code": "internal_server_error"
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "Hedef konnektor gecici olarak devre disi (circuit breaker acik) veya bagimlilik servisi erisilemez.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            },
+            "example": {
+              "type": "https://docs.payven.com.tr/errors/connector_unavailable",
+              "title": "Konnektor erisilemez",
+              "status": 503,
+              "code": "connector_unavailable"
+            }
+          }
+        }
+      }
     }
   },
   "security": [
@@ -2805,31 +2886,36 @@
   ],
   "tags": [
     {
-      "name": "InternalFraud"
+      "name": "PlatformFraudAlerts",
+      "x-displayName": "Platform Fraud Uyarıları"
     },
     {
-      "name": "PlatformFraudAlerts"
+      "name": "PlatformFraudBlacklist",
+      "x-displayName": "Platform Kara Liste"
     },
     {
-      "name": "PlatformFraudBlacklist"
+      "name": "PlatformFraudRules",
+      "x-displayName": "Platform Fraud Kuralları"
     },
     {
-      "name": "PlatformFraudRules"
+      "name": "TenantFraudAlerts",
+      "x-displayName": "Fraud Uyarıları"
     },
     {
-      "name": "TenantFraudAlerts"
+      "name": "TenantFraudBlacklist",
+      "x-displayName": "Kara Liste"
     },
     {
-      "name": "TenantFraudBlacklist"
+      "name": "TenantFraudLogs",
+      "x-displayName": "Fraud Logları"
     },
     {
-      "name": "TenantFraudLogs"
+      "name": "TenantFraudMerchantPolicies",
+      "x-displayName": "Bayi Fraud Politikaları"
     },
     {
-      "name": "TenantFraudMerchantPolicies"
-    },
-    {
-      "name": "TenantFraudRules"
+      "name": "TenantFraudRules",
+      "x-displayName": "Fraud Kuralları"
     }
   ]
 }

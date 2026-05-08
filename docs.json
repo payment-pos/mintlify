@@ -72,8 +72,25 @@
             "group": "Güvenlik",
             "pages": [
               "documentation/security/pci-dss",
+              "documentation/security/pci-saq",
               "documentation/security/api-key-best-practices",
               "documentation/security/go-live-checklist"
+            ]
+          },
+          {
+            "group": "Geçiş Rehberi",
+            "pages": [
+              "documentation/migration/overview"
+            ]
+          },
+          {
+            "group": "Reçeteler",
+            "pages": [
+              "recipes/overview",
+              "recipes/subscription",
+              "recipes/marketplace-onboarding",
+              "recipes/reconciliation",
+              "recipes/four-eyes-transfer"
             ]
           }
         ]
@@ -230,6 +247,15 @@
         ]
       },
       {
+        "tab": "Fraud",
+        "groups": [
+          {
+            "group": "Genel Bakış",
+            "pages": ["fraud/overview"]
+          }
+        ]
+      },
+      {
         "tab": "Identity & Auth",
         "groups": [
           {
@@ -292,6 +318,13 @@
             "openapi": {
               "source": "/api-reference/identity/openapi.json",
               "directory": "api-reference/identity"
+            }
+          },
+          {
+            "group": "Fraud",
+            "openapi": {
+              "source": "/api-reference/fraud/openapi.json",
+              "directory": "api-reference/fraud"
             }
           }
         ]

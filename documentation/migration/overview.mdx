@@ -1,0 +1,140 @@
+---
+title: "Geçiş Rehberi"
+description: "Mevcut bir gateway'den (Craftgate, iyzico, PayU, Param) Payven'e geçiş haritası."
+---
+
+Mevcut bir gateway entegrasyonunuz varsa Payven'e geçiş genelde **birkaç gün** sürer. Bu rehber kavram eşleştirmesi, alan-bazlı API farkları ve geçiş sıralaması sunar.
+
+<Note>
+**Çift-yazma stratejisi öneririz.** Mevcut gateway'inizi durdurmadan, kademeli olarak trafiğin %1 → %10 → %50 → %100'ünü Payven'e taşıyın. [Yönlendirme kuralları](/sanal-pos/routing/overview) ile A/B test yapabilirsiniz.
+</Note>
+
+## Kavram eşleştirmesi
+
+| Sizin gateway | Payven karşılığı |
+|---|---|
+| **Craftgate**: `Payment` + `Card` + `Buyer` | `Payment` (`/api/v1/payments`) + iç içe `card` + `buyer` |
+| **Craftgate**: `paymentSource` (web/mobile/marketplace) | Sanal POS: `extra_properties.payment_source` (opsiyonel) |
+| **Craftgate**: `connectorName` | Payven: `connector_code` (`GARANTI`, `AKBANK`, ...) |
+| **iyzico**: `paymentChannel` (WEB/MOBILE_WEB/...) | Sanal POS: işlem normalde otomatik tespit edilir; gerekirse `extra_properties.channel` |
+| **iyzico**: `paymentGroup` (PRODUCT/LISTING/SUBSCRIPTION) | Sanal POS: `description` veya `basket_items[]` ile model |
+| **iyzico**: `installmentInfo` endpoint'i | Identity: [BIN sorgu](/identity/lookups/bins) |
+| **PayU**: `merchant`, `merchantPosId`, `salt` | Identity OAuth (Bearer token) — POS bilgisi konfigürasyonda |
+| **Param**: `Islem_Hash` | Bizde HMAC yok — tüm güvenlik OAuth + IP whitelist üzerinden |
+
+## API alan eşleştirmesi (POST /payments)
+
+| Sizin alan | Payven alanı | Not |
+|---|---|---|
+| `price` (TL ondalık, örn. `150.00`) | `amount.amount` (kuruş, örn. `15000`) | **Önemli**: Payven kuruş cinsindendir |
+| `paidPrice` | yok — Payven `amount.amount`'i kullanır | Komisyon ayrımı yapmıyoruz |
+| `currency: "TRY"` | `amount.currency: "TRY"` | Aynı |
+| `installment` | `installment` | Aynı |
+| `cardHolderName` | `card.holder_name` | snake_case |
+| `cardNumber` | `card.number` | snake_case |
+| `expireMonth` | `card.expire_month` | snake_case |
+| `expireYear` | `card.expire_year` | 4 hane (`2030`), iki hane değil |
+| `cvc` / `cvv` | `card.cvv` | Aynı |
+| `buyerEmail` | `buyer.email` | İç içe |
+| `buyerIp` / `ipAddress` | `buyer.ip_address` | İç içe |
+| `conversationId` (iyzico) | `external_id` | Sizin sipariş ID'niz |
+| `basketId` | `basket_id` | Aynı |
+| `callbackUrl` (3DS) | `callback_url` (`/payments/3d/init` body'sinde) | Aynı |
+| `merchantId` | `X-Merchant-Id` header *veya* `X-External-Merchant-Id` header | Body'de değil header'da |
+
+## Yanıt eşleştirmesi
+
+| Sizin alan | Payven alanı |
+|---|---|
+| `paymentId` | `transaction_id` |
+| `paymentStatus` (`SUCCESS`/`FAILURE`) | HTTP status (2xx başarı, 422 banka reddi) + `status` enum |
+| `errorCode` (provider-spesifik) | `code` (Payven canonical) + `provider_error_code` (banka orijinali) |
+| `authCode` | `extra_properties.auth_code` |
+| `hostReference` / `mdStatus` (3DS) | `extra_properties.host_reference`, `extra_properties.three_ds.eci` |
+
+## Hata yapısı eşleştirmesi
+
+Çoğu Türk gateway hatayı 200 OK + body'de `status: "FAILURE"` ile döner. **Payven RFC 9457 problem+json kullanır** — HTTP status kodunu konuşturur:
+
+| Senaryo | iyzico/Craftgate tipik | Payven |
+|---|---|---|
+| Banka reddi (yetersiz bakiye) | `200 OK` + `{ status: "FAILURE", errorCode: "10051" }` | `422 Unprocessable Entity` + `{ code: "bank_declined", provider_error_code: "51" }` |
+| Validasyon hatası | `200 OK` + `{ status: "FAILURE", errorCode: "100xxx" }` | `422 Unprocessable Entity` + `{ code: "validation_failed", errors: [...] }` |
+| Token geçersiz | `200 OK` + body içinde error | `401 Unauthorized` + `{ code: "invalid_token" }` |
+| Rate limit | `403`/`429` farklı providerlar | `429 Too Many Requests` + `Retry-After` |
+
+**Migration sonrası kodunuzu düzeltmeniz gereken yer**: `if (res.status === 200)` koşulundan `if (res.ok)` veya `if (res.status >= 200 && res.status < 300)` koşuluna geçin. Hata gövdesini `code` üzerinden okuyun, sayısal `errorCode` üzerinden değil.
+
+## Idempotency
+
+| Provider | Yaklaşım |
+|---|---|
+| iyzico | `conversationId` ile dedupe (best-effort) |
+| Craftgate | `Idempotency-Key` header desteği var |
+| PayU | Yok (sipariş ID dupe kontrolü kendinize ait) |
+| **Payven** | `Idempotency-Key` header zorunluk değil ama **şiddetle önerilir** — bkz. [Idempotency](/documentation/concepts/idempotency) |
+
+## Webhook eşleştirmesi
+
+| Provider | Payven |
+|---|---|
+| iyzico: `paymentEventType` | Payven: `type` (`payment.completed`, `payment.failed`, ...) |
+| iyzico: `transactionType: "AUTH"` | Payven: tek event yapısı, type'tan ayırd ediyoruz |
+| Craftgate: `eventType` | Payven: `type` |
+| HMAC imza farklı (her provider) | Payven: `X-Payven-Signature: sha256=...` + `X-Payven-Timestamp` (Stripe-benzeri) |
+
+İmza algoritması: bkz. [Webhook İmza Doğrulama](/sanal-pos/webhooks/signature). HMAC-SHA256, body'i raw imzala, 5 dakika timestamp tolerance.
+
+## Geçiş sıralaması (önerilen)
+
+<Steps>
+  <Step title="Sandbox'ta paralel entegrasyon (1-3 gün)">
+    Mevcut sisteminize dokunmadan, sandbox'ta Payven entegrasyonunu yapın. 3DS dahil tüm akışları test edin.
+  </Step>
+  <Step title="Production canary (1 gün)">
+    Trafiğin %1'ini Payven'e yönlendirin (örn. belirli bir BIN, belirli bir bayi, belirli bir tutar aralığı). [Yönlendirme kuralları](/sanal-pos/routing/overview) ile yapılandırın.
+  </Step>
+  <Step title="Hata oranı + latency karşılaştırması (3-7 gün)">
+    Payven `dashboard.payven.com.tr` ile mevcut gateway dashboard'ını yan yana izleyin. Hata oranı, p95 latency, başarı oranı.
+  </Step>
+  <Step title="Aşamalı geçiş %10 → %50 → %100">
+    Her aşama 2-3 gün izleme — sorun çıkarsa yönlendirme kuralını geri alın.
+  </Step>
+  <Step title="Eski gateway'i pasif et">
+    Mevcut gateway'i kapatmayın — ileride eski işlemlerin iadesi için 13 ay daha açık tutun (chargeback penceresi).
+  </Step>
+</Steps>
+
+## Sık karşılaşılan tuzaklar
+
+<Warning>
+**Tutar formatı:** Payven kuruş, çoğu gateway TL ondalık. `amount * 100` ölçeklemeyi unutmayın.
+</Warning>
+
+<Warning>
+**Yıl formatı:** Payven 4 hane (`"2030"`), bazı gatewayler 2 hane (`"30"`). Dönüştürme yapın.
+</Warning>
+
+<Warning>
+**HTTP status'a güven:** Banka reddini `body.status === "FAILURE"` ile bulan kodlar Payven'de hata gözünden kaçırır. **HTTP status kodunu konuşturun.**
+</Warning>
+
+<Warning>
+**Webhook imzası:** Body'i parse etmeden raw olarak imzalayın. JSON.parse() + JSON.stringify() döngüsü imzayı bozar. [Detay](/sanal-pos/webhooks/signature).
+</Warning>
+
+## Hata kodu eşleştirme tablosu (örnek)
+
+| Sizin sisteminizde | Payven `code` | Banka kodu (`provider_error_code`) |
+|---|---|---|
+| iyzico `10051` (yetersiz bakiye) | `insufficient_funds` | `51` |
+| iyzico `10054` (kart süresi dolmuş) | `card_expired` | `54` |
+| iyzico `10005` (CVC hatalı) | `invalid_cvv` | `82` |
+| Craftgate `BANK_DECLINED_NN` | `bank_declined` | `NN` |
+| Param `99` (sistem hatası) | `bank_system_error` | `96` |
+
+Daha kapsamlı eşleme için [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes) ve [Payven Hata Kodları](/sanal-pos/errors/payven-codes).
+
+## Yardım
+
+Geçiş sırasında özel bir senaryoda takılırsanız: **kuruluş kodunuz + işlem `correlation_id`** ile [destek ekibimize](/resources/support) yazın. Onboarding ekibi tipik olarak 1-2 saat içinde yanıt verir.
