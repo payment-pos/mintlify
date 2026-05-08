@@ -1,13 +1,13 @@
 ---
-title: "API Yanıt Formatı"
-description: "Payven API yanıt yapısı, sayfalama ve tarih/tutar konvansiyonları."
+title: "API Response Formatı"
+description: "Payven API response yapısı, sayfalama ve tarih/tutar konvansiyonları."
 ---
 
-Payven API'leri **REST + HTTP semantiği** üzerinde çalışır: HTTP durum kodu başarıyı, response body veriyi taşır. Hata gövdeleri [RFC 9457 — Problem Details](https://www.rfc-editor.org/rfc/rfc9457) standardına uyar.
+Payven API'leri **REST + HTTP semantiği** üzerinde çalışır: HTTP durum kodu başarıyı, response body veriyi taşır. Hata response'ları [RFC 9457 — Problem Details](https://www.rfc-editor.org/rfc/rfc9457) standardına uyar.
 
-## Başarılı yanıt
+## Başarılı response
 
-Başarılı bir istek için **gövde doğrudan kaynak nesnesidir** — sarmalayıcı yoktur.
+Başarılı bir istek için **response body doğrudan kaynak nesnesidir** — wrapper yoktur.
 
 ```http
 HTTP/1.1 200 OK
@@ -26,17 +26,17 @@ Content-Type: application/json
 }
 ```
 
-İstek başarılı mı bilgisini **HTTP durum kodundan** okuyun (`2xx` → başarılı). Hata durumunda gövde `application/problem+json` MIME tipiyle döner (aşağıda).
+İstek başarılı mı bilgisini **HTTP durum kodundan** okuyun (`2xx` → başarılı). Hata durumunda response body `application/problem+json` MIME tipiyle döner (aşağıda).
 
 <Note>
 Tüm property isimleri **snake_case**, enum değerleri **snake_case** olarak yazılır
-(`status: "completed"`, `operation_type: "pre_auth"`). Bu kural hem istek hem yanıt
-gövdeleri, hem de query parametreleri için geçerlidir.
+(`status: "completed"`, `operation_type: "pre_auth"`). Bu kural hem request body
+hem response body, hem de query parametreleri için geçerlidir.
 </Note>
 
-## Hata yanıtı (RFC 9457)
+## Hata response formatı (RFC 9457)
 
-Hata durumlarında gövde `application/problem+json` MIME tipindedir:
+Hata durumlarında response body `application/problem+json` MIME tipindedir:
 
 ```http
 HTTP/1.1 422 Unprocessable Entity
@@ -59,7 +59,7 @@ Content-Type: application/problem+json
 |---|---|
 | `type` | Hata tipinin kanonik URI'si — dokümantasyon linki olarak da çalışır |
 | `title` | Kısa, insan-okur başlık (Türkçe) |
-| `status` | HTTP status kodu (gövdede yinelenir; HTTP header ile aynı) |
+| `status` | HTTP status kodu (response body'de yinelenir; HTTP header ile aynı) |
 | `code` | Programatik hata kodu (snake_case). `type` URI'sinin son segmenti |
 | `detail` | Bu özel duruma ilişkin açıklayıcı mesaj |
 | `instance` | Hatanın oluştuğu kaynak yolu |
@@ -67,7 +67,7 @@ Content-Type: application/problem+json
 
 Tam hata kodu kataloğu: [Hata Yönetimi](/documentation/concepts/errors).
 
-## Sayfalı liste yanıtı
+## Sayfalı liste response formatı
 
 Liste döndüren `GET` endpoint'leri sabit bir sayfalama yapısı kullanır:
 
@@ -100,7 +100,7 @@ Content-Type: application/json
 
 <Note>
 İstek tarafında `page` ve `page_size` query parametreleri kullanılır (`page_size`
-varsayılan 25, üst sınır 100). Yanıtta `page_size` döndürülmez — istek değerini siz
+varsayılan 25, üst sınır 100). Response'ta `page_size` döndürülmez — istek değerini siz
 zaten biliyorsunuz.
 </Note>
 
@@ -121,12 +121,12 @@ Liste endpoint'lerinde ortak query parametreleri:
 
 ## HTTP durum kodları
 
-| Kod | Anlam | Hata yanıtı MIME tipi |
+| Kod | Anlam | Response MIME tipi |
 |---|---|---|
 | `200 OK` | Başarılı senkron işlem | `application/json` |
 | `201 Created` | Yeni kayıt oluşturuldu | `application/json` |
 | `202 Accepted` | İstek alındı, asenkron işlenecek (3D init, hosted checkout, vb.) | `application/json` |
-| `204 No Content` | Başarılı ama gövde dönmüyor (logout, void onayı, vb.) | — |
+| `204 No Content` | Başarılı ama response body dönmüyor (logout, void onayı, vb.) | — |
 | `400 Bad Request` | Geçersiz istek (eksik alan, JSON parse) | `application/problem+json` |
 | `401 Unauthorized` | Auth eksik / geçersiz / expire | `application/problem+json` |
 | `403 Forbidden` | Yetki yok / lisans yok / merchant pasif | `application/problem+json` |
@@ -137,9 +137,9 @@ Liste endpoint'lerinde ortak query parametreleri:
 | `5xx` | Sunucu hatası — exponential backoff ile retry edin | `application/problem+json` |
 
 <Note>
-**Banka reddi de hata yanıtıdır.** Gateway'e ulaşmış ama banka tarafında reddedilen
+**Banka reddi de hata response'udur.** Gateway'e ulaşmış ama banka tarafında reddedilen
 bir ödeme `422 Unprocessable Entity` + `application/problem+json` ile döner;
-gövdede `code: "bank_declined"` ve banka ham yanıt kodu (`provider_error_code`,
+response body'de `code: "bank_declined"` ve banka ham yanıt kodu (`provider_error_code`,
 örn. `"51"`) yer alır. Sonuç değerlendirmesi yalnız HTTP durum kodu üzerinden
 yapılır — istek başarılı mıydı diye response body'sindeki ek alanlara bakmanız gerekmez.
 </Note>
@@ -148,10 +148,10 @@ yapılır — istek başarılı mıydı diye response body'sindeki ek alanlara b
 
 | Header | Açıklama |
 |---|---|
-| `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Hata yanıtlarında body içindeki `correlation_id` alanıyla aynı değeri taşır |
+| `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Hata response'larında body içindeki `correlation_id` alanıyla aynı değeri taşır |
 | `X-RateLimit-Limit` / `X-RateLimit-Remaining` / `X-RateLimit-Reset` | Rate limit durumu — bkz. [Rate Limiting](/documentation/concepts/rate-limiting) |
-| `Retry-After` | Yalnız `429` yanıtında — kaç saniye sonra tekrar denemeniz gerektiği |
-| `Idempotent-Replayed` | Yalnız idempotent replay'lerde — yanıt cache'den döndüyse `true`. Bkz. [Idempotency](/documentation/concepts/idempotency) |
+| `Retry-After` | Yalnız `429` response'unda — kaç saniye sonra tekrar denemeniz gerektiği |
+| `Idempotent-Replayed` | Yalnız idempotent replay'lerde — response cache'den döndüyse `true`. Bkz. [Idempotency](/documentation/concepts/idempotency) |
 
 ## Tarih ve zaman
 

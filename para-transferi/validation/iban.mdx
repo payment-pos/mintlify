@@ -29,7 +29,7 @@ curl -X POST https://transfer.payven.com.tr/api/v1/validation/iban \
 |---|---|---|---|
 | `iban` | string | ✅ | Boşluksuz veya boşluklu IBAN — Payven normalize eder |
 
-## Başarılı yanıt
+## Başarılı response
 
 ```json
 {
@@ -115,7 +115,7 @@ ibanInput.addEventListener("input", (e) => {
 });
 ```
 
-## Hata yanıtları
+## Hata response'ları
 
 Burada listelenen `4xx` hataları **endpoint kullanımı** ile ilgilidir; IBAN doğrulama mantıksal sonucu için yukarıdaki `is_valid` alanına bakın.
 

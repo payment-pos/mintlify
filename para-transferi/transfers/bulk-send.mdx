@@ -114,7 +114,7 @@ Banka tarafı detayını sonradan `GET /api/v1/transfers/{id}` ile sorgulayabili
 
 Sender hesabınız birden fazla banka konnektörüne bağlıysa, Payven uygun olanı seçer. Birinci konnektör hata verirse otomatik fallback'e düşer (`success_sender_account_id` yanıtta gerçek kullanılan hesabı taşır). Bu sırada `retry_count` artar.
 
-## Hata yanıtları
+## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|

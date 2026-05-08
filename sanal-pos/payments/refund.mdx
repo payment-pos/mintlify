@@ -38,7 +38,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
 **Idempotency-Key kullanın.** Operatör arayüzünde butonun iki kez basılması veya client tarafı retry sırasında **iki kez iade gerçekleşmesini** engeller. Önerilen pattern: `refund-{transaction_id}-{slot}` (slot = 1, 2, 3 ... her kısmi iade için artar).
 </Warning>
 
-## Başarılı yanıt
+## Başarılı response
 
 ```json
 {
@@ -83,7 +83,7 @@ Bir işleme **birden fazla** kısmi iade yapabilirsiniz. Toplam iade tutarı ori
 Mutabakat öncesi iadelerde banka komisyonu çoğu durumda yansımaz; mutabakat sonrası iadelerde komisyon iadesi banka anlaşmanıza tabidir. Anlaşma detayı için müşteri başarısı ekibine ulaşın.
 </Tip>
 
-## Hata yanıtları
+## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|

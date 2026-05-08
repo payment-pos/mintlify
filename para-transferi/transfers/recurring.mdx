@@ -117,7 +117,7 @@ curl -X POST https://transfer.payven.com.tr/api/v1/recurringtransfers/rec-8e3f5c
 
 Tetikleme anında kaynak hesapta yeterli bakiye yoksa transfer **`failed`** statüsünde oluşur (`error_code: "insufficient_balance"`). Tekrarlayan kayıt **devam eder** — sonraki periyodda yeniden denenir. Operasyonel olarak `transfer.failed` webhook'una abone olmanız önerilir.
 
-## Hata yanıtları
+## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
