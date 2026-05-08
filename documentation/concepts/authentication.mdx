@@ -93,7 +93,7 @@ curl https://vpos.payven.com.tr/api/v1/payments \
   }'
 ```
 
-Access token içinde `tenant_id`, `merchant_id`, `plan_code` claim'leri taşınır — ürün servisleri bunları okuyup işlem yetkisini doğrular. Ek bir merchant header'ı gerekmez. (Multi-merchant senaryolar için `X-Merchant-Id` ile override yapılabilir; bkz. [Sanal POS → Kimlik Doğrulama](/sanal-pos/authentication).)
+Ek bir merchant header'ı göndermeniz gerekmez; merchant bağlamı token'dan çözümlenir. Birden fazla merchant adına işlem yapıyorsanız `X-Merchant-Id` ile override edebilirsiniz — bkz. [Sanal POS → Kimlik Doğrulama](/sanal-pos/authentication).
 
 ## 3. Adım — Token yenile
 
