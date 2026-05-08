@@ -25,7 +25,7 @@ Fatura ödeme ve açık bankacılık modülleri geliştirme aşamasındadır.
 
 ## API'a ilk bakış
 
-Sanal POS üzerinde tek isteklik bir Non-3D ödeme örneği. İstek; OAuth 2.0 Bearer token ile yetkilendirilir, kart bilgisi JSON gövdesinde iletilir, akıllı yönlendirme motoru uygun konnektörü seçer ve banka onayını eş zamanlı döndürür.
+Sanal POS üzerinde tek isteklik bir Non-3D ödeme örneği. İstek; OAuth 2.0 Bearer token ile yetkilendirilir, kart bilgisi JSON request body'sinde iletilir, akıllı yönlendirme motoru uygun konnektörü seçer ve banka onayını eş zamanlı döndürür.
 
 ```bash
 curl https://vpos.payven.com.tr/api/v1/payments \

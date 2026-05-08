@@ -72,7 +72,7 @@ X-Payven-Timestamp:    1714742400
 | `X-Payven-Event` | Olay tipi (`transfer.created`, `transfer.succeeded`, `transfer.failed`) |
 | `X-Payven-Event-Id` | **Olay kimliği** — aynı olay birden fazla teslim edilse bile aynı kalır. Idempotent handler'ınızda bu değeri kullanın. |
 | `X-Payven-Delivery-Id` | **Teslim kimliği** — her teslim denemesinde farklıdır. |
-| `X-Payven-Signature` | İstek gövdesinin HMAC-SHA256 imzası (`sha256=<hex>`) |
+| `X-Payven-Signature` | Request body'nin HMAC-SHA256 imzası (`sha256=<hex>`) |
 | `X-Payven-Timestamp` | İmzalanan Unix zaman damgası (saniye). Replay saldırılarına karşı 5 dk tolerans dışındaki istekleri reddedin. |
 
 ## Abone olma

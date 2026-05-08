@@ -69,7 +69,7 @@ X-Payven-Timestamp: 1714742400
 | `X-Payven-Event` | Olay tipi (örn. `payment.completed`). |
 | `X-Payven-Event-Id` | **Olay kimliği** — aynı olay birden fazla teslim edilse bile aynı kalır. Idempotent handler'ınızda bu değeri kullanın. |
 | `X-Payven-Delivery-Id` | **Teslim kimliği** — her teslim denemesinde farklıdır. Debug ve teslim kaydı eşleştirmesi için kullanılır. |
-| `X-Payven-Signature` | İstek gövdesinin HMAC-SHA256 imzası — `sha256=<hex>` formatında. |
+| `X-Payven-Signature` | Request body'nin HMAC-SHA256 imzası — `sha256=<hex>` formatında. |
 | `X-Payven-Timestamp` | İmzalanan Unix zaman damgası (saniye). Replay saldırılarına karşı 5 dakika tolerans dışındaki istekleri reddedin. |
 
 ## İmza doğrulama (kısa)

@@ -3,7 +3,7 @@ title: "İmza Doğrulama"
 description: "Gelen webhook isteklerinin Payven'den geldiğini HMAC-SHA256 ile doğrulayın."
 ---
 
-Payven her webhook isteğinde **HMAC-SHA256 imza** gönderir. Bu imza, isteğin gerçekten Payven'den geldiğini ve gövdesinin değiştirilmediğini garanti eder. Public webhook endpoint'inizi açıyorsanız imza doğrulama **zorunludur**.
+Payven her webhook isteğinde **HMAC-SHA256 imza** gönderir. Bu imza, isteğin gerçekten Payven'den geldiğini ve request body'sinin değiştirilmediğini garanti eder. Public webhook endpoint'inizi açıyorsanız imza doğrulama **zorunludur**.
 
 ## İmza algoritması
 
@@ -17,7 +17,7 @@ X-Payven-Signature: sha256=4f1d8c92ab7e3bcf9a2e1c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9
 İmza şu formülle üretilir:
 
 ```
-imzalanacak_string = "<X-Payven-Timestamp>" + "." + "<istek_gövdesinin_raw_string'i>"
+imzalanacak_string = "<X-Payven-Timestamp>" + "." + "<request_body_raw_string'i>"
 hmac               = HMAC_SHA256(subscription.secret, imzalanacak_string)
 beklenen_imza      = "sha256=" + hex(hmac).lower()
 ```
