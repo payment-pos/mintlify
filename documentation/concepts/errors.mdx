@@ -39,15 +39,15 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 
 | HTTP | Kategori | Örnek `code` | Retry |
 |---|---|---|---|
-| `400` Bad Request | Geçersiz JSON, eksik alan, format hatası | `bad_request`, `invalid_json` | ❌ Düzeltmeden tekrarlamayın |
-| `401` Unauthorized | Token yok, geçersiz, expire | `unauthorized`, `invalid_token`, `token_expired` | ❌ Yeniden token alın |
-| `403` Forbidden | Yetki yok, lisans yok, merchant pasif | `forbidden`, `merchant_inactive`, `product_not_licensed` | ❌ |
-| `404` Not Found | Kaynak bulunamadı | `resource_not_found`, `payment_not_found` | ❌ |
-| `409` Conflict | Idempotency çakışması, durum geçişi geçersiz | `conflict`, `idempotency_key_in_use`, `invalid_state_transition` | ❌ |
-| `422` Unprocessable Entity | İş kuralı veya validasyon ihlali | `validation_failed`, `refund_exceeds_original`, `bank_declined` | ❌ |
-| `429` Too Many Requests | Rate limit aşıldı (`Retry-After` header gönderilir) | `rate_limit_exceeded` | ✅ Backoff |
-| `500/502/503` | Sunucu / bağlantı hatası | `internal_server_error`, `bad_gateway`, `service_unavailable` | ✅ Backoff |
-| Network timeout | Ağ veya gateway timeout | — | ✅ Idempotency-Key ile |
+| `400` Bad Request | Geçersiz JSON, eksik alan, format hatası | `bad_request`, `invalid_json` | Düzeltmeden tekrarlamayın |
+| `401` Unauthorized | Token yok, geçersiz, expire | `unauthorized`, `invalid_token`, `token_expired` | Yeniden token alın |
+| `403` Forbidden | Yetki yok, lisans yok, merchant pasif | `forbidden`, `merchant_inactive`, `product_not_licensed` | Hayır — yetki/lisans çözülmeden tekrar göndermeyin |
+| `404` Not Found | Kaynak bulunamadı | `resource_not_found`, `payment_not_found` | Hayır |
+| `409` Conflict | Idempotency çakışması, durum geçişi geçersiz | `conflict`, `idempotency_key_in_use`, `invalid_state_transition` | Hayır |
+| `422` Unprocessable Entity | İş kuralı veya validasyon ihlali | `validation_failed`, `refund_exceeds_original`, `bank_declined` | Hayır — istek/iş kuralı düzeltilmeden retry yapmayın |
+| `429` Too Many Requests | Rate limit aşıldı (`Retry-After` header gönderilir) | `rate_limit_exceeded` | Backoff |
+| `500/502/503` | Sunucu / bağlantı hatası | `internal_server_error`, `bad_gateway`, `service_unavailable` | Backoff |
+| Network timeout | Ağ veya gateway timeout | — | Idempotency-Key ile |
 
 <Note>
 **Banka reddi de bir hata yanıtıdır.** Gateway'e ulaşmış ama banka tarafında reddedilen

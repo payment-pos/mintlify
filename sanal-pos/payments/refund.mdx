@@ -75,9 +75,9 @@ Bir işleme **birden fazla** kısmi iade yapabilirsiniz. Toplam iade tutarı ori
 
 | Durum | İade davranışı |
 |---|---|
-| Mutabakat öncesi (gün içi) | ✅ Banka iptal (void) ile işlenir — komisyon yansımaz |
-| Mutabakat sonrası | ✅ Banka iade (refund) satırı oluşur — komisyon iade politikası bankaya bağlı |
-| 180 gün sonrası | ❌ Çoğu banka iade kabul etmez (`bank_refund_period_expired`) |
+| Mutabakat öncesi (gün içi) | Banka iptal (void) ile işlenir — komisyon yansımaz |
+| Mutabakat sonrası | Banka iade (refund) satırı oluşur — komisyon iade politikası bankaya bağlı |
+| 180 gün sonrası | Çoğu banka iade kabul etmez (`bank_refund_period_expired`) |
 
 <Tip>
 Mutabakat öncesi iadelerde banka komisyonu çoğu durumda yansımaz; mutabakat sonrası iadelerde komisyon iadesi banka anlaşmanıza tabidir. Anlaşma detayı için müşteri başarısı ekibine ulaşın.

@@ -118,28 +118,9 @@ stateDiagram-v2
 
 ## Hata response'ları
 
-İşlem reddi, iş kuralı ihlali ve **banka reddi** dahil tüm hata durumları [RFC 9457 problem+json](/documentation/concepts/errors) formatında, uygun HTTP durum koduyla döner. Yetersiz bakiye için tipik yanıt:
+İşlem reddi, iş kuralı ihlali ve banka reddi dahil tüm hata durumları [RFC 9457 problem+json](/documentation/concepts/errors#hata-yanit-formati) formatında, uygun HTTP durum koduyla döner. Banka kodları için: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
 
-```http
-HTTP/1.1 422 Unprocessable Entity
-Content-Type: application/problem+json
-```
-
-```json
-{
-  "type":          "https://docs.payven.com.tr/errors/bank_declined",
-  "title":         "Banka işlemi reddetti",
-  "status":        422,
-  "code":          "bank_declined",
-  "detail":        "Yetersiz bakiye (banka kodu: 51)",
-  "instance":      "/api/v1/payments",
-  "correlation_id": "9f1c8e76-..."
-}
-```
-
-Yanıt başarılı mı diye HTTP durum kodunu kontrol edin (`2xx` → başarı, `4xx`/`5xx` → hata). Banka tarafı detayını (orijinal banka kodu, auth_code vb.) görmek için işlem sonradan `GET /api/v1/payments/{id}` ile sorgulanabilir — failed ödemenin sorgusu `200 OK` döner ve `error_code` / `provider_error_code` alanları response body'sinde data olarak taşınır.
-
-Tam banka yanıt kodu listesi: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
+Failed bir ödemeyi sonradan `GET /api/v1/payments/{id}` ile sorgularsanız `200 OK` döner; `error_code` ve `provider_error_code` response body'sinde yer alır.
 
 ## Yol haritası — zenginleştirilmiş alanlar
 

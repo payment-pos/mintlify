@@ -89,26 +89,9 @@ Webhook gelmemişse `GET /api/v1/transfers/{id}` ile son durumu sorgulayabilirsi
 
 ## Banka tarafından red
 
-Banka isteği reddederse yanıt **`422 Unprocessable Entity` + `application/problem+json`** olarak döner:
+Banka tarafı red veya bakiye yetersizliği gibi durumlarda response `422 Unprocessable Entity` + `application/problem+json` döner; `code` programatik karar için, `provider_error_code` bankanın orijinal kodunu taşır. Tam payload yapısı: [Hata Yönetimi](/documentation/concepts/errors#hata-yanit-formati).
 
-```http
-HTTP/1.1 422 Unprocessable Entity
-Content-Type: application/problem+json
-```
-
-```json
-{
-  "type":          "https://docs.payven.com.tr/errors/insufficient_balance",
-  "title":         "Kaynak hesapta yeterli bakiye yok",
-  "status":        422,
-  "code":          "insufficient_balance",
-  "detail":        "Talep edilen tutar (1.500.000 kuruş) hesap bakiyesini aşıyor.",
-  "instance":      "/api/v1/transfers/bulk/send",
-  "correlation_id": "9f1c8e76-..."
-}
-```
-
-Banka tarafı detayını sonradan `GET /api/v1/transfers/{id}` ile sorgulayabilirsiniz; `error_code` ve `provider_error_code` alanları response body'sinde data olarak taşınır.
+Sonradan `GET /api/v1/transfers/{id}` ile sorgulandığında failed transfer için `error_code` ve `provider_error_code` response body'sinde yer alır.
 
 ## Akıllı yönlendirme ve fallback
 

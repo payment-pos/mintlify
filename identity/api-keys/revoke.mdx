@@ -9,8 +9,8 @@ Bir anahtarı geçici (**pasif**) veya kalıcı olarak (**sil**) iptal edebilirs
 
 | İşlem | Endpoint | Geri alınabilir mi? |
 |---|---|---|
-| Pasife al | `PUT /api/v1/tenants/me/api-keys/{id}` (`is_active: false`) | ✅ Evet — yeniden aktive edilebilir |
-| Kalıcı sil | `DELETE /api/v1/tenants/me/api-keys/{id}` | ❌ Hayır — OAuth client kaydı da silinir |
+| Pasife al | `PUT /api/v1/tenants/me/api-keys/{id}` (`is_active: false`) | Evet — yeniden aktive edilebilir |
+| Kalıcı sil | `DELETE /api/v1/tenants/me/api-keys/{id}` | Hayır — OAuth client kaydı da silinir |
 
 Bearer access token + `tenant-admin` rolü gerektirir.
 

@@ -287,28 +287,9 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 
 ## Banka tarafından red
 
-Banka işlemi reddederse yanıt **`422 Unprocessable Entity` + `application/problem+json`** olarak döner:
+Banka reddinde response `422 Unprocessable Entity` + `application/problem+json` döner; `code: "bank_declined"` ile birlikte bankanın orijinal kodu `provider_error_code` alanında taşınır. Tam payload yapısı: [Hata Yönetimi](/documentation/concepts/errors#hata-yanit-formati). Banka kodları: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
 
-```http
-HTTP/1.1 422 Unprocessable Entity
-Content-Type: application/problem+json
-```
-
-```json
-{
-  "type":          "https://docs.payven.com.tr/errors/bank_declined",
-  "title":         "Banka işlemi reddetti",
-  "status":        422,
-  "code":          "bank_declined",
-  "detail":        "Yetersiz bakiye (banka kodu: 51)",
-  "instance":      "/api/v1/payments",
-  "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
-}
-```
-
-Yanıt başarılı mı diye HTTP durum kodunu kontrol edin. Banka tarafı detayını (orijinal banka kodu, auth_code vb.) görmek için işlem sonradan `GET /api/v1/payments/{id}` ile sorgulanabilir — failed ödemenin sorgusu `200 OK` döner ve `error_code` / `provider_error_code` alanları response body'sinde data olarak taşınır.
-
-Tam banka yanıt kodu listesi: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
+Sonradan `GET /api/v1/payments/{id}` ile sorgulandığında failed ödeme `200 OK` döner; `error_code` ve `provider_error_code` response body'sinde yer alır.
 
 ## Validasyon hatası
 

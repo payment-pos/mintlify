@@ -28,12 +28,12 @@ Bekleme sürelerine **±%20 jitter** uygulanır — eşzamanlı tetiklenen bin w
 
 | Durum | Retry tetiklenir mi? |
 |---|---|
-| Sizin endpoint'iniz HTTP `2xx` döndü | ❌ Başarılı kabul edilir |
-| HTTP `3xx` redirect | ❌ Takip edilmez, başarısız sayılır |
-| HTTP `4xx` (sizin tarafta hata) | ✅ Retry edilir — handler'ınız muhtemelen geçici bir kontrol bug'ı yaşıyor |
-| HTTP `5xx` (sizin sunucu hatası) | ✅ Retry edilir |
-| Network timeout (15sn) | ✅ Retry edilir |
-| TLS handshake / DNS hatası | ✅ Retry edilir |
+| Sizin endpoint'iniz HTTP `2xx` döndü | Başarılı kabul edilir |
+| HTTP `3xx` redirect | Takip edilmez, başarısız sayılır |
+| HTTP `4xx` (sizin tarafta hata) | Retry edilir — handler'ınız muhtemelen geçici bir kontrol bug'ı yaşıyor |
+| HTTP `5xx` (sizin sunucu hatası) | Retry edilir |
+| Network timeout (15sn) | Retry edilir |
+| TLS handshake / DNS hatası | Retry edilir |
 
 <Tip>
 **4xx'de retry niçin?** Eğer endpoint'iniz bir olayı yanlışlıkla 400 dönerse (örn. transaction_id'yi DB'de bulamadığı için), Payven 5 deneme boyunca tekrarlar. Bu deneme süresinde DB sync olabilir veya konfigürasyonunuzu düzeltebilirsiniz. Ek not: olay almak istemediğiniz tipler için **subscription'a hiç eklemeyin** — hiç gönderilmemesi 4xx döndürmekten daha temizdir.

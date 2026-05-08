@@ -9,13 +9,13 @@ Smart Retry, **birinci tercih konnektör geçici hata** verdiğinde işlemi alte
 
 | Banka yanıtı | Smart Retry uygulanır mı? |
 |---|---|
-| Başarılı (`provider_error_code: "00"`) | ❌ İhtiyaç yok |
-| Yetersiz bakiye, expired card, fraud | ❌ Müşteri/kart kaynaklı — retry sonuç değiştirmez |
-| Limit aşımı, kart blokajı | ❌ Müşteri kaynaklı |
-| Banka HTTP 5xx | ✅ Alternatif konnektöre yönlendirilir |
-| Banka timeout | ✅ Yönlendirilir |
-| Bağlantı / TLS hatası | ✅ Yönlendirilir |
-| Connector circuit breaker açık | ✅ Yönlendirilir |
+| Başarılı (`provider_error_code: "00"`) | İhtiyaç yok |
+| Yetersiz bakiye, expired card, fraud | Müşteri/kart kaynaklı — retry sonuç değiştirmez |
+| Limit aşımı, kart blokajı | Müşteri kaynaklı |
+| Banka HTTP 5xx | Alternatif konnektöre yönlendirilir |
+| Banka timeout | Yönlendirilir |
+| Bağlantı / TLS hatası | Yönlendirilir |
+| Connector circuit breaker açık | Yönlendirilir |
 
 Genel kural: **kart sahibi kaynaklı reddetmeler retry edilmez**, **banka altyapısı kaynaklı geçici sorunlar retry edilir**.
 
