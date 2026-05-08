@@ -42,7 +42,7 @@ Payven üç katmanlı bir hesap yapısı kullanır:
 
 ```mermaid
 flowchart TB
-    T["Organizasyon (Tenant)<br/><i>Lisanslı ödeme kuruluşu</i>"]
+    T["Organizasyon (Tenant)<br/><i>Payven'i kullanan firma</i>"]
     M1["Merchant 1<br/><i>Bayi / Müşteri</i>"]
     M2["Merchant 2"]
     M3["Merchant 3"]
@@ -56,7 +56,7 @@ flowchart TB
     M1 --> SM2
 ```
 
-- **Organizasyon (Tenant):** Payven'in birincil müşterisi. Lisanslı ödeme kuruluşu, banka veya büyük platform. Tüm API anahtarları ve banka konfigürasyonları bu seviyede yönetilir.
+- **Organizasyon (Tenant):** Payven'i kullanan firma. Tipik olarak ödeme kuruluşu, banka veya büyük platform olur — lisans zorunluluğu yoktur. Tüm API anahtarları ve banka konfigürasyonları bu seviyede yönetilir.
 - **Merchant:** Organizasyona bağlı bayi veya alt müşteri. Her ödeme bir merchant adına gerçekleştirilir.
 - **Alt Merchant:** İsteğe bağlı olarak merchant ağacında ek seviye (örneğin marketplace satıcıları).
 
@@ -94,6 +94,6 @@ Her servis kendi alt-domain'i üzerinden hizmet verir. Tüm path'ler `/api/v1` i
 | **Sanal POS** | `https://vpos-sandbox.payven.com.tr` | `https://vpos.payven.com.tr` |
 | **Para Transferi** | `https://transfer-sandbox.payven.com.tr` | `https://transfer.payven.com.tr` |
 
-Fraud kontrolü Sanal POS akışlarının içinde **otomatik** çalışır — sizin tarafınızdan ayrı bir API çağrısı gerekmez. Kural yönetimi konsoldan yapılır. Konsol ([dashboard.payven.com.tr](https://dashboard.payven.com.tr)) tarayıcıdan kullanılır, programatik bir API değildir.
+Fraud kontrolü Sanal POS akışlarının içinde **otomatik** çalışır — sizin tarafınızdan ayrı bir API çağrısı gerekmez. Kural yönetimi [konsoldan](https://dashboard.payven.com.tr) yapılır.
 
 Sandbox ortamı, organizasyonunuzun konnektör konfigürasyonuna göre ya simülasyonla yanıt üretir ya da bankanın test ortamına gerçek çağrı atar — bkz. [Sandbox Ortamı](/sanal-pos/test/sandbox#banka-cagri-modu). Production geçişi öncesinde [Go-live kontrol listesini](/documentation/security/go-live-checklist) tamamlayın.
