@@ -69,7 +69,7 @@ Tam hata kodu kataloğu: [Hata Yönetimi](/documentation/concepts/errors).
 
 ## Sayfalı liste yanıtı
 
-Liste döndüren `GET` endpoint'leri sabit bir sayfalama zarfı kullanır:
+Liste döndüren `GET` endpoint'leri sabit bir sayfalama yapısı kullanır:
 
 ```http
 HTTP/1.1 200 OK
@@ -141,7 +141,7 @@ Liste endpoint'lerinde ortak query parametreleri:
 bir ödeme `422 Unprocessable Entity` + `application/problem+json` ile döner;
 gövdede `code: "bank_declined"` ve banka ham yanıt kodu (`provider_error_code`,
 örn. `"51"`) yer alır. Sonuç değerlendirmesi yalnız HTTP durum kodu üzerinden
-yapılır — istek başarılı mıydı diye envelope alanına bakmanız gerekmez.
+yapılır — istek başarılı mıydı diye yanıt gövdesindeki ek alanlara bakmanız gerekmez.
 </Note>
 
 ## Standart response header'ları

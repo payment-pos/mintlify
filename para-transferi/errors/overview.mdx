@@ -5,7 +5,7 @@ description: "Para Transferi domain hata kodları ve banka yanıt kodları."
 
 Para Transferi hata kodları üç kategoride döner: **Payven domain kodları** (transfer iş kuralı), **HTTP canonical kodlar** (auth, validation, rate limit) ve **banka yanıt kodları** (`provider_error_code`).
 
-Tüm hatalar [RFC 9457 problem+json](/documentation/concepts/errors) zarfında uygun HTTP durum koduyla döner:
+Tüm hatalar [RFC 9457 problem+json](/documentation/concepts/errors) formatında uygun HTTP durum koduyla döner:
 
 ```http
 HTTP/1.1 422 Unprocessable Entity

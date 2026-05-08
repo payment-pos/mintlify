@@ -99,4 +99,4 @@ Request body'sinde `currency` alanına şu an yalnız `"TRY"` gönderilir. Yaban
 | Maksimum tek işlem tutarı | Plan ve banka anlaşmanıza göre değişir |
 | Kısmi iade tutarı | Orijinal işlem tutarını aşamaz |
 
-İhlal durumunda `invalid_amount` veya `refund_exceeds_original` kodu ile `422 Unprocessable Entity` döner. Tüm hata zarfı RFC 9457 problem+json formatındadır — bkz. [Hata Yönetimi](/documentation/concepts/errors).
+İhlal durumunda `invalid_amount` veya `refund_exceeds_original` kodu ile `422 Unprocessable Entity` döner. Tüm hata yanıtları RFC 9457 problem+json formatındadır — bkz. [Hata Yönetimi](/documentation/concepts/errors).

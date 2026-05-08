@@ -1,11 +1,11 @@
 ---
 title: "Hata Yönetimi"
-description: "Payven hata zarfı (RFC 9457), HTTP kategorileri, hata kodları ve retry stratejisi."
+description: "Payven hata yanıt formatı (RFC 9457), HTTP kategorileri, hata kodları ve retry stratejisi."
 ---
 
 Payven hata yanıtları [RFC 9457 — Problem Details for HTTP APIs](https://www.rfc-editor.org/rfc/rfc9457) standardına uyar. Tüm hata response'larının body'leri `application/problem+json` MIME tipindedir; HTTP durum kodu kategoriyi, gövdedeki `code` alanı ise hatanın programatik tipini belirtir.
 
-## Hata zarfı
+## Hata yanıt formatı
 
 ```http
 HTTP/1.1 422 Unprocessable Entity
