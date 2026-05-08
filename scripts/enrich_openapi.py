@@ -463,25 +463,25 @@ def strip_unwanted_content_types(content: dict) -> dict:
 PROBLEM_DETAILS_SCHEMA = {
     "type": "object",
     "description": (
-        "RFC 9457 — Problem Details for HTTP APIs. Tum hata yanitlari bu zarfla doner; "
-        "MIME tipi `application/problem+json`'dur. Programatik karar icin `code` alanini, "
-        "destek talebinde `correlation_id` alanini kullanin."
+        "RFC 9457 — Problem Details for HTTP APIs. Tüm hata yanıtları bu zarfla döner; "
+        "MIME tipi `application/problem+json`'dur. Programatik karar için `code` alanını, "
+        "destek talebinde `correlation_id` alanını kullanın."
     ),
     "required": ["type", "title", "status", "code"],
     "properties": {
         "type": {
             "type": "string", "format": "uri",
-            "description": "Hata tipinin kanonik URI'si (dokumantasyon linki olarak da calisir).",
+            "description": "Hata tipinin kanonik URI'si (dokümantasyon linki olarak da çalışır).",
             "example": "https://docs.payven.com.tr/errors/bank_declined",
         },
         "title": {
             "type": "string",
-            "description": "Kisa, insan-okur Turkce baslik.",
-            "example": "Banka islemi reddetti",
+            "description": "Kısa, insan-okur Türkçe başlık.",
+            "example": "Banka işlemi reddetti",
         },
         "status": {
             "type": "integer", "format": "int32",
-            "description": "HTTP status kodu (header ile ayni deger; govdede yinelenir).",
+            "description": "HTTP status kodu (header ile aynı değer; gövdede yinelenir).",
             "example": 422,
         },
         "code": {
@@ -491,63 +491,63 @@ PROBLEM_DETAILS_SCHEMA = {
         },
         "detail": {
             "type": "string", "nullable": True,
-            "description": "Bu duruma iliskin aciklayici mesaj.",
+            "description": "Bu duruma ilişkin açıklayıcı mesaj.",
             "example": "Yetersiz bakiye (banka kodu: 51)",
         },
         "instance": {
             "type": "string", "nullable": True,
-            "description": "Hatanin olustugu kaynak yolu.",
+            "description": "Hatanın oluştuğu kaynak yolu.",
             "example": "/api/v1/payments",
         },
         "correlation_id": {
             "type": "string", "format": "uuid", "nullable": True,
-            "description": "Istek zinciri kimligi. Yanit header'i `X-Correlation-Id` ile ayni deger. Destek talebinde paylasin.",
+            "description": "İstek zinciri kimliği. Yanıt header'ı `X-Correlation-Id` ile aynı değer. Destek talebinde paylaşın.",
             "example": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8",
         },
         "errors": {
             "type": "array", "nullable": True,
-            "description": "Validasyon hatalarinda (`code: validation_failed`) alan-bazli detay.",
+            "description": "Validasyon hatalarında (`code: validation_failed`) alan-bazlı detay.",
             "items": {
                 "type": "object",
                 "properties": {
                     "field": {"type": "string", "example": "card.number"},
                     "code":  {"type": "string", "example": "invalid_card"},
-                    "message": {"type": "string", "example": "Kart numarasi Luhn checksum'i gecmiyor."},
+                    "message": {"type": "string", "example": "Kart numarası Luhn checksum'ı geçmiyor."},
                 },
             },
         },
         "provider_error_code": {
             "type": "string", "nullable": True,
-            "description": "Banka tarafinin orijinal yanit kodu (sadece `bank_declined` ailesinde dolar).",
+            "description": "Banka tarafının orijinal yanıt kodu (sadece `bank_declined` ailesinde dolar).",
             "example": "51",
         },
     },
 }
 
-# Mintlify "Try it" panelinde her endpoint'e ayni ortak hatalar uygulansin.
-# components.responses altinda referans olarak yasar; her operasyona $ref ile baglanir.
+# Mintlify "Try it" panelinde her endpoint'e aynı ortak hatalar uygulansın.
+# components.responses altında referans olarak yaşar; her operasyona $ref ile bağlanır.
 COMMON_RESPONSES = {
     "BadRequest": {
-        "description": "Gecersiz istek (eksik alan, bozuk JSON).",
+        "description": "Geçersiz istek (eksik alan, bozuk JSON).",
         "content": {"application/problem+json": {
             "schema": {"$ref": "#/components/schemas/ProblemDetails"},
             "example": {
                 "type":   "https://docs.payven.com.tr/errors/bad_request",
-                "title":  "Gecersiz istek",
+                "title":  "Geçersiz istek",
                 "status": 400, "code": "bad_request",
-                "detail": "amount.amount alani zorunlu.",
+                "detail": "amount.amount alanı zorunlu.",
                 "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8",
             },
         }},
     },
     "Unauthorized": {
-        "description": "`Authorization` header eksik, gecersiz veya expire.",
+        "description": "`Authorization` header eksik, geçersiz veya süresi dolmuş.",
         "content": {"application/problem+json": {
             "schema": {"$ref": "#/components/schemas/ProblemDetails"},
             "example": {
                 "type":   "https://docs.payven.com.tr/errors/invalid_token",
-                "title":  "Gecersiz token", "status": 401, "code": "invalid_token",
-                "detail": "Access token gecersiz veya expire — refresh edin.",
+                "title":  "Geçersiz token", "status": 401, "code": "invalid_token",
+                "detail": "Access token geçersiz veya süresi dolmuş — refresh edin.",
             },
         }},
     },
@@ -558,39 +558,39 @@ COMMON_RESPONSES = {
             "example": {
                 "type":   "https://docs.payven.com.tr/errors/forbidden",
                 "title":  "Yetki yok", "status": 403, "code": "forbidden",
-                "detail": "Bu rol bu kaynagi goremez.",
+                "detail": "Bu rol bu kaynağı göremez.",
             },
         }},
     },
     "NotFound": {
-        "description": "Kaynak bulunamadi.",
+        "description": "Kaynak bulunamadı.",
         "content": {"application/problem+json": {
             "schema": {"$ref": "#/components/schemas/ProblemDetails"},
             "example": {
                 "type":   "https://docs.payven.com.tr/errors/resource_not_found",
-                "title":  "Kaynak bulunamadi", "status": 404, "code": "resource_not_found",
+                "title":  "Kaynak bulunamadı", "status": 404, "code": "resource_not_found",
             },
         }},
     },
     "Conflict": {
-        "description": "Idempotency cakismasi veya gecersiz durum gecisi.",
+        "description": "Idempotency çakışması veya geçersiz durum geçişi.",
         "content": {"application/problem+json": {
             "schema": {"$ref": "#/components/schemas/ProblemDetails"},
             "example": {
                 "type":   "https://docs.payven.com.tr/errors/idempotency_key_in_use",
-                "title":  "Idempotency-Key cakismasi",
+                "title":  "Idempotency-Key çakışması",
                 "status": 409, "code": "idempotency_key_in_use",
-                "detail": "Bu Idempotency-Key daha once farkli bir istek govdesi ile kullanildi.",
+                "detail": "Bu Idempotency-Key daha önce farklı bir istek gövdesi ile kullanıldı.",
             },
         }},
     },
     "UnprocessableEntity": {
-        "description": "Validasyon veya is kurali ihlali (`bank_declined`, `validation_failed`, `fraud_blocked` vb.).",
+        "description": "Validasyon veya iş kuralı ihlali (`bank_declined`, `validation_failed`, `fraud_blocked` vb.).",
         "content": {"application/problem+json": {
             "schema": {"$ref": "#/components/schemas/ProblemDetails"},
             "example": {
                 "type":   "https://docs.payven.com.tr/errors/bank_declined",
-                "title":  "Banka islemi reddetti",
+                "title":  "Banka işlemi reddetti",
                 "status": 422, "code": "bank_declined",
                 "detail": "Yetersiz bakiye (banka kodu: 51)",
                 "provider_error_code": "51",
@@ -598,10 +598,10 @@ COMMON_RESPONSES = {
         }},
     },
     "TooManyRequests": {
-        "description": "Rate limit asildi. `Retry-After` header'ina uyun.",
+        "description": "Rate limit aşıldı. `Retry-After` header'ına uyun.",
         "headers": {
             "Retry-After": {
-                "description": "Yeniden denemeden once beklemeniz gereken saniye sayisi.",
+                "description": "Yeniden denemeden önce beklemeniz gereken saniye sayısı.",
                 "schema": {"type": "integer"},
             },
         },
@@ -609,36 +609,518 @@ COMMON_RESPONSES = {
             "schema": {"$ref": "#/components/schemas/ProblemDetails"},
             "example": {
                 "type":   "https://docs.payven.com.tr/errors/rate_limit_exceeded",
-                "title":  "Istek limiti asildi",
+                "title":  "İstek limiti aşıldı",
                 "status": 429, "code": "rate_limit_exceeded",
             },
         }},
     },
     "ServerError": {
-        "description": "Sunucu hatasi. Exponential backoff ile tekrar deneyin (idempotency-key ile).",
+        "description": "Sunucu hatası. Exponential backoff ile tekrar deneyin (Idempotency-Key ile).",
         "content": {"application/problem+json": {
             "schema": {"$ref": "#/components/schemas/ProblemDetails"},
             "example": {
                 "type":   "https://docs.payven.com.tr/errors/internal_server_error",
-                "title":  "Sunucu hatasi", "status": 500, "code": "internal_server_error",
+                "title":  "Sunucu hatası", "status": 500, "code": "internal_server_error",
             },
         }},
     },
     "ServiceUnavailable": {
-        "description": "Hedef konnektor gecici olarak devre disi (circuit breaker acik) veya bagimlilik servisi erisilemez.",
+        "description": "Hedef konnektör geçici olarak devre dışı (circuit breaker açık) veya bağımlılık servisi erişilemez.",
         "content": {"application/problem+json": {
             "schema": {"$ref": "#/components/schemas/ProblemDetails"},
             "example": {
                 "type":   "https://docs.payven.com.tr/errors/connector_unavailable",
-                "title":  "Konnektor erisilemez",
+                "title":  "Konnektör erişilemez",
                 "status": 503, "code": "connector_unavailable",
             },
         }},
     },
 }
 
-# Hangi durum kodlarinin hangi method-tipinde varsayilan eklenecegi.
-# 5XX, 401, 429 her endpoint'te; 422 yazma operasyonlarinda; 404 path'inde param varsa.
+# =====================================================================
+# OPERATION_METADATA — top endpoint'lere zengin Türkçe açıklama
+# Backend'de [EndpointDescription] / [SwaggerOperation(Description=)] ile
+# kalıcı yapılana kadar buradan dolduruyoruz. Mintlify, OpenAPI
+# operation.description'ı sayfanın üstünde lead olarak render eder.
+# =====================================================================
+OPERATION_METADATA: dict[tuple[str, str], dict[str, str]] = {
+    # ----- Sanal POS — Ödemeler -----
+    ("/api/v1/payments", "POST"): {
+        "summary": "Ödeme oluştur",
+        "description": (
+            "Tek istekte Non-3D bir ödeme başlatır: kart bilgisi alınır, akıllı yönlendirme "
+            "motoru uygun konnektörü seçer, banka onayı alınır ve sonuç döner.\n\n"
+            "**Ne zaman kullanılır?** Düşük riskli B2B akışları, abonelik yenilemeleri "
+            "(MIT — saved card ile) veya 3DS gerekmeyen kapalı devre senaryolar için.\n\n"
+            "**Tüketici akışında [3D Secure](/sanal-pos/payments/3d-secure) önerilir** — "
+            "chargeback sorumluluğu bankaya geçer. `Idempotency-Key` ile yeniden gönderim "
+            "korumasını mutlaka kullanın."
+        ),
+    },
+    ("/api/v1/payments/{transaction_id}", "GET"): {
+        "summary": "Ödemeyi sorgula",
+        "description": (
+            "Bir ödemenin güncel durumunu, banka yanıt detayını ve işlem geçmişini döner. "
+            "Webhook teslimi başarısız olduğunda sonucu doğrulamak için bu uç noktayı kullanın. "
+            "Başarısız işlemler için yanıt `200 OK` döner ve `error_code` / `provider_error_code` "
+            "alanları gövdede taşınır."
+        ),
+    },
+    ("/api/v1/payments/{transaction_id}/refund", "POST"): {
+        "summary": "Ödemeyi iade et",
+        "description": (
+            "Tamamlanmış bir ödemeyi tam veya kısmi olarak iade eder. "
+            "Aynı işleme birden fazla kısmi iade yapılabilir (toplam orijinal tutarı aşamaz).\n\n"
+            "**Idempotency-Key** kullanın — aynı tutarın iki kez iade edilmesini engeller. "
+            "Önerilen pattern: `refund-{transaction_id}-{slot}`."
+        ),
+    },
+    ("/api/v1/payments/{transaction_id}/void", "POST"): {
+        "summary": "Ödemeyi iptal et (void)",
+        "description": (
+            "Mutabakat öncesi (gün sonu kapatılmadan) tam iptal yapar. Mutabakat sonrası bu "
+            "uç nokta kullanılamaz; bunun yerine [iade](#refund-payment) yapın.\n\n"
+            "Pre-Auth ile alınmış otorizasyonu bloke etmek için de bu uç nokta kullanılır "
+            "(çekim yapılmadan rezervasyonun serbest bırakılması)."
+        ),
+    },
+    ("/api/v1/payments/{transaction_id}/capture", "POST"): {
+        "summary": "Ön provizyonu çekime dönüştür (capture)",
+        "description": (
+            "Daha önce `pre_auth` olarak alınmış bir otorizasyonu çekime dönüştürür. "
+            "Çekim tutarı orijinal otorizasyondan **küçük veya eşit** olabilir; aşamaz."
+        ),
+    },
+    ("/api/v1/payments/3d/init", "POST"): {
+        "summary": "3D Secure ödemeyi başlat",
+        "description": (
+            "3DS akışını başlatır. Yanıtta gelen `redirect_url` ile müşteriyi bankanın 3DS "
+            "sayfasına yönlendirin. Doğrulama sonrasında banka, başvuruda verdiğiniz "
+            "`callback_url` adresine kullanıcıyı geri yönlendirir.\n\n"
+            "Akış tamamlandıktan sonra otorizasyonu kesinleştirmek için "
+            "[3D Secure tamamla](#complete-3ds) uç noktası çağrılır (otomatik veya manuel)."
+        ),
+    },
+    ("/api/v1/payments/3d/complete", "POST"): {
+        "summary": "3D Secure ödemeyi tamamla",
+        "description": (
+            "3DS doğrulamasından dönen kullanıcının `transaction_id`'si ile otorizasyonu "
+            "tamamlar. Banka onayı alındığında işlem `completed` durumuna geçer; reddedilirse "
+            "`failed` döner ve gövdede `error_code` / `provider_error_code` taşınır."
+        ),
+    },
+    ("/api/v1/payments/order-link", "POST"): {
+        "summary": "Pay-by-link oluştur",
+        "description": (
+            "Kart bilgisi almadan, müşteriye SMS / e-posta / WhatsApp ile paylaşılabilen "
+            "bir ödeme linki üretir. Müşteri Payven Hosted Checkout sayfasında kart bilgisini "
+            "girer (PCI-DSS SAQ A kapsamına uygun).\n\n"
+            "Sonuç webhook ile gelir: `payment.completed` / `payment.failed`."
+        ),
+    },
+    ("/api/v1/payments/recurring", "POST"): {
+        "summary": "Tekrarlayan (recurring) ödeme al",
+        "description": (
+            "Daha önce kaydedilmiş bir kart token'ı ile yeni ödeme alır (Merchant-Initiated "
+            "Transaction — MIT). 3DS akışı çalışmaz; chargeback sorumluluğu sizdedir.\n\n"
+            "İlk işlemin (CIT — Customer-Initiated) **3DS ile** yapılmış olması, bankanın "
+            "MIT serisini kabul etmesi için kritiktir. Bkz. [Subscription reçetesi](/recipes/subscription)."
+        ),
+    },
+    ("/api/v1/payments/{transaction_id}/recurring/cancel", "POST"): {
+        "summary": "Tekrarlayan ödemeyi iptal et",
+        "description": (
+            "Saklı kart token'ını iptal eder. Sonraki MIT denemesi `422 token_revoked` döner."
+        ),
+    },
+    ("/api/v1/payments/{transaction_id}/history", "GET"): {
+        "summary": "Ödeme geçmişini getir",
+        "description": (
+            "İşlemin durum değişimlerini kronolojik olarak döner: oluşturuldu → 3DS → "
+            "otorize → tamamlandı / iade / iptal. Audit ve debug için kullanılır."
+        ),
+    },
+    # ----- Sanal POS — Webhook'lar -----
+    ("/api/v1/webhooks", "POST"): {
+        "summary": "Webhook subscription oluştur",
+        "description": (
+            "Belirli olay tipleri için sizin endpoint'inize teslim alacağı bir abonelik kurar. "
+            "Yanıtta dönen `secret` değerini saklayın — gelen webhook'ların imzasını "
+            "[HMAC-SHA256 ile doğrularken](/sanal-pos/webhooks/signature) bu secret'ı kullanırsınız.\n\n"
+            "Mevcut olaylar: bkz. [Webhook Olay Kataloğu](/sanal-pos/webhooks/events)."
+        ),
+    },
+    ("/api/v1/webhooks", "GET"): {
+        "summary": "Webhook subscription'ları listele",
+        "description": "Tenant'a tanımlı tüm webhook subscription'larını sayfalı olarak döner.",
+    },
+    ("/api/v1/webhooks/{id}/rotate-secret", "POST"): {
+        "summary": "Webhook secret'ını rotate et",
+        "description": (
+            "Yeni bir secret üretir. **Eski secret 24 saat boyunca geçerli kalır** — bu sürede "
+            "her iki secret ile imzalanmış istekler kabul edilir, böylece zero-downtime geçiş yaparsınız."
+        ),
+    },
+    ("/api/v1/webhooks/{id}/deliveries", "GET"): {
+        "summary": "Webhook teslim loglarını listele",
+        "description": (
+            "Sizin endpoint'inize yapılan webhook teslim denemelerini döner: HTTP status kodu, "
+            "yanıt süresi, retry sayısı, payload ve imza header'ları. Webhook teslim debug'ı için kullanılır."
+        ),
+    },
+    # ----- Sanal POS — Hosted Checkout -----
+    ("/api/v1/checkout/sessions", "POST"): {
+        "summary": "Hosted checkout oturumu başlat",
+        "description": (
+            "Kart bilgisi sizin sunucularınızdan geçmeyen bir ödeme oturumu oluşturur. "
+            "Yanıttaki `checkout_url` adresine müşteriyi yönlendirin; ödeme tamamlandığında "
+            "Payven `return_url`'inize geri yönlendirir ve webhook teslim eder.\n\n"
+            "**PCI-DSS yükü düşük** — SAQ A kapsamı yeterlidir. Bkz. [PCI SAQ Eşleme](/documentation/security/pci-saq)."
+        ),
+    },
+    # ----- Sanal POS — İptal Talepleri (4-eyes) -----
+    ("/api/v1/cancellation-requests", "POST"): {
+        "summary": "İptal talebi oluştur",
+        "description": (
+            "4-eyes (iki onaylı) iptal akışını başlatır: bir kullanıcı talep oluşturur, "
+            "ikinci kullanıcı (farklı rolde) onaylar veya reddeder. "
+            "Düşük yetkili rolleri iptal yapabilmeyi sağlamak için tasarlanmıştır."
+        ),
+    },
+    ("/api/v1/cancellation-requests/{id}/approve", "POST"): {
+        "summary": "İptal talebini onayla",
+        "description": (
+            "Onay yapan kullanıcı, talebi oluşturandan **farklı** olmalıdır. Aksi halde "
+            "`422 four_eyes_violation` döner. Onay sonrası işlem otomatik olarak void edilir."
+        ),
+    },
+    ("/api/v1/cancellation-requests/{id}/reject", "POST"): {
+        "summary": "İptal talebini reddet",
+        "description": "İptal talebini gerekçeyle reddeder. Reddedilen talep yeniden açılamaz.",
+    },
+    # ----- Para Transferi -----
+    ("/api/v1/transfers/bulk/create", "POST"): {
+        "summary": "Toplu transfer paketi oluştur",
+        "description": (
+            "Birden fazla transferi tek pakette oluşturur (paket başına en fazla 1000). "
+            "Paket `pending_approval` durumunda başlar; ikinci kullanıcı onaylayana kadar "
+            "bankaya gönderilmez. Bkz. [4-Eyes Transfer reçetesi](/recipes/four-eyes-transfer)."
+        ),
+    },
+    ("/api/v1/transfers/bulk/approve", "POST"): {
+        "summary": "Transfer paketini onayla",
+        "description": (
+            "Paketi `approved` durumuna geçirir. Onay yapan kullanıcı, paketi oluşturandan "
+            "farklı olmalıdır (4-eyes ilkesi)."
+        ),
+    },
+    ("/api/v1/transfers/bulk/send", "POST"): {
+        "summary": "Onaylanmış paketi gönder",
+        "description": (
+            "Onaylanmış paketteki tüm transferleri bankaya gönderir. Her transfer bağımsız "
+            "işlenir; biri başarısız olsa diğerleri devam eder. Sonuçlar webhook ile gelir."
+        ),
+    },
+    # ----- Identity -----
+    ("/api/v1/auth/{slug}/token", "POST"): {
+        "summary": "Access token al",
+        "description": (
+            "OAuth 2.0 Client Credentials akışıyla yeni access token üretir.\n\n"
+            "**Token cache'leyin** — her API çağrısında yeniden almayın. Identity'de rate "
+            "limit vardır (token endpoint'i IP başına dakikada 10). Token expire olmadan "
+            "[refresh](#issue-refresh-token) ile yenileyin.\n\n"
+            "Detay: [Kimlik Doğrulama](/documentation/concepts/authentication)."
+        ),
+    },
+    ("/api/v1/auth/{slug}/refresh", "POST"): {
+        "summary": "Token'ı yenile",
+        "description": (
+            "Refresh token ile yeni bir access token alır. Refresh token rotasyonludur: "
+            "her başarılı refresh'te yeni bir refresh token döner ve eskisi geçersizleşir."
+        ),
+    },
+}
+
+
+# =====================================================================
+# SCHEMA_PROPERTY_METADATA — top schema'lar için per-property açıklama + örnek
+# Mintlify request/response field'larını bu metadata ile zenginleştirilmiş gösterir
+# (Stripe seviyesi: tip, zorunlu/opsiyonel, açıklama, örnek değer).
+# =====================================================================
+SCHEMA_PROPERTY_METADATA: dict[str, dict] = {
+    "CreatePaymentRequest": {
+        "description": "Non-3D ödeme veya pre-auth oluşturma isteği gövdesi.",
+        "required": ["amount", "card", "installment"],
+        "properties": {
+            "external_id": {
+                "description": "Sizin sisteminizdeki sipariş kimliği. İdeal olarak `Idempotency-Key` ile aynı seed'den üretin.",
+                "example": "ORDER-1001",
+            },
+            "basket_id": {
+                "description": "Sepet kimliği — raporlama ve mutabakat için.",
+                "example": "BASKET-2026-001",
+            },
+            "amount": {
+                "description": "İşlem tutarı ve para birimi. Tutar kuruş cinsindendir (15000 = ₺150,00).",
+            },
+            "installment": {
+                "description": "Taksit sayısı. `1` = peşin. Banka & BIN desteği gereklidir; desteklenmeyen taksit `invalid_installment` ile reddedilir.",
+                "example": 1,
+            },
+            "card": {
+                "description": "Kart bilgileri — Luhn checksum geçerli olmalı, son kullanma tarihi gelecekte olmalı.",
+            },
+            "description": {
+                "description": "İşlem açıklaması. Banka ekstresi açıklamasına yansıyabilir.",
+                "example": "Sipariş ödemesi",
+            },
+            "buyer": {
+                "description": "Müşteri bilgileri. `ip_address` fraud kuralları için kritiktir.",
+            },
+            "billing_address": {
+                "description": "Fatura adresi. Bazı bankalar/3DS senaryoları için risk skoruna girer.",
+            },
+            "shipping_address": {
+                "description": "Teslimat adresi. Fiziksel ürünlerde fraud sinyali olarak kullanılır.",
+            },
+            "basket_items": {
+                "description": "Sepet kalemleri. 3DS 2.x mesajlaşmasında risk skoruna katkı sağlar.",
+            },
+            "operation_type": {
+                "description": "`sale` (varsayılan, anında çekim) veya `pre_auth` (ön provizyon — sonradan `/capture` gerekir).",
+                "example": "sale",
+            },
+            "extra_properties": {
+                "description": "Konnektör-spesifik özel alanlar (advanced). Genelde boş bırakın.",
+            },
+        },
+    },
+    "PaymentAmountRequestDto": {
+        "description": "Tutar nesnesi — kuruş cinsinden tam sayı + ISO 4217 para birimi.",
+        "required": ["amount", "currency"],
+        "properties": {
+            "amount": {
+                "description": "Tutar — **kuruş cinsinden tam sayı**. 1,00 ₺ → 100, 150,00 ₺ → 15000.",
+                "example": 15000,
+            },
+            "currency": {
+                "description": "ISO 4217 para birimi kodu. Şu an yalnızca `TRY` desteklenir.",
+                "example": "TRY",
+            },
+        },
+    },
+    "PaymentBuyerRequestDto": {
+        "description": "Müşteri bilgileri — fraud sinyalleri ve banka risk skoru için.",
+        "properties": {
+            "id": {
+                "description": "Müşteri kimliğiniz. Aynı kimliğin tekrarlayan ödemeleri fraud kurallarında kullanılır.",
+                "example": "cust-001",
+            },
+            "name": {"description": "Müşteri adı.", "example": "Ahmet"},
+            "surname": {"description": "Müşteri soyadı.", "example": "Yılmaz"},
+            "email": {
+                "description": "Müşteri e-posta adresi. Bazı bankaların 3DS mesajlarında zorunludur.",
+                "example": "musteri@example.com",
+            },
+            "phone": {
+                "description": "Müşteri telefon numarası (E.164 formatında önerilir).",
+                "example": "+905551112233",
+            },
+            "ip_address": {
+                "description": "Müşterinin **gerçek** IP'si. Reverse proxy arkasındaysanız `X-Forwarded-For` header'dan alın. Fraud için kritik.",
+                "example": "85.105.10.10",
+            },
+            "identity_number": {
+                "description": "TC kimlik numarası. Yüksek tutarlı işlemlerde bazı bankalar zorunlu kılar.",
+                "example": "12345678901",
+            },
+        },
+    },
+    "PaymentAddressRequestDto": {
+        "description": "Adres bilgisi (fatura veya teslimat).",
+        "properties": {
+            "contact_name": {"description": "Adresteki kişinin adı.", "example": "Ahmet Yılmaz"},
+            "city": {"description": "Şehir adı.", "example": "İstanbul"},
+            "country": {"description": "ISO 3166-1 alpha-2 ülke kodu.", "example": "TR"},
+            "address": {"description": "Sokak ve bina detayı.", "example": "Maslak Mh. ..."},
+            "postal_code": {"description": "Posta kodu.", "example": "34485"},
+        },
+    },
+    "PaymentBasketItemRequestDto": {
+        "description": "Sepet kalemi.",
+        "required": ["name", "price", "quantity"],
+        "properties": {
+            "id": {"description": "Kaleminizin kimliği.", "example": "SKU-001"},
+            "name": {"description": "Kalem adı.", "example": "Kablosuz kulaklık"},
+            "price": {
+                "description": "Kalem birim fiyatı — kuruş cinsinden.",
+                "example": 7500,
+            },
+            "quantity": {"description": "Adet.", "example": 2},
+        },
+    },
+    "PaymentOperationResultDto": {
+        "description": "Yazma operasyonlarından (`POST /payments`, `/refund`, `/void`, `/capture`) dönen sonuç.",
+        "required": ["transaction_id"],
+        "properties": {
+            "transaction_id": {
+                "description": "Payven tarafından atanan benzersiz işlem kimliği. Sorgulama / aksiyon endpoint'lerinde URL parametresi olarak kullanılır.",
+                "example": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+            },
+            "status": {
+                "description": "İşlemin mevcut durumu: `pending`, `pending_3ds`, `authorized`, `completed`, `failed`, `voided`, `refunded`, `partially_refunded`.",
+                "example": "completed",
+            },
+            "is_success": {
+                "description": "Operasyon başarılı mı? **Geçiş döneminde tutuluyor — yeni kodlarda HTTP status kodunu konuşturun** (2xx başarı, 4xx/5xx hata).",
+                "example": True,
+            },
+            "message": {"description": "İnsan-okur durum mesajı.", "example": "İşlem başarıyla tamamlandı"},
+            "error_code": {
+                "description": "Yalnızca başarısız işlemlerde dolar — Payven canonical hata kodu.",
+                "example": "bank_declined",
+            },
+            "provider_error_code": {
+                "description": "Yalnızca başarısız işlemlerde dolar — bankanın orijinal yanıt kodu.",
+                "example": "51",
+            },
+            "extra_properties": {
+                "description": "Banka-spesifik ek alanlar: `auth_code`, `host_reference`, `provider_transaction_id`, `processed_at` vb.",
+            },
+        },
+    },
+    "RefundTransactionRequest": {
+        "description": "İade isteği gövdesi. Tam veya kısmi iade için kullanılır.",
+        "required": ["amount"],
+        "properties": {
+            "transaction_id": {
+                "description": "İade edilecek işlemin Payven kimliği. URL'deki path parametresi ile aynı olmalı.",
+            },
+            "amount": {
+                "description": "İade tutarı — kuruş cinsinden. Orijinal işlemden **küçük veya eşit** olmalı.",
+                "example": 5000,
+            },
+            "currency": {
+                "description": "ISO 4217. Genelde orijinal işlemle aynı; varsayılan `TRY`.",
+                "example": "TRY",
+            },
+            "reason": {
+                "description": "İade sebebi (serbest metin, audit log'una düşer).",
+                "example": "Müşteri talebi — ürün iadesi",
+            },
+            "reason_code": {
+                "description": "Yapısal iade sebebi: `customer_request`, `duplicate`, `fraud`, `defective`, `other`.",
+                "example": "customer_request",
+            },
+            "extra_properties": {
+                "description": "Konnektör-spesifik özel alanlar.",
+            },
+        },
+    },
+    "VoidTransactionRequest": {
+        "description": "İptal (void) isteği gövdesi.",
+        "properties": {
+            "transaction_id": {
+                "description": "İptal edilecek işlemin Payven kimliği.",
+            },
+            "reason": {
+                "description": "İptal sebebi (serbest metin, audit log'una düşer).",
+                "example": "Stok yok — sipariş iptal",
+            },
+            "extra_properties": {"description": "Konnektör-spesifik özel alanlar."},
+        },
+    },
+    "CaptureTransactionRequest": {
+        "description": "Pre-Auth (ön provizyon) → çekim isteği.",
+        "required": ["amount"],
+        "properties": {
+            "transaction_id": {"description": "Pre-Auth ile alınmış işlemin Payven kimliği."},
+            "amount": {
+                "description": "Çekim tutarı — kuruş cinsinden. Orijinal otorizasyondan **küçük veya eşit** olmalı.",
+                "example": 14750,
+            },
+            "reason": {"description": "Açıklama (serbest metin)."},
+            "extra_properties": {"description": "Konnektör-spesifik özel alanlar."},
+        },
+    },
+    "Init3DRequest": {
+        "description": "3D Secure ödeme başlatma isteği. CreatePaymentRequest ile aynı alanlara ek olarak callback/return/cancel URL'leri taşır.",
+        "required": ["amount", "card", "installment", "callback_url"],
+        "properties": {
+            "external_id": {"description": "Sizin sipariş kimliğiniz.", "example": "ORDER-1001"},
+            "basket_id": {"description": "Sepet kimliği.", "example": "BASKET-2026-001"},
+            "amount": {"description": "İşlem tutarı (kuruş + currency)."},
+            "installment": {"description": "Taksit sayısı. `1` = peşin.", "example": 1},
+            "card": {"description": "Kart bilgileri."},
+            "callback_url": {
+                "description": "**Zorunlu**. 3DS doğrulaması sonrası bankanın kullanıcıyı geri yönlendireceği HTTPS URL'iniz. Buradan gelen `transaction_id` ile [`/payments/3d/complete`](#complete-3ds) çağrılır.",
+                "example": "https://example.com/3ds/return",
+            },
+            "cancel_url": {
+                "description": "Müşteri 3DS akışını iptal ederse yönlendirileceği URL.",
+                "example": "https://example.com/checkout/cancel",
+            },
+            "return_url": {
+                "description": "Sonuç sayfasına yönlendirme için (success/fail unified). `callback_url` farklı sebeple kullanılır.",
+            },
+            "operation_type": {
+                "description": "`sale` (varsayılan) veya `pre_auth`.",
+                "example": "sale",
+            },
+            "extra_properties": {"description": "Konnektör-spesifik özel alanlar."},
+        },
+    },
+    "CreateCheckoutSessionRequest": {
+        "description": "Hosted checkout oturum isteği. Müşteri kart bilgisini Payven sayfasında girer.",
+        "required": ["amount", "currency"],
+        "properties": {
+            "merchant_name": {
+                "description": "Hosted checkout sayfasında gösterilecek bayi adı.",
+                "example": "Acme Online",
+            },
+            "amount": {
+                "description": "İşlem tutarı — kuruş cinsinden.",
+                "example": 15000,
+            },
+            "currency": {"description": "ISO 4217 para birimi.", "example": "TRY"},
+            "allowed_installments": {
+                "description": "Müşteriye sunulacak taksit seçenekleri (`[1, 3, 6]` gibi). Boş ise sadece peşin.",
+            },
+            "description": {"description": "Sayfada gösterilecek açıklama.", "example": "Sipariş ödemesi"},
+            "external_id": {"description": "Sizin sipariş kimliğiniz.", "example": "ORDER-1001"},
+            "basket_id": {"description": "Sepet kimliği.", "example": "BASKET-2026-001"},
+            "customer_email": {
+                "description": "Müşteri e-posta adresi (makbuz için).",
+                "example": "musteri@example.com",
+            },
+        },
+    },
+    "CreateOrderLinkRequest": {
+        "description": "Pay-by-link oluşturma isteği. SMS/e-posta ile paylaşılan ödeme linki üretir.",
+        "required": ["amount", "currency"],
+        "properties": {
+            "amount": {"description": "Tutar — kuruş cinsinden.", "example": 15000},
+            "currency": {"description": "ISO 4217 para birimi.", "example": "TRY"},
+            "installment": {"description": "İzin verilen maksimum taksit.", "example": 6},
+            "callback_url": {
+                "description": "Ödeme tamamlandığında server-to-server callback için HTTPS URL'iniz.",
+            },
+            "return_url": {
+                "description": "Müşterinin ödeme sonrası yönlendirileceği sayfa.",
+            },
+            "description": {"description": "Linkte gösterilecek açıklama.", "example": "Sipariş #1001"},
+            "external_id": {"description": "Sizin sipariş kimliğiniz.", "example": "ORDER-1001"},
+            "customer_email": {
+                "description": "Müşteri e-postası.",
+                "example": "musteri@example.com",
+            },
+        },
+    },
+}
+
+
+# Hangi durum kodlarının hangi method-tipinde varsayılan ekleneceği.
+# 5XX, 401, 429 her endpoint'te; 422 yazma operasyonlarında; 404 path'inde param varsa.
 def default_error_responses(method: str, path: str, has_body: bool) -> dict:
     refs = {
         "401": {"$ref": "#/components/responses/Unauthorized"},
@@ -656,8 +1138,8 @@ def default_error_responses(method: str, path: str, has_body: bool) -> dict:
     return refs
 
 
-# x-codeSamples sablonu — Mintlify try-it panelinin yan sutununda goste rilir.
-# Top operasyonlar icin tanimliyoruz; auto-fill via path+method match.
+# x-codeSamples şablonu — Mintlify Try-it panelinin yan sütununda gösterilir.
+# Top operasyonlar için tanımlıyoruz; auto-fill via path+method match.
 def code_samples_for(path: str, method: str, server_url: str) -> list[dict] | None:
     """Returns list of language samples for top endpoints. None if not in priority list."""
     method_u = method.upper()
@@ -740,7 +1222,8 @@ def enrich_spec(spec: dict) -> tuple[dict, dict]:
              "stripped_paths": 0, "stripped_content_types": 0,
              "tag_displays": 0, "stripped_tags": 0,
              "added_problem_schema": 0, "added_default_responses": 0,
-             "added_code_samples": 0, "stripped_empty_tags": 0}
+             "added_code_samples": 0, "stripped_empty_tags": 0,
+             "enriched_op_metadata": 0, "enriched_schema_props": 0}
 
     # components.schemas / components.responses
     spec.setdefault("components", {})
@@ -752,6 +1235,29 @@ def enrich_spec(spec: dict) -> tuple[dict, dict]:
     for name, body in COMMON_RESPONSES.items():
         if name not in spec["components"]["responses"]:
             spec["components"]["responses"][name] = body
+
+    # Schema property metadata enrichment (top schemas için)
+    schemas = spec["components"]["schemas"]
+    for sch_name, sch_meta in SCHEMA_PROPERTY_METADATA.items():
+        if sch_name not in schemas:
+            continue
+        sch = schemas[sch_name]
+        # Schema-level description ve required listesi
+        if sch_meta.get("description") and not sch.get("description"):
+            sch["description"] = sch_meta["description"]
+        if sch_meta.get("required") and not sch.get("required"):
+            sch["required"] = sch_meta["required"]
+        # Property-level description + example
+        sch_props = sch.get("properties") or {}
+        for prop_name, prop_meta in (sch_meta.get("properties") or {}).items():
+            if prop_name not in sch_props:
+                continue
+            p = sch_props[prop_name]
+            if prop_meta.get("description") and not p.get("description"):
+                p["description"] = prop_meta["description"]
+                stats["enriched_schema_props"] += 1
+            if "example" in prop_meta and "example" not in p:
+                p["example"] = prop_meta["example"]
 
     for path, ops in paths.items():
         if any(r.match(path) for r in drop_re):
@@ -774,11 +1280,22 @@ def enrich_spec(spec: dict) -> tuple[dict, dict]:
             if not op.get("operationId"):
                 op["operationId"] = op_id
                 stats["added_op_id"] += 1
-            if not op.get("summary"):
-                op["summary"] = summary
-                stats["added_summary"] += 1
-            if not op.get("description") and description:
-                op["description"] = description
+
+            # OPERATION_METADATA — top endpoint'ler için zengin Türkçe summary + description
+            meta_key = (path, method.upper())
+            override = OPERATION_METADATA.get(meta_key)
+            if override:
+                if override.get("summary"):
+                    op["summary"] = override["summary"]
+                if override.get("description"):
+                    op["description"] = override["description"]
+                stats["enriched_op_metadata"] += 1
+            else:
+                if not op.get("summary"):
+                    op["summary"] = summary
+                    stats["added_summary"] += 1
+                if not op.get("description") and description:
+                    op["description"] = description
 
             if op.get("requestBody"):
                 before = len(op["requestBody"].get("content") or {})

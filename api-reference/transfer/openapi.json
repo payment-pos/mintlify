@@ -4366,7 +4366,7 @@
         },
         "operationId": "bulkCreateTransfers",
         "summary": "Toplu transfer paketi oluştur",
-        "description": "Para Transferi 4-eyes akışının bir aşaması.",
+        "description": "Birden fazla transferi tek pakette oluşturur (paket başına en fazla 1000). Paket `pending_approval` durumunda başlar; ikinci kullanıcı onaylayana kadar bankaya gönderilmez. Bkz. [4-Eyes Transfer reçetesi](/recipes/four-eyes-transfer).",
         "x-codeSamples": [
           {
             "lang": "curl",
@@ -4456,8 +4456,8 @@
           }
         },
         "operationId": "bulkApproveTransfers",
-        "summary": "Toplu transfer paketini onayla",
-        "description": "Para Transferi 4-eyes akışının bir aşaması."
+        "summary": "Transfer paketini onayla",
+        "description": "Paketi `approved` durumuna geçirir. Onay yapan kullanıcı, paketi oluşturandan farklı olmalıdır (4-eyes ilkesi)."
       }
     },
     "/api/v1/transfers/bulk/reject": {
@@ -4574,8 +4574,8 @@
           }
         },
         "operationId": "bulkSendTransfers",
-        "summary": "Toplu transfer paketini gönder",
-        "description": "Para Transferi 4-eyes akışının bir aşaması."
+        "summary": "Onaylanmış paketi gönder",
+        "description": "Onaylanmış paketteki tüm transferleri bankaya gönderir. Her transfer bağımsız işlenir; biri başarısız olsa diğerleri devam eder. Sonuçlar webhook ile gelir."
       }
     },
     "/api/v1/transfers/{id}/receipt/download": {
@@ -8759,7 +8759,7 @@
     },
     "responses": {
       "BadRequest": {
-        "description": "Gecersiz istek (eksik alan, bozuk JSON).",
+        "description": "Geçersiz istek (eksik alan, bozuk JSON).",
         "content": {
           "application/problem+json": {
             "schema": {
@@ -8767,17 +8767,17 @@
             },
             "example": {
               "type": "https://docs.payven.com.tr/errors/bad_request",
-              "title": "Gecersiz istek",
+              "title": "Geçersiz istek",
               "status": 400,
               "code": "bad_request",
-              "detail": "amount.amount alani zorunlu.",
+              "detail": "amount.amount alanı zorunlu.",
               "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
             }
           }
         }
       },
       "Unauthorized": {
-        "description": "`Authorization` header eksik, gecersiz veya expire.",
+        "description": "`Authorization` header eksik, geçersiz veya süresi dolmuş.",
         "content": {
           "application/problem+json": {
             "schema": {
@@ -8785,10 +8785,10 @@
             },
             "example": {
               "type": "https://docs.payven.com.tr/errors/invalid_token",
-              "title": "Gecersiz token",
+              "title": "Geçersiz token",
               "status": 401,
               "code": "invalid_token",
-              "detail": "Access token gecersiz veya expire — refresh edin."
+              "detail": "Access token geçersiz veya süresi dolmuş — refresh edin."
             }
           }
         }
@@ -8805,13 +8805,13 @@
               "title": "Yetki yok",
               "status": 403,
               "code": "forbidden",
-              "detail": "Bu rol bu kaynagi goremez."
+              "detail": "Bu rol bu kaynağı göremez."
             }
           }
         }
       },
       "NotFound": {
-        "description": "Kaynak bulunamadi.",
+        "description": "Kaynak bulunamadı.",
         "content": {
           "application/problem+json": {
             "schema": {
@@ -8819,7 +8819,7 @@
             },
             "example": {
               "type": "https://docs.payven.com.tr/errors/resource_not_found",
-              "title": "Kaynak bulunamadi",
+              "title": "Kaynak bulunamadı",
               "status": 404,
               "code": "resource_not_found"
             }
@@ -8827,7 +8827,7 @@
         }
       },
       "Conflict": {
-        "description": "Idempotency cakismasi veya gecersiz durum gecisi.",
+        "description": "Idempotency çakışması veya geçersiz durum geçişi.",
         "content": {
           "application/problem+json": {
             "schema": {
@@ -8835,16 +8835,16 @@
             },
             "example": {
               "type": "https://docs.payven.com.tr/errors/idempotency_key_in_use",
-              "title": "Idempotency-Key cakismasi",
+              "title": "Idempotency-Key çakışması",
               "status": 409,
               "code": "idempotency_key_in_use",
-              "detail": "Bu Idempotency-Key daha once farkli bir istek govdesi ile kullanildi."
+              "detail": "Bu Idempotency-Key daha önce farklı bir istek gövdesi ile kullanıldı."
             }
           }
         }
       },
       "UnprocessableEntity": {
-        "description": "Validasyon veya is kurali ihlali (`bank_declined`, `validation_failed`, `fraud_blocked` vb.).",
+        "description": "Validasyon veya iş kuralı ihlali (`bank_declined`, `validation_failed`, `fraud_blocked` vb.).",
         "content": {
           "application/problem+json": {
             "schema": {
@@ -8852,7 +8852,7 @@
             },
             "example": {
               "type": "https://docs.payven.com.tr/errors/bank_declined",
-              "title": "Banka islemi reddetti",
+              "title": "Banka işlemi reddetti",
               "status": 422,
               "code": "bank_declined",
               "detail": "Yetersiz bakiye (banka kodu: 51)",
@@ -8862,10 +8862,10 @@
         }
       },
       "TooManyRequests": {
-        "description": "Rate limit asildi. `Retry-After` header'ina uyun.",
+        "description": "Rate limit aşıldı. `Retry-After` header'ına uyun.",
         "headers": {
           "Retry-After": {
-            "description": "Yeniden denemeden once beklemeniz gereken saniye sayisi.",
+            "description": "Yeniden denemeden önce beklemeniz gereken saniye sayısı.",
             "schema": {
               "type": "integer"
             }
@@ -8878,7 +8878,7 @@
             },
             "example": {
               "type": "https://docs.payven.com.tr/errors/rate_limit_exceeded",
-              "title": "Istek limiti asildi",
+              "title": "İstek limiti aşıldı",
               "status": 429,
               "code": "rate_limit_exceeded"
             }
@@ -8886,7 +8886,7 @@
         }
       },
       "ServerError": {
-        "description": "Sunucu hatasi. Exponential backoff ile tekrar deneyin (idempotency-key ile).",
+        "description": "Sunucu hatası. Exponential backoff ile tekrar deneyin (Idempotency-Key ile).",
         "content": {
           "application/problem+json": {
             "schema": {
@@ -8894,7 +8894,7 @@
             },
             "example": {
               "type": "https://docs.payven.com.tr/errors/internal_server_error",
-              "title": "Sunucu hatasi",
+              "title": "Sunucu hatası",
               "status": 500,
               "code": "internal_server_error"
             }
@@ -8902,7 +8902,7 @@
         }
       },
       "ServiceUnavailable": {
-        "description": "Hedef konnektor gecici olarak devre disi (circuit breaker acik) veya bagimlilik servisi erisilemez.",
+        "description": "Hedef konnektör geçici olarak devre dışı (circuit breaker açık) veya bağımlılık servisi erişilemez.",
         "content": {
           "application/problem+json": {
             "schema": {
@@ -8910,7 +8910,7 @@
             },
             "example": {
               "type": "https://docs.payven.com.tr/errors/connector_unavailable",
-              "title": "Konnektor erisilemez",
+              "title": "Konnektör erişilemez",
               "status": 503,
               "code": "connector_unavailable"
             }
