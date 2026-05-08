@@ -413,7 +413,7 @@ Tam yanıt formatı için: [Hata Yönetimi](/documentation/concepts/errors).
 
 <AccordionGroup>
   <Accordion title="Tek bir secret ile doğrudan API çağıramaz mıyım?">
-    Hayır — Payven OAuth 2.0 Client Credentials standardını kullanır. Bu iki adımlı bir akıştır: önce `client_id` + `client_secret` ile kısa ömürlü bir access token alırsınız, sonra her API çağrısında bu token'ı kullanırsınız. Üstteki kod örneklerindeki istemci sınıfı bu adımı sizin için saklar; tek bir `call(...)` ile çağırırsınız. Standart tabanlı olması, herhangi bir OAuth 2.0 / OIDC kitaplığıyla çalışabilmesini sağlar.
+    Hayır — Payven iki adımlı bir akış kullanır: önce `client_id` + `client_secret` ile kısa ömürlü bir access token alırsınız, sonra her API çağrısında bu token'ı kullanırsınız. Üstteki kod örneklerindeki istemci sınıfı bu adımı sizin için saklar; tek bir `call(...)` ile çağırırsınız.
   </Accordion>
   <Accordion title="Token süresini uzatabilir miyim?">
     Standart yapılandırmada 5dk access / 30 gün refresh idle. Daha uzun süre ihtiyacı için müşteri başarısı ekibine ulaşın — `offline_access` scope ile expire olmayan refresh token tahsis edilebilir.
@@ -423,8 +423,5 @@ Tam yanıt formatı için: [Hata Yönetimi](/documentation/concepts/errors).
   </Accordion>
   <Accordion title="Test (sandbox) ortamı?">
     Sandbox endpoint'leri ayrı bir tenant slug ile yayında: `https://identity-sandbox.payven.com.tr` ve `https://vpos-sandbox.payven.com.tr`. Sandbox `client_id`'leri canlıdan ayrıdır; üretim parasıyla işlem yapılmaz, kart numarası test BIN'leri kullanır.
-  </Accordion>
-  <Accordion title="API key (X-API-Key + X-API-Secret) hâlâ destekleniyor mu?">
-    Evet — eski entegrasyonlar için `ApiKey` scheme aktif kalmaya devam ediyor. Yeni entegrasyonlarınız için **OAuth 2.0 Bearer akışını tercih edin** — daha standart, daha esnek, planınızdaki tüm ürünleri tek token ile çağırır. API key flow'unu kullanmak zorundaysanız: bkz. [Sanal POS → Kimlik Doğrulama](/sanal-pos/authentication).
   </Accordion>
 </AccordionGroup>
