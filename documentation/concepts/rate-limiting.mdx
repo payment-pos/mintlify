@@ -31,7 +31,7 @@ Genel organizasyon limitinin yanında, bazı endpoint sınıflarında **endpoint
 | **Validasyon (BIN, IBAN, kart Luhn)** | `GET /lookups/bins/...`, `POST /validation/iban` | **500 / dk** | Cache'leyin — BIN verileri günde 1 kez güncellenir |
 | **Lookup servisleri** | `GET /lookups/banks`, `cities`, `mcc-codes` | **1000 / dk** | Long-cache (24h) tavsiye edilir |
 | **Liste / arama** (`GET` çoğul) | `GET /transactions`, `/refunds`, ... | Plan limiti dahilinde | Cursor pagination kullanın (büyük veri) |
-| **Webhook subscription yönetimi** | `POST/PUT/DELETE /webhooks` | **20 / dk** | Sık değişmemesi gereken; insan eli ile yönetilir |
+| **Webhook subscription yönetimi** | `POST/PUT/DELETE /webhook-subscriptions` | **20 / dk** | Sık değişmemesi gereken; insan eli ile yönetilir |
 | **Mutabakat başlatma** | `POST /reconciliations/start` | **5 / dk / organizasyon** | EOD dosyaları nadir; yüksek hacim onboarding'de istenir |
 | **Toplu transfer** | `POST /transfers/bulk/create` | **10 / dk / organizasyon** | Tek pakette 1000'e kadar transfer; paketleri birleştirin |
 | **Health probe** | `GET /health/live`, `/ready` | **Limitsiz** | Container orchestrator'ı için — kotaya yansımaz |

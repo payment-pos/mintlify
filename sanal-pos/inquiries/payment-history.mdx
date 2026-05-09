@@ -32,7 +32,7 @@ curl https://vpos.payven.com.tr/api/v1/transactions/8e3f5c12-9a7b-4c8d-bc4e-2c96
     "connector_configuration_id":  "abc123-...",
     "connector_configuration_name":"Garanti VPOS Production",
     "previous_status":             null,
-    "new_status":                  "pending",
+    "new_status":                  "created",
     "message":                     "Ödeme oluşturuldu",
     "error_code":                  null,
     "error_message":               null,
@@ -51,15 +51,15 @@ curl https://vpos.payven.com.tr/api/v1/transactions/8e3f5c12-9a7b-4c8d-bc4e-2c96
   },
   {
     "transaction_id":              "8e3f5c12-...",
-    "previous_status":             "pending",
-    "new_status":                  "pending_3ds",
+    "previous_status":             "created",
+    "new_status":                  "three_d_secure_init_processing",
     "message":                     "3D Secure init başlatıldı",
     "provider_raw_response":       "<xml>...</xml>",
     "created":                     "2026-05-03T12:34:57.123+00:00"
   },
   {
     "transaction_id":              "8e3f5c12-...",
-    "previous_status":             "pending_3ds",
+    "previous_status":             "three_d_secure_auth_processing",
     "new_status":                  "completed",
     "message":                     "3DS başarılı, otorizasyon onaylandı",
     "auth_code":                   "123456",

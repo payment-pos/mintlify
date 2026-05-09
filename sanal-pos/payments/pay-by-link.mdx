@@ -74,7 +74,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/order-link \
 ```json
 {
   "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":         "pending",
+  "status":         "processing",
   "extra_properties": {
     "payment_link":      "https://hosted.bank.example.com/pay/abc123def456",
     "provider_order_id": "BANK-ORDER-789",
@@ -91,7 +91,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/order-link \
 | `processed_at` | Linkin oluşturulduğu zaman |
 | `expires_at` | Linkin geçerlilik süresi (banka politikasına göre belirlenir, genelde 24 saat) |
 
-`status: "pending"` → işlem oluşturuldu, müşteri ödeme yapana kadar bu durumda kalır.
+`status: "processing"` → link oluşturuldu, müşteri ödeme yapana kadar bu durumda kalır. Müşteri ödediğinde callback ile durum `completed`/`failed` olarak güncellenir.
 
 ## Müşteriye iletme
 

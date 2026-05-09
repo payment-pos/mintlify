@@ -10,8 +10,9 @@ Settlement, Payven'in tuttuğu **banka gün sonu transferi** kayıtlarıdır. Ba
 ```http
 GET    /api/v1/settlements              # Liste (sayfalı)
 GET    /api/v1/settlements/{id}         # Tek settlement detayı
+GET    /api/v1/settlements/export       # CSV export
 POST   /api/v1/settlements              # Manuel settlement oluştur (operasyonel)
-PUT    /api/v1/settlements/{id}/status  # Durum güncelle (Settled/Disputed/Resolved)
+PUT    /api/v1/settlements/{id}/status  # Durum güncelle
 ```
 
 Bearer access token gerektirir (OAuth 2.0 Client Credentials).
@@ -19,7 +20,7 @@ Bearer access token gerektirir (OAuth 2.0 Client Credentials).
 ## Liste
 
 ```bash
-curl "https://vpos.payven.com.tr/api/v1/settlements?page=1&page_size=20&start_date=2026-05-01T00:00:00Z&end_date=2026-05-31T23:59:59Z" \
+curl "https://vpos.payven.com.tr/api/v1/settlements?page=1&page_size=20&period_start_from=2026-05-01&period_start_to=2026-05-31" \
   -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
@@ -29,19 +30,24 @@ Yanıt — sayfalı liste:
 {
   "items": [
     {
-      "id":                          "8e3f5c12-...",
-      "merchant_id":                 "3fa85f64-...",
-      "connector_configuration_id":  "cfg-garanti-001",
-      "connector_code":              "nestpay",
-      "settlement_date":             "2026-05-04",
-      "currency":                    "TRY",
-      "gross_amount":                187435000,
-      "commission_amount":           6747260,
-      "net_amount":                  180687740,
-      "transaction_count":           1247,
-      "status":                      "settled",
-      "bank_reference":              "STL-2026-05-04-789",
-      "created":                     "2026-05-04T08:23:11.000+00:00"
+      "id":                  "8e3f5c12-...",
+      "merchant_id":         "3fa85f64-...",
+      "period_start":        "2026-05-04",
+      "period_end":          "2026-05-04",
+      "bank_code":           "GARANTI",
+      "currency":            "TRY",
+      "gross_amount":        187435000,
+      "refund_amount":       2350000,
+      "bank_commission":     6747260,
+      "platform_commission": 1872500,
+      "net_amount":          176465240,
+      "transaction_count":   1247,
+      "refund_count":        18,
+      "status":              "settled",
+      "settled_at":          "2026-05-05T09:00:00.000+00:00",
+      "bank_reference":      "STL-2026-05-04-789",
+      "notes":               null,
+      "created":             "2026-05-04T08:23:11.000+00:00"
     }
   ],
   "page":              1,
@@ -54,12 +60,17 @@ Yanıt — sayfalı liste:
 
 | Alan | Açıklama |
 |---|---|
+| `period_start`, `period_end` | Settlement döneminin başlangıç/bitiş tarihi (DateOnly — `YYYY-MM-DD`) |
+| `bank_code` | Banka kodu (örn. `GARANTI`, `HALKBANK`) |
 | `gross_amount` | Brüt tahsilat (kuruş) |
-| `commission_amount` | Banka komisyonu |
-| `net_amount` | Sizin hesabınıza aktarılan net tutar |
-| `transaction_count` | Bu settlement'a dahil işlem sayısı |
+| `refund_amount` | Dönem içi iadelerin toplamı |
+| `bank_commission` | Banka komisyonu |
+| `platform_commission` | Payven platform komisyonu |
+| `net_amount` | `gross - refund - bank_commission - platform_commission` (hesabınıza geçen net tutar) |
+| `transaction_count`, `refund_count` | Dönemdeki işlem ve iade adedi |
+| `settled_at` | Bankanın transferi yaptığı tarih (status=`settled` olunca dolar) |
 | `bank_reference` | Bankanın referans numarası |
-| `status` | `pending`, `settled`, `disputed`, `resolved` |
+| `status` | `pending`, `processing`, `settled`, `failed` |
 
 ## Status değişikliği
 
@@ -85,15 +96,19 @@ curl -X POST https://vpos.payven.com.tr/api/v1/settlements \
   -H "Idempotency-Key: stl-garanti-2026-05-04" \
   -H "Content-Type: application/json" \
   -d '{
-    "merchant_id":                "3fa85f64-...",
-    "connector_configuration_id": "cfg-garanti-001",
-    "settlement_date":            "2026-05-04",
-    "currency":                   "TRY",
-    "gross_amount":               187435000,
-    "commission_amount":          6747260,
-    "net_amount":                 180687740,
-    "transaction_count":          1247,
-    "bank_reference":             "STL-2026-05-04-789"
+    "merchant_id":         "3fa85f64-...",
+    "period_start":        "2026-05-04",
+    "period_end":          "2026-05-04",
+    "bank_code":           "GARANTI",
+    "currency":            "TRY",
+    "gross_amount":        187435000,
+    "refund_amount":       2350000,
+    "bank_commission":     6747260,
+    "platform_commission": 1872500,
+    "net_amount":          176465240,
+    "transaction_count":   1247,
+    "refund_count":        18,
+    "bank_reference":      "STL-2026-05-04-789"
   }'
 ```
 

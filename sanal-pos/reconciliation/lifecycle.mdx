@@ -49,7 +49,7 @@ Mutabakat detayını veya sadece tutarsızlıkları çekin:
 
 ```bash
 # Tüm satırlar (sayfalı)
-curl "https://vpos.payven.com.tr/api/v1/reconciliations/8e3f5c12.../details?page=1&page_size=50&detail_status=open" \
+curl "https://vpos.payven.com.tr/api/v1/reconciliations/8e3f5c12.../details?page=1&page_size=50&detail_status=pending" \
   -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
@@ -68,7 +68,7 @@ Yanıt — sayfalı `ReconciliationDetailDto` listesi:
       "db_status":           "completed",
       "bank_status":         "approved",
       "discrepancy":         "amount_mismatch",
-      "detail_status":       "open",
+      "detail_status":       "pending",
       "resolution_action":   null,
       "adjusted_amount":     null,
       "applied_status":      null,
@@ -103,9 +103,9 @@ curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/8e3f5c12.../detai
 
 | Alan | Açıklama |
 |---|---|
-| `resolution_action` | `accept_bank` (banka doğru), `accept_payven` (Payven doğru), `investigate` (askıya al), `ignore` (göz ardı) |
-| `adjusted_amount` | `accept_bank` ise revize tutar (Payven kaydı bu değere çekilir) |
-| `applied_status` | Yeni durum (örn. `voided` ↔ `completed` eşleşmemesi durumunda) |
+| `resolution_action` | `accept_bank` (banka doğru, DB güncellenir), `accept_db` (DB doğru, banka satırı resolved işaretlenir), `mark_matched` (manuel eşleştirme — tutar/durum dokunulmaz), `adjust_amount` (manuel tutar override — `adjusted_amount` ile), `force_status` (manuel durum override — `applied_status` ile), `ignore` (göz ardı) |
+| `adjusted_amount` | `accept_bank` veya `adjust_amount` için revize tutar (Payven kaydı bu değere çekilir) |
+| `applied_status` | `force_status` için yeni durum (örn. `canceled` ↔ `completed` eşleşmemesi durumunda) |
 | `remarks` | Operatör notu — audit için kalıcı saklanır |
 
 ### Toplu çözüm
@@ -134,8 +134,8 @@ curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/8e3f5c12.../final
 
 Finalize sonrası:
 
-- `overall_status: "finalized"`, `finalized_at` doldurulur
-- İlgili işlemlerin `settlement_date` alanı doldurulur — `transaction.status` `completed` → ekstra olarak `settled` rozeti
+- `overall_status: "completed"` (veya bekleyen kalemler `ignored` ile kapatıldıysa `partially_completed`), `finalized_at` doldurulur
+- İlgili işlemlerin `settlement_date` alanı doldurulur — wire `status` enum'u değişmez, `transaction.status` `completed` kalır; settlement durumu ayrı `Settlement` kaynağında izlenir
 - Operatör kullanıcı kimliği `finalized_by` alanında saklanır
 
 ## 6. İptal
@@ -159,7 +159,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/8e3f5c12.../cance
 | Otomatik finalize (tüm satırlar `matched`) | Anlık |
 | Manuel inceleme (tutarsızlıklar varsa) | Operatör süresine bağlı |
 
-Tutarsızlık varsa finalize **manuel** olarak yapılır — operatör çözümleri girene kadar `pending_review` statüsünde bekler.
+Tutarsızlık varsa finalize **manuel** olarak yapılır — operatör çözümleri girene kadar `draft` veya `in_review` statüsünde bekler.
 
 ## Geriye dönük inceleme
 

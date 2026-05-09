@@ -70,6 +70,25 @@ Kart numarasını veya CVV'yi loglara, veritabanınıza, dosya sistemine veya ge
 <Check>**Erişim kontrolü** — API anahtarına yalnızca ödeme alan servis erişebilsin, geliştiriciler doğrudan production anahtarına erişmesin.</Check>
 <Check>**Düzenli rotasyon** — En az 6 ayda bir API anahtarınızı rotasyona alın.</Check>
 
+## Public OpenAPI'da bulunmayan endpoint'ler
+
+Payven composer'lari iç operasyon icin bazi endpoint'leri yayinlar — ancak bu endpoint'ler
+**public docs ve OpenAPI spec'inden cikarilmistir** cunku ya internal tooling icin tanimlanmislardir
+ya da PCI-DSS Req. 3.4 (kart numarasi log/parametre olarak iletilemez) ile celisirler:
+
+| Endpoint | Sebep |
+|---|---|
+| `/api/v1/internal/*` | Composer'lar arasi internal entegrasyon (asla disardan cagirilmaz) |
+| `/api/v1/payments/3d/callback` | Bankadan gelen callback — public docs'ta path acmak gereksiz olur (banka kendi konfigurasyonu uzerinden cagiriyor) |
+| `/api/v1/transactions/generate-random` | Demo/test verisi olusturma — yalniz dev/sandbox |
+| `/api/v1/connector-error-codes/bulk` | Toplu config yukleme — internal tooling |
+| `/api/v1/validation/encrypt-card`, `/decrypt-card` | Kart numarasini query parametresi olarak alir → PCI-DSS Req. 3.4 ihlali olusturur. Sandbox utility, public docs'ta yok |
+| `/api/v1/lookups/bank-bins/import` | Bulk BIN import — internal tooling |
+| `/api/v1/tenants/seed` | Tenant onboarding internal'i |
+
+Bu listenin tamamı `mintlify/scripts/enrich_openapi.py` icinde `DROP_PATH_PATTERNS`
+sabitinde tanımlıdır; OpenAPI spec her güncellendiğinde otomatik temizlenir.
+
 ## Denetim ve raporlama
 
 İhtiyaç durumunda destek ekibinden talep edebileceğiniz belgeler:

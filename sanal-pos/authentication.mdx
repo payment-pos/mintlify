@@ -16,6 +16,17 @@ Sanal POS API'si Payven'in standart OAuth 2.0 Client Credentials akışını kul
 | **Production** | `https://identity.payven.com.tr` | `https://vpos.payven.com.tr` |
 | **Sandbox** | `https://identity-sandbox.payven.com.tr` | `https://vpos-sandbox.payven.com.tr` |
 
+## Realm seçimi
+
+Payven Identity multi-tenant — token endpoint URL'sinde **realm slug'ı** kullanılır: `POST /api/v1/auth/{slug}/token`. Slug'ınız onboarding sırasında size atanır:
+
+| Slug | Kullanım |
+|---|---|
+| `payven` | Master realm — Payven platform admin'leri |
+| `tenant-{your-slug}` | Sizin tenant realm'iniz (örn. `tenant-acme`) |
+
+Slug'ınızı **Konsol → Ayarlar → API Erişimi** sekmesinde görebilirsiniz. Token'ın `iss` claim'i realm'e işaret eder; SanalPos backend tüm kabul edilen realm'leri otomatik doğrular — composer'a tek tek tanıtım gerekmez.
+
 ## Hızlı başlangıç
 
 Önce [Identity'den access token alın](/documentation/concepts/authentication) — `$PAYVEN_TOKEN` ortam değişkenine yazıp Sanal POS endpoint'lerine gönderin:

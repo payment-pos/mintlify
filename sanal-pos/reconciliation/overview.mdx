@@ -114,7 +114,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/start \
   "ignored_count":            0,
   "total_db_amount":          18705000,
   "total_bank_amount":        18675000,
-  "overall_status":           "open",
+  "overall_status":           "draft",
   "finalized_at":             null,
   "finalized_by":             null,
   "notes":                    null,
@@ -130,7 +130,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/start \
       "db_status":         "completed",
       "bank_status":       "approved",
       "discrepancy":       "amount_mismatch",
-      "detail_status":     "open",
+      "detail_status":     "pending",
       "resolution_action": null,
       "adjusted_amount":   null,
       "applied_status":    null,
@@ -146,10 +146,20 @@ curl -X POST https://vpos.payven.com.tr/api/v1/reconciliations/start \
 
 | Değer | Anlam |
 |---|---|
-| `open` | Aktif — tüm satırlar eşleştirilmiş ama henüz finalize edilmedi |
-| `pending_review` | Tutarsızlıklar var, operatör çözmesi bekleniyor |
-| `finalized` | Tamamlandı — ilgili işlemler `settled` olarak işaretlendi |
+| `draft` | Başlatıldı, uyuşmazlıklar çıkarıldı, kullanıcı müdahalesi bekleniyor |
+| `in_review` | Kısmi çözüm uygulandı ama hâlâ bekleyen uyuşmazlıklar var |
+| `completed` | Tüm uyuşmazlıklar çözüldü/ignore edildi, mutabakat tamamlandı |
+| `partially_completed` | Kullanıcı eksik veriyle kapattı — bekleyen kayıtlar `ignored` olarak kapatıldı |
 | `cancelled` | İptal edildi |
+
+## `detail_status` değerleri (her uyuşmazlık satırı için)
+
+| Değer | Anlam |
+|---|---|
+| `pending` | Henüz kullanıcı müdahalesi bekleniyor |
+| `resolved` | Kullanıcı çözdü (düzeltme uygulandı veya manuel match) |
+| `ignored` | Kullanıcı görmezden geldi |
+| `auto_matched` | Otomatik eşleşti — yalnız örnek/log amaçlı tutuluyor |
 
 ## `discrepancy` tipleri
 

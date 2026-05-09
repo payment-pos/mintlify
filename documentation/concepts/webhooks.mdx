@@ -103,7 +103,7 @@ Detay: [Yeniden Deneme Politikası](/sanal-pos/webhooks/retry-policy).
 Webhook abonelikleri her ürün için ayrı tanımlanır. Sanal POS örneği:
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/webhooks \
+curl -X POST https://vpos.payven.com.tr/api/v1/webhook-subscriptions \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

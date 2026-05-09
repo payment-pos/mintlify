@@ -34,25 +34,25 @@ stateDiagram-v2
 
 ## Konfigürasyon
 
-Circuit Breaker parametreleri konnektör konfigürasyonunda saklanır ve konsoldan yönetilir. Tipik varsayılanlar:
+Circuit Breaker, konnektör HTTP istemcisi üzerinde **Polly** kütüphanesi ile uygulanmıştır (`Infrastructure/Http/PollyPolicies.cs`). Mevcut varsayılanlar:
 
 | Parametre | Varsayılan | Açıklama |
 |---|---|---|
-| Hata oranı eşiği | %50 | Bu oranın aşılması Open'a yol açar |
-| Minimum istek hacmi | 20 | Eşiğin değerlendirilmesi için minimum istek sayısı |
-| Rolling pencere | 60 sn | Hata oranı hesaplama penceresi |
-| Open kalma süresi | 300 sn (5 dk) | Half-Open'a geçmeden önce bekleme |
+| `exceptionsAllowedBeforeBreaking` | 3 | Bu sayıda ardışık geçici HTTP hatası → Open |
+| `durationOfBreakInSeconds` | 30 sn | Open kalma süresi (sonra HalfOpen'a geçer) |
+| HalfOpen test trafiği | 1 istek | Tek başarılı istek → Closed; başarısız → Open |
+| Retry policy (ayrı) | 3 deneme | Exponential backoff (`2^attempt` saniye) |
+| Timeout | 30 sn | İstek başına |
+
+<Note>
+Implementasyon Polly'nin **basit `CircuitBreakerAsync`** policy'sidir — exception **count** tabanlı (oran tabanlı değil). "Rolling pencere içinde %50 hata" gibi gelişmiş ölçümler `AdvancedCircuitBreakerAsync`'a geçişle yol haritasında.
+</Note>
 
 Konnektör başına özelleştirme için: **Konsol → Konnektörler → [Konfigürasyon]** ekranı veya `PUT /api/v1/connector-configurations/{id}` endpoint'i.
 
 ## Açılma kriteri
 
-Bir banka aşağıdaki **tüm** koşullar sağlandığında "Open" haline geçer:
-
-1. Son `rollingWindowSeconds` saniyede minimum `minimumRequestVolume` istek atılmış olmalı.
-2. Bunların hata oranı `errorThresholdPercentage` değerini aşmış olmalı.
-
-Örneğin: son 60 saniyede 20+ istek atılmış ve %50'den fazlası 5xx/timeout dönmüşse banka 5 dakika kapanır.
+Bir konnektör HTTP istemcisi **3 ardışık geçici hata** (5xx, timeout, network) verdiğinde Open'a geçer. 30 saniye boyunca o konnektöre çağrı yapılmaz; süre sonunda HalfOpen'a geçilir ve tek bir test isteği denenir.
 
 ## Yarı-açık hal (HalfOpen)
 

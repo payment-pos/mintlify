@@ -217,7 +217,7 @@ Detaylı yanıt yapısı: [Payment Objesi](/sanal-pos/payment-object).
 Tarayıcı tabanlı akışlarda (3DS, hosted checkout) müşteri tarayıcıyı kapatabilir — sonucu kaçırmamak için webhook kurun:
 
 ```bash
-curl -X POST https://vpos-sandbox.payven.com.tr/api/v1/webhooks \
+curl -X POST https://vpos-sandbox.payven.com.tr/api/v1/webhook-subscriptions \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

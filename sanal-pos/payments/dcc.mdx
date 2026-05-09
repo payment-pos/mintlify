@@ -38,8 +38,9 @@ Standart `POST /payments` veya `POST /payments/3d/init` isteği yapın. Payven y
 ```json
 {
   "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":         "dcc_pending",
+  "status":         "processing",
   "extra_properties": {
+    "dcc_offered":              "true",
     "dcc_alternative_currency": "USD",
     "dcc_alternative_amount":   "480",
     "dcc_exchange_rate":        "31.25",
@@ -49,6 +50,11 @@ Standart `POST /payments` veya `POST /payments/3d/init` isteği yapın. Payven y
   }
 }
 ```
+
+<Note>
+**`status` alanı DCC akışına özel bir değer almaz** — ana ödeme akışındaki `processing`/`authorized` durumunu yansıtır. DCC teklifinin var olduğunu `extra_properties.dcc_offered: "true"` flag'inden ve `dcc_*` alanlarının varlığından anlayın.
+</Note>
+
 
 | Alan | Açıklama |
 |---|---|
