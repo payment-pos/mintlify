@@ -75,7 +75,7 @@ Senaryolar:
 Default `max_retry_count: 5`'tir. Yüksek hassasiyet gerektiren entegrasyonlar (örn. ERP) için daha fazla retry isterseniz subscription oluşturma / güncelleme sırasında bu değeri ayarlayabilirsiniz:
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/webhooks \
+curl -X POST https://vpos.payven.com.tr/api/v1/webhook-subscriptions \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

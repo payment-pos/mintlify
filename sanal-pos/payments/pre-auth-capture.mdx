@@ -18,9 +18,10 @@ description: "Tutarı bloke edip daha sonra çekim yapma — iki aşamalı ödem
 flowchart LR
     A[POST /payments<br/>operation_type=pre_auth] --> B[authorized]
     B -->|POST .../capture| C[completed]
-    B -->|POST .../void| D[voided]
-    C --> E[settled]
+    B -->|POST .../void| D[canceled]
 ```
+
+`completed` durumundan sonra mutabakata dahil etme süreci ayrı `Settlement` kaynağında izlenir — bkz. [Settlement Kayıtları](/sanal-pos/reporting/settlements).
 
 ## 1. Ön provizyon (Pre-Auth)
 

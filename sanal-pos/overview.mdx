@@ -78,14 +78,24 @@ Payven Sanal POS, ödeme kuruluşları ve büyük platformlar için **çoklu ban
 
 ## Endpoint kategorileri
 
+Tüm path'ler `/api/v1/` ön ekiyle başlar. Tam liste için: [API Referansı](/api-reference/sanal-pos).
+
 | Kategori | Endpoint örnekleri | Auth |
 |---|---|---|
-| Ödeme oluşturma | `POST /payments`, `POST /payments/3d/init`, `POST /checkout/sessions` | Bearer |
-| Ödeme aksiyonları | `POST /payments/{id}/refund`, `/void`, `/capture` | Bearer |
-| Sorgulama | `GET /transactions`, `GET /payments/{id}` | Bearer |
-| Webhook yönetimi | `POST /webhooks` | Bearer |
-| Mutabakat | `POST /reconciliations/start` | Bearer |
-| Backoffice | `GET /connectors`, `/connector-configurations` | Bearer |
+| Ödeme oluşturma | `POST /payments`, `POST /payments/3d/init`, `POST /payments/order-link`, `POST /checkout/sessions` | Bearer |
+| Ödeme aksiyonları | `POST /payments/{id}/refund`, `/void`, `/capture`, `/3d/complete`, `/dcc/confirm`, `/point-inquiry` | Bearer |
+| Sorgulama | `GET /payments/{id}`, `GET /payments/{id}/query`, `GET /payments/{id}/history`, `GET /transactions`, `GET /transactions/export` | Bearer |
+| Tekrarlayan ödeme | `POST /recurring`, `GET /recurring`, `POST /recurring/{id}/cancel`, `POST /recurring/{id}/installments/{idx}/cancel` | Bearer |
+| İade listesi | `GET /refunds`, `GET /refunds/{id}` | Bearer |
+| Settlement | `GET /settlements`, `POST /settlements`, `GET /settlements/export` | Bearer |
+| Chargeback | `GET /chargebacks`, `POST /chargebacks`, `PUT /chargebacks/{id}/status` | Bearer |
+| Mutabakat | `POST /reconciliations/start`, `POST /reconciliations/{id}/finalize` | Bearer |
+| Saved Cards | `GET /cards`, `DELETE /cards/{id}` | Bearer |
+| BIN sorgu | `POST /bins/check`, `GET /bins/{bin}` | Bearer |
+| Yönlendirme kuralları | `GET/POST/PUT /routing-rules`, `POST /routing-rules/resolve` | Bearer |
+| Konnektör | `GET/POST /connectors`, `GET /connector-configurations`, `GET /connectors/{id}/health` | Bearer |
+| Webhook yönetimi | `POST /webhook-subscriptions`, `POST /webhook-subscriptions/{id}/rotate-secret`, `GET /webhook-subscriptions/{id}/deliveries` | Bearer |
+| İptal Talepleri | `/cancellation-requests` (4-eyes void onayı) | Bearer |
 
 ## İşlem yaşam döngüsü
 
@@ -109,6 +119,27 @@ stateDiagram-v2
     Refunded --> [*]
     Settled --> [*]
 ```
+
+<Note>
+Yukarıdaki diyagram **konsumer-friendly** semantik durumları gösterir. Wire üzerinde
+(API yanıtları, webhook payload'ları) `status` alanı `TransactionStatus` enum'unun
+snake_case değerleridir. Eşleştirme:
+
+| Diyagramdaki durum | Wire `status` |
+|---|---|
+| Created | `created` |
+| Pending3D | `three_d_secure_init_processing` |
+| Authenticated | `three_d_secure_auth_processing` |
+| Authorized | `authorized` |
+| Captured / Settled | `completed` (settlement durumu ayrı `Settlement` kaynağında izlenir) |
+| Refunded | `refunded` |
+| PartiallyRefunded | Üst Transaction `completed` kalır; iade alt-kaydı `refunded` (geçici: `refund_processing`) |
+| Voided | `canceled` (geçici: `canceled_processing`) |
+| Failed | `failed` |
+| (Geçici işlem) | `processing`, `capture_processing` |
+
+Tam enum tablosu: [Payment Objesi → Status](/sanal-pos/payment-object#status).
+</Note>
 
 ## Sıradaki adım
 

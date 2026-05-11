@@ -37,7 +37,7 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
 ```json
 {
   "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":         "pending",
+  "status":         "three_d_secure_init_processing",
   "extra_properties": {
     "processed_at":      "2026-05-03T12:34:57.123+00:00",
     "point_balance":     "12500",
@@ -47,6 +47,11 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
   }
 }
 ```
+
+<Note>
+Yanıttaki `status` alanı **mevcut Transaction durumunu yansıtır** (PointInquiry handler'ı durumu değiştirmez). Tipik akışta bu sorgu 3DS init sonrası yapılır, dolayısıyla `three_d_secure_init_processing` görürsünüz. Direkt sorgu (3DS olmadan) yapıldıysa `processing` veya `authorized` olabilir.
+</Note>
+
 
 | `extra_properties` alanı | Açıklama |
 |---|---|

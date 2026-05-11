@@ -20,8 +20,8 @@ Tüm parametreler **snake_case**'dir.
 | `page` | int | Sayfa numarası (varsayılan `1`) |
 | `page_size` | int | Sayfa başı kayıt (1–100, varsayılan `20`) |
 | `start_date`, `end_date` | datetime | Tarih aralığı (UTC, ISO 8601) — `t.created` üzerinde filtreler |
-| `status` | enum | `pending`, `pending_3ds`, `authorized`, `completed`, `failed`, `voided`, `refunded`, `partially_refunded`, `settled` |
-| `operation_type` | enum | `sale`, `pre_auth`, `capture`, `refund`, `void` |
+| `status` | enum | `created`, `processing`, `three_d_secure_init_processing`, `three_d_secure_auth_processing`, `authorized`, `capture_processing`, `completed`, `refund_processing`, `refunded`, `canceled_processing`, `canceled`, `failed` |
+| `operation_type` | enum | `sale`, `pre_auth`, `post_auth`, `void`, `refund`, `recurring` |
 | `payment_type` | enum | `non_3d`, `three_d_secure`, `three_d_pay`, `three_d_pay_hosting` |
 | `secure_type` | enum | 3D modu detayı |
 | `card_schema_type` | enum | `visa`, `mastercard`, `troy`, `amex` |

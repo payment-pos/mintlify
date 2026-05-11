@@ -3,7 +3,7 @@ title: "Webhook Olay Kataloğu"
 description: "Sanal POS'un yayınladığı tüm webhook olayları ve payload alanları."
 ---
 
-Sanal POS şu anda **8 olay tipi** yayınlar. Subscription oluştururken `events[]` dizisinde dinlemek istediklerinizi belirtirsiniz.
+Sanal POS şu anda **18 olay tipi** yayınlar (ödeme/iade/iptal + 3DS + Pre-Auth + Recurring + Chargeback + Settlement). Subscription oluştururken `events[]` dizisinde dinlemek istediklerinizi belirtirsiniz.
 
 ## Genel yapı
 
@@ -130,14 +130,14 @@ Tüm `data` payload'ları aşağıdaki alanları içerir (boş olabilirler):
 
 ### `void.completed`
 
-**Tetikleyici:** İşlem void edildiğinde (mutabakat öncesi tam iptal).
+**Tetikleyici:** İşlem void edildiğinde (mutabakat öncesi tam iptal). Pre-Auth iptalinde de bu olay yayınlanır.
 
 ```json
 {
   "type": "void.completed",
   "data": {
     "transaction_id":          "8e3f5c12-...",
-    "status":                  "voided",
+    "status":                  "canceled",
     "provider_transaction_id": "VOID-9f3d2b8e"
   }
 }
@@ -152,7 +152,7 @@ Tüm `data` payload'ları aşağıdaki alanları içerir (boş olabilirler):
   "type": "refund.completed",
   "data": {
     "transaction_id":          "8e3f5c12-...",
-    "status":                  "partially_refunded",
+    "status":                  "completed",
     "amount":                  5000,
     "currency":                "TRY",
     "provider_transaction_id": "REFUND-9f3d2b8e"
@@ -160,7 +160,7 @@ Tüm `data` payload'ları aşağıdaki alanları içerir (boş olabilirler):
 }
 ```
 
-`status` alanı işlemin **yeni** durumunu yansıtır: kısmi iade ise `partially_refunded`, tüm tutar iade edildiyse `refunded`.
+`status` alanı işlemin **mevcut** durumunu yansıtır: kısmi iade için ana Transaction `completed` kalır (iade alt-Transaction olarak ayrı yazılır), tüm tutar iade edildiğinde ana Transaction `refunded` olur.
 
 ### `3ds.completed`
 
@@ -195,28 +195,115 @@ Tüm `data` payload'ları aşağıdaki alanları içerir (boş olabilirler):
 }
 ```
 
+## Recurring (subscription) olayları
+
+### `subscription.charged`
+
+**Tetikleyici:** Tekrarlayan ödeme planının bir taksiti başarıyla çekildiğinde. Her başarılı taksit için ayrıca `payment.completed` da yayınlanır.
+
+```json
+{
+  "type": "subscription.charged",
+  "data": {
+    "recurring_plan_id":    "plan-...",
+    "installment_index":    3,
+    "transaction_id":       "8e3f5c12-...",
+    "status":               "completed",
+    "amount":               15000,
+    "currency":             "TRY"
+  }
+}
+```
+
+### `subscription.failed`
+
+**Tetikleyici:** Bir taksit başarısız olduğunda (kart bakiyesi, banka reddi). Plan otomatik askıya alınmaz.
+
+### `subscription.cancelled`
+
+**Tetikleyici:** Kullanıcı veya operatör planı iptal ettiğinde (`POST /recurring/{id}/cancel`).
+
+### `subscription.completed`
+
+**Tetikleyici:** Planın tüm taksitleri başarıyla tamamlandığında.
+
+### `subscription.charge.reversed`
+
+**Tetikleyici:** Daha önceden başarıyla çekilmiş bir taksit, provider tarafında **tersine çevrildiğinde** (same-day void / reversal). İlişkili Transaction için ayrıca `void.completed` da fire eder.
+
+### `subscription.charge.failed`
+
+**Tetikleyici:** Daha önceden başarıyla çekilmiş bir taksit provider sonradan **Error** olarak raporladığında (provider correction). İlişkili Transaction için ayrıca `payment.failed` fire eder.
+
+## Chargeback (ters ibraz) olayları
+
+### `chargeback.opened`
+
+**Tetikleyici:** Bankadan bir chargeback (ters ibraz) bildirimi alındığında.
+
+```json
+{
+  "type": "chargeback.opened",
+  "data": {
+    "chargeback_id":    "cbk-...",
+    "transaction_id":   "8e3f5c12-...",
+    "amount":           15000,
+    "currency":         "TRY",
+    "reason_code":      "fraud_suspected",
+    "due_date":         "2026-05-15T23:59:59+00:00"
+  }
+}
+```
+
+### `chargeback.resolved`
+
+**Tetikleyici:** Chargeback sonuçlandığında — kabul, ret veya delil sunma süreci tamamlandığında.
+
+## Settlement olayları
+
+### `settlement.created`
+
+**Tetikleyici:** Bir gün/dönem için settlement kaydı oluşturulduğunda.
+
+```json
+{
+  "type": "settlement.created",
+  "data": {
+    "settlement_id":    "stl-...",
+    "period_start":     "2026-05-03T00:00:00+00:00",
+    "period_end":       "2026-05-03T23:59:59+00:00",
+    "total_amount":     1850000,
+    "transaction_count":127
+  }
+}
+```
+
+### `settlement.completed`
+
+**Tetikleyici:** Settlement işlemi (bankaya ödenmiş, mutabakat onaylanmış) tamamlandığında.
+
 ## Olay → İşlem durumu eşleşmesi
 
 ```mermaid
 stateDiagram-v2
-    [*] --> pending
-    pending --> authorized: payment.authorized (PreAuth)
-    pending --> completed: payment.completed (Sale)
-    pending --> failed: payment.failed
-    pending --> pending_3ds: 3DS init
-    pending_3ds --> completed: 3ds.completed
-    pending_3ds --> failed: 3ds.failed
+    [*] --> created
+    created --> authorized: payment.authorized (PreAuth)
+    created --> completed: payment.completed (Sale)
+    created --> failed: payment.failed
+    created --> three_d_secure_init_processing: 3DS init
+    three_d_secure_init_processing --> completed: 3ds.completed
+    three_d_secure_init_processing --> failed: 3ds.failed
     authorized --> completed: capture.completed
-    authorized --> voided: void.completed
+    authorized --> canceled: void.completed
+    completed --> canceled: void.completed (gün içi)
     completed --> refunded: refund.completed (tam)
-    completed --> partially_refunded: refund.completed (kısmi)
-    partially_refunded --> refunded: refund.completed (kalan)
+    completed --> completed: refund.completed (kısmi — alt-Tx ayrı yazılır)
 ```
 
 ## Webhook subscription örneği
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/webhooks \
+curl -X POST https://vpos.payven.com.tr/api/v1/webhook-subscriptions \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -240,9 +327,7 @@ Tüm olaylara abone olmak için `["*"]` kullanmayın — açık liste tutmak ile
 
 İleride eklenmesi planlanan olaylar:
 
-- `chargeback.received` — bankadan chargeback bildirimi
-- `chargeback.resolved` — chargeback sonuçlandı
-- `settlement.created` — günlük mutabakat raporu hazır
-- `connector.health_changed` — banka sağlık durumu değişti
+- `connector.health_changed` — banka sağlık durumu değişti (circuit breaker open/close)
+- `reconciliation.discrepancy_detected`, `reconciliation.finalized` — mutabakat olayları
 
 Güncellemeler için [Changelog](/resources/changelog) sayfasını izleyin.

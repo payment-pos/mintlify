@@ -107,4 +107,32 @@ PATCH  /api/v1/routing-rules/{id}/score            # Skor güncelleme
 
 ## Simülasyon
 
-Bir işlemin hangi kurala düşeceğini önceden görmek için **konsoldaki Routing Simulator** ekranı kullanılır. Public bir `/resolve` endpoint'i yol haritasındadır — yayınlandığında [Changelog](/resources/changelog) üzerinden duyurulur.
+Bir işlemin hangi kurala düşeceğini önceden görmek için iki yol:
+
+- **Konsoldaki Routing Simulator** ekranı (görsel arayüz)
+- **Public `/resolve` endpoint'i** — bir koşul setine göre eşleşen kuralları döndürür:
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules/resolve \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "card_bin":     "454671",
+    "amount":       15000,
+    "installment":  3,
+    "card_brand":   "bonus",
+    "card_type":    "credit",
+    "currency":     "TRY"
+  }'
+```
+
+Yanıt: skor sırasına göre eşleşen kuralların listesi. Production trafiğine etki etmez — yalnız okur.
+
+## Settings (varsayılan davranış)
+
+```http
+GET /api/v1/routing-rules/settings
+PUT /api/v1/routing-rules/settings
+```
+
+Hiçbir kural eşleşmediğinde devreye giren default davranışı (varsayılan konnektör, fallback davranışı) yapılandırır.

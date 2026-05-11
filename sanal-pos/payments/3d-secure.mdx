@@ -81,7 +81,7 @@ Content-Type: application/json
 ```json
 {
   "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":         "pending_3ds",
+  "status":         "three_d_secure_init_processing",
   "extra_properties": {
     "redirect_url":    "https://3ds.example-bank.com/auth?token=abc123",
     "redirect_method": "GET",
@@ -99,6 +99,25 @@ Müşteri bankanın 3DS sayfasında SMS, mobil uygulama veya biometrik onay sağ
 ## 3. Adım — Callback (Banka → Payven)
 
 Banka, 3DS sonucunu Payven'e form-post ile iletir (`POST /payments/3d/callback`). Bu kısım otomatik gerçekleşir, müdahale gerektirmez. Payven, callback'i alır → bankaya `Complete3DSPayment` (otorizasyon) gönderir → işlem son durumuna gelir.
+
+<Note>
+**Callback scope `pv_*` query parametreleri (ileri seviye):** Bazı banka konnektörleri,
+3DS init sirasinda `callback_url` query parametrelerini koruyarak callback'i geri
+yonlendirir. Bu durumda Payven `pv_*` prefix'li parametreleri callback scope'unda
+otomatik olarak `IPayvenRequestContext`'e besler — handler'lar standart `Authorization`
+header'i olmasa bile dogru tenant/merchant bagliminda calisir:
+
+| Parametre | Anlam |
+|---|---|
+| `pv_tenantId` | Override tenant kimligi (callback scope'a init zamaninin tenant'ini tasimak icin) |
+| `pv_merchantId` | Override merchant Guid |
+| `pv_externalMerchantId` | Override merchant ExternalId (string) |
+| `pv_recurringId` | Recurring 3DS callback'i isaretle |
+| `pv_return_url` | Portal redirect hedefi (callback sonrasi) |
+
+Bu parametreler **yalniz `AllowAnonymous`** endpoint'lerde (3DS callback gibi) etkindir;
+authenticated endpoint'lerde JWT/header semantikleri once gelir, `pv_*` parametreleri yok sayilir.
+</Note>
 
 ## 4. Adım — Return URL (Payven → tarayıcı)
 
@@ -152,7 +171,8 @@ Final durumu `status` alanından okuyun:
 | `completed` | Sale akışı — ödeme başarıyla tamamlandı |
 | `authorized` | PreAuth akışı — ön provizyon alındı, `/capture` çağrılması bekleniyor |
 | `failed` | 3DS başarısız veya banka reddetti — `error_code` ve `provider_error_code` inceleyin |
-| `pending_3ds` | Hâlâ tamamlanmadı (callback gelmemiş, müşteri 3DS sayfasını kapatmış olabilir) |
+| `three_d_secure_init_processing` | 3DS init başlatıldı, müşteri henüz banka 3DS sayfasında |
+| `three_d_secure_auth_processing` | Müşteri 3DS'i tamamladı, otorizasyon (Complete3DSPayment) yolda |
 
 ## Frictionless vs Challenge
 
@@ -180,7 +200,7 @@ Hangisinin uygulanacağını **banka belirler** — istemci olarak etkileyemezsi
 `return_url`'e yönlendirme **müşteri tarayıcısı** üzerinden çalışır — müşteri tarayıcıyı kapatırsa sonucu kaçırırsınız. Webhook entegre edin:
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/webhooks \
+curl -X POST https://vpos.payven.com.tr/api/v1/webhook-subscriptions \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

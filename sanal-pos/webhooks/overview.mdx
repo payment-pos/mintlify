@@ -77,7 +77,7 @@ X-Payven-Timestamp:    1714742400
 ## Abone olma
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/webhooks \
+curl -X POST https://vpos.payven.com.tr/api/v1/webhook-subscriptions \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -102,7 +102,7 @@ Yanıt:
 
 <Warning>
 **`secret` değerini saklayın** — yalnızca bu yanıtta bir kez gösterilir. İmza
-doğrulamasında bu değeri kullanacaksınız. Kaybedilirse `POST /webhooks/{id}/rotate-secret`
+doğrulamasında bu değeri kullanacaksınız. Kaybedilirse `POST /webhook-subscriptions/{id}/rotate-secret`
 ile yenileyebilirsiniz.
 </Warning>
 

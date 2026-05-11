@@ -81,39 +81,57 @@ Konnektöre özgü ek alanlar (HalkBank `tax_certificate_no`, NestPay `xid`, vb.
 
 ## Status değerleri
 
-| `status` | Anlam | Sonraki adım |
+`status` alanı `TransactionStatus` enum'unun **snake_case wire formatı**dır. Tam liste:
+
+| `status` (wire) | Anlam | Sonraki adım |
 |---|---|---|
-| `pending` | İşlem oluşturuldu, banka yanıtı bekleniyor | Asenkron — webhook veya `GET` ile takip |
-| `pending_3ds` | 3D Secure init aşamasında | Müşteriyi bankaya yönlendirin |
-| `authenticated_3ds` | 3DS başarılı, şimdi otorizasyon yapılacak | Otomatik — backend `/3d/complete` çağırır |
+| `created` | İşlem kaydedildi, henüz konnektöre gönderilmedi | Otomatik — handler bankaya iletir |
+| `processing` | Konnektörde, banka yanıtı bekleniyor | Asenkron — webhook veya `GET` ile takip |
+| `three_d_secure_init_processing` | 3DS init başlatıldı, müşteri bankaya yönlendirilmeli | Müşteriyi yanıttaki `html_content` veya bank URL'sine yönlendirin |
+| `three_d_secure_auth_processing` | 3DS auth tamamlanmayı bekliyor (callback yolda) | Asenkron — webhook ile takip |
 | `authorized` | Banka onayladı, ön provizyon (PreAuth) | `/capture` ile çekim yapın |
-| `completed` | İşlem tamamlandı (Sale) | İade/iptal yapılabilir |
-| `failed` | Banka reddetti veya teknik hata | `error_code` + `provider_error_code` inceleyin |
-| `voided` | İptal edildi | — |
+| `capture_processing` | Capture isteği konnektörde | Asenkron |
+| `completed` | İşlem tamamlandı (Sale veya Capture sonrası) | İade/iptal yapılabilir |
+| `refund_processing` | İade isteği konnektörde | Asenkron |
 | `refunded` | Tüm tutar iade edildi | — |
-| `partially_refunded` | Kısmi iade yapıldı | Kalan tutar yine iade edilebilir |
-| `settled` | Mutabakata dahil edildi (gün sonu) | — |
+| `canceled_processing` | İptal (void) isteği konnektörde | Asenkron |
+| `canceled` | İptal edildi | — |
+| `failed` | Banka reddetti veya teknik hata | `error_code` + `provider_error_code` inceleyin |
+
+<Note>
+**Hesaplanan (calculated) durumlar — wire'da `status` alanında görünmez:**
+
+- **Kısmi iade (partially refunded):** Üst Transaction `status` alanı `completed` kalır; iade alt-Transaction'ı ayrı kayıt olarak yazılır (`status: refunded`). Kısmi mi tam mı iade olduğu `Transaction.RefundedAmount` ve `Transaction.Amount` karşılaştırmasından runtime'da hesaplanır.
+- **Settlement (gün sonu mutabakat):** `status` enum'unda `settled` değeri yoktur. Settlement durumu ayrı `Settlement` kaynağında izlenir — bkz. [Settlement Kayıtları](/sanal-pos/reporting/settlements).
+</Note>
 
 ```mermaid
 stateDiagram-v2
-    [*] --> pending
-    pending --> pending_3ds: 3DS init
-    pending --> authorized: Non-3D / PreAuth
-    pending --> completed: Non-3D Sale
-    pending_3ds --> authenticated_3ds: 3DS Y/A
-    pending_3ds --> failed: 3DS N/U
-    authenticated_3ds --> authorized: PreAuth
-    authenticated_3ds --> completed: Sale
-    authorized --> completed: capture
-    authorized --> voided: void
-    completed --> refunded: tam iade
-    completed --> partially_refunded: kısmi iade
-    partially_refunded --> refunded: kalan iade
-    completed --> settled: gün sonu
+    [*] --> created: POST /payments
+    created --> processing: konnektöre gönderildi
+    created --> three_d_secure_init_processing: 3DS init
+    processing --> authorized: PreAuth onaylandı
+    processing --> completed: Sale onaylandı
+    processing --> failed: banka reddi
+    three_d_secure_init_processing --> three_d_secure_auth_processing: müşteri 3DS tamamladı
+    three_d_secure_init_processing --> failed: 3DS başarısız
+    three_d_secure_auth_processing --> authorized: PreAuth + 3DS
+    three_d_secure_auth_processing --> completed: Sale + 3DS
+    three_d_secure_auth_processing --> failed: otorizasyon reddi
+    authorized --> capture_processing: POST /capture
+    capture_processing --> completed: capture onaylandı
+    capture_processing --> failed: capture reddi
+    authorized --> canceled_processing: POST /void
+    completed --> canceled_processing: POST /void (gün içi)
+    completed --> refund_processing: POST /refund
+    canceled_processing --> canceled: void onaylandı
+    canceled_processing --> failed: void reddi
+    refund_processing --> refunded: iade onaylandı
+    refund_processing --> failed: iade reddi
+    canceled --> [*]
     refunded --> [*]
-    voided --> [*]
     failed --> [*]
-    settled --> [*]
+    completed --> [*]
 ```
 
 ## Hata response'ları

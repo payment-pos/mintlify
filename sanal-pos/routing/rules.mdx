@@ -143,11 +143,29 @@ POST   /api/v1/simple-routing-rules/{id}/deactivate
 | `422` | `validation_failed` | `min_amount > max_amount`, BIN format hatası, vb. |
 | `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
 
+## Resolve simülasyonu
+
+Bir koşul setine göre hangi kuralların eşleşeceğini önceden hesaplamak için:
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules/resolve \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "card_bin":    "454671",
+    "amount":      15000,
+    "installment": 3,
+    "card_brand":  "bonus",
+    "card_type":   "credit"
+  }'
+```
+
+Yanıtta skor sıralı eşleşen kurallar listesi döner. Production trafiğine etki etmez.
+
 ## Yol haritası
 
 - **Conditional rule tree** — `AND/OR` operatörlü ağaç tabanlı koşullar
 - **A/B traffic split** — aynı koşula iki konnektör + ağırlık dağıtımı
-- **`/resolve` simulation endpoint** — bir koşula hangi kuralın düşeceğini önceden hesaplama
 - **Rule clone** — mevcut kuralı kopyalayıp düzenleme
 
 Güncellemeler için: [Changelog](/resources/changelog).
