@@ -40,7 +40,11 @@ Sanal POS API'sini hızlı denemek için iki koleksiyon sunuyoruz:
     - `vpos_base_url`: `https://vpos-sandbox.payven.com.tr` veya `https://vpos.payven.com.tr`
   </Step>
   <Step title="Token alın (otomatik)">
-    Koleksiyonun **Pre-request Script**'i ilk istekten önce Identity'den access token alır ve `{{access_token}}` değişkenine yazar; expiry geldiğinde otomatik refresh.
+    Koleksiyonun **Pre-request Script**'i, `access_token` boşsa veya süresi dolmak üzereyse
+    `client_id` + `client_secret` ile Identity'den token alıp `{{access_token}}` ve
+    `{{token_expires_at}}` değişkenlerine yazar. Ayrıca her POST isteğine `Idempotency-Key`
+    ekler. `.http` dosyasında script çalışmaz — orada **Auth › Token Al** isteğini bir kez
+    çalıştırıp dönen değeri `@access_token` satırına yapıştırın.
   </Step>
   <Step title="Bir isteği gönderin">
     **Odemeler (Payments)** klasöründeki **Non-3D Odeme (Sale)** isteğini açın ve **Send** edin.

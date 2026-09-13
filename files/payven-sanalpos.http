@@ -27,6 +27,8 @@
 @access_token = <access_token>
 # Refresh akisi otomatik doldurur
 @refresh_token = <refresh_token>
+# Pre-request script doldurur — token yenileme zamani (epoch ms)
+@token_expires_at = <token_expires_at>
 # OTP akisinda login yaniti otomatik doldurur
 @challenge_id = <challenge_id>
 # Bayi dis kimligi (X-External-Merchant-Id)
@@ -54,7 +56,7 @@
 # Key/secret ile token (client_credentials) — Identity uzerinden. Cevap LOGIN ile AYNI shape: { token: { access_token, refresh_token, ... }, challenge: null }.
 # 
 # SOZLESME: access_token 300 sn gecerlidir — token CACHE'LENIR, her istekte yeniden alinmaz (/token limiti IP basina 10/dk). Donen refresh_token realm SSO oturumuna baglidir: 2 saat bosta kalma, 10 saat sert tavan. Daha uzun omur icin "1b. Offline Token Al" kullanin.
-POST {{identity_base_url}}/auth/{{slug}}/token
+POST {{identity_base_url}}/api/{{api_version}}/auth/{{slug}}/token
 Content-Type: application/json
 
 {
@@ -66,7 +68,7 @@ Content-Type: application/json
 # Uzun omurlu (offline) refresh token ister. ON KOSUL: key Portal > API Anahtarlari ekraninda "Uzun omurlu (offline) refresh token" ACIK olarak olusturulmus/guncellenmis olmali — izin yoksa Keycloak sessizce NORMAL token doner (refresh_expires_in degerinden anlarsiniz).
 # 
 # Offline refresh token 30 gun bosta kalma suresiyle yasar ve sert tavani yoktur. Sizarsa uzun sure kullanilabilecegi icin secret gibi saklanir; iptal Portal'dan key silme / secret yenileme / izni kapatma ile ANINDA yapilir.
-POST {{identity_base_url}}/auth/{{slug}}/token
+POST {{identity_base_url}}/api/{{api_version}}/auth/{{slug}}/token
 Content-Type: application/json
 
 {
@@ -77,7 +79,7 @@ Content-Type: application/json
 
 ### 2. Token Al — Kullanici Adi + Sifre (Identity /login)
 # Kullanici adi/sifre ile login — Identity uzerinden. Cevap: { token: {...}, challenge: null } (OTP kapali, token kaydedilir) VEYA { token: null, challenge: {...} } (OTP zorunlu; challenge_id kaydedilir, 3. OTP Dogrula calistir, dev kod 1234).
-POST {{identity_base_url}}/auth/{{slug}}/login
+POST {{identity_base_url}}/api/{{api_version}}/auth/{{slug}}/login
 Content-Type: application/json
 
 {
@@ -87,7 +89,7 @@ Content-Type: application/json
 
 ### 3. OTP Dogrula (Identity /verify-otp)
 # Login OTP challenge dondurduyse kodu burada dogrula -> token doner. Dev/dummy mode kod 1234. challenge_id login adiminda otomatik dolar.
-POST {{identity_base_url}}/auth/{{slug}}/verify-otp
+POST {{identity_base_url}}/api/{{api_version}}/auth/{{slug}}/verify-otp
 Content-Type: application/json
 
 {
@@ -99,7 +101,7 @@ Content-Type: application/json
 # Refresh token ile yeni access token alir. Keycloak refresh token'i ROTATE eder — cevaptaki YENI refresh_token saklanir, eskisi atilir.
 # 
 # 401 govdesindeki code alani ne yapilacagini soyler:
-POST {{identity_base_url}}/auth/{{slug}}/refresh
+POST {{identity_base_url}}/api/{{api_version}}/auth/{{slug}}/refresh
 Content-Type: application/json
 
 {
@@ -108,7 +110,7 @@ Content-Type: application/json
 
 ### 4. OTP Tekrar Gonder (resend-otp)
 # OTP kodunu yeniden gonderir. Cooldown aktifse 429 (`Retry-After` header) doner. Cevap yeni `OtpChallengeDto`.
-POST {{identity_base_url}}/auth/{{slug}}/resend-otp
+POST {{identity_base_url}}/api/{{api_version}}/auth/{{slug}}/resend-otp
 Content-Type: application/json
 
 {
@@ -119,16 +121,12 @@ Content-Type: application/json
 ########## Bayi Yonetimi (Identity)
 
 ### 1. Listele
-GET {{identity_base_url}}/merchants?page=1&page_size=50
+GET {{identity_base_url}}/api/{{api_version}}/merchants?page=1&page_size=50
 Authorization: Bearer {{access_token}}
 
-### 2. Detay
-GET {{identity_base_url}}/merchants/{{merchant_id}}
-Authorization: Bearer {{access_token}}
-
-### 3. Olustur (tekli)
+### 2. Olustur (tekli)
 # **Alanlar:** `name`, `tax_id` zorunlu. `external_id` bos birakirsaniz otomatik (`M-{14char}`) uretilir. `merchant_type`: individual|sole_trader|corporate|unspecified. `marketplace_role`: none|platform|sub_merchant. SubMerchant icin `parent_id` + `payout_iban` + `payout_iban_owner` zorunlu.
-POST {{identity_base_url}}/merchants
+POST {{identity_base_url}}/api/{{api_version}}/merchants
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 
@@ -148,11 +146,15 @@ Content-Type: application/json
   "status": "approved"
 }
 
+### 3. Detay
+GET {{identity_base_url}}/api/{{api_version}}/merchants/{{merchant_id}}
+Authorization: Bearer {{access_token}}
+
 ### 4. Bulk Olustur (onboarding) ⭐
 # **Onboarding icin toplu bayi olusturma — tek HTTP cagrisinda N bayi (max 500).**
 # 
 # **Auth:** `tenant-admin`.
-POST {{identity_base_url}}/merchants/bulk
+POST {{identity_base_url}}/api/{{api_version}}/merchants/bulk
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 
@@ -184,7 +186,7 @@ Content-Type: application/json
 ]
 
 ### 5. Guncelle
-PUT {{identity_base_url}}/merchants/{{merchant_id}}
+PUT {{identity_base_url}}/api/{{api_version}}/merchants/{{merchant_id}}
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 
@@ -196,7 +198,7 @@ Content-Type: application/json
 
 ### 6. Sil
 # Hard delete. Auth: `tenant-admin`.
-DELETE {{identity_base_url}}/merchants/{{merchant_id}}
+DELETE {{identity_base_url}}/api/{{api_version}}/merchants/{{merchant_id}}
 Authorization: Bearer {{access_token}}
 
 
@@ -401,7 +403,9 @@ X-External-Merchant-Id: {{external_merchant_id}}
 }
 
 ### Siparis Linki Olustur (Order Link)
-# Banka tarafinda barindirilan odeme sayfasi linki olusturur. Musteriye SMS/e-posta ile gonderilir; kart bilgisi gerekmez.
+# Odeme linki olusturur; donen URL musteriye SMS/e-posta ile gonderilir.
+# 
+# DIKKAT: Bu uc **duz** alan alir — `amount` kurus cinsinden bir sayidir (25000 = 250,00 TL) ve `currency` ayri bir alandir. /payments ucundaki nested `amount: { amount, currency }` yapisi burada GECERSIZDIR.
 POST {{vpos_base_url}}/api/{{api_version}}/payments/order-link
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
@@ -410,11 +414,12 @@ X-External-Merchant-Id: {{external_merchant_id}}
 
 {
   "external_id": "ORDER-LINK-{{$timestamp}}",
-  "amount": {
-    "amount": 25000,
-    "currency": "TRY"
-  },
-  "description": "SMS/e-posta odeme linki"
+  "amount": 25000,
+  "currency": "TRY",
+  "installment": 1,
+  "description": "SMS/e-posta odeme linki",
+  "customer_email": "musteri@ornek.com",
+  "customer_phone": "5321234567"
 }
 
 

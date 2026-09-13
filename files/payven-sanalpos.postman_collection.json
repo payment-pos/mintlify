@@ -21,11 +21,41 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// POST isteklerine otomatik Idempotency-Key ekle (zaten varsa dokunma).",
+          "// --- Otomatik Idempotency-Key: POST'a zaten konmamissa ekle.",
           "if (pm.request.method === 'POST') {",
-          "  const hasKey = pm.request.headers.has('Idempotency-Key');",
-          "  if (!hasKey) {",
+          "  if (!pm.request.headers.has('Idempotency-Key')) {",
           "    pm.request.headers.add({ key: 'Idempotency-Key', value: pm.variables.replaceIn('{{$guid}}') });",
+          "  }",
+          "}",
+          "",
+          "// --- Otomatik token: access_token yoksa veya suresi dolmussa client_credentials ile al.",
+          "// Auth klasorundeki istekler bunu atlar (sonsuz dongu olmasin).",
+          "const isAuthCall = (pm.request.url.getPath() || '').indexOf('/auth/') !== -1;",
+          "const expiresAt = Number(pm.environment.get('token_expires_at') || 0);",
+          "const needsToken = !pm.environment.get('access_token') || Date.now() >= expiresAt - 60000;",
+          "",
+          "if (!isAuthCall && needsToken) {",
+          "  const id = pm.environment.get('client_id');",
+          "  const secret = pm.environment.get('client_secret');",
+          "  if (!id || !secret) {",
+          "    console.warn('client_id / client_secret bos — Auth > 1. Token Al istegini elle calistirin.');",
+          "  } else {",
+          "    pm.sendRequest({",
+          "      url: pm.environment.get('identity_base_url') + '/api/v1/auth/' + pm.environment.get('slug') + '/token',",
+          "      method: 'POST',",
+          "      header: { 'Content-Type': 'application/json' },",
+          "      body: { mode: 'raw', raw: JSON.stringify({ client_id: id, client_secret: secret }) }",
+          "    }, function (err, res) {",
+          "      if (err) { console.error('Token alinamadi:', err); return; }",
+          "      let body = null; try { body = res.json(); } catch (e) { }",
+          "      const token = body && (body.access_token || (body.data && body.data.access_token));",
+          "      if (!token) { console.error('Token yaniti beklenen sekilde degil:', res.text()); return; }",
+          "      pm.environment.set('access_token', token);",
+          "      const ttl = (body.expires_in || (body.data && body.data.expires_in) || 300) * 1000;",
+          "      pm.environment.set('token_expires_at', String(Date.now() + ttl));",
+          "      const rt = body.refresh_token || (body.data && body.data.refresh_token);",
+          "      if (rt) { pm.environment.set('refresh_token', rt); }",
+          "    });",
           "  }",
           "}"
         ]
@@ -76,11 +106,13 @@
               "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\"\n}"
             },
             "url": {
-              "raw": "{{identity_base_url}}/auth/{{slug}}/token",
+              "raw": "{{identity_base_url}}/api/{{api_version}}/auth/{{slug}}/token",
               "host": [
                 "{{identity_base_url}}"
               ],
               "path": [
+                "api",
+                "{{api_version}}",
                 "auth",
                 "{{slug}}",
                 "token"
@@ -124,11 +156,13 @@
               "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\",\n  \"offline\": true\n}"
             },
             "url": {
-              "raw": "{{identity_base_url}}/auth/{{slug}}/token",
+              "raw": "{{identity_base_url}}/api/{{api_version}}/auth/{{slug}}/token",
               "host": [
                 "{{identity_base_url}}"
               ],
               "path": [
+                "api",
+                "{{api_version}}",
                 "auth",
                 "{{slug}}",
                 "token"
@@ -169,11 +203,13 @@
               "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
             },
             "url": {
-              "raw": "{{identity_base_url}}/auth/{{slug}}/login",
+              "raw": "{{identity_base_url}}/api/{{api_version}}/auth/{{slug}}/login",
               "host": [
                 "{{identity_base_url}}"
               ],
               "path": [
+                "api",
+                "{{api_version}}",
                 "auth",
                 "{{slug}}",
                 "login"
@@ -213,11 +249,13 @@
               "raw": "{\n  \"challenge_id\": \"{{challenge_id}}\",\n  \"code\": \"1234\"\n}"
             },
             "url": {
-              "raw": "{{identity_base_url}}/auth/{{slug}}/verify-otp",
+              "raw": "{{identity_base_url}}/api/{{api_version}}/auth/{{slug}}/verify-otp",
               "host": [
                 "{{identity_base_url}}"
               ],
               "path": [
+                "api",
+                "{{api_version}}",
                 "auth",
                 "{{slug}}",
                 "verify-otp"
@@ -257,11 +295,13 @@
               "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
             },
             "url": {
-              "raw": "{{identity_base_url}}/auth/{{slug}}/refresh",
+              "raw": "{{identity_base_url}}/api/{{api_version}}/auth/{{slug}}/refresh",
               "host": [
                 "{{identity_base_url}}"
               ],
               "path": [
+                "api",
+                "{{api_version}}",
                 "auth",
                 "{{slug}}",
                 "refresh"
@@ -288,11 +328,13 @@
               "raw": "{\n  \"challenge_id\": \"{{challenge_id}}\"\n}"
             },
             "url": {
-              "raw": "{{identity_base_url}}/auth/{{slug}}/resend-otp",
+              "raw": "{{identity_base_url}}/api/{{api_version}}/auth/{{slug}}/resend-otp",
               "host": [
                 "{{identity_base_url}}"
               ],
               "path": [
+                "api",
+                "{{api_version}}",
                 "auth",
                 "{{slug}}",
                 "resend-otp"
@@ -313,11 +355,13 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{identity_base_url}}/merchants?page=1&page_size=50",
+              "raw": "{{identity_base_url}}/api/{{api_version}}/merchants?page=1&page_size=50",
               "host": [
                 "{{identity_base_url}}"
               ],
               "path": [
+                "api",
+                "{{api_version}}",
                 "merchants"
               ],
               "query": [
@@ -328,39 +372,30 @@
                 {
                   "key": "page_size",
                   "value": "50"
-                },
-                {
-                  "key": "search_term",
-                  "value": "",
-                  "disabled": true
-                },
-                {
-                  "key": "include_inactive",
-                  "value": "false",
-                  "disabled": true
                 }
               ]
             }
-          }
-        },
-        {
-          "name": "2. Detay",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{identity_base_url}}/merchants/{{merchant_id}}",
-              "host": [
-                "{{identity_base_url}}"
-              ],
-              "path": [
-                "merchants",
-                "{{merchant_id}}"
-              ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json = null; try { json = pm.response.json(); } catch (e) { }",
+                  "const rows = (json && (json.items || (json.data && json.data.items))) || [];",
+                  "if (rows.length) {",
+                  "  pm.environment.set('merchant_id', rows[0].id);",
+                  "  if (rows[0].external_id) { pm.environment.set('external_merchant_id', rows[0].external_id); }",
+                  "}",
+                  "pm.test('Basarili (2xx)', () => pm.expect(pm.response.code).to.be.below(300));"
+                ]
+              }
             }
-          }
+          ]
         },
         {
-          "name": "3. Olustur (tekli)",
+          "name": "2. Olustur (tekli)",
           "event": [
             {
               "listen": "test",
@@ -386,15 +421,35 @@
               "raw": "{\n  \"name\": \"Acme Trading AS\",\n  \"legal_name\": \"Acme Trading Anonim Sirketi\",\n  \"tax_id\": \"1234567890\",\n  \"tax_office\": \"Besiktas\",\n  \"external_id\": \"ACME-001\",\n  \"email\": \"info@acme.example.com\",\n  \"contact_phone\": \"+902121112233\",\n  \"city\": \"Istanbul\",\n  \"district\": \"Besiktas\",\n  \"address\": \"Barbaros Bulvari No:1\",\n  \"default_mcc\": \"5411\",\n  \"merchant_type\": \"corporate\",\n  \"status\": \"approved\"\n}"
             },
             "url": {
-              "raw": "{{identity_base_url}}/merchants",
+              "raw": "{{identity_base_url}}/api/{{api_version}}/merchants",
               "host": [
                 "{{identity_base_url}}"
               ],
               "path": [
+                "api",
+                "{{api_version}}",
                 "merchants"
               ]
             },
             "description": "**Alanlar:** `name`, `tax_id` zorunlu. `external_id` bos birakirsaniz otomatik (`M-{14char}`) uretilir. `merchant_type`: individual|sole_trader|corporate|unspecified. `marketplace_role`: none|platform|sub_merchant. SubMerchant icin `parent_id` + `payout_iban` + `payout_iban_owner` zorunlu."
+          }
+        },
+        {
+          "name": "3. Detay",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{identity_base_url}}/api/{{api_version}}/merchants/{{merchant_id}}",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "merchants",
+                "{{merchant_id}}"
+              ]
+            }
           }
         },
         {
@@ -425,11 +480,13 @@
               "raw": "[\n  {\n    \"name\": \"Acme Mart #1\",\n    \"tax_id\": \"1111111111\",\n    \"external_id\": \"ACME-001\",\n    \"email\": \"m1@acme.example.com\",\n    \"merchant_type\": \"corporate\",\n    \"default_mcc\": \"5411\"\n  },\n  {\n    \"name\": \"Acme Mart #2\",\n    \"tax_id\": \"2222222222\",\n    \"external_id\": \"ACME-002\",\n    \"email\": \"m2@acme.example.com\",\n    \"merchant_type\": \"corporate\",\n    \"default_mcc\": \"5411\"\n  },\n  {\n    \"name\": \"Acme Mart #3\",\n    \"tax_id\": \"3333333333\",\n    \"external_id\": \"ACME-003\",\n    \"email\": \"m3@acme.example.com\",\n    \"merchant_type\": \"corporate\",\n    \"default_mcc\": \"5411\"\n  }\n]"
             },
             "url": {
-              "raw": "{{identity_base_url}}/merchants/bulk",
+              "raw": "{{identity_base_url}}/api/{{api_version}}/merchants/bulk",
               "host": [
                 "{{identity_base_url}}"
               ],
               "path": [
+                "api",
+                "{{api_version}}",
                 "merchants",
                 "bulk"
               ]
@@ -452,11 +509,13 @@
               "raw": "{\n  \"name\": \"Acme Trading AS (Guncel)\",\n  \"email\": \"yeni@acme.example.com\",\n  \"contact_phone\": \"+902121112299\"\n}"
             },
             "url": {
-              "raw": "{{identity_base_url}}/merchants/{{merchant_id}}",
+              "raw": "{{identity_base_url}}/api/{{api_version}}/merchants/{{merchant_id}}",
               "host": [
                 "{{identity_base_url}}"
               ],
               "path": [
+                "api",
+                "{{api_version}}",
                 "merchants",
                 "{{merchant_id}}"
               ]
@@ -468,11 +527,13 @@
           "request": {
             "method": "DELETE",
             "url": {
-              "raw": "{{identity_base_url}}/merchants/{{merchant_id}}",
+              "raw": "{{identity_base_url}}/api/{{api_version}}/merchants/{{merchant_id}}",
               "host": [
                 "{{identity_base_url}}"
               ],
               "path": [
+                "api",
+                "{{api_version}}",
                 "merchants",
                 "{{merchant_id}}"
               ]
@@ -551,21 +612,6 @@
                 {
                   "key": "page_size",
                   "value": "50"
-                },
-                {
-                  "key": "connector_id",
-                  "value": "",
-                  "disabled": true
-                },
-                {
-                  "key": "mode",
-                  "value": "",
-                  "disabled": true
-                },
-                {
-                  "key": "include_inactive",
-                  "value": "false",
-                  "disabled": true
                 }
               ]
             },
@@ -1059,7 +1105,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"external_id\": \"ORDER-LINK-{{$timestamp}}\",\n  \"amount\": {\n    \"amount\": 25000,\n    \"currency\": \"TRY\"\n  },\n  \"description\": \"SMS/e-posta odeme linki\"\n}"
+              "raw": "{\n  \"external_id\": \"ORDER-LINK-{{$timestamp}}\",\n  \"amount\": 25000,\n  \"currency\": \"TRY\",\n  \"installment\": 1,\n  \"description\": \"SMS/e-posta odeme linki\",\n  \"customer_email\": \"musteri@ornek.com\",\n  \"customer_phone\": \"5321234567\"\n}"
             },
             "url": {
               "raw": "{{vpos_base_url}}/api/{{api_version}}/payments/order-link",
@@ -1073,7 +1119,7 @@
                 "order-link"
               ]
             },
-            "description": "Banka tarafinda barindirilan odeme sayfasi linki olusturur. Musteriye SMS/e-posta ile gonderilir; kart bilgisi gerekmez.",
+            "description": "Odeme linki olusturur; donen URL musteriye SMS/e-posta ile gonderilir.\n\nDIKKAT: Bu uc **duz** alan alir — `amount` kurus cinsinden bir sayidir (25000 = 250,00 TL) ve `currency` ayri bir alandir. /payments ucundaki nested `amount: { amount, currency }` yapisi burada GECERSIZDIR.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1765,21 +1811,6 @@
                 {
                   "key": "page_size",
                   "value": "20"
-                },
-                {
-                  "key": "search_term",
-                  "value": "",
-                  "disabled": true
-                },
-                {
-                  "key": "start_date",
-                  "value": "2026-05-01T00:00:00+03:00",
-                  "disabled": true
-                },
-                {
-                  "key": "end_date",
-                  "value": "2026-05-31T23:59:59+03:00",
-                  "disabled": true
                 }
               ]
             },
@@ -1919,11 +1950,6 @@
                 {
                   "key": "end_date",
                   "value": "2026-05-31T23:59:59+03:00"
-                },
-                {
-                  "key": "status",
-                  "value": "completed",
-                  "disabled": true
                 }
               ]
             },
