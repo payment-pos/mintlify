@@ -50,7 +50,9 @@ tümü aynı gövde şemasını kullanır:
 | `card_brand` | Kart programı (snake_case; örn. `bonus`, `world`, `axess` — scheme değil) |
 | `connector_config_id` / `bank_code` | İşlemin geçtiği banka konfigürasyonu |
 | `payment_method_category` / `payment_method_code` / `payment_method_reference` | APM bilgisi (Apple Pay/Google Pay vb.; kart için `card`) |
-| `refund_amount` / `remaining_amount` | Yalnız `refund.completed`'da dolu — toplam iade ve kalan net tutar (kuruş) |
+| `refund_id` | **İadenin kendi kimliği** (UUID) — yalnız `refund.completed` / `refund.failed`'da dolu. `GET /api/v1/refunds` listesindeki `id` ve iade yanıtındaki `extra_properties.refund_id` ile birebir aynı değer |
+| `provider_refund_id` | **İadenin banka referansı** — `provider_transaction_id`'den ayrı değer (o ödemenindir). Banka ekstresi eşlemesi için. Banka referans dönmediyse veya `refund.failed`'da `null` |
+| `refund_amount` / `remaining_amount` | Yalnız `refund.completed`'da dolu — bu operasyonda iade edilen tutar ve kalan net tutar (kuruş) |
 | `installment_count` / `installment_amount` / `interest_rate` / `interest_amount` / `installment_interest_mode` / `bank_additional_install_count` / `bank_defering_month` | Taksit/vade farkı snapshot'ı (`payment.completed`/`authorized`'da dolar) |
 | `occurred_at` | Olayın gerçekleşme zamanı (+03:00 Türkiye saati) |
 | `metadata` | Serbest metadata sözlüğü (örn. `payment_link_id`, `checkout_session_id` + ödeme linki form alanları) |
@@ -106,9 +108,48 @@ Payven hata kodunu taşır — bkz. [Payven Hata Kodları](/sanal-pos/errors/pay
 
 ### `refund.completed`
 
-**Tetikleyici:** İade başarıyla yapıldığında (tam veya kısmi). `refund_amount` toplam iade
+**Tetikleyici:** İade başarıyla yapıldığında (tam veya kısmi). `refund_amount` bu operasyonda iade
 edilen tutarı, `remaining_amount` kalan net tutarı taşır — `refund_amount < amount` ise kısmi
 iadedir. Kısmi iadede ana Transaction `completed` kalır; tam iadede `refunded` olur.
+
+```json
+{
+  "event_type":              "refund.completed",
+  "webhook_event_id":        "c4b6f1a2-8d33-4a51-9f7e-3d2b6a19c405",
+  "transaction_id":          "216a8817-d8d5-485a-b380-0fd300e03741",
+  "refund_id":               "e733dabf-91f3-44a1-9684-bfc958543b0d",
+  "provider_refund_id":      "TEST-R-ae527339f82441efa",
+  "status":                  "completed",
+  "amount":                  500,
+  "refund_amount":           100,
+  "remaining_amount":        400,
+  "currency":                "TRY",
+  "external_id":             "ORDER-1001",
+  "provider_transaction_id": "TEST-c7f83252078f425ea69",
+  "occurred_at":             "2026-09-04T11:20:03.412+03:00"
+}
+```
+
+<Warning>
+İadeyi **`refund_id`** ile eşleştirin. `transaction_id`, `provider_transaction_id` ve
+`external_id` **ödemeye** aittir ve aynı ödemenin tüm iadelerinde aynı değeri taşır — aynı ödeme
+üzerinde eş zamanlı iki iade açıksa (örneğin API'den başlattığınız bekleyen iade + panelden
+yapılan ikinci iade) bu alanlarla eşleştirme yanlış kaydı kapatır. `refund_id`,
+`GET /api/v1/refunds` listesindeki `id` ve iade yanıtındaki `extra_properties.refund_id` ile
+birebir aynıdır.
+</Warning>
+
+İki banka referansını karıştırmayın: `provider_transaction_id` **ödemenin**,
+`provider_refund_id` **iadenin** banka referansıdır. Yukarıdaki örnekte ödeme
+`TEST-c7f83252078f425ea69`, iade `TEST-R-ae527339f82441efa` taşır.
+
+### `refund.failed`
+
+**Tetikleyici:** İade denemesi banka tarafından reddedildiğinde veya teknik hata aldığında. Para
+hareketi yoktur; ana Transaction iade öncesi durumuna geri döner. `error_code` / `error_message`
+sebebi taşır, `refund_id` ise başarısız denemenin audit kaydının kimliğidir — bekleyen iade
+kaydınızı bu kimlikle kapatabilirsiniz. `provider_refund_id` bu olayda `null`'dır (banka iade
+referansı üretmedi).
 
 ### `3ds.completed` / `3ds.failed`
 

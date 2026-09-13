@@ -17,7 +17,7 @@ durum kodu tabloda belirtilmiştir. Banka tarafından gelen ham yanıt kodu ayr�
 | `PV_INVALID_CARD` | 422 | Geçersiz kart |
 | `PV_INVALID_CVV` | 422 | Geçersiz CVV |
 | `PV_CVV_REQUIRED` | 422 | CVV zorunlu (bayi banka profili `RequireCvv` açık) |
-| `PV_INVALID_CARD_NUMBER` | 422 | Geçersiz kart numarası (Luhn / format) |
+| `PV_INVALID_CARD_NUMBER` | 422 | Geçersiz kart numarası (uzunluk / Luhn). Bu doğrulama kapatılabilir — bkz. aşağıdaki not. |
 | `PV_INVALID_CARD_EXPIRY` | 422 | Kart son kullanma tarihi geçersiz |
 | `PV_INVALID_CARD_HOLDER` | 422 | Geçersiz kart sahibi bilgisi |
 | `PV_CARD_DATA_MISSING` | 422 | Kart verisi eksik |
@@ -38,6 +38,19 @@ durum kodu tabloda belirtilmiştir. Banka tarafından gelen ham yanıt kodu ayr�
 | `PV_CONFIG_ERROR` | 500 | Yapılandırma hatası (konnektör konfigürasyonu hatalı/eksik) |
 | `PV_UNSUPPORTED_OPERATION` | 422 | Desteklenmeyen işlem |
 | `PV_UNKNOWN` | 422 | Eşlenmemiş hata — destek talebine açın |
+
+
+<Note>
+**Kart numarası doğrulaması kapatılabilir.** Varsayılan olarak Payven, kartı bankaya göndermeden
+önce numara uzunluğunu ve Luhn kontrolünü doğrular; geçersizse `PV_INVALID_CARD_NUMBER` döner.
+Kart kontrolünü kendi tarafında yapan bayiler için bu doğrulama kapatılabilir — bu durumda kart
+olduğu gibi bankaya gider ve kararı banka verir (yanıtta Payven kodu yerine bankanın kendi kodu
+görünür). Ayar bayi veya tenant bazında yönetilir; talep için müşteri başarısı ekibine ulaşın.
+
+Kapalıyken de reddedilenler: **boş** kart numarası ve **maskeli** kart numarası
+(`PV_MASKED_CARD_NUMBER` — `411111****1111` gibi girdiler bir entegrasyon hatasıdır). Son
+kullanma tarihi ve CVV kontrolleri bu ayardan etkilenmez.
+</Note>
 
 ## Taksit kodları
 
