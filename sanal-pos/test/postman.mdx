@@ -12,6 +12,9 @@ Sanal POS API'sini hızlı denemek için iki koleksiyon sunuyoruz:
   <Card title=".http Dosyası" icon="download" href="https://docs.payven.com.tr/files/payven-sanalpos.http">
     VS Code REST Client, JetBrains IDE'leri ve Visual Studio için.
   </Card>
+  <Card title="Environment" icon="gear" href="https://docs.payven.com.tr/files/payven-sanalpos.postman_environment.json">
+    Sandbox environment dosyası — koleksiyonla birlikte import edin.
+  </Card>
 </CardGroup>
 
 ## Postman ile başlama
@@ -23,12 +26,14 @@ Sanal POS API'sini hızlı denemek için iki koleksiyon sunuyoruz:
   <Step title="Postman'e import edin">
     Postman → **Import** → dosyayı sürükle-bırak.
   </Step>
-  <Step title="Environment'ı seçin">
-    Sağ üstteki dropdown'dan `Payven Sandbox` veya `Payven Production` environment'ını seçin.
+  <Step title="Environment'ı import edin">
+    `payven-sanalpos.postman_environment.json` dosyasını da import edip sağ üstteki
+    dropdown'dan **Payven SanalPOS — Sandbox**'ı seçin. Production için aynı environment'ı
+    kopyalayıp `vpos_base_url` / `identity_base_url` değerlerini prod adresleriyle değiştirin.
   </Step>
   <Step title="Değişkenleri doldurun">
     Environment değişkenlerine kimlik bilgilerinizi yazın:
-    - `client_id`: `pvk_test_...` veya `pvk_live_...`
+    - `client_id`: `pvk_test_...` veya `pvk_live_...` (service-account client id)
     - `client_secret`: secret değeriniz
     - `slug`: tenant slug'ınız (örn. `payven`)
     - `identity_base_url`: `https://identity-sandbox.payven.com.tr` veya `https://identity.payven.com.tr`
@@ -38,25 +43,34 @@ Sanal POS API'sini hızlı denemek için iki koleksiyon sunuyoruz:
     Koleksiyonun **Pre-request Script**'i ilk istekten önce Identity'den access token alır ve `{{access_token}}` değişkenine yazar; expiry geldiğinde otomatik refresh.
   </Step>
   <Step title="Bir isteği gönderin">
-    "Quickstart" klasöründeki **Non-3D Payment** isteğini açın ve **Send** edin.
+    **Odemeler (Payments)** klasöründeki **Non-3D Odeme (Sale)** isteğini açın ve **Send** edin.
   </Step>
 </Steps>
 
-<Note>
-**Beta erişim:** Postman koleksiyonu yayın hazırlığı sürüyor. Erken erişim için [destek ekibimize](/resources/support) yazın.
-</Note>
-
 ## Koleksiyon içeriği
 
-| Klasör | İçerik |
-|---|---|
-| Quickstart | İlk Non-3D ödeme, durum sorgusu |
-| Payments | Tüm ödeme akışları |
-| Refunds | İade istekleri |
-| Webhooks | Abonelik yönetimi + test çağrısı |
-| Inquiries | Liste, detay, geçmiş |
-| Reconciliation | Mutabakat akışı |
-| Backoffice | Konnektör, konfigürasyon (Bearer auth gerektirir) |
+| Klasör | İstek | İçerik |
+|---|---:|---|
+| Auth | 6 | Token (client_credentials), login, OTP doğrula/tekrar gönder, refresh |
+| Bayi Yönetimi (Identity) | 6 | Bayi oluştur, listele, detay, güncelle |
+| Connector Konfigleri | 2 | Konfigürasyon oluştur, listele |
+| Bayi Banka Profilleri | 5 | Profil tanımlama ve yönetimi |
+| Ödemeler (Payments) | 8 | Non-3D sale, iade, iptal, capture, sipariş linki |
+| 3D Secure | 3 | Init, manuel complete, sonuç |
+| Hosted Checkout | 5 | Session oluştur, ödeme yöntemleri, öde, durum |
+| Recurring (Abonelik) | 7 | Plan oluştur/iptal, taksit iptal/güncelle, kart vade güncelle |
+| İşlemler (Transactions) | 5 | Liste, detay, geçmiş, CSV export |
+| Webhook Abonelikleri | 8 | Abonelik CRUD, secret rotasyon, teslimat kayıtları |
+
+Toplam **55 istek**.
+
+<Note>
+**Idempotency-Key.** Ödeme, iade, iptal, capture, recurring ve checkout session
+isteklerinde koleksiyon otomatik olarak `Idempotency-Key: {{$guid}}` gönderir. Aynı
+anahtarla tekrar gönderim ilk yanıtı döndürür — ağ hatasında tekrar denemek çift çekim
+yapmaz. `payments` için anahtar **1 gün** saklanır. Kendi entegrasyonunuzda da bu
+başlığı gönderin.
+</Note>
 
 ## .http dosyası ile başlama
 
@@ -66,7 +80,7 @@ VS Code'da [REST Client](https://marketplace.visualstudio.com/items?itemName=hum
 # Dosyayı açın
 code payven-sanalpos.http
 
-# Üst kısımdaki @clientId, @clientSecret, @slug ve @merchantId değişkenlerini doldurun
+# Üst kısımdaki @client_id, @client_secret, @slug ve @external_merchant_id değişkenlerini doldurun
 # İstek bloğunun üstündeki "Send Request" linkine tıklayın
 ```
 

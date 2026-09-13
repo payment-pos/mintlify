@@ -1,0 +1,2211 @@
+{
+  "info": {
+    "_postman_id": "8f6a1c20-5b3e-4d7a-9c2f-payvensanalpos1",
+    "name": "Payven SanalPOS API",
+    "description": "Payven SanalPOS API — tek resmi Postman koleksiyonu.\n\nSozlesme: wire snake_case, tutarlar kurus (long, 15000 = 150,00 TL), tarihler Turkiye saati +03:00 offsetli.\nMutasyon POST'larinda Idempotency-Key gonderilir — ayni anahtarla tekrar gonderim ilk yaniti doner, cift cekim olmaz.\n\nDokumantasyon: mintlify/sanal-pos/",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// POST isteklerine otomatik Idempotency-Key ekle (zaten varsa dokunma).",
+          "if (pm.request.method === 'POST') {",
+          "  const hasKey = pm.request.headers.has('Idempotency-Key');",
+          "  if (!hasKey) {",
+          "    pm.request.headers.add({ key: 'Idempotency-Key', value: pm.variables.replaceIn('{{$guid}}') });",
+          "  }",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "api_version",
+      "value": "v1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "**Token HER ZAMAN kendi Identity servisimiz uzerinden alinir — asla dogrudan Keycloak adresine istek atilmaz.** Identity, Keycloak ile konusan tek bilesendir (OTP, realm cozumleme, rate-limit burada).\n\nOnce token alirsiniz, sonra tum istekler collection seviyesinde Authorization: Bearer {{access_token}} ile yetkilendirilir.\n\nTokenin iki yolu (ikisi de Identity proxy):\n- A) Key + Secret -> POST /auth/{tenant}/token (client_credentials). client_id/client_secret = Payven/Identity Portal API client.\n- B) Kullanici adi + Sifre -> POST /auth/{tenant}/login. Tenant OTP zorunluysa cevap challenge doner -> 3. OTP Dogrula calistirilir.\n\nidentity_url = Identity API koku (orn. https://identity.payven.com.tr/api/v1), tenant = tenant slug (env degisken adi) (orn. payven).",
+      "item": [
+        {
+          "name": "1. Token Al — Key + Secret (Identity /token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json=null; try{json=pm.response.json()}catch(e){}",
+                  "if(json&&json.token&&json.token.access_token){pm.environment.set(\"access_token\",json.token.access_token);pm.environment.set(\"refresh_token\",json.token.refresh_token||\"\")}",
+                  "console.log(\"HTTP\",pm.response.code,\"-\",pm.response.text())",
+                  "pm.test(\"2xx + token\",()=>{pm.expect(pm.response.code).to.be.below(300);pm.expect(((json||{}).token||{}).access_token).to.be.a(\"string\")})"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\"\n}"
+            },
+            "url": {
+              "raw": "{{identity_base_url}}/auth/{{slug}}/token",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "auth",
+                "{{slug}}",
+                "token"
+              ]
+            },
+            "description": "Key/secret ile token (client_credentials) — Identity uzerinden. Cevap LOGIN ile AYNI shape: { token: { access_token, refresh_token, ... }, challenge: null }.\n\nSOZLESME: access_token 300 sn gecerlidir — token CACHE'LENIR, her istekte yeniden alinmaz (/token limiti IP basina 10/dk). Donen refresh_token realm SSO oturumuna baglidir: 2 saat bosta kalma, 10 saat sert tavan. Daha uzun omur icin \"1b. Offline Token Al\" kullanin.\n\n401 govdesinde code=client_unauthorized ise anahtar/secret gecersiz ya da anahtar pasif — RETRY ETMEYIN, konfigurasyonu kontrol edin. Limit: IP basina 60/dk."
+          }
+        },
+        {
+          "name": "1b. Offline Token Al — uzun omurlu refresh (Identity /token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json=null; try{json=pm.response.json()}catch(e){}",
+                  "if(json&&json.token&&json.token.access_token){pm.environment.set(\"access_token\",json.token.access_token);pm.environment.set(\"refresh_token\",json.token.refresh_token||\"\")}",
+                  "const t=(json||{}).token||{};",
+                  "pm.environment.set(\"refresh_expires_in\",String(t.refresh_expires_in||0));",
+                  "console.log(\"HTTP\",pm.response.code,\"access_exp(sn)\",t.expires_in,\"refresh_exp(sn)\",t.refresh_expires_in);",
+                  "pm.test(\"2xx + token\",()=>{pm.expect(pm.response.code).to.be.below(300);pm.expect(t.access_token).to.be.a(\"string\")});",
+                  "pm.test(\"offline refresh omru normal oturumdan uzun (izin acik mi?)\",()=>{pm.expect(Number(t.refresh_expires_in||0)).to.be.above(36000)});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\",\n  \"offline\": true\n}"
+            },
+            "url": {
+              "raw": "{{identity_base_url}}/auth/{{slug}}/token",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "auth",
+                "{{slug}}",
+                "token"
+              ]
+            },
+            "description": "Uzun omurlu (offline) refresh token ister. ON KOSUL: key Portal > API Anahtarlari ekraninda \"Uzun omurlu (offline) refresh token\" ACIK olarak olusturulmus/guncellenmis olmali — izin yoksa Keycloak sessizce NORMAL token doner (refresh_expires_in degerinden anlarsiniz).\n\nOffline refresh token 30 gun bosta kalma suresiyle yasar ve sert tavani yoktur. Sizarsa uzun sure kullanilabilecegi icin secret gibi saklanir; iptal Portal'dan key silme / secret yenileme / izni kapatma ile ANINDA yapilir."
+          }
+        },
+        {
+          "name": "2. Token Al — Kullanici Adi + Sifre (Identity /login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json=null; try{json=pm.response.json()}catch(e){}",
+                  "if(json&&json.token&&json.token.access_token){pm.environment.set(\"access_token\",json.token.access_token);pm.environment.set(\"refresh_token\",(json.token.refresh_token)||\"\");console.log(\"Token alindi (OTP yok).\")}",
+                  "else if(json&&json.challenge){pm.environment.set(\"challenge_id\",json.challenge.challenge_id||\"\");console.log(\"OTP gerekli. challenge_id kaydedildi -> 3. OTP Dogrula calistir. Hedef:\",json.challenge.masked_target)}",
+                  "console.log(\"HTTP\",pm.response.code,\"-\",pm.response.text())"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{identity_base_url}}/auth/{{slug}}/login",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "auth",
+                "{{slug}}",
+                "login"
+              ]
+            },
+            "description": "Kullanici adi/sifre ile login — Identity uzerinden. Cevap: { token: {...}, challenge: null } (OTP kapali, token kaydedilir) VEYA { token: null, challenge: {...} } (OTP zorunlu; challenge_id kaydedilir, 3. OTP Dogrula calistir, dev kod 1234)."
+          }
+        },
+        {
+          "name": "3. OTP Dogrula (Identity /verify-otp)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json=null; try{json=pm.response.json()}catch(e){}",
+                  "if(json&&json.access_token){pm.environment.set(\"access_token\",json.access_token);pm.environment.set(\"refresh_token\",json.refresh_token||\"\")}",
+                  "console.log(\"HTTP\",pm.response.code,\"-\",pm.response.text())"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challenge_id\": \"{{challenge_id}}\",\n  \"code\": \"1234\"\n}"
+            },
+            "url": {
+              "raw": "{{identity_base_url}}/auth/{{slug}}/verify-otp",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "auth",
+                "{{slug}}",
+                "verify-otp"
+              ]
+            },
+            "description": "Login OTP challenge dondurduyse kodu burada dogrula -> token doner. Dev/dummy mode kod 1234. challenge_id login adiminda otomatik dolar."
+          }
+        },
+        {
+          "name": "4. Token Yenile (Identity /refresh)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json=null; try{json=pm.response.json()}catch(e){}",
+                  "if(json&&json.access_token){pm.environment.set(\"access_token\",json.access_token);pm.environment.set(\"refresh_token\",json.refresh_token||pm.environment.get(\"refresh_token\"))}",
+                  "console.log(\"HTTP\",pm.response.code,\"-\",pm.response.text())"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{identity_base_url}}/auth/{{slug}}/refresh",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "auth",
+                "{{slug}}",
+                "refresh"
+              ]
+            },
+            "description": "Refresh token ile yeni access token alir. Keycloak refresh token'i ROTATE eder — cevaptaki YENI refresh_token saklanir, eskisi atilir.\n\n401 govdesindeki code alani ne yapilacagini soyler:\n- refresh_token_expired → oturum bitti (BEKLENEN), yeniden kimlik al (/token veya /login). Alarm uretme.\n- refresh_token_invalid → token bozuk/iptal, kod veya saklama hatasi.\n- client_unauthorized → key pasif/silinmis veya secret degismis.\n\nLimit: IP basina 300/dk."
+          }
+        },
+        {
+          "name": "4. OTP Tekrar Gonder (resend-otp)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challenge_id\": \"{{challenge_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{identity_base_url}}/auth/{{slug}}/resend-otp",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "auth",
+                "{{slug}}",
+                "resend-otp"
+              ]
+            },
+            "description": "OTP kodunu yeniden gonderir. Cooldown aktifse 429 (`Retry-After` header) doner. Cevap yeni `OtpChallengeDto`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bayi Yonetimi (Identity)",
+      "description": "Merchant master Identity'de tutulur. Onboarding icin **4. Bulk Olustur** kullanin (tek HTTP cagrisinda N bayi). Sonraki adim: 'Connector Konfigleri'nden connector_config_id ogrenip 'Bayi Banka Profilleri → Bulk Profil Olustur' calistirin.\n\nAuth: `tenant-admin` (mutate + bulk) / `merchant-admin` (Create+Update).",
+      "item": [
+        {
+          "name": "1. Listele",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{identity_base_url}}/merchants?page=1&page_size=50",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "merchants"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "50"
+                },
+                {
+                  "key": "search_term",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "include_inactive",
+                  "value": "false",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Detay",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{identity_base_url}}/merchants/{{merchant_id}}",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "merchants",
+                "{{merchant_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Olustur (tekli)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json=null; try{json=pm.response.json()}catch(e){}",
+                  "if(json&&json.id){pm.environment.set('merchant_id',json.id);pm.environment.set('external_merchant_id',json.external_id||'');console.log('merchant_id='+json.id+' external_id='+(json.external_id||''))}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Trading AS\",\n  \"legal_name\": \"Acme Trading Anonim Sirketi\",\n  \"tax_id\": \"1234567890\",\n  \"tax_office\": \"Besiktas\",\n  \"external_id\": \"ACME-001\",\n  \"email\": \"info@acme.example.com\",\n  \"contact_phone\": \"+902121112233\",\n  \"city\": \"Istanbul\",\n  \"district\": \"Besiktas\",\n  \"address\": \"Barbaros Bulvari No:1\",\n  \"default_mcc\": \"5411\",\n  \"merchant_type\": \"corporate\",\n  \"status\": \"approved\"\n}"
+            },
+            "url": {
+              "raw": "{{identity_base_url}}/merchants",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "merchants"
+              ]
+            },
+            "description": "**Alanlar:** `name`, `tax_id` zorunlu. `external_id` bos birakirsaniz otomatik (`M-{14char}`) uretilir. `merchant_type`: individual|sole_trader|corporate|unspecified. `marketplace_role`: none|platform|sub_merchant. SubMerchant icin `parent_id` + `payout_iban` + `payout_iban_owner` zorunlu."
+          }
+        },
+        {
+          "name": "4. Bulk Olustur (onboarding) ⭐",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json=null; try{json=pm.response.json()}catch(e){}",
+                  "if(json){console.log('Total='+json.total+' Succeeded='+json.succeeded+' Failed='+json.failed)}",
+                  "if(json&&Array.isArray(json.results)){var ok=json.results.find(function(x){return x.is_success&&x.merchant});if(ok){pm.environment.set('merchant_id',ok.merchant.id);pm.environment.set('external_merchant_id',ok.merchant.external_id||'');console.log('Ilk basarili kayit -> merchant_id='+ok.merchant.id+' external_id='+(ok.merchant.external_id||''))}var errs=json.results.filter(function(x){return !x.is_success});if(errs.length>0){console.warn('Basarisiz satirlar:',errs.map(function(x){return '#'+x.index+': '+x.error_code+' '+(x.message||'')}).join(' | '))}}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"name\": \"Acme Mart #1\",\n    \"tax_id\": \"1111111111\",\n    \"external_id\": \"ACME-001\",\n    \"email\": \"m1@acme.example.com\",\n    \"merchant_type\": \"corporate\",\n    \"default_mcc\": \"5411\"\n  },\n  {\n    \"name\": \"Acme Mart #2\",\n    \"tax_id\": \"2222222222\",\n    \"external_id\": \"ACME-002\",\n    \"email\": \"m2@acme.example.com\",\n    \"merchant_type\": \"corporate\",\n    \"default_mcc\": \"5411\"\n  },\n  {\n    \"name\": \"Acme Mart #3\",\n    \"tax_id\": \"3333333333\",\n    \"external_id\": \"ACME-003\",\n    \"email\": \"m3@acme.example.com\",\n    \"merchant_type\": \"corporate\",\n    \"default_mcc\": \"5411\"\n  }\n]"
+            },
+            "url": {
+              "raw": "{{identity_base_url}}/merchants/bulk",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "merchants",
+                "bulk"
+              ]
+            },
+            "description": "**Onboarding icin toplu bayi olusturma — tek HTTP cagrisinda N bayi (max 500).**\n\n**Auth:** `tenant-admin`.\n\n**Body = tekli `POST /merchants` ile birebir ayni bayi modelinin dizisi.** Tek fark: tekli endpoint tek obje, bulk endpoint obje dizisi (`[ {bayi}, {bayi} ]`) alir. Tekli create body'sinde gecerli her alan burada da gecerli.\n\n**Per-row tolerant:** Bir satirin hatasi digerlerini bloklamiyor. Response her satir icin ayri sonuc doner:\n```\n{\n  \"total\": 3,\n  \"succeeded\": 2,\n  \"failed\": 1,\n  \"results\": [\n    { \"index\": 0, \"is_success\": true, \"merchant\": { ...MerchantDto... } },\n    { \"index\": 1, \"is_success\": true, \"merchant\": { ... } },\n    { \"index\": 2, \"is_success\": false, \"error_code\": \"validation_failed\", \"message\": \"...\" }\n  ]\n}\n```\n\n`index` = gonderdiginiz dizideki 0-tabanli sira; requested ↔ created eslemesini bununla yapin.\n\n**Sonraki adim:** `Connector Konfigleri → Listele` ile `connector_config_id` ogrenin → `Bayi Banka Profilleri → Bulk Profil Olustur` calistirin."
+          }
+        },
+        {
+          "name": "5. Guncelle",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Trading AS (Guncel)\",\n  \"email\": \"yeni@acme.example.com\",\n  \"contact_phone\": \"+902121112299\"\n}"
+            },
+            "url": {
+              "raw": "{{identity_base_url}}/merchants/{{merchant_id}}",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "merchants",
+                "{{merchant_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Sil",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{identity_base_url}}/merchants/{{merchant_id}}",
+              "host": [
+                "{{identity_base_url}}"
+              ],
+              "path": [
+                "merchants",
+                "{{merchant_id}}"
+              ]
+            },
+            "description": "Hard delete. Auth: `tenant-admin`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Connector Konfigleri (SanalPos)",
+      "description": "Tenant duzeyinde tanimli banka konfigleri (Garanti VPOS prod, Akbank test, vb.). Bulk banka profili isteginde `connector_config_id` icin buradaki Guid'i kopyalayip ortam `connector_config_id` degiskenine yazin.",
+      "item": [
+        {
+          "name": "Listele",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/connectors?page=1&page_size=50",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "connectors"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Connector Konfigurasyonlarini Listele ⭐",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json=null; try{json=pm.response.json()}catch(e){}",
+                  "var items=(json&&json.items)?json.items:[];",
+                  "var active=items.find(function(x){return x.is_active});",
+                  "if(active){pm.environment.set('connector_config_id',active.id);console.log('connector_config_id='+active.id+' ('+active.name+' / '+active.connector_code+')')}",
+                  "console.log('Toplam '+items.length+' konfigurasyon. id -> connector_config_id olarak banka profilinde kullanilir.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/connector-configurations?page=1&page_size=50",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "connector-configurations"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "50"
+                },
+                {
+                  "key": "connector_id",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "mode",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "include_inactive",
+                  "value": "false",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Tenant duzeyinde tanimli banka konfigurasyonlari (PaginatedList). **Banka profilinde kullanilan `connector_config_id` buradaki `id`'dir.**\n\nHer item (`ConnectorConfigurationDto`):\n```\n{\n  \"id\": \"<guid>\",                 // -> connector_config_id\n  \"connector_id\": \"<guid>\",\n  \"connector_name\": \"NestPay\",\n  \"connector_code\": \"nestpay\",\n  \"name\": \"Garanti VPOS Prod\",\n  \"mode\": \"test|production\",\n  \"bank_code\": \"...\",\n  \"priority\": 0,\n  \"is_active\": true,\n  \"created\": \"...\", \"last_modified\": \"...\"\n  // kredensiyal alanlari (api_key/terminal_id/store_id/...) maskeli/yetkiye bagli doner\n}\n```\n\nFiltreler (opsiyonel): `connector_id` (belirli bankanin konfigleri), `mode`, `include_inactive`.\n\nTest script'i ilk AKTIF konfigurasyonun `id`'sini otomatik ortam `connector_config_id`'ye yazar."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bayi Banka Profilleri (SanalPos)",
+      "description": "Her bayinin her banka icin bir profili olur. Profil; bayi (`merchant_id`) + tenant-level banka konfigi (`connector_config_id`) + sub-merchant metadata (terminal id, MCC, vb.) tasir. Bulk endpoint onboarding'de `Bayi Yonetimi → Bulk Olustur` sonrasi cagrilir.\n\nAuth: `CanManageMerchants` (mutate) / `CanViewMerchants` (read).",
+      "item": [
+        {
+          "name": "1. Bayinin Profillerini Listele",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/merchants/{{merchant_id}}/bank-profiles",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "merchants",
+                "{{merchant_id}}",
+                "bank-profiles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Profil Olustur (tekli)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json=null; try{json=pm.response.json()}catch(e){}",
+                  "if(json&&json.id){pm.environment.set('bank_profile_id',json.id);console.log('bank_profile_id='+json.id)}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"connector_config_id\": \"{{connector_config_id}}\",\n  \"sub_merchant_id\": \"700000000001\",\n  \"sub_merchant_name\": \"Acme Mart #1\",\n  \"sub_merchant_mcc\": \"5411\",\n  \"sub_merchant_city\": \"Istanbul\",\n  \"sub_merchant_country_code\": \"792\",\n  \"sub_merchant_postal_code\": \"34000\",\n  \"extra_properties\": {\n    \"terminal_sub_id\": \"VP000001\"\n  },\n  \"require_cvv\": true,\n  \"allow_non_3d\": false\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/merchants/{{merchant_id}}/bank-profiles",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "merchants",
+                "{{merchant_id}}",
+                "bank-profiles"
+              ]
+            },
+            "description": "**Alanlar:**\n- `connector_config_id` (zorunlu) — Connector Konfigleri klasorunden alin\n- `sub_merchant_id` — bankanin bayiye verdigi alt-uye/terminal id\n- `sub_merchant_country_code` — ISO 3166-1 numeric (default 792 = Turkiye)\n- `extra_properties` — bankaya ozel ek alanlar (snake_case)\n- `require_cvv` (default true), `allow_non_3d` (default false)\n\nAyni `merchant_id + connector_config_id` ile ikinci create -> 409 Conflict."
+          }
+        },
+        {
+          "name": "3. Bulk Profil Olustur (onboarding) ⭐",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json=null; try{json=pm.response.json()}catch(e){}",
+                  "if(json){console.log('Total='+json.total+' Succeeded='+json.succeeded+' Failed='+json.failed)}",
+                  "if(json&&Array.isArray(json.results)){var errs=json.results.filter(function(x){return !x.is_success});if(errs.length>0){console.warn('Basarisiz satirlar:',errs.map(function(x){return '#'+x.index+': '+x.error_code+' '+(x.message||'')}).join(' | '))}}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"external_merchant_id\": \"ACME-001\",\n    \"connector_config_id\": \"{{connector_config_id}}\",\n    \"sub_merchant_id\": \"700000000001\",\n    \"sub_merchant_name\": \"Acme Mart #1\",\n    \"sub_merchant_mcc\": \"5411\",\n    \"sub_merchant_city\": \"Istanbul\",\n    \"sub_merchant_country_code\": \"792\",\n    \"extra_properties\": { \"terminal_sub_id\": \"VP000001\" },\n    \"require_cvv\": true,\n    \"allow_non_3d\": false,\n    \"min_installment_amount_kurus\": 10000\n  },\n  {\n    \"merchant_id\": \"{{merchant_id}}\",\n    \"connector_config_id\": \"{{connector_config_id}}\",\n    \"sub_merchant_id\": \"700000000002\",\n    \"require_cvv\": true,\n    \"allow_non_3d\": false\n  }\n]"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/merchant-bank-profiles/bulk",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "merchant-bank-profiles",
+                "bulk"
+              ]
+            },
+            "description": "**Onboarding icin toplu banka profili olusturma — tek HTTP cagrisinda N profil (max 500).**\n\n**Auth:** `CanManageMerchants`.\n\n**Body = tekil `POST /merchants/{merchant_id}/bank-profiles` ile ayni profil modelinin dizisi.** Tek fark: tekil endpoint merchant'i route'tan (`merchant_id` Guid) alir; bulk her item bayi referansini `merchant_id` (Guid) **ya da** `external_merchant_id` (string) ile tasir — biri zorunlu. `external_merchant_id` verirseniz SanalPos 5dk cache'li resolver ile Identity'den Guid'i cozer. N bayi icin diziyi cogaltin.\n\n**Per-row tolerant.** Response her satir icin ayri sonuc doner.\n\nResponse:\n```\n{\n  \"total\": 2, \"succeeded\": 2, \"failed\": 0,\n  \"results\": [\n    { \"index\": 0, \"is_success\": true, \"profile_id\": \"...\", \"merchant_id\": \"...\" },\n    { \"index\": 1, \"is_success\": true, \"profile_id\": \"...\", \"merchant_id\": \"...\" }\n  ]\n}\n```\n\n`index` = gonderdiginiz dizideki 0-tabanli sira. Hata kodlari: `validation_failed` (eksik id veya external cozulemedi) · `already_exists`."
+          }
+        },
+        {
+          "name": "4. Guncelle",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sub_merchant_id\": \"700000000001\",\n  \"sub_merchant_name\": \"Acme Mart #1 (Guncel)\",\n  \"sub_merchant_mcc\": \"5411\",\n  \"sub_merchant_city\": \"Istanbul\",\n  \"sub_merchant_country_code\": \"792\",\n  \"extra_properties\": { \"terminal_sub_id\": \"VP000001\" },\n  \"require_cvv\": true,\n  \"allow_non_3d\": false\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/merchants/{{merchant_id}}/bank-profiles/{{bank_profile_id}}",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "merchants",
+                "{{merchant_id}}",
+                "bank-profiles",
+                "{{bank_profile_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Sil",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/merchants/{{merchant_id}}/bank-profiles/{{bank_profile_id}}",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "merchants",
+                "{{merchant_id}}",
+                "bank-profiles",
+                "{{bank_profile_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Odemeler (Payments)",
+      "description": "Non-3D Sale, sorgu, iade, iptal, capture ve siparis linki. Tum mutation'lar `X-External-Merchant-Id` header'i gerektirir.",
+      "item": [
+        {
+          "name": "Non-3D Odeme (Sale)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json = null; try { json = pm.response.json(); } catch (e) { /* bos veya JSON olmayan govde */ }",
+                  "console.log('HTTP', pm.response.code, '-', pm.response.text());",
+                  "if (json && json.id) { pm.environment.set('transaction_id', json.id); }",
+                  "pm.test('Basarili (2xx)', () => pm.expect(pm.response.code).to.be.below(300));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"external_id\": \"ORDER-{{$timestamp}}\",\n  \"basket_id\": \"BASKET-001\",\n  \"amount\": {\n    \"amount\": 15000,\n    \"currency\": \"TRY\"\n  },\n  \"installment\": 1,\n  \"operation_type\": \"sale\",\n  \"description\": \"Test odemesi\",\n  \"card\": {\n    \"holder_name\": \"TEST USER\",\n    \"number\": \"5500000000000004\",\n    \"expire_month\": \"12\",\n    \"expire_year\": \"2030\",\n    \"cvv\": \"123\"\n  },\n  \"buyer\": {\n    \"id\": \"BUYER-001\",\n    \"name\": \"Ahmet\",\n    \"surname\": \"Yilmaz\",\n    \"email\": \"ahmet@example.com\",\n    \"phone\": \"+905551234567\",\n    \"ip_address\": \"1.2.3.4\",\n    \"identity_number\": \"11111111111\"\n  },\n  \"billing_address\": {\n    \"contact_name\": \"Ahmet Yilmaz\",\n    \"city\": \"Istanbul\",\n    \"country\": \"Turkey\",\n    \"address\": \"Ornek mah. No:1\",\n    \"postal_code\": \"34000\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/payments",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "payments"
+              ]
+            },
+            "description": "Direkt (Non-3D) Sale. `amount` NESTED bir nesnedir (`{ amount, currency }`). `amount.amount` kurus cinsindendir.\n\n**Not:** Tenant policy `allow_non_3d=false` (default) ise bu istek `PV_NON_3D_NOT_ALLOWED` ile reddedilir — bu durumda **3D Secure > 1. 3D Baslat** akisini kullanin.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Odeme Detayi (Get)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/payments/{{transaction_id}}",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "payments",
+                "{{transaction_id}}"
+              ]
+            },
+            "description": "Payven tarafindaki islem detayini (status, tutar, kart maskesi) doner.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Banka Durum Sorgusu (Query)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/payments/{{transaction_id}}/query",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "payments",
+                "{{transaction_id}}",
+                "query"
+              ]
+            },
+            "description": "Bankaya canli durum sorgusu yapar (yan etkisiz).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Siparis Gecmisi (History)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/payments/{{transaction_id}}/history",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "payments",
+                "{{transaction_id}}",
+                "history"
+              ]
+            },
+            "description": "Hem internal (Payven) hem provider (banka) islem gecmisini doner.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Capture (PreAuth -> tahsilat)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": {\n    \"amount\": 15000,\n    \"currency\": \"TRY\"\n  },\n  \"reason\": \"Siparis tamamlandi\"\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/payments/{{transaction_id}}/capture",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "payments",
+                "{{transaction_id}}",
+                "capture"
+              ]
+            },
+            "description": "PreAuth (on provizyon) ile yapilmis bir odemenin tutarini tahsil eder. `amount` opsiyonel — bos birakilirsa tam tutar capture edilir (kismi capture icin tutar verin).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Iade (Refund)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 15000,\n  \"currency\": \"TRY\",\n  \"reason\": \"Musteri talebi\",\n  \"reason_code\": \"customer_request\"\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/payments/{{transaction_id}}/refund",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "payments",
+                "{{transaction_id}}",
+                "refund"
+              ]
+            },
+            "description": "Tamamlanmis odemenin iadesi. `amount` kurus (kismi iade icin daha dusuk tutar verin). `reason_code`: customer_request | out_of_stock | duplicate_charge | product_defect | fraud | wrong_amount | other.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Iptal (Void)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Yanlis siparis\"\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/payments/{{transaction_id}}/void",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "payments",
+                "{{transaction_id}}",
+                "void"
+              ]
+            },
+            "description": "Ayni gun (gun sonu kesimi oncesi) yapilmis odemeyi iptal eder. Gun sonu sonrasi Refund kullanin.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Siparis Linki Olustur (Order Link)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"external_id\": \"ORDER-LINK-{{$timestamp}}\",\n  \"amount\": {\n    \"amount\": 25000,\n    \"currency\": \"TRY\"\n  },\n  \"description\": \"SMS/e-posta odeme linki\"\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/payments/order-link",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "payments",
+                "order-link"
+              ]
+            },
+            "description": "Banka tarafinda barindirilan odeme sayfasi linki olusturur. Musteriye SMS/e-posta ile gonderilir; kart bilgisi gerekmez.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3D Secure",
+      "description": "3D Secure odeme akisi: (1) Init -> `extra_properties.html_content` doner (bankanin auto-submit 3D formu), (2) html_content'i kart sahibinin tarayicisinda render edersiniz (iframe srcdoc / tam sayfa); form bankaya otomatik POST eder, musteri OTP/sifre girer. (Banka kendi sayfasini barindiriyorsa html_content bos gelir; o zaman `extra_properties.redirect_url`'e yonlendirin.) (3) banka callback'i Payven'e POST eder, Payven finansallastirir ve tarayiciyi `success_url`/`fail_url`'e snake_case sonuc parametreleriyle geri yonlendirir.",
+      "item": [
+        {
+          "name": "1. 3D Baslat (Init)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json = null; try { json = pm.response.json(); } catch (e) { /* bos veya JSON olmayan govde */ }",
+                  "if (json && json.transaction_id) { pm.environment.set('transaction_id', json.transaction_id); }",
+                  "pm.test('Init basarili', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"external_id\": \"ORDER-3D-{{$timestamp}}\",\n  \"amount\": {\n    \"amount\": 15000,\n    \"currency\": \"TRY\"\n  },\n  \"installment\": 1,\n  \"operation_type\": \"sale\",\n  \"card\": {\n    \"holder_name\": \"TEST USER\",\n    \"number\": \"5500000000000004\",\n    \"expire_month\": \"12\",\n    \"expire_year\": \"2030\",\n    \"cvv\": \"123\"\n  },\n  \"buyer\": {\n    \"id\": \"BUYER-001\",\n    \"name\": \"Ahmet\",\n    \"surname\": \"Yilmaz\",\n    \"email\": \"ahmet@example.com\",\n    \"phone\": \"+905551234567\",\n    \"ip_address\": \"1.2.3.4\"\n  },\n  \"success_url\": \"https://magazaniz.com/odeme-basarili\",\n  \"fail_url\": \"https://magazaniz.com/odeme-basarisiz\"\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/payments/3d/init",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "payments",
+                "3d",
+                "init"
+              ]
+            },
+            "description": "3D Secure baslatir. Cevapta `extra_properties.html_content` doner (bankanin auto-submit 3D formu).\n\n**Yonlendirme:** `extra_properties.html_content`'i kart sahibinin tarayicisinda render edin (iframe `srcdoc` veya tam sayfa olarak yazin). Form yuklenince bankaya otomatik POST eder; musteri OTP/sifre dogrulamasini tamamlar. (Banka kendi sayfasini barindiriyorsa — hosted model — html_content bos gelir; o durumda `extra_properties.redirect_url`'e yonlendirin. Form-POST bankalarinda redirect_url bos olabilir.) Banka, Payven callback'ine (`/payments/3d/callback`) POST eder; Payven odemeyi finansallastirir ve tarayiciyi su parametrelerle (snake_case) geri yonlendirir:\n\n- `is_success: true`  -> istekteki `success_url`'e: `?transaction_id=&external_id=&status=&is_verified=true`\n- `is_success: false` -> istekteki `fail_url`'e: `?transaction_id=&external_id=&status=&is_verified=false&error_code=&message=`\n\n`success_url`/`fail_url` vermezseniz callback minimal bir HTML doner; sonucu webhook veya `GET /payments/{id}` ile alirsiniz.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. (Opsiyonel) Manuel Complete",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"{{transaction_id}}\",\n  \"need_verification\": true\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/payments/3d/complete",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "payments",
+                "3d",
+                "complete"
+              ]
+            },
+            "description": "Callback otomatik tamamlamasi yetersiz kaldiginda manuel finansallastirma. Cogu durumda gerekmez — banka callback'i odemeyi otomatik tamamlar.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Sonuc Kontrolu (Get Payment)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/payments/{{transaction_id}}",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "payments",
+                "{{transaction_id}}"
+              ]
+            },
+            "description": "3D akisindan sonra islemin son durumunu (`completed` / `failed`) sorgular.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Hosted Checkout (Payven barindirilan sayfa)",
+      "description": "Kart bilgisi sizin sunucunuza hic dokunmaz (SAQ-A). Bayi session olusturur, musteriyi `checkout_url`'e yonlendirir; odeme Payven sayfasinda alinir.",
+      "item": [
+        {
+          "name": "1. Session Olustur",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json = null; try { json = pm.response.json(); } catch (e) { /* bos veya JSON olmayan govde */ }",
+                  "if (json && json.session_id) { pm.environment.set('session_id', json.session_id); }",
+                  "if (json && json.checkout_url) { console.log('Musteriyi yonlendir:', json.checkout_url); }",
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchant_name\": \"Ornek Magaza\",\n  \"amount\": 15000,\n  \"currency\": \"TRY\",\n  \"allowed_installments\": [1, 3, 6],\n  \"description\": \"Siparis #1001\",\n  \"external_id\": \"ORDER-{{$timestamp}}\",\n  \"customer_email\": \"musteri@example.com\",\n  \"customer_phone\": \"+905551234567\",\n  \"payment_mode\": \"three_d_secure\",\n  \"success_url\": \"https://magazaniz.com/odeme/basarili\",\n  \"cancel_url\": \"https://magazaniz.com/odeme/iptal\"\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/checkout/sessions",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "checkout",
+                "sessions"
+              ]
+            },
+            "description": "Odeme oturumu olusturur. Cevapta `session_id`, `checkout_url`, `expires_at` doner. Musteriyi `checkout_url`'e yonlendirin.\n\n`payment_mode`: non3_d | three_d_secure (default) | three_d_pay | three_d_pay_hosting.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Session Bilgisi (anonim)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/checkout/sessions/{{session_id}}",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "checkout",
+                "sessions",
+                "{{session_id}}"
+              ]
+            },
+            "description": "Checkout sayfasinin cagirdigi anonim endpoint (kart bilgisi icermez; merchant/tutar bilgisi doner). Token gerekmez."
+          }
+        },
+        {
+          "name": "3. Odeme Yontemleri (anonim)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/checkout/sessions/{{session_id}}/payment-methods",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "checkout",
+                "sessions",
+                "{{session_id}}",
+                "payment-methods"
+              ]
+            },
+            "description": "Session context'ine gore kullanilabilir odeme yontemlerini listeler."
+          }
+        },
+        {
+          "name": "4. Ode (anonim, checkout sayfasi)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": {\n    \"amount\": 15000,\n    \"currency\": \"TRY\"\n  },\n  \"installment\": 1,\n  \"card\": {\n    \"holder_name\": \"TEST USER\",\n    \"number\": \"5500000000000004\",\n    \"expire_month\": \"12\",\n    \"expire_year\": \"2030\",\n    \"cvv\": \"123\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/checkout/sessions/{{session_id}}/pay",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "checkout",
+                "sessions",
+                "{{session_id}}",
+                "pay"
+              ]
+            },
+            "description": "Checkout sayfasindaki MUSTERI tarafindan cagirilir (anonim — token yok, session ile gate'lenir). Session'dan tenant/merchant cozulur, 3D akisi tetiklenir. Bu istegi normalde Payven hosted sayfasi yapar; kendi sayfanizi yaziyorsaniz buradan cagirin."
+          }
+        },
+        {
+          "name": "5. Islem Durumu Polling (anonim)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/checkout/sessions/{{session_id}}/transaction-status?transaction_id={{transaction_id}}",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "checkout",
+                "sessions",
+                "{{session_id}}",
+                "transaction-status"
+              ],
+              "query": [
+                {
+                  "key": "transaction_id",
+                  "value": "{{transaction_id}}"
+                }
+              ]
+            },
+            "description": "Checkout sayfasinin 3D sonucunu polling etmesi icin."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recurring (Abonelik)",
+      "description": "Tekrarli (subscription) odeme planlari. ThreeDS modunda Create cevabinda `html_content` doner — ilk dogrulama icin musteri bankaya yonlendirilir.",
+      "item": [
+        {
+          "name": "Plan Olustur",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json = null; try { json = pm.response.json(); } catch (e) { /* bos veya JSON olmayan govde */ }",
+                  "if (json && json.recurring_plan_id) { pm.environment.set('recurring_plan_id', json.recurring_plan_id); }",
+                  "else if (json && json.id) { pm.environment.set('recurring_plan_id', json.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"external_id\": \"SUB-{{$timestamp}}\",\n  \"amount\": {\n    \"amount\": 9900,\n    \"currency\": \"TRY\"\n  },\n  \"card\": {\n    \"holder_name\": \"TEST USER\",\n    \"number\": \"5500000000000004\",\n    \"expire_month\": \"12\",\n    \"expire_year\": \"2030\",\n    \"cvv\": \"123\"\n  },\n  \"buyer\": {\n    \"name\": \"Ahmet\",\n    \"surname\": \"Yilmaz\",\n    \"email\": \"ahmet@example.com\"\n  },\n  \"description\": \"Aylik abonelik\",\n  \"period\": \"monthly\",\n  \"interval\": 1,\n  \"installment_count\": 12,\n  \"secure_type\": \"non_three_ds\",\n  \"return_url\": \"https://magazaniz.com/abonelik-sonucu\"\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/recurring",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "recurring"
+              ]
+            },
+            "description": "Yeni abonelik plani. `period`: daily | weekly | monthly | yearly. `secure_type`: three_ds | non_three_ds. `installment_count` toplam tahsilat adedi. ThreeDS ise cevaptaki `html_content` ile musteriyi bankaya yonlendirin.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Planlari Listele",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/recurring?page=1&page_size=20",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "recurring"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Plan Detayi",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/recurring/{{recurring_plan_id}}?force_sync=false",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "recurring",
+                "{{recurring_plan_id}}"
+              ],
+              "query": [
+                {
+                  "key": "force_sync",
+                  "value": "false",
+                  "description": "true ise plan banka ile anlik senkronlanir"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Plani Iptal Et",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/recurring/{{recurring_plan_id}}/cancel",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "recurring",
+                "{{recurring_plan_id}}",
+                "cancel"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Taksit Iptal Et",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/recurring/{{recurring_plan_id}}/installments/2/cancel",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "recurring",
+                "{{recurring_plan_id}}",
+                "installments",
+                "2",
+                "cancel"
+              ]
+            },
+            "description": "Belirli bir taksiti (index) iptal eder.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Taksit Tutari Guncelle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 12900\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/recurring/{{recurring_plan_id}}/installments/3/update-amount",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "recurring",
+                "{{recurring_plan_id}}",
+                "installments",
+                "3",
+                "update-amount"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Kart Son Kullanma Guncelle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Ayni anahtarla tekrar gonderim ilk yaniti doner (replay). payments TTL 1 gun."
+              },
+              {
+                "key": "X-External-Merchant-Id",
+                "value": "{{external_merchant_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expire_month\": \"06\",\n  \"expire_year\": \"2032\"\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/recurring/{{recurring_plan_id}}/update-card-expiry",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "recurring",
+                "{{recurring_plan_id}}",
+                "update-card-expiry"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Islemler (Transactions)",
+      "description": "Islem listeleme, detay, timeline ve CSV export.",
+      "item": [
+        {
+          "name": "Islemleri Listele",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/transactions?page=1&page_size=20",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "transactions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20"
+                },
+                {
+                  "key": "search_term",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-05-01T00:00:00+03:00",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-05-31T23:59:59+03:00",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Sayfalanmis islem listesi. Tarih filtrelerinde +03:00 offset ZORUNLU (offset'siz UTC kabul edilir, 3 saat kayar).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Islem Detayi",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/transactions/{{transaction_id}}",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "transactions",
+                "{{transaction_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Islem Timeline (Histories)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/transactions/{{transaction_id}}/histories",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "transactions",
+                "{{transaction_id}}",
+                "histories"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "CSV Export",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/transactions/export?page=1&page_size=1000",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "transactions",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "1000"
+                }
+              ]
+            },
+            "description": "Islemleri CSV (Excel uyumlu, UTF-8 BOM) olarak indirir.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "CSV Export",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/transactions/export?start_date=2026-05-01T00:00:00+03:00&end_date=2026-05-31T23:59:59+03:00",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "transactions",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-05-01T00:00:00+03:00"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-05-31T23:59:59+03:00"
+                },
+                {
+                  "key": "status",
+                  "value": "completed",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Filtrelenmis islemleri CSV olarak indirir (UTF-8 BOM, Excel uyumlu; max 50.000 satir). Listeleme ile AYNI query filtrelerini kabul eder."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Webhook Abonelikleri",
+      "description": "Async bildirim icin webhook abonelik yonetimi. Create cevabinda `secret` BIR KEZ doner — guvenli saklayin (HMAC dogrulama icin gerekli).",
+      "item": [
+        {
+          "name": "Abonelik Olustur",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json = null; try { json = pm.response.json(); } catch (e) { /* bos veya JSON olmayan govde */ }",
+                  "if (json && json.id) { pm.environment.set('webhook_id', json.id); }",
+                  "if (json && json.secret) { console.log('Webhook secret (bir kez gosterilir):', json.secret); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://magazaniz.com/webhooks/payven\",\n  \"events\": \"payment.completed,payment.failed,refund.completed\",\n  \"description\": \"ERP entegrasyonu\",\n  \"max_retry_count\": 5\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-subscriptions"
+              ]
+            },
+            "description": "Webhook abonelik olusturur. `events` virgul-ayrik; bos birakilirsa tum event'ler. `url` HTTPS olmali (private/loopback IP'ler reddedilir). Cevaptaki `secret` HMAC imza dogrulamasi icin SADECE burada doner.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Abonelikleri Listele",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-subscriptions"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Abonelik Guncelle",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://magazaniz.com/webhooks/payven\",\n  \"events\": \"payment.completed,payment.failed\",\n  \"description\": \"Guncellendi\",\n  \"max_retry_count\": 5\n}"
+            },
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-subscriptions",
+                "{{webhook_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Secret Yenile",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}/rotate-secret",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-subscriptions",
+                "{{webhook_id}}",
+                "rotate-secret"
+              ]
+            },
+            "description": "Yeni secret uretir (eski gecersiz olur). Yeni secret bir kez doner.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pasif Et",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}/deactivate",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-subscriptions",
+                "{{webhook_id}}",
+                "deactivate"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Aktif Et",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}/activate",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-subscriptions",
+                "{{webhook_id}}",
+                "activate"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Teslimat Loglari",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}/deliveries",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-subscriptions",
+                "{{webhook_id}}",
+                "deliveries"
+              ]
+            },
+            "description": "Bir abonelige ait webhook teslimat denemelerini (HTTP status, retry, hata) listeler.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Abonelik Sil",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}",
+              "host": [
+                "{{vpos_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-subscriptions",
+                "{{webhook_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
