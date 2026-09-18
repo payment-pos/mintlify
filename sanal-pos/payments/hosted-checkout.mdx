@@ -92,17 +92,25 @@ non-3D varsayılan olarak kapalıdır — fraud riski nedeniyle.
 
 ```json
 {
-  "session_id":   "8e3f5c129a7b4c8dbc4e2c963f66afa6",
-  "checkout_url": "https://vpos.payven.com.tr/checkout/classic/?session=8e3f5c129a7b4c8dbc4e2c963f66afa6",
-  "expires_at":   "2026-05-03T13:30:00.000+03:00"
+  "session_id":        "8e3f5c129a7b4c8dbc4e2c963f66afa6",
+  "checkout_url":      "https://vpos.payven.com.tr/s/Ab3kX9qZmn",
+  "checkout_page_url": "https://vpos.payven.com.tr/checkout/classic/?session=8e3f5c129a7b4c8dbc4e2c963f66afa6",
+  "expires_at":        "2026-05-03T13:30:00.000+03:00"
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
 | `session_id` | 128-bit random session kimliği. URL parametresi olarak Payven sayfasına gider. |
-| `checkout_url` | Müşteriyi yönlendireceğiniz URL |
+| `checkout_url` | Müşteriyi yönlendireceğiniz **kısa** URL. SMS/e-posta/QR ile paylaşmaya uygundur; açıldığında ödeme sayfasına 302 ile yönlenir. Kısa link üretilemezse `checkout_page_url` ile aynı değeri taşır. |
+| `checkout_page_url` | Ödeme sayfasının doğrudan (uzun) adresi. Yalnız kısa link istemeyen entegrasyonlar için. |
 | `expires_at` | Session geçerlilik süresi (oluşturulduktan **30 dakika** sonra) |
+
+<Note>
+Kısa link yalnızca müşteriye gönderdiğiniz adres için geçerlidir. 3D Secure callback'i,
+`success_url`/`fail_url` yönlendirmeleri ve webhook'lar değişmez; bunlar işlem kimliği
+(`transaction_id`) ile çalışmaya devam eder.
+</Note>
 
 ## 2. Müşteriyi yönlendirin
 
