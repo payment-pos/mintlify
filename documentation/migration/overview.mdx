@@ -78,7 +78,7 @@ Mevcut bir gateway entegrasyonunuz varsa Payven'e geçiş genelde **birkaç gün
 
 | Provider | Payven |
 |---|---|
-| iyzico: `paymentEventType` | Payven: `type` (`payment.completed`, `payment.failed`, ...) |
+| iyzico: `paymentEventType` | Payven: `type` (`sanalpos.payment.completed`, `sanalpos.payment.failed`, ...) |
 | iyzico: `transactionType: "AUTH"` | Payven: tek event yapısı, type'tan ayırd ediyoruz |
 | Craftgate: `eventType` | Payven: `type` |
 | HMAC imza farklı (her provider) | Payven: `X-Payven-Signature: sha256=...` + `X-Payven-Timestamp` (Stripe-benzeri) |

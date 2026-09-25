@@ -5,6 +5,90 @@ description: "Payven API'sindeki güncellemeler ve değişiklikler."
 
 Bu sayfa, Payven API'sinin tüm versiyonlarındaki breaking olmayan ve breaking change'leri kronolojik olarak listeler.
 
+<Update label="2026-09-24" description="v1">
+  ### Breaking — webhook olay kodları ürün önekini taşır
+
+  Tüm webhook olay kodları `{ürün}.{kaynak}.{eylem}` biçimine geçti; önek ürünün feature kodudur
+  (`sanalpos`, `para-transferi`, `fatura-odeme`, `kredi-kart`, `e-fatura`, `cuzdan`, `merchant`, `inbox`).
+  Önceden farklı ürünlerin kaynak adları çakışıyordu (Fatura Ödeme ile e-Fatura'nın fatura iptali aynı
+  kodu taşıyordu). Öneksiz eski kodlar **artık tanınmaz**: eski kodla uç açmak/güncellemek
+  `422 webhook_event_type_unknown` döner. Tam liste: [Webhook Olay Referansı](/documentation/concepts/webhook-events).
+
+  | Eski kod | Yeni kod |
+  |---|---|
+  | `payment.completed` | `sanalpos.payment.completed` |
+  | `payment.authorized` | `sanalpos.payment.authorized` |
+  | `payment.failed` | `sanalpos.payment.failed` |
+  | `payment.not_completed` | `sanalpos.payment.not_completed` |
+  | `refund.completed` | `sanalpos.refund.completed` |
+  | `refund.failed` | `sanalpos.refund.failed` |
+  | `void.completed` | `sanalpos.void.completed` |
+  | `void.failed` | `sanalpos.void.failed` |
+  | `capture.completed` | `sanalpos.capture.completed` |
+  | `3ds.completed` | `sanalpos.three_ds.completed` |
+  | `3ds.failed` | `sanalpos.three_ds.failed` |
+  | `subscription.charged / .failed / .cancelled / .completed` | `sanalpos.subscription.charged / .failed / .cancelled / .completed` |
+  | `subscription.charge.reversed` | `sanalpos.subscription_charge.reversed` |
+  | `subscription.charge.failed` | `sanalpos.subscription_charge.failed` |
+  | `chargeback.opened / .resolved` | `sanalpos.chargeback.opened / .resolved` |
+  | `submerchant.created / .updated / .deactivated` | `sanalpos.submerchant.created / .updated / .deactivated` |
+  | `payment.split.{created, approved, held, released, refunded, partially_refunded, auto_release_scheduled}` | `sanalpos.payment_split.{...}` |
+  | `transfer.completed / .delivered / .failed / .rejected / .refunded` | `para-transferi.transfer.completed / .delivered / .failed / .rejected / .refunded` |
+  | `paratransferi.recurring-execution.succeeded / .failed` | `para-transferi.recurring_execution.succeeded / .failed` |
+  | `paratransferi.recurring-transfer.suspended` | `para-transferi.recurring_transfer.suspended` |
+  | `invoice.paid (Fatura Ödeme)` | `fatura-odeme.invoice.paid` |
+  | `invoice.cancelled (Fatura Ödeme)` | `fatura-odeme.invoice.cancelled` |
+  | `invoice.payment.failed` | `fatura-odeme.invoice_payment.failed` |
+  | `invoice.query.failed` | `fatura-odeme.invoice_query.failed` |
+  | `invoice.issued / .accepted / .rejected / .failed (e-Fatura)` | `e-fatura.invoice.issued / .accepted / .rejected / .failed` |
+  | `invoice.cancelled (e-Fatura)` | `e-fatura.invoice.cancelled` |
+  | `incoming_invoice.accepted / .rejected` | `e-fatura.incoming_invoice.accepted / .rejected` |
+  | `debt.paid / .cancelled` | `kredi-kart.debt.paid / .cancelled` |
+  | `debt.payment.failed` | `kredi-kart.debt_payment.failed` |
+  | `debt.inquiry.failed` | `kredi-kart.debt_inquiry.failed` |
+  | `balance.credited / .debited / .negative` | `cuzdan.balance.credited / .debited / .negative` |
+  | `bank_account.changed` | `cuzdan.bank_account.changed` |
+  | `payout.paid / .failed / .returned / .rejected / .tariff_changed` | `cuzdan.payout.paid / .failed / .returned / .rejected / .tariff_changed` |
+  | `settlement.deposited` | `cuzdan.payout.paid` |
+  | `card.issued / .status_changed / .loaded` | `merchant.card.issued / .status_changed / .loaded` |
+  | `cashout.created / .completed / .failed` | `merchant.cashout.created / .completed / .failed` |
+  | `merchant_request.approved / .rejected` | `merchant.request.approved / .rejected` |
+  | `webhook_endpoint.disabled / .test` | `merchant.webhook_endpoint.disabled / .test` |
+
+  Hakediş kodları zaten önekliydi ve değişmedi (`sanalpos.settlement.*`, `sanalpos.split_settlement.created` ...).
+
+  ### Breaking — tek webhook ucu: `/webhook-endpoints`
+
+  - Webhook abonelikleri ürün API'lerinden **İşyeri API'sine** taşındı:
+    `POST https://merchant.payven.com.tr/api/v1/webhook-endpoints`. Tek uç tüm ürünlerin olaylarını alır;
+    istek gövdesinde `events` yerine **`enabled_events`** (dizi; boş ya da `["*"]` = tüm olaylar) ve
+    `payload_format` (`event` | `flat`) kullanılır. `max_retry_count` kaldırıldı.
+  - Ürün API'lerindeki `/api/v1/webhook-subscriptions` yazma uçları **`410 webhook_subscriptions_moved`**
+    döner; bu kayıtlar artık teslim almaz. Uçlarınızı `/webhook-endpoints` altında yeniden oluşturun.
+  - API anahtarıyla uç yönetmek için anahtarın **İşyeri API'si (`merchant`)** kapsamı seçili olmalıdır.
+
+  ### Yeni
+
+  - **Olay zarfı** (varsayılan `payload_format: event`): `{id, object: "event", type, created, livemode, api_version, resource_id, data: {object}}`;
+    `api_version` = `2026-09-24`. Ürünün olay gövdesi `data.object` altındadır. `flat` seçilen uçta gövde zarfsızdır.
+  - **`GET /events`** — olaylar saklanır; kaçırılan webhook'lar `type` / `resource_id` / tarih filtresiyle geri çekilir.
+  - Uç bazında teslim geçmişi (`/deliveries`, `/attempts`), teslimi yeniden deneme, `POST /webhook-endpoints/{id}/test`
+    deneme olayı ve `GET /webhook-endpoints/event-types` (Türkçe ad + açıklama).
+  - Sır yenilemede geçiş süresi (`expire_current_in_hours`, 0–168): bu sürede `X-Payven-Signature` virgülle iki imza taşır.
+
+  ### Değişti
+
+  - Yeniden deneme programı **10 deneme / ~2,5 gün** oldu (±%20 sapma). 3 gün boyunca hiç başarılı teslim
+    yapamayan uç otomatik kapatılır ve `merchant.webhook_endpoint.disabled` olayı yayınlanır.
+
+  ### Dokümantasyon
+
+  - `sanalpos.payment.not_completed`, `sanalpos.void.failed` ve `sanalpos.chargeback.*` olayları belgelendi.
+  - `para-transferi.transfer.rejected`, `para-transferi.transfer.refunded` ve tekrarlayan transfer olayları
+    (`para-transferi.recurring_execution.*`, `para-transferi.recurring_transfer.suspended`) "planlanan" değil
+    yayınlanan olaylar olarak belgelendi.
+</Update>
+
 <Update label="2026-06-13" description="v1">
   ### İyileştirme
   - **Tekrarlı ödeme (subscription) senkronizasyonu hızlandırıldı:** sağlayıcının çektiği taksitler artık daha sık aralıkla taranıp yansıtılır; bir taksit tahsil edildiğinde `subscription.charged` + ilişkili `payment.completed` webhook'u kısa süre içinde iletilir.

@@ -131,9 +131,16 @@ Chargeback'lere genellikle **7 gün** içinde yanıt verilmesi beklenir (banka a
 
 ## Webhook olayları
 
-Chargeback yaşam döngüsü için müşteri webhook olayı **henüz yayınlanmaz** — kayıtları konsoldan
-veya `GET /api/v1/chargebacks` listesinden izleyin. `chargeback.opened` / `chargeback.resolved`
-olayları yol haritasındadır; bkz. [Webhook Olay Kataloğu](/sanal-pos/webhooks/events#yol-haritasi).
+Chargeback yaşam döngüsü iki webhook olayı yayınlar — webhook ucunuzun `enabled_events` listesine
+ekleyin:
+
+| Olay | Tetikleyici |
+|---|---|
+| `sanalpos.chargeback.opened` | Kart sahibi işleme itiraz etti (ters ibraz açıldı) |
+| `sanalpos.chargeback.resolved` | İtiraz sonuçlandı |
+
+Payload alanları: [Webhook Olay Kataloğu](/sanal-pos/webhooks/events).
+Kayıtları `GET /api/v1/chargebacks` listesinden de izleyebilirsiniz.
 
 ## Yol haritası
 

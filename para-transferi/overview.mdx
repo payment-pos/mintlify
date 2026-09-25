@@ -132,13 +132,20 @@ konsoldan tanımlanan **konnektör konfigürasyonuna** göre seçilir.
 
 | Olay | Tetikleyici |
 |---|---|
-| `transfer.completed` | Banka senkron onay verdi |
-| `transfer.delivered` | Banka asenkron kabul etti (FAST) |
-| `transfer.failed` | Banka reddi veya teknik hata |
+| `para-transferi.transfer.completed` | Banka senkron onay verdi |
+| `para-transferi.transfer.delivered` | Banka asenkron kabul etti (FAST) |
+| `para-transferi.transfer.failed` | Banka reddi veya teknik hata |
+| `para-transferi.transfer.rejected` | Transfer gönderilmeden reddedildi; para hareket etmedi |
+| `para-transferi.transfer.refunded` | Gönderilmiş transfer iade edildi (defter düzeltmesi) |
+| `para-transferi.recurring_execution.succeeded` / `.failed` | Tekrarlayan transferin günlük çekilimi başarılı / başarısız |
+| `para-transferi.recurring_transfer.suspended` | Tekrarlayan transfer ardışık hatalarla askıya alındı |
 
-Oluşturma/onay/red adımları webhook yayınlamaz — operatör eylemleri konsol audit log'una düşer.
+Oluşturma/onay/gönderim adımları webhook yayınlamaz — operatör eylemleri konsol audit log'una düşer.
 
-Webhook delivery: HMAC-SHA256 imzalı, 5 retry deneme (1m / 5m / 30m / 2h / 24h, ±%20 jitter), 15sn timeout. Tüm denemeler başarısız olursa olay konsoldan manuel olarak yeniden tetiklenebilir.
+Webhook uçları İşyeri API'sinde (`/api/v1/webhook-endpoints`) yönetilir; tek uç tüm ürünlerin
+olaylarını alabilir. Teslim: HMAC-SHA256 imzalı, 10 deneme / ~2,5 gün (±%20 sapma), 15 sn zaman
+aşımı; tükenen teslim panelden ya da API ile yeniden gönderilir. Detay:
+[Webhook'lar](/documentation/concepts/webhooks).
 
 ## Sorumlu kullanım
 

@@ -25,7 +25,7 @@ sequenceDiagram
 
     App->>Payven: POST /transfers/bulk/send
     Payven->>Bank: Her transfer için ayrı banka çağrısı
-    Payven-)App: webhook: transfer.completed | transfer.failed (her transfer için)
+    Payven-)App: webhook: para-transferi.transfer.completed | para-transferi.transfer.failed (her transfer için)
 ```
 
 ## 1. Paketi oluştur
@@ -130,7 +130,7 @@ curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/send \
 ```json
 {
   "id":   "evt_...",
-  "type": "transfer.completed",
+  "type": "para-transferi.transfer.completed",
   "data": {
     "transfer_id":     "trf_...",
     "external_id":     "PR-2026-05-001",
@@ -182,7 +182,7 @@ curl https://transfer.payven.com.tr/api/v1/transfers/{id}/receipt/base-64 \
 <Check>Operatör ve yönetici **farklı** rollere sahip mi (4-eyes)?</Check>
 <Check>Alıcılar (`recipients`) onboarding sırasında IBAN doğrulaması ile eklendi mi?</Check>
 <Check>`Idempotency-Key` paket-bazlı (`payroll-2026-05-batch-1`) mi?</Check>
-<Check>Webhook handler'ınız `transfer.completed` ve `transfer.failed` olaylarını dinliyor mu?</Check>
+<Check>Webhook handler'ınız `para-transferi.transfer.completed` ve `para-transferi.transfer.failed` olaylarını dinliyor mu?</Check>
 <Check>Paket reddetme akışı UI'da var mı (operatöre geri bildirim)?</Check>
 
 ## İlgili sayfalar

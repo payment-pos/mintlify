@@ -23,7 +23,7 @@ POST /api/v1/transfers/bulk/reject
 | Toplu transfer içinde bir kalem hatalı, kalanı temiz | Sadece hatalıyı reject + yeniden create |
 
 <Note>
-**Reject ≠ İptal.** Bir transfer **bankaya gönderildikten** sonra reject edilemez (`pending` durumunda değildir). Bankaya gitmiş bir transferin geri alınması için banka tarafı iade akışı (sonradan `transfer.refunded` olabilir) gerekir.
+**Reject ≠ İptal.** Bir transfer **bankaya gönderildikten** sonra reject edilemez (`pending` durumunda değildir). Bankaya gitmiş bir transferin geri alınması için banka tarafı iade akışı (sonradan `para-transferi.transfer.refunded` olabilir) gerekir.
 </Note>
 
 ## İstek
@@ -118,4 +118,4 @@ Hata yanıtı RFC 9457 problem+json.
 
 ## Webhook olayı
 
-Reject şu an dedicated bir webhook olayı yayınlamaz — operatör eylemi olarak konsoldaki audit log'a düşer. İleride `transfer.rejected` olayı yol haritasındadır.
+Reddedilen her transfer için `para-transferi.transfer.rejected` webhook olayı yayınlanır (`status: "rejected"`, red gerekçesi `message` alanında). Para hiç hareket etmediği için bakiye etkisi yoktur. Ayrıntı: [Olay Kataloğu](/para-transferi/webhooks/events).

@@ -33,7 +33,7 @@ sequenceDiagram
     Browser->>App: success_url
     App->>Payven: GET /checkout/sessions/{session_id}
     Payven-->>App: Session durumu
-    Payven-)App: webhook (asenkron — payment.completed)
+    Payven-)App: webhook (asenkron — sanalpos.payment.completed)
 ```
 
 ## 1. Oturum oluşturun
@@ -203,9 +203,9 @@ Hosted Checkout için yayınlanan olaylar:
 
 | Olay | Açıklama |
 |---|---|
-| `payment.completed` | Müşteri başarıyla ödeme tamamladı |
-| `payment.failed` | Müşteri ödeme yapmaya çalıştı, başarısız |
-| `3ds.completed` / `3ds.failed` | 3DS akışlı modlarda ek olarak yayınlanır |
+| `sanalpos.payment.completed` | Müşteri başarıyla ödeme tamamladı |
+| `sanalpos.payment.failed` | Müşteri ödeme yapmaya çalıştı, başarısız |
+| `sanalpos.three_ds.completed` / `sanalpos.three_ds.failed` | 3DS akışlı modlarda ek olarak yayınlanır |
 
 Hosted Checkout'a özgü `checkout.session.*` olayları yol haritasındadır — şu an session durumunu `GET /api/v1/checkout/sessions/{id}` ile sorgulayarak takip edin. Bkz. [Webhook Olayları](/sanal-pos/webhooks/events).
 

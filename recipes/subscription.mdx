@@ -27,7 +27,7 @@ sequenceDiagram
     App->>Payven: POST /payments/recurring<br/>{ card_token, amount }
     Payven->>Bank: MIT otorizasyon (3DS yok)
     Bank-->>Payven: Onay / Red
-    Payven-)App: webhook: payment.completed | payment.failed
+    Payven-)App: webhook: sanalpos.payment.completed | sanalpos.payment.failed
 ```
 
 ## 1. İlk işlem — kartı kaydet
@@ -127,7 +127,7 @@ MIT işleminde 3DS olmadığı için banka reddi olası — yetersiz bakiye, kar
 ```json
 {
   "id":   "evt_...",
-  "type": "payment.failed",
+  "type": "sanalpos.payment.failed",
   "data": {
     "transaction_id":          "9b2e4d70-...",
     "status":                  "failed",
@@ -165,7 +165,7 @@ Bu endpoint, ilk aboneliğin `transaction_id`'sini alır ve ona bağlı saklı k
 <Check>İlk işlem (CIT) **3DS ile** yapıldı mı?</Check>
 <Check>`card_token` veritabanında **kullanıcı ID'si** ile birlikte saklanıyor mu?</Check>
 <Check>Recurring isteklerinde **`Idempotency-Key`** dönem-bazlı deterministik mi?</Check>
-<Check>`payment.failed` webhook'u handler'ınız retry kuyruğuna yazıyor mu?</Check>
+<Check>`sanalpos.payment.failed` webhook'u handler'ınız retry kuyruğuna yazıyor mu?</Check>
 <Check>Kart süresi dolan kullanıcıya bildirim akışı kurulu mu?</Check>
 <Check>Token iptal endpoint'i abonelik iptal akışına bağlı mı?</Check>
 

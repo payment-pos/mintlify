@@ -13,6 +13,8 @@
 @vpos_base_url = https://vpos-sandbox.payven.com.tr
 # Identity taban adresi (prod: https://identity.payven.com.tr)
 @identity_base_url = https://identity-sandbox.payven.com.tr
+# Isyeri API taban adresi — webhook uclari + olaylar (prod: https://merchant.payven.com.tr)
+@merchant_base_url = https://merchant-sandbox.payven.com.tr
 # Tenant slug
 @slug = payven
 # Service-account client id (pvk_test_... / pvk_live_...)
@@ -45,8 +47,10 @@
 @session_id = <session_id>
 # Recurring plan yaniti otomatik doldurur
 @recurring_plan_id = <recurring_plan_id>
-# Webhook abonelik yaniti otomatik doldurur
+# Webhook ucu olusturma yanitindaki id
 @webhook_id = <webhook_id>
+# Teslim listesindeki id
+@delivery_id = <delivery_id>
 @api_version = v1
 
 
@@ -651,55 +655,94 @@ GET {{vpos_base_url}}/api/{{api_version}}/transactions/export?start_date=2026-05
 Authorization: Bearer {{access_token}}
 
 
-########## Webhook Abonelikleri
+########## Webhook Uclari (Isyeri API)
+# Tek webhook ucu tum urunlerin olaylarini alir. Uclar SanalPOS API'sinde degil Isyeri
+# API'sinde yonetilir; API anahtarinin `merchant` kapsami secili olmali.
+# Eski /webhook-subscriptions uclari 410 `webhook_subscriptions_moved` doner.
 
-### Abonelik Olustur
-# Webhook abonelik olusturur. `events` virgul-ayrik; bos birakilirsa tum event'ler. `url` HTTPS olmali (private/loopback IP'ler reddedilir). Cevaptaki `secret` HMAC imza dogrulamasi icin SADECE burada doner.
-POST {{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions
+### Uc Olustur
+# `enabled_events` bos ya da ["*"] = tum olaylar; katalogda olmayan kod 422 `webhook_event_type_unknown`.
+# `payload_format`: `event` (olay zarfi, varsayilan) | `flat`. `url` HTTPS olmali (private/loopback IP'ler reddedilir).
+# Cevaptaki `secret` (whsec_...) HMAC imza dogrulamasi icin SADECE burada (ve rotate-secret'ta) doner.
+POST {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 
 {
   "url": "https://magazaniz.com/webhooks/payven",
-  "events": "payment.completed,payment.failed,refund.completed",
+  "enabled_events": ["sanalpos.payment.completed", "sanalpos.payment.failed", "sanalpos.payment.not_completed", "sanalpos.refund.completed"],
   "description": "ERP entegrasyonu",
-  "max_retry_count": 5
+  "payload_format": "event"
 }
 
-### Abonelikleri Listele
-GET {{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions
+### Uclari Listele
+GET {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints
 Authorization: Bearer {{access_token}}
 
-### Abonelik Guncelle
-PUT {{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}
+### Uc Detayi
+GET {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}
+Authorization: Bearer {{access_token}}
+
+### Uc Guncelle
+# Tam degistirme; `metadata` birlestirilir.
+PUT {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 
 {
   "url": "https://magazaniz.com/webhooks/payven",
-  "events": "payment.completed,payment.failed",
+  "enabled_events": ["sanalpos.payment.completed", "sanalpos.payment.failed"],
   "description": "Guncellendi",
-  "max_retry_count": 5
+  "payload_format": "event"
 }
 
-### Secret Yenile
-# Yeni secret uretir (eski gecersiz olur). Yeni secret bir kez doner.
-POST {{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}/rotate-secret
+### Sir Yenile
+# Yeni sir BIR KEZ doner. Eski sir `expire_current_in_hours` (0-168, varsayilan 24) boyunca gecerli
+# kalir; bu surede imza basligi `sha256=<yeni>,sha256=<eski>` tasir.
+POST {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}/rotate-secret
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "expire_current_in_hours": 24
+}
+
+### Deneme Olayi Gonder
+# Imzali `merchant.webhook_endpoint.test` olayi gonderir, alicinin cevabini doner.
+POST {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}/test
 Authorization: Bearer {{access_token}}
 
-### Pasif Et
-POST {{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}/deactivate
+### Kapat
+POST {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}/disable
 Authorization: Bearer {{access_token}}
 
-### Aktif Et
-POST {{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}/activate
+### Ac
+POST {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}/enable
 Authorization: Bearer {{access_token}}
 
-### Teslimat Loglari
-# Bir abonelige ait webhook teslimat denemelerini (HTTP status, retry, hata) listeler.
-GET {{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}/deliveries
+### Teslimleri Listele
+# Ucun teslimleri (`state`: pending / succeeded / failed; `event_id` filtresi).
+GET {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}/deliveries
 Authorization: Bearer {{access_token}}
 
-### Abonelik Sil
-DELETE {{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}
+### Teslim Denemeleri
+GET {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/deliveries/{{delivery_id}}/attempts
+Authorization: Bearer {{access_token}}
+
+### Teslimi Yeniden Dene
+POST {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/deliveries/{{delivery_id}}/retry
+Authorization: Bearer {{access_token}}
+
+### Olay Tipleri
+# Abone olunabilecek olay kodlari: {type, feature, category, label, description}.
+GET {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/event-types
+Authorization: Bearer {{access_token}}
+
+### Olaylari Listele
+# Saklanan olaylar — webhook zarfiyla ayni nesne.
+GET {{merchant_base_url}}/api/{{api_version}}/events?type=sanalpos.payment.*&page=1&page_size=50
+Authorization: Bearer {{access_token}}
+
+### Uc Sil
+DELETE {{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}
 Authorization: Bearer {{access_token}}

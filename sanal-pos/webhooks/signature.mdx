@@ -14,11 +14,15 @@ X-Payven-Timestamp: 1714742400
 X-Payven-Signature: sha256=4f1d8c92ab7e3bcf9a2e1c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f
 ```
 
+Sırrı yeniledikten sonraki geçiş süresinde başlık **virgülle ayrılmış iki imza** taşır
+(`sha256=<yeni>,sha256=<eski>`). Başlığı virgülden bölün; imzalardan **herhangi biri** sizin
+hesapladığınızla eşleşiyorsa isteği kabul edin.
+
 İmza şu formülle üretilir:
 
 ```
 imzalanacak_string = "<X-Payven-Timestamp>" + "." + "<request_body_raw_string'i>"
-hmac               = HMAC_SHA256(subscription.secret, imzalanacak_string)
+hmac               = HMAC_SHA256(webhook_ucu.secret, imzalanacak_string)
 beklenen_imza      = "sha256=" + hex(hmac).lower()
 ```
 
@@ -26,7 +30,7 @@ Sizin tarafınızda bu üç adımı uygulayıp `X-Payven-Signature` header'ı il
 
 1. Timestamp'in **5 dakika içinde** olduğunu kontrol edin (replay koruması)
 2. Body'i **string olarak** (parse etmeden) HMAC-SHA256 ile imzalayın
-3. Sonucu sabit zamanlı (constant-time) karşılaştırma ile doğrulayın
+3. Başlığı virgülden bölüp her imzayı sabit zamanlı (constant-time) karşılaştırma ile doğrulayın
 
 <Warning>
 **Body'i parse etmeden imzalayın.** JSON.parse() + JSON.stringify() döngüsü
@@ -65,10 +69,13 @@ app.post("/webhooks/payven", (req, res) => {
       .update(`${timestamp}.${body}`)
       .digest("hex");
 
-  // 3. Sabit zamanlı karşılaştır
-  const sigBuf = Buffer.from(signature ?? "", "utf8");
+  // 3. Sabit zamanlı karşılaştır — başlık virgülle birden fazla imza taşıyabilir
   const expBuf = Buffer.from(expected, "utf8");
-  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+  const valid = (signature ?? "").split(",").some((sig) => {
+    const sigBuf = Buffer.from(sig.trim(), "utf8");
+    return sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+  });
+  if (!valid) {
     return res.status(401).send("Invalid signature");
   }
 
@@ -103,8 +110,8 @@ async def webhook(request: Request):
         hashlib.sha256,
     ).hexdigest()
 
-    # 3. Sabit zamanlı karşılaştır
-    if not hmac.compare_digest(signature, expected):
+    # 3. Sabit zamanlı karşılaştır — başlık virgülle birden fazla imza taşıyabilir
+    if not any(hmac.compare_digest(sig.strip(), expected) for sig in signature.split(",")):
         raise HTTPException(401, "Invalid signature")
 
     event = await request.json()
@@ -148,10 +155,12 @@ public class WebhookController : ControllerBase
             .ToLowerInvariant();
         var expected = $"sha256={hashHex}";
 
-        // 4. Sabit zamanlı karşılaştır
-        if (!CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(signature),
-                Encoding.UTF8.GetBytes(expected)))
+        // 4. Sabit zamanlı karşılaştır — başlık virgülle birden fazla imza taşıyabilir
+        var expectedBytes = Encoding.UTF8.GetBytes(expected);
+        var valid = signature
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Any(sig => CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(sig), expectedBytes));
+        if (!valid)
         {
             return Unauthorized("Invalid signature");
         }
@@ -172,6 +181,7 @@ import (
     "io"
     "net/http"
     "strconv"
+    "strings"
     "time"
 )
 
@@ -196,8 +206,15 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
     mac.Write([]byte(timestamp + "." + string(body)))
     expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 
-    // 4. Sabit zamanlı karşılaştır
-    if !hmac.Equal([]byte(signature), []byte(expected)) {
+    // 4. Sabit zamanlı karşılaştır — başlık virgülle birden fazla imza taşıyabilir
+    valid := false
+    for _, sig := range strings.Split(signature, ",") {
+        if hmac.Equal([]byte(strings.TrimSpace(sig)), []byte(expected)) {
+            valid = true
+            break
+        }
+    }
+    if !valid {
         http.Error(w, "Invalid signature", http.StatusUnauthorized)
         return
     }
@@ -226,8 +243,12 @@ if (abs(time() - intval($timestamp)) > 300) {
 $payload  = $timestamp . "." . $body;
 $expected = "sha256=" . hash_hmac("sha256", $payload, $secret);
 
-// 3. Sabit zamanlı karşılaştır
-if (!hash_equals($expected, $signature)) {
+// 3. Sabit zamanlı karşılaştır — başlık virgülle birden fazla imza taşıyabilir
+$valid = false;
+foreach (explode(",", $signature) as $sig) {
+    if (hash_equals($expected, trim($sig))) { $valid = true; break; }
+}
+if (!$valid) {
     http_response_code(401);
     exit("Invalid signature");
 }
@@ -247,21 +268,20 @@ http_response_code(200);
 
 ## Secret rotasyonu
 
-Bir webhook subscription'ın secret'ını rotasyonu için:
+Webhook ucunun sırrını İşyeri API'si üzerinden yenileyin:
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/webhook-subscriptions/8e3f5c12-.../rotate-secret \
-  -H "Authorization: Bearer $PAYVEN_TOKEN"
+curl -X POST https://merchant.payven.com.tr/api/v1/webhook-endpoints/8e3f5c12-.../rotate-secret \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "expire_current_in_hours": 24 }'
 ```
 
-Yanıt yeni secret'ı döner. **Eski secret 24 saat boyunca geçerli kalır** — bu sürede her iki secret ile imzalanmış istekler kabul edilir, böylece zero-downtime geçiş yaparsınız:
-
-```javascript
-// Geçiş döneminde her iki secret'ı dene
-const valid =
-  verify(body, signature, oldSecret) ||
-  verify(body, signature, newSecret);
-```
+Yanıt yeni sırrı (`secret`) **bir kez** döner. Eski sır `expire_current_in_hours` boyunca
+(0–168, varsayılan 24) geçerli kalır: bu sürede Payven her isteği **iki sırla da imzalar** ve
+başlık `sha256=<yeni>,sha256=<eski>` biçiminde gelir. Yukarıdaki örnekler bu başlığı zaten
+virgülden böldüğü için yeni sırrı dağıtırken teslimat kesilmez. Sır sızdıysa `0` verin — eski sır
+hemen geçersiz olur.
 
 ## İmza bozuk geliyorsa
 
@@ -271,6 +291,7 @@ const valid =
 | Timestamp drift > 5 dakika | Sunucu saatinizi NTP ile senkronize edin |
 | Boşluk / satır sonu fark | Body'i `Buffer` veya `bytes` olarak saklayın, `string` dönüşümlerinde encoding belirtin (`utf8`) |
 | Secret yanlış | Konsoldan `whsec_` ile başlayan değeri tam olarak kopyaladığınızdan emin olun |
+| Sır yenilemeden sonra imza tutmuyor | Başlığı virgülden bölmüyorsunuz — geçiş süresinde iki imza gelir, birini kabul edin |
 | `X-Payven-Signature` boş | Reverse proxy header strip yapıyor olabilir — Nginx config'de `proxy_pass_request_headers on` |
 
 Hâlâ çözemediğiniz durumda `X-Payven-Delivery-Id` ile birlikte [destek ekibimize](/resources/support) yazın.

@@ -221,14 +221,19 @@ Detaylı yanıt yapısı: [Payment Objesi](/sanal-pos/payment-object).
 Tarayıcı tabanlı akışlarda (3DS, hosted checkout) müşteri tarayıcıyı kapatabilir — sonucu kaçırmamak için webhook kurun:
 
 ```bash
-curl -X POST https://vpos-sandbox.payven.com.tr/api/v1/webhook-subscriptions \
+curl -X POST https://merchant-sandbox.payven.com.tr/api/v1/webhook-endpoints \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "url":    "https://your-domain.com/webhooks/payven",
-    "events": ["payment.completed", "payment.failed", "refund.completed"]
+    "url":            "https://your-domain.com/webhooks/payven",
+    "enabled_events": ["sanalpos.payment.completed", "sanalpos.payment.failed", "sanalpos.payment.not_completed", "sanalpos.refund.completed"]
   }'
 ```
+
+Webhook uçları **İşyeri API'sinde** yönetilir ve tek uç tüm ürünlerin olaylarını alır; API
+anahtarınızın **İşyeri API'si (`merchant`)** kapsamı seçili olmalıdır. Yanıttaki `secret`
+(`whsec_...`) yalnız bir kez döner — saklayın. Test anahtarıyla oluşan olaylar `livemode: false`
+ile gelir. Ayrıntı: [Webhook'lar](/documentation/concepts/webhooks).
 
 Webhook isteklerini doğrularken HMAC-SHA256 imzasını kontrol edin — bkz. [İmza Doğrulama](/sanal-pos/webhooks/signature). Lokal geliştirmede [ngrok](https://ngrok.com) veya [Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/) ile localhost'unuzu internete açabilirsiniz.
 

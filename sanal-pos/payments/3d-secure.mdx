@@ -216,14 +216,17 @@ Hangisinin uygulanacağını **banka belirler** — istemci olarak etkileyemezsi
 `success_url`/`fail_url` yönlendirmesi **müşteri tarayıcısı** üzerinden çalışır — müşteri tarayıcıyı kapatırsa sonucu kaçırırsınız. Webhook entegre edin:
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/webhook-subscriptions \
+curl -X POST https://merchant.payven.com.tr/api/v1/webhook-endpoints \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "url":    "https://api.example.com/webhooks/payven",
-    "events": ["payment.completed", "payment.failed", "3ds.completed", "3ds.failed"]
+    "url":            "https://api.example.com/webhooks/payven",
+    "enabled_events": ["sanalpos.payment.completed", "sanalpos.payment.failed", "sanalpos.payment.not_completed", "sanalpos.three_ds.completed", "sanalpos.three_ds.failed"]
   }'
 ```
+
+Müşteri 3D doğrulamasını bitirmeden ayrılırsa işlem `sanalpos.payment.not_completed` ile
+sonuçlanır (banka reddi değil) — siparişi askıda bırakmamak için bu olaya da abone olun.
 
 Detay: [Webhook Genel Bakış](/sanal-pos/webhooks/overview).
 

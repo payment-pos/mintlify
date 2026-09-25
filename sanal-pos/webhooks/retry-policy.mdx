@@ -7,18 +7,24 @@ Payven webhook teslimini **at-least-once** garantili çalıştırır. İlk denem
 
 ## Yeniden deneme programı
 
-Bir webhook için varsayılan **`max_retry_count: 5`**. Denemeler arası süreler:
+Her teslim en fazla **10 kez** denenir (~2,5 gün). Denemeler yalnız başarısız olan **uca**
+yapılır — olayı almış diğer uçlarınıza ikinci kez gitmez.
 
-| Deneme | Yaklaşık bekleme süresi |
-|---|---|
-| 1 | Hemen |
-| 2 | 1 dakika sonra |
-| 3 | 5 dakika sonra |
-| 4 | 30 dakika sonra |
-| 5 | 2 saat sonra |
-| 6 | 24 saat sonra |
+| Deneme | Bir önceki denemeden sonra | İlk denemeden sonra (yaklaşık) |
+|---|---|---|
+| 1 | — | hemen |
+| 2 | 1 dakika | 1 dk |
+| 3 | 5 dakika | 6 dk |
+| 4 | 30 dakika | 36 dk |
+| 5 | 2 saat | 2,5 sa |
+| 6 | 5 saat | 7,5 sa |
+| 7 | 10 saat | 17,5 sa |
+| 8 | 10 saat | 27,5 sa |
+| 9 | 12 saat | 39,5 sa |
+| 10 | 12 saat | 51,5 sa |
 
-5 başarısız denemeden sonra teslim **kalıcı olarak başarısız** kabul edilir ve daha fazla otomatik deneme yapılmaz. Konsoldan manuel replay tetiklenebilir.
+10 deneme tükenen teslim `failed` olur ve otomatik denenmez; panelden ya da
+`POST /webhook-endpoints/deliveries/{delivery_id}/retry` ile yeniden gönderilir.
 
 <Note>
 Bekleme sürelerine **±%20 jitter** uygulanır — eşzamanlı tetiklenen bin webhook'un retry'leri sabit aralıklarla çakışmaz, pencereye yayılır.
@@ -36,7 +42,7 @@ Bekleme sürelerine **±%20 jitter** uygulanır — eşzamanlı tetiklenen bin w
 | TLS handshake / DNS hatası | Retry edilir |
 
 <Tip>
-**4xx'de retry niçin?** Eğer endpoint'iniz bir olayı yanlışlıkla 400 dönerse (örn. transaction_id'yi DB'de bulamadığı için), Payven 5 deneme boyunca tekrarlar. Bu deneme süresinde DB sync olabilir veya konfigürasyonunuzu düzeltebilirsiniz. Ek not: olay almak istemediğiniz tipler için **subscription'a hiç eklemeyin** — hiç gönderilmemesi 4xx döndürmekten daha temizdir.
+**4xx'de retry niçin?** Eğer endpoint'iniz bir olayı yanlışlıkla 400 dönerse (örn. transaction_id'yi DB'de bulamadığı için), Payven programın sonuna kadar tekrarlar. Bu sürede DB sync olabilir veya konfigürasyonunuzu düzeltebilirsiniz. Ek not: almak istemediğiniz olay tiplerini ucun **`enabled_events` listesine hiç eklemeyin** — hiç gönderilmemesi 4xx döndürmekten daha temizdir.
 </Tip>
 
 ## Timeout
@@ -61,31 +67,37 @@ app.post("/webhooks/payven", async (req, res) => {
 // queue.consume("payven-webhook", processEvent);
 ```
 
-## Manuel replay
+## Manuel yeniden gönderim
 
-Konsol → **Webhook Teslim Logları** ekranından bir teslimin **Tekrar Gönder** butonuyla manuel replay yapabilirsiniz. Replay edilen olay aynı `X-Payven-Event-Id` ile gelir; idempotent handler'ınız bunu zaten işlenmiş olarak görüp duplicate işlem yapmaz.
-
-Senaryolar:
-- Sizin endpoint'iniz down idi → eski olayları replay ederek yetiştirin
-- Bir bug nedeniyle olayları yanlış işlediniz → fix sonrası replay edip yeniden işleyin
-- Yeni bir feature için historical event'leri yeniden tüketmek istiyorsunuz
-
-## Subscription başına retry sayısı
-
-Default `max_retry_count: 5`'tir. Yüksek hassasiyet gerektiren entegrasyonlar (örn. ERP) için daha fazla retry isterseniz subscription oluşturma / güncelleme sırasında bu değeri ayarlayabilirsiniz:
+Panelden (**Geliştirici › Webhook'lar** › teslim › **Yeniden dene**) ya da API ile bir teslimi
+hemen yeniden gönderebilirsiniz — başarılı olmuş bir teslim de yeniden gönderilebilir:
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/webhook-subscriptions \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url":             "https://erp.example.com/webhooks/payven",
-    "events":          ["payment.completed", "refund.completed"],
-    "max_retry_count": 10
-  }'
+curl -X POST https://merchant.payven.com.tr/api/v1/webhook-endpoints/deliveries/{delivery_id}/retry \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-`max_retry_count` 0-20 arasında kabul edilir. Üst sınır aşılırsa `422 validation_failed`.
+Yeniden gönderilen olay aynı `X-Payven-Event-Id` ile gelir; idempotent handler'ınız bunu zaten
+işlenmiş olarak görüp duplicate işlem yapmaz. Yalnız o teslim hedeflenir; olayı almış diğer
+uçlarınız ikinci kez almaz.
+
+Senaryolar:
+- Endpoint'iniz kapalıydı → teslimleri yeniden gönderin ya da olayları `GET /events` ile çekin
+- Bir bug nedeniyle olayları yanlış işlediniz → düzeltme sonrası yeniden gönderip yeniden işleyin
+
+## Otomatik kapatma
+
+Bir uç **3 gün** boyunca hiç başarılı teslim yapamazsa kapatılır (`status: disabled`,
+`disabled_reason: consecutive_failures`) ve `merchant.webhook_endpoint.disabled` olayı yayınlanır
+(başka bir ucunuz varsa oraya gelir, panelde bildirim düşer). Ucu düzelttikten sonra açın ve
+kapalıyken biriken teslimleri yeniden deneyin:
+
+```bash
+curl -X POST https://merchant.payven.com.tr/api/v1/webhook-endpoints/{id}/enable \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+Deneme sayısı uç başına ayarlanmaz; program tüm uçlar için aynıdır.
 
 ## En iyi pratikler
 
@@ -93,4 +105,4 @@ curl -X POST https://vpos.payven.com.tr/api/v1/webhook-subscriptions \
 <Check>**Idempotent yazın** — `X-Payven-Event-Id`'yi DB'de tut ve duplicate'leri ack edip skip edin.</Check>
 <Check>**HTTP 2xx mantığına saygı gösterin** — başarılı işleme `200`, başarısız (retry isteyen) durumlara `5xx` dönün; deliberate retry isteğinizde 4xx kullanmaktan kaçının.</Check>
 <Check>**Production'da loglayın** — gelen her olayın `event_id`, `delivery_id`, body'sini saklayın; debug için kritik.</Check>
-<Check>**Sırasız geldiklerini varsayın** — `payment.completed` `refund.completed`'tan sonra gelebilir (retry kuyruğundan çıkış sırası). `created_at` veya `transaction.status` ile durumu yeniden doğrulayın.</Check>
+<Check>**Sırasız geldiklerini varsayın** — `sanalpos.payment.completed` `sanalpos.refund.completed`'tan sonra gelebilir (retry kuyruğundan çıkış sırası). zarftaki `created` alanı veya işlemin güncel durumu (`GET /api/v1/payments/{id}`) ile yeniden doğrulayın.</Check>

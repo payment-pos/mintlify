@@ -12,7 +12,7 @@ flowchart LR
     A[POST /recurringtransfers<br/>schedule + alıcı + tutar] --> B[is_active: true]
     B -->|Cron tetikleyici| C[Yeni transfer<br/>oluşturulur]
     C --> D[Standart 4-eyes<br/>akışı]
-    D --> E[transfer.completed<br/>veya .failed webhook]
+    D --> E[para-transferi.transfer.completed<br/>veya .failed webhook]
 ```
 
 Her takvim tetiklemesinde Payven, sizin adınıza yeni bir transfer **otomatik oluşturur** (`POST /transfers/bulk/create` muadili). Transferin **onay ve gönderim** adımları (4-eyes) operatör eylemiyle veya konsol otomasyonuyla yapılır.
@@ -115,7 +115,7 @@ curl -X POST https://transfer.payven.com.tr/api/v1/recurringtransfers/rec-8e3f5c
 
 ## Yetersiz bakiye senaryosu
 
-Tetikleme anında kaynak hesapta yeterli bakiye yoksa transfer **`failed`** statüsünde oluşur (`error_code: "insufficient_balance"`). Tekrarlayan kayıt **devam eder** — sonraki periyodda yeniden denenir. Operasyonel olarak `transfer.failed` webhook'una abone olmanız önerilir.
+Tetikleme anında kaynak hesapta yeterli bakiye yoksa transfer **`failed`** statüsünde oluşur (`error_code: "insufficient_balance"`). Tekrarlayan kayıt **devam eder** — sonraki periyodda yeniden denenir. Operasyonel olarak `para-transferi.transfer.failed` webhook'una abone olmanız önerilir.
 
 ## Hata response'ları
 
@@ -129,4 +129,12 @@ Tetikleme anında kaynak hesapta yeterli bakiye yoksa transfer **`failed`** stat
 
 ## Webhook olayları
 
-Tekrarlayan kayıt **kendisi** olay yayınlamaz; ancak ürettiği her transfer terminal sonuca ulaştığında standart `transfer.completed` / `.delivered` / `.failed` olayları yayınlanır. Üretilen transferi tekrarlayan kayda bağlamak için transferin `external_id`'sini kendi tarafınızda eşleyin.
+Tekrarlayan kayıt her günlük çekilimin sonucu için kendi olaylarını yayınlar:
+
+| Olay | Tetikleyici |
+|---|---|
+| `para-transferi.recurring_execution.succeeded` | Günlük çekilim bankaya başarıyla iletildi (`transfer_request_id` üretilen transferi taşır) |
+| `para-transferi.recurring_execution.failed` | Günlük çekilim başarısız oldu; plan hâlâ aktif (`error_message`, `consecutive_failure_count`) |
+| `para-transferi.recurring_transfer.suspended` | Plan ardışık hatalar nedeniyle otomatik askıya alındı — `resume` ile manuel devam ettirmeniz gerekir |
+
+Ayrıca ürettiği her transfer terminal sonuca ulaştığında standart `para-transferi.transfer.completed` / `.delivered` / `.failed` olayları yayınlanır. Olaylar `recurring_transfer_id` ve `execution_id` taşır; üretilen transfer `transfer_request_id` alanındadır. Payload ayrıntısı: [Olay Kataloğu](/para-transferi/webhooks/events).

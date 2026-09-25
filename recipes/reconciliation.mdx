@@ -45,7 +45,7 @@ Yanıt:
 }
 ```
 
-Asenkron çalışır — webhook ile sonucu bekleyin (`reconciliation.completed`) veya status polling yapın:
+Asenkron çalışır — sonucu status polling ile bekleyin (mutabakat için webhook olayı henüz yayınlanmaz):
 
 ```bash
 curl https://vpos.payven.com.tr/api/v1/reconciliations/{id} \
@@ -164,7 +164,7 @@ for connector in ["GARANTI", "AKBANK", "ZIRAATBANK"]:
         },
     )
 
-# Webhook handler tarafında: reconciliation.completed event'ı geldiğinde
+# Status polling "completed" döndüğünde
 # discrepancy listesini çek, otomatik kuralları uygula (fee_deduction < 5 TL),
 # kalanı operasyona düşür.
 ```
@@ -173,7 +173,7 @@ for connector in ["GARANTI", "AKBANK", "ZIRAATBANK"]:
 
 <Check>EOD dosya formatı (CSV layout, encoding, separator) Payven konnektörünün beklediği şablona uygun mu?</Check>
 <Check>SFTP / S3 vb. dosya kaynağı için Payven IP whitelist'inde mi?</Check>
-<Check>`reconciliation.completed` webhook'u operasyon kuyruğuna mesaj atıyor mu?</Check>
+<Check>Mutabakat sonucu (status polling) operasyon kuyruğuna mesaj atıyor mu?</Check>
 <Check>Otomatik çözümleme kuralları (örn. ≤5 TL fark = `fee_deduction`) tanımlı mı?</Check>
 <Check>Settlement raporu muhasebe sistemine entegre mi?</Check>
 

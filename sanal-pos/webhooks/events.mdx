@@ -3,36 +3,39 @@ title: "Webhook Olay Kataloğu"
 description: "Sanal POS'un yayınladığı tüm webhook olayları ve payload alanları."
 ---
 
-Sanal POS şu anda **31 olay tipi** yayınlar: işlem yaşam döngüsü (8) + recurring/subscription (6) +
-marketplace sub-merchant (3) + marketplace split (7) + settlement (6) + parçalı hakediş (1). Subscription oluştururken
-`events[]` dizisinde dinlemek istediklerinizi belirtirsiniz. Güncel listeyi programatik olarak
-`GET /api/v1/webhook-subscriptions/event-types` endpoint'inden alabilirsiniz.
+Sanal POS şu anda **36 olay tipi** yayınlar: işlem yaşam döngüsü (11) + recurring/subscription (6) +
+itiraz/chargeback (2) + marketplace sub-merchant (3) + marketplace split (7) + settlement (6) +
+parçalı hakediş (1). Webhook ucunu oluştururken `enabled_events` dizisinde dinlemek istediklerinizi
+belirtirsiniz. Güncel liste (Türkçe ad ve açıklamayla) `GET /api/v1/webhook-endpoints/event-types`
+ucundan (İşyeri API'si) alınır; tüm ürünlerin kodları: [Webhook Olay Referansı](/documentation/concepts/webhook-events).
 
 ## Genel yapı
 
-Olay tipi ve teslimat metadata'sı **HTTP header'larında** taşınır; gövde olayın kendisidir
-(**düz/flat** JSON — ayrıca bir `data` zarfı yoktur):
+Olay tipi ve teslimat metadata'sı **HTTP header'larında** da taşınır:
 
 | Header | Açıklama |
 |---|---|
-| `X-Payven-Event` | Olay tipi (`payment.completed`, `refund.completed`, ...) |
-| `X-Payven-Event-Id` | Olay kimliği — idempotency için kullanın. **Aynı olay birden fazla kez gönderilebilir** ama event id aynıdır. |
-| `X-Payven-Delivery-Id` | Bu teslimat denemesinin kimliği (retry'da değişir) |
+| `X-Payven-Event` | Olay tipi (`sanalpos.payment.completed`, `sanalpos.refund.completed`, ...) |
+| `X-Payven-Event-Id` | Olay kimliği (`evt_...`) — idempotency için kullanın. **Aynı olay birden fazla kez gönderilebilir** ama event id aynıdır. |
+| `X-Payven-Delivery-Id` | Teslim kimliği |
 | `X-Payven-Signature` | `sha256=<hex>` HMAC imzası — bkz. [İmza Doğrulama](/sanal-pos/webhooks/signature) |
 | `X-Payven-Timestamp` | İmza zaman damgası (Unix saniye) |
 
-Gövdedeki `event_type` alanı header'daki `X-Payven-Event` ile aynıdır; `webhook_event_id`
-(işlem olaylarında) idempotency için gövde-içi alternatiftir.
+Gövde varsayılan olarak **olay zarfıdır** — `{id, object: "event", type, created, livemode, api_version, resource_id, data: {object}}` — ve aşağıdaki tablolarda anlatılan alanlar
+**`data.object`** altındadır. Uç `payload_format: flat` ile açıldıysa gövde yalnız bu nesnedir
+(zarfsız). Zarf ayrıntısı: [Webhook'lar](/documentation/concepts/webhooks).
+
+`data.object.event_type` alanı zarftaki `type` ve `X-Payven-Event` ile aynıdır.
 
 ## İşlem (transaction) olayları — ortak payload
 
-`payment.*`, `refund.completed`, `void.completed`, `capture.completed`, `3ds.*` olaylarının
+`sanalpos.payment.*`, `sanalpos.refund.*`, `sanalpos.void.*`, `sanalpos.capture.completed`, `sanalpos.three_ds.*` olaylarının
 tümü aynı gövde şemasını kullanır:
 
 | Alan | Açıklama |
 |---|---|
 | `event_type` | Olay tipi |
-| `webhook_event_id` | Olay kimliği (UUID) — idempotency anahtarı |
+| `webhook_event_id` | Üreticinin olay kimliği (UUID) — tekilleştirmede zarftaki `id` / `X-Payven-Event-Id` tercih edin |
 | `transaction_id` | İlgili işlemin Payven kimliği (UUID) |
 | `tenant_id` | Tenant kimliği |
 | `status` | İşlem mevcut durumu (snake_case) — bkz. [Payment Status](/sanal-pos/payment-object#status-degerleri) |
@@ -50,20 +53,20 @@ tümü aynı gövde şemasını kullanır:
 | `card_brand` | Kart programı (snake_case; örn. `bonus`, `world`, `axess` — scheme değil) |
 | `connector_config_id` / `bank_code` | İşlemin geçtiği banka konfigürasyonu |
 | `payment_method_category` / `payment_method_code` / `payment_method_reference` | APM bilgisi (Apple Pay/Google Pay vb.; kart için `card`) |
-| `refund_id` | **İadenin kendi kimliği** (UUID) — yalnız `refund.completed` / `refund.failed`'da dolu. `GET /api/v1/refunds` listesindeki `id` ve iade yanıtındaki `extra_properties.refund_id` ile birebir aynı değer |
-| `provider_refund_id` | **İadenin banka referansı** — `provider_transaction_id`'den ayrı değer (o ödemenindir). Banka ekstresi eşlemesi için. Banka referans dönmediyse veya `refund.failed`'da `null` |
-| `refund_amount` / `remaining_amount` | Yalnız `refund.completed`'da dolu — bu operasyonda iade edilen tutar ve kalan net tutar (kuruş) |
-| `installment_count` / `installment_amount` / `interest_rate` / `interest_amount` / `installment_interest_mode` / `bank_additional_install_count` / `bank_defering_month` | Taksit/vade farkı snapshot'ı (`payment.completed`/`authorized`'da dolar) |
+| `refund_id` | **İadenin kendi kimliği** (UUID) — yalnız `sanalpos.refund.completed` / `sanalpos.refund.failed`'da dolu. `GET /api/v1/refunds` listesindeki `id` ve iade yanıtındaki `extra_properties.refund_id` ile birebir aynı değer |
+| `provider_refund_id` | **İadenin banka referansı** — `provider_transaction_id`'den ayrı değer (o ödemenindir). Banka ekstresi eşlemesi için. Banka referans dönmediyse veya `sanalpos.refund.failed`'da `null` |
+| `refund_amount` / `remaining_amount` | Yalnız `sanalpos.refund.completed`'da dolu — bu operasyonda iade edilen tutar ve kalan net tutar (kuruş) |
+| `installment_count` / `installment_amount` / `interest_rate` / `interest_amount` / `installment_interest_mode` / `bank_additional_install_count` / `bank_defering_month` | Taksit/vade farkı snapshot'ı (`sanalpos.payment.completed`/`authorized`'da dolar) |
 | `occurred_at` | Olayın gerçekleşme zamanı (+03:00 Türkiye saati) |
 | `metadata` | Serbest metadata sözlüğü (örn. `payment_link_id`, `checkout_session_id` + ödeme linki form alanları) |
 
-### `payment.completed`
+### `sanalpos.payment.completed`
 
 **Tetikleyici:** Sale akışı (Non-3D veya 3DS sonrası) başarıyla tamamlandığında.
 
 ```json
 {
-  "event_type":              "payment.completed",
+  "event_type":              "sanalpos.payment.completed",
   "webhook_event_id":        "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8",
   "transaction_id":          "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
   "tenant_id":               "11111111-1111-1111-1111-111111111111",
@@ -89,24 +92,43 @@ tümü aynı gövde şemasını kullanır:
 }
 ```
 
-### `payment.failed`
+### `sanalpos.payment.failed`
 
 **Tetikleyici:** Banka tarafı reddi veya teknik hata (Non-3D veya 3DS akışı). `error_code`
 Payven hata kodunu taşır — bkz. [Payven Hata Kodları](/sanal-pos/errors/payven-codes).
 
-### `payment.authorized`
+### `sanalpos.payment.not_completed`
+
+**Tetikleyici:** İşlem **tamamlanmadı** — müşteri 3D Secure doğrulamasını bitirmeden ayrıldı ya da
+oturum zaman aşımına uğradı; istek bankaya hiç ulaşmadan (ön kontrol) sonuçlanan işlemler de bu
+olayla biter. Bu bir **banka reddi değildir** ve para hareketi yoktur; `status: "not_completed"`.
+`sanalpos.payment.failed`'dan ayrı bir koddur — terk edilen işlemi gerçek decline'dan ayırt edip
+filtreleyebilirsiniz. 3D işlemlerde ayrıca `sanalpos.three_ds.failed` yayınlanır.
+
+<Tip>
+Siparişi "ödeme bekleniyor" durumundan çıkarmak için bu olaya da abone olun; aksi halde terk
+edilen sipariş süresiz askıda kalır. Müşteri aynı siparişi yeniden deneyebilir.
+</Tip>
+
+### `sanalpos.payment.authorized`
 
 **Tetikleyici:** Pre-Auth (ön provizyon) başarıyla alındığında. Tutar bloke edildi, henüz çekilmedi. `status: "authorized"`.
 
-### `capture.completed`
+### `sanalpos.capture.completed`
 
 **Tetikleyici:** Pre-Auth → Capture başarıyla tamamlandığında.
 
-### `void.completed`
+### `sanalpos.void.completed`
 
 **Tetikleyici:** İşlem void edildiğinde (mutabakat öncesi tam iptal). Pre-Auth iptalinde de bu olay yayınlanır. `status: "canceled"`.
 
-### `refund.completed`
+### `sanalpos.void.failed`
+
+**Tetikleyici:** İptal (void) denemesi banka tarafından reddedildiğinde veya teknik hata aldığında.
+Para hareketi yoktur; işlem iptal öncesi durumuna geri döner. `error_code` / `error_message`
+sebebi taşır. Gün sonu geçtiyse iptal yerine [iade](/sanal-pos/payments/refund) yapın.
+
+### `sanalpos.refund.completed`
 
 **Tetikleyici:** İade başarıyla yapıldığında (tam veya kısmi). `refund_amount` bu operasyonda iade
 edilen tutarı, `remaining_amount` kalan net tutarı taşır — `refund_amount < amount` ise kısmi
@@ -114,7 +136,7 @@ iadedir. Kısmi iadede ana Transaction `completed` kalır; tam iadede `refunded`
 
 ```json
 {
-  "event_type":              "refund.completed",
+  "event_type":              "sanalpos.refund.completed",
   "webhook_event_id":        "c4b6f1a2-8d33-4a51-9f7e-3d2b6a19c405",
   "transaction_id":          "216a8817-d8d5-485a-b380-0fd300e03741",
   "refund_id":               "e733dabf-91f3-44a1-9684-bfc958543b0d",
@@ -143,7 +165,7 @@ birebir aynıdır.
 `provider_refund_id` **iadenin** banka referansıdır. Yukarıdaki örnekte ödeme
 `TEST-c7f83252078f425ea69`, iade `TEST-R-ae527339f82441efa` taşır.
 
-### `refund.failed`
+### `sanalpos.refund.failed`
 
 **Tetikleyici:** İade denemesi banka tarafından reddedildiğinde veya teknik hata aldığında. Para
 hareketi yoktur; ana Transaction iade öncesi durumuna geri döner. `error_code` / `error_message`
@@ -151,14 +173,14 @@ sebebi taşır, `refund_id` ise başarısız denemenin audit kaydının kimliği
 kaydınızı bu kimlikle kapatabilirsiniz. `provider_refund_id` bu olayda `null`'dır (banka iade
 referansı üretmedi).
 
-### `3ds.completed` / `3ds.failed`
+### `sanalpos.three_ds.completed` / `sanalpos.three_ds.failed`
 
 **Tetikleyici:** 3D Secure akışının terminal sonucu.
 
 <Note>
-3D akışında terminal webhook **her zaman** `payment.completed`/`payment.authorized`/`payment.failed`
-olarak gider; `3ds.completed`/`3ds.failed` bunlara **ek** yayınlanır. Sipariş durumunu
-`payment.*` olaylarından yönetin; `3ds.*` olaylarını 3DS-spesifik takip için kullanın.
+3D akışında terminal webhook **her zaman** `sanalpos.payment.completed`/`sanalpos.payment.authorized`/`sanalpos.payment.failed`
+olarak gider; `sanalpos.three_ds.completed`/`sanalpos.three_ds.failed` bunlara **ek** yayınlanır. Sipariş durumunu
+`sanalpos.payment.*` olaylarından yönetin; `sanalpos.three_ds.*` olaylarını 3DS-spesifik takip için kullanın.
 </Note>
 
 ## Recurring (subscription) olayları
@@ -180,21 +202,32 @@ Payload şeması işlem olaylarından farklıdır:
 
 | Olay | Tetikleyici |
 |---|---|
-| `subscription.charged` | Bir taksit başarıyla çekildi — ilişkili Transaction için ayrıca `payment.completed` yayınlanır |
-| `subscription.failed` | Bir taksit başarısız oldu (plan otomatik askıya alınmaz) |
-| `subscription.cancelled` | Plan iptal edildi |
-| `subscription.completed` | Planın tüm taksitleri tamamlandı |
-| `subscription.charge.reversed` | Önceden çekilmiş taksit provider tarafında tersine çevrildi (same-day void/reversal) — ilişkili Transaction için ayrıca `void.completed` yayınlanır |
-| `subscription.charge.failed` | Önceden çekilmiş taksiti provider sonradan Error olarak raporladı — ilişkili Transaction için ayrıca `payment.failed` yayınlanır |
+| `sanalpos.subscription.charged` | Bir taksit başarıyla çekildi — ilişkili Transaction için ayrıca `sanalpos.payment.completed` yayınlanır |
+| `sanalpos.subscription.failed` | Bir taksit başarısız oldu (plan otomatik askıya alınmaz) |
+| `sanalpos.subscription.cancelled` | Plan iptal edildi |
+| `sanalpos.subscription.completed` | Planın tüm taksitleri tamamlandı |
+| `sanalpos.subscription_charge.reversed` | Önceden çekilmiş taksit provider tarafında tersine çevrildi (same-day void/reversal) — ilişkili Transaction için ayrıca `sanalpos.void.completed` yayınlanır |
+| `sanalpos.subscription_charge.failed` | Önceden çekilmiş taksiti provider sonradan Error olarak raporladı — ilişkili Transaction için ayrıca `sanalpos.payment.failed` yayınlanır |
 
 <Note>
 **Taksit işlemlerinin `external_id`'si taksit-bazında benzersizdir.** Bir taksitin ilişkili
-işlem (Transaction) olayında (`payment.completed` / `payment.failed`) `external_id`, planın
+işlem (Transaction) olayında (`sanalpos.payment.completed` / `sanalpos.payment.failed`) `external_id`, planın
 `external_id`'sine taksit sırası eklenerek üretilir: **`{plan_external_id}-{installment_index}`**
 (örn. plan `SUB-1001` → 2. taksit `SUB-1001-2`). Böylece her taksiti `external_id` ile ayrı ayrı
-eşleştirebilirsiniz. `subscription.*` olaylarındaki `external_id` ise **planın kendi** değeridir
+eşleştirebilirsiniz. `sanalpos.subscription.*` olaylarındaki `external_id` ise **planın kendi** değeridir
 (sıra eki olmadan); taksiti `installment_index` alanından ayırt edin.
 </Note>
+
+## İtiraz (chargeback) olayları
+
+| Olay | Tetikleyici |
+|---|---|
+| `sanalpos.chargeback.opened` | Kart sahibi işleme itiraz etti (ters ibraz açıldı) |
+| `sanalpos.chargeback.resolved` | İtiraz sonuçlandı (`status` sonucu taşır) |
+
+Payload: `event_type`, `webhook_event_id`, `chargeback_id`, `transaction_id`, `tenant_id`,
+`merchant_id`, `amount`, `currency`, `status`, `reason`, `reason_code`, `external_id`,
+`bank_reference_no`, `response_deadline`, `occurred_at`. Ayrıntı: [Ters İbraz](/sanal-pos/reporting/chargebacks).
 
 ## Marketplace olayları
 
@@ -205,9 +238,9 @@ Payload: `event_type`, `tenant_id`, `sub_merchant_id`, `sub_merchant_external_id
 
 | Olay | Tetikleyici |
 |---|---|
-| `submerchant.created` | Yeni alt-bayi oluşturuldu |
-| `submerchant.updated` | Alt-bayi güncellendi |
-| `submerchant.deactivated` | Alt-bayi pasifleştirildi |
+| `sanalpos.submerchant.created` | Yeni alt-bayi oluşturuldu |
+| `sanalpos.submerchant.updated` | Alt-bayi güncellendi |
+| `sanalpos.submerchant.deactivated` | Alt-bayi pasifleştirildi |
 
 ### Split (escrow) lifecycle
 
@@ -217,13 +250,13 @@ Payload: `event_type`, `split_id`, `transaction_id`, `tenant_id`, `parent_mercha
 
 | Olay | Tetikleyici |
 |---|---|
-| `payment.split.created` | İşlem split kaydı oluşturuldu |
-| `payment.split.approved` | Split onaylandı |
-| `payment.split.held` | Split bekletmeye alındı |
-| `payment.split.released` | Split serbest bırakıldı (payout edilebilir) |
-| `payment.split.refunded` | Split tam iade edildi |
-| `payment.split.partially_refunded` | Split kısmi iade edildi |
-| `payment.split.auto_release_scheduled` | Otomatik serbest bırakma planlandı |
+| `sanalpos.payment_split.created` | İşlem split kaydı oluşturuldu |
+| `sanalpos.payment_split.approved` | Split onaylandı |
+| `sanalpos.payment_split.held` | Split bekletmeye alındı |
+| `sanalpos.payment_split.released` | Split serbest bırakıldı (payout edilebilir) |
+| `sanalpos.payment_split.refunded` | Split tam iade edildi |
+| `sanalpos.payment_split.partially_refunded` | Split kısmi iade edildi |
+| `sanalpos.payment_split.auto_release_scheduled` | Otomatik serbest bırakma planlandı |
 
 ## Settlement olayları
 
@@ -266,48 +299,51 @@ Payload: `event_type`, `split_settlement_id`, `tenant_id`, `merchant_id`, `perio
 ```mermaid
 stateDiagram-v2
     [*] --> created
-    created --> authorized: payment.authorized (PreAuth)
-    created --> completed: payment.completed (Sale)
-    created --> failed: payment.failed
+    created --> authorized: sanalpos.payment.authorized (PreAuth)
+    created --> completed: sanalpos.payment.completed (Sale)
+    created --> failed: sanalpos.payment.failed
     created --> three_d_secure_init_processing: 3DS init
-    three_d_secure_init_processing --> completed: payment.completed + 3ds.completed
-    three_d_secure_init_processing --> failed: payment.failed + 3ds.failed
-    authorized --> completed: capture.completed
-    authorized --> canceled: void.completed
-    completed --> canceled: void.completed (gün içi)
-    completed --> refunded: refund.completed (tam)
-    completed --> completed: refund.completed (kısmi — alt-kayıt ayrı yazılır)
+    three_d_secure_init_processing --> completed: sanalpos.payment.completed + sanalpos.three_ds.completed
+    three_d_secure_init_processing --> failed: sanalpos.payment.failed + sanalpos.three_ds.failed
+    three_d_secure_init_processing --> not_completed: sanalpos.payment.not_completed + sanalpos.three_ds.failed
+    authorized --> completed: sanalpos.capture.completed
+    authorized --> canceled: sanalpos.void.completed
+    completed --> canceled: sanalpos.void.completed (gün içi)
+    completed --> refunded: sanalpos.refund.completed (tam)
+    completed --> completed: sanalpos.refund.completed (kısmi — alt-kayıt ayrı yazılır)
 ```
 
-## Webhook subscription örneği
+## Webhook ucu örneği
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/webhook-subscriptions \
+curl -X POST https://merchant.payven.com.tr/api/v1/webhook-endpoints \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "url":    "https://example.com/webhooks/payven",
-    "events": [
-      "payment.completed",
-      "payment.failed",
-      "payment.authorized",
-      "capture.completed",
-      "void.completed",
-      "refund.completed",
-      "3ds.completed",
-      "3ds.failed"
+    "url":            "https://example.com/webhooks/payven",
+    "enabled_events": [
+      "sanalpos.payment.completed",
+      "sanalpos.payment.failed",
+      "sanalpos.payment.not_completed",
+      "sanalpos.payment.authorized",
+      "sanalpos.capture.completed",
+      "sanalpos.void.completed",
+      "sanalpos.void.failed",
+      "sanalpos.refund.completed",
+      "sanalpos.refund.failed"
     ]
   }'
 ```
 
-Tüm olaylara abone olmak için `["*"]` kullanmayın — açık liste tutmak ileride yeni olay tiplerini bilinçli almanızı sağlar (mevcut handler'ınızda olmayan olay tipleri unhandled error fırlatmasın).
+Boş liste ya da `["*"]` **tüm olaylara** (tüm ürünlerin) abone eder. Açık liste tutmak ileride
+eklenen olay tiplerini bilinçli almanızı sağlar (handler'ınızda olmayan olay tipleri unhandled
+error fırlatmasın). Katalogda olmayan kod `422 webhook_event_type_unknown` döner.
 
 ## Yol haritası
 
-İleride eklenmesi planlanan olaylar:
+İleride eklenmesi planlanan olaylar (kodlar yayınlandığında [Webhook Olay Referansı](/documentation/concepts/webhook-events)'na eklenir):
 
-- `chargeback.opened`, `chargeback.resolved` — ters ibraz yaşam döngüsü (chargeback kayıtları şu an konsoldan izlenir)
-- `connector.health_changed` — banka sağlık durumu değişti (circuit breaker open/close)
-- `reconciliation.discrepancy_detected`, `reconciliation.finalized` — mutabakat olayları
+- Banka sağlık durumu değişimi (circuit breaker açıldı / kapandı)
+- Mutabakat olayları (fark tespit edildi, mutabakat kesinleşti)
 
 Güncellemeler için [Changelog](/resources/changelog) sayfasını izleyin.

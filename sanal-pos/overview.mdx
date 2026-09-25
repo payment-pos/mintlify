@@ -95,7 +95,7 @@ Tüm path'ler `/api/v1/` ön ekiyle başlar. Tam liste için: [API Referansı](/
 | BIN sorgu | `POST /bins/check`, `GET /bins/{bin}` | Bearer |
 | Yönlendirme kuralları | `GET/POST/PUT /routing-rules`, `POST /routing-rules/resolve` | Bearer |
 | Konnektör | `GET/POST /connectors`, `GET /connector-configurations`, `GET /connectors/{id}/health` | Bearer |
-| Webhook yönetimi | `POST /webhook-subscriptions`, `POST /webhook-subscriptions/{id}/rotate-secret`, `GET /webhook-subscriptions/{id}/deliveries` | Bearer |
+| Webhook yönetimi | Sanal POS API'sinde değil **İşyeri API'sinde**: `POST /webhook-endpoints`, `POST /webhook-endpoints/{id}/rotate-secret`, `GET /webhook-endpoints/{id}/deliveries` — bkz. [Webhook'lar](/documentation/concepts/webhooks) | Bearer |
 | İptal Talepleri | `/cancellation-requests` (4-eyes void onayı) | Bearer |
 
 ## İşlem yaşam döngüsü

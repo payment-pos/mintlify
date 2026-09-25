@@ -67,7 +67,7 @@ sequenceDiagram
     Note over App: payment status: pending_review
     Op->>Payven: POST /fraud/alerts/{id}/approve<br/>(veya /reject)
     Payven->>Payven: Approve → bankaya gönder
-    Payven-)App: webhook payment.completed (veya payment.failed)
+    Payven-)App: webhook sanalpos.payment.completed (veya sanalpos.payment.failed)
 ```
 
 ## Daha fazlası

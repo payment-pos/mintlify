@@ -56,8 +56,9 @@ Tam alan referansı: [Payment Objesi](/sanal-pos/payment-object).
 <Warning>
 **Polling kullanmayın.** Yüksek hacimli senaryolarda her ödeme için periyodik
 `GET` çağrısı yapmayın — bunun yerine [webhook](/sanal-pos/webhooks/overview)
-entegre edin. Webhook gelmemişse konsoldan **Webhook Teslim Logları** ekranıyla
-manuel replay tetikleyebilirsiniz.
+entegre edin. Webhook gelmemişse İşyeri paneli › **Geliştirici › Webhook'lar** ekranından
+(ya da `POST /webhook-endpoints/deliveries/{id}/retry` ile) teslimi yeniden gönderebilir veya
+olayı `GET /events` ile çekebilirsiniz.
 </Warning>
 
 ## Hata response'ları

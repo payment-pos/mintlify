@@ -28,7 +28,7 @@ sequenceDiagram
     Customer->>Bank: Link'e tıklar
     Bank-->>Customer: Ödeme + 3DS akışı
     Bank-)Payven: Banka callback
-    Payven-)App: webhook (payment.completed)
+    Payven-)App: webhook (sanalpos.payment.completed)
 ```
 
 ## Endpoint
@@ -128,9 +128,9 @@ Operasyonel iptal süreci için [destek ekibimize](/resources/support) ulaşın.
 
 | Olay | Açıklama |
 |---|---|
-| `payment.completed` | Müşteri linkten ödemeyi başarıyla yaptı |
-| `payment.failed` | Müşteri ödeme yaptı ama banka reddetti |
-| `3ds.completed` / `3ds.failed` | 3DS akışı tetiklendiğinde |
+| `sanalpos.payment.completed` | Müşteri linkten ödemeyi başarıyla yaptı |
+| `sanalpos.payment.failed` | Müşteri ödeme yaptı ama banka reddetti |
+| `sanalpos.three_ds.completed` / `sanalpos.three_ds.failed` | 3DS akışı tetiklendiğinde |
 
 Detay: [Webhook Olayları](/sanal-pos/webhooks/events).
 
@@ -142,7 +142,7 @@ Detay: [Webhook Olayları](/sanal-pos/webhooks/events).
     1. CRM'den `POST /payments/order-link` çağrısı.
     2. `payment_link`'i alır, kendi SMS / e-posta sisteminden gönderir.
     3. Operatör müşterinin ödeme yapmasını beklemeden çağrıyı kapatabilir.
-    4. Webhook ile `payment.completed` geldiğinde sipariş onaylanır.
+    4. Webhook ile `sanalpos.payment.completed` geldiğinde sipariş onaylanır.
   </Accordion>
   <Accordion title="Abonelik yenileme">
     Otomatik recurring kullanmıyorsanız:

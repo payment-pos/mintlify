@@ -65,6 +65,7 @@
               "documentation/concepts/ip-whitelist",
               "documentation/concepts/versioning",
               "documentation/concepts/webhooks",
+              "documentation/concepts/webhook-events",
               "documentation/concepts/timestamps"
             ]
           },

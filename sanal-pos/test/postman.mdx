@@ -29,7 +29,7 @@ Sanal POS API'sini hızlı denemek için iki koleksiyon sunuyoruz:
   <Step title="Environment'ı import edin">
     `payven-sanalpos.postman_environment.json` dosyasını da import edip sağ üstteki
     dropdown'dan **Payven SanalPOS — Sandbox**'ı seçin. Production için aynı environment'ı
-    kopyalayıp `vpos_base_url` / `identity_base_url` değerlerini prod adresleriyle değiştirin.
+    kopyalayıp `vpos_base_url` / `identity_base_url` / `merchant_base_url` değerlerini prod adresleriyle değiştirin.
   </Step>
   <Step title="Değişkenleri doldurun">
     Environment değişkenlerine kimlik bilgilerinizi yazın:
@@ -38,6 +38,7 @@ Sanal POS API'sini hızlı denemek için iki koleksiyon sunuyoruz:
     - `slug`: tenant slug'ınız (örn. `payven`)
     - `identity_base_url`: `https://identity-sandbox.payven.com.tr` veya `https://identity.payven.com.tr`
     - `vpos_base_url`: `https://vpos-sandbox.payven.com.tr` veya `https://vpos.payven.com.tr`
+    - `merchant_base_url`: `https://merchant-sandbox.payven.com.tr` veya `https://merchant.payven.com.tr` (İşyeri API'si — webhook uçları ve olaylar; API anahtarının `merchant` kapsamı seçili olmalı)
   </Step>
   <Step title="Token alın (otomatik)">
     Koleksiyonun **Pre-request Script**'i, `access_token` boşsa veya süresi dolmak üzereyse
@@ -64,9 +65,9 @@ Sanal POS API'sini hızlı denemek için iki koleksiyon sunuyoruz:
 | Hosted Checkout | 5 | Session oluştur, ödeme yöntemleri, öde, durum |
 | Recurring (Abonelik) | 7 | Plan oluştur/iptal, taksit iptal/güncelle, kart vade güncelle |
 | İşlemler (Transactions) | 5 | Liste, detay, geçmiş, CSV export |
-| Webhook Abonelikleri | 8 | Abonelik CRUD, secret rotasyon, teslimat kayıtları |
+| Webhook Uçları (İşyeri API) | 14 | Uç CRUD, aç/kapat, sır yenileme, deneme olayı, teslimler/denemeler/yeniden deneme, olay tipleri, olay listesi |
 
-Toplam **55 istek**.
+Toplam **61 istek**.
 
 <Note>
 **Idempotency-Key.** Ödeme, iade, iptal, capture, recurring ve checkout session

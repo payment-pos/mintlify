@@ -1960,11 +1960,11 @@
       ]
     },
     {
-      "name": "Webhook Abonelikleri",
-      "description": "Async bildirim icin webhook abonelik yonetimi. Create cevabinda `secret` BIR KEZ doner — guvenli saklayin (HMAC dogrulama icin gerekli).",
+      "name": "Webhook Uclari (Isyeri API)",
+      "description": "Tek webhook ucu tum urunlerin olaylarini alir. Uclar SanalPOS API'sinde degil Isyeri API'sinde ({{merchant_base_url}}) yonetilir; API anahtarinin `merchant` kapsami secili olmali. Create/rotate-secret cevabinda `secret` BIR KEZ doner — guvenli saklayin (HMAC dogrulama icin gerekli). Eski /webhook-subscriptions uclari 410 doner.",
       "item": [
         {
-          "name": "Abonelik Olustur",
+          "name": "Uc Olustur",
           "event": [
             {
               "listen": "test",
@@ -1988,20 +1988,20 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"url\": \"https://magazaniz.com/webhooks/payven\",\n  \"events\": \"payment.completed,payment.failed,refund.completed\",\n  \"description\": \"ERP entegrasyonu\",\n  \"max_retry_count\": 5\n}"
+              "raw": "{\n  \"url\": \"https://magazaniz.com/webhooks/payven\",\n  \"enabled_events\": [\n    \"sanalpos.payment.completed\",\n    \"sanalpos.payment.failed\",\n    \"sanalpos.payment.not_completed\",\n    \"sanalpos.refund.completed\"\n  ],\n  \"description\": \"ERP entegrasyonu\",\n  \"payload_format\": \"event\"\n}"
             },
             "url": {
-              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions",
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints",
               "host": [
-                "{{vpos_base_url}}"
+                "{{merchant_base_url}}"
               ],
               "path": [
                 "api",
                 "{{api_version}}",
-                "webhook-subscriptions"
+                "webhook-endpoints"
               ]
             },
-            "description": "Webhook abonelik olusturur. `events` virgul-ayrik; bos birakilirsa tum event'ler. `url` HTTPS olmali (private/loopback IP'ler reddedilir). Cevaptaki `secret` HMAC imza dogrulamasi icin SADECE burada doner.",
+            "description": "Webhook ucu olusturur. `enabled_events` bos ya da [\"*\"] = tum olaylar; katalogda olmayan kod 422 `webhook_event_type_unknown`. `payload_format`: `event` (olay zarfi, varsayilan) | `flat`. `url` HTTPS olmali (private/loopback IP'ler reddedilir). Cevaptaki `secret` (whsec_...) HMAC imza dogrulamasi icin SADECE burada (ve rotate-secret'ta) doner. API anahtarinin `merchant` (Isyeri API) kapsami secili olmali.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2015,21 +2015,22 @@
           }
         },
         {
-          "name": "Abonelikleri Listele",
+          "name": "Uclari Listele",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions",
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints",
               "host": [
-                "{{vpos_base_url}}"
+                "{{merchant_base_url}}"
               ],
               "path": [
                 "api",
                 "{{api_version}}",
-                "webhook-subscriptions"
+                "webhook-endpoints"
               ]
             },
+            "description": "Sayfali liste (`items`, `total_count` ...). Sir donmez.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2043,28 +2044,19 @@
           }
         },
         {
-          "name": "Abonelik Guncelle",
+          "name": "Uc Detayi",
           "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"url\": \"https://magazaniz.com/webhooks/payven\",\n  \"events\": \"payment.completed,payment.failed\",\n  \"description\": \"Guncellendi\",\n  \"max_retry_count\": 5\n}"
-            },
+            "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}",
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}",
               "host": [
-                "{{vpos_base_url}}"
+                "{{merchant_base_url}}"
               ],
               "path": [
                 "api",
                 "{{api_version}}",
-                "webhook-subscriptions",
+                "webhook-endpoints",
                 "{{webhook_id}}"
               ]
             },
@@ -2081,24 +2073,72 @@
           }
         },
         {
-          "name": "Secret Yenile",
+          "name": "Uc Guncelle",
           "request": {
-            "method": "POST",
-            "header": [],
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://magazaniz.com/webhooks/payven\",\n  \"enabled_events\": [\n    \"sanalpos.payment.completed\",\n    \"sanalpos.payment.failed\"\n  ],\n  \"description\": \"Guncellendi\",\n  \"payload_format\": \"event\"\n}"
+            },
             "url": {
-              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}/rotate-secret",
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}",
               "host": [
-                "{{vpos_base_url}}"
+                "{{merchant_base_url}}"
               ],
               "path": [
                 "api",
                 "{{api_version}}",
-                "webhook-subscriptions",
+                "webhook-endpoints",
+                "{{webhook_id}}"
+              ]
+            },
+            "description": "Tam degistirme (gonderilmeyen alan varsayilana doner); `metadata` birlestirilir.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sir Yenile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expire_current_in_hours\": 24\n}"
+            },
+            "url": {
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}/rotate-secret",
+              "host": [
+                "{{merchant_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-endpoints",
                 "{{webhook_id}}",
                 "rotate-secret"
               ]
             },
-            "description": "Yeni secret uretir (eski gecersiz olur). Yeni secret bir kez doner.",
+            "description": "Yeni sir uretir ve BIR KEZ doner. Eski sir `expire_current_in_hours` (0-168, varsayilan 24) boyunca gecerli kalir; bu surede imza basligi `sha256=<yeni>,sha256=<eski>` tasir. 0 = eski sir hemen gecersiz.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2112,21 +2152,52 @@
           }
         },
         {
-          "name": "Pasif Et",
+          "name": "Deneme Olayi Gonder",
           "request": {
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}/deactivate",
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}/test",
               "host": [
-                "{{vpos_base_url}}"
+                "{{merchant_base_url}}"
               ],
               "path": [
                 "api",
                 "{{api_version}}",
-                "webhook-subscriptions",
+                "webhook-endpoints",
                 "{{webhook_id}}",
-                "deactivate"
+                "test"
+              ]
+            },
+            "description": "Uca imzali `merchant.webhook_endpoint.test` olayi gonderir ve alicinin HTTP kodunu, suresini ve cevabini doner. Olay saklanmaz.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Kapat",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}/disable",
+              "host": [
+                "{{merchant_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-endpoints",
+                "{{webhook_id}}",
+                "disable"
               ]
             },
             "auth": {
@@ -2142,23 +2213,24 @@
           }
         },
         {
-          "name": "Aktif Et",
+          "name": "Ac",
           "request": {
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}/activate",
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}/enable",
               "host": [
-                "{{vpos_base_url}}"
+                "{{merchant_base_url}}"
               ],
               "path": [
                 "api",
                 "{{api_version}}",
-                "webhook-subscriptions",
+                "webhook-endpoints",
                 "{{webhook_id}}",
-                "activate"
+                "enable"
               ]
             },
+            "description": "Ucu acar (3 gunluk basarisizlikla otomatik kapanan uc dahil). Kapaliyken biriken teslimleri ayrica yeniden deneyin.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2172,24 +2244,36 @@
           }
         },
         {
-          "name": "Teslimat Loglari",
+          "name": "Teslimleri Listele",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json = null; try { json = pm.response.json(); } catch (e) { /* bos govde */ }",
+                  "if (json && json.items && json.items.length) { pm.environment.set('delivery_id', json.items[0].id); }"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}/deliveries",
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}/deliveries",
               "host": [
-                "{{vpos_base_url}}"
+                "{{merchant_base_url}}"
               ],
               "path": [
                 "api",
                 "{{api_version}}",
-                "webhook-subscriptions",
+                "webhook-endpoints",
                 "{{webhook_id}}",
                 "deliveries"
               ]
             },
-            "description": "Bir abonelige ait webhook teslimat denemelerini (HTTP status, retry, hata) listeler.",
+            "description": "Ucun teslimleri (`state`: pending / succeeded / failed; `event_id` filtresi).",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2203,19 +2287,142 @@
           }
         },
         {
-          "name": "Abonelik Sil",
+          "name": "Teslim Denemeleri",
           "request": {
-            "method": "DELETE",
+            "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{vpos_base_url}}/api/{{api_version}}/webhook-subscriptions/{{webhook_id}}",
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/deliveries/{{delivery_id}}/attempts",
               "host": [
-                "{{vpos_base_url}}"
+                "{{merchant_base_url}}"
               ],
               "path": [
                 "api",
                 "{{api_version}}",
-                "webhook-subscriptions",
+                "webhook-endpoints",
+                "deliveries",
+                "{{delivery_id}}",
+                "attempts"
+              ]
+            },
+            "description": "Her denemenin HTTP kodu, suresi ve yanit govdesi.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Teslimi Yeniden Dene",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/deliveries/{{delivery_id}}/retry",
+              "host": [
+                "{{merchant_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-endpoints",
+                "deliveries",
+                "{{delivery_id}}",
+                "retry"
+              ]
+            },
+            "description": "Teslimi hemen yeniden kuyruga alir (basarili olsa bile). Yalniz bu teslim hedeflenir.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Olay Tipleri",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/event-types",
+              "host": [
+                "{{merchant_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-endpoints",
+                "event-types"
+              ]
+            },
+            "description": "Abone olunabilecek olay kodlari: `{type, feature, category, label, description}`.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Olaylari Listele",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/events",
+              "host": [
+                "{{merchant_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "events"
+              ]
+            },
+            "description": "Saklanan olaylar — webhook zarfiyla ayni nesne. Filtreler: `type` (tam ad ya da `sanalpos.payment.*`), `resource_id`, `created_gte`, `created_lte`.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Uc Sil",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{merchant_base_url}}/api/{{api_version}}/webhook-endpoints/{{webhook_id}}",
+              "host": [
+                "{{merchant_base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_version}}",
+                "webhook-endpoints",
                 "{{webhook_id}}"
               ]
             },

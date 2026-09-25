@@ -8417,7 +8417,7 @@
         },
         "operationId": "createOrderLink",
         "summary": "Pay-by-link oluştur",
-        "description": "Kart bilgisi almadan, müşteriye SMS / e-posta / WhatsApp ile paylaşılabilen bir ödeme linki üretir. Müşteri Payven Hosted Checkout sayfasında kart bilgisini girer (PCI-DSS SAQ A kapsamına uygun).\n\nSonuç webhook ile gelir: `payment.completed` / `payment.failed`.",
+        "description": "Kart bilgisi almadan, müşteriye SMS / e-posta / WhatsApp ile paylaşılabilen bir ödeme linki üretir. Müşteri Payven Hosted Checkout sayfasında kart bilgisini girer (PCI-DSS SAQ A kapsamına uygun).\n\nSonuç webhook ile gelir: `sanalpos.payment.completed` / `sanalpos.payment.failed`.",
         "x-codeSamples": [
           {
             "lang": "curl",

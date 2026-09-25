@@ -716,7 +716,7 @@ OPERATION_METADATA: dict[tuple[str, str], dict[str, str]] = {
             "Kart bilgisi almadan, müşteriye SMS / e-posta / WhatsApp ile paylaşılabilen "
             "bir ödeme linki üretir. Müşteri Payven Hosted Checkout sayfasında kart bilgisini "
             "girer (PCI-DSS SAQ A kapsamına uygun).\n\n"
-            "Sonuç webhook ile gelir: `payment.completed` / `payment.failed`."
+            "Sonuç webhook ile gelir: `sanalpos.payment.completed` / `sanalpos.payment.failed`."
         ),
     },
     ("/api/v1/payments/recurring", "POST"): {

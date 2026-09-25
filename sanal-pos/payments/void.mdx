@@ -50,7 +50,7 @@ Request body tamamen opsiyoneldir — sadece header'lar yeterlidir.
 </Note>
 
 <Note>
-İşlem durumunun wire değeri **`canceled`** (önceki ad "voided" değiştirildi, eski isimlendirme tüm enum genelinde temizlendi). Asenkron void senaryosunda geçici olarak `canceled_processing` durumu görülebilir; final durum webhook (`void.completed`) ile gelir.
+İşlem durumunun wire değeri **`canceled`** (önceki ad "voided" değiştirildi, eski isimlendirme tüm enum genelinde temizlendi). Asenkron void senaryosunda geçici olarak `canceled_processing` durumu görülebilir; final durum webhook (`sanalpos.void.completed`) ile gelir.
 </Note>
 
 
@@ -98,7 +98,7 @@ Hata yanıtı RFC 9457 problem+json formatındadır. Detay: [Hata Yönetimi](/do
 
 | Olay | Açıklama |
 |---|---|
-| `void.completed` | İptal başarıyla tamamlandı (`data.status: "canceled"`) |
-| `void.failed` | İptal banka tarafından reddedildi |
+| `sanalpos.void.completed` | İptal başarıyla tamamlandı (`data.status: "canceled"`) |
+| `sanalpos.void.failed` | İptal banka tarafından reddedildi |
 
 Detay: [Webhook Olayları](/sanal-pos/webhooks/events).

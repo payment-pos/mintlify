@@ -1,0 +1,187 @@
+---
+title: "Webhook Olay Referansı"
+description: "Tüm ürünlerin yayınladığı webhook olay kodları, Türkçe adları ve açıklamaları."
+---
+
+Bu sayfa Payven'in yayınladığı **tüm** webhook olay kodlarını ürüne göre listeler. Olay kodları
+`{ürün}.{kaynak}.{eylem}` biçimindedir; ürün öneki ürünün feature kodudur (`sanalpos`,
+`para-transferi`, `fatura-odeme`, `kredi-kart`, `e-fatura`, `cuzdan`, `merchant`, `inbox`).
+
+<Info>
+**Geçerli liste daima API'dir:** `GET https://merchant.payven.com.tr/api/v1/webhook-endpoints/event-types`
+her kodu Türkçe adı, açıklaması, ürünü ve başlığıyla (`{type, feature, category, label, description}`)
+döner. Yalnız ortamınızda **kurulu** ürünlerin olayları listelenir. Listede olmayan bir kodla uç
+açmak `422 webhook_event_type_unknown` döner. Uç yönetimi için bkz. [Webhook'lar](/documentation/concepts/webhooks).
+</Info>
+
+Olay gövdelerinin (`data.object`) alanları için ürün sayfalarına bakın:
+[Sanal POS olayları](/sanal-pos/webhooks/events) · [Para Transferi olayları](/para-transferi/webhooks/events).
+
+## Sanal POS (`sanalpos`)
+
+### Ödeme
+
+| Kod | Ad | Açıklama |
+|---|---|---|
+| `sanalpos.payment.completed` | Ödeme alındı | Ödeme başarıyla tamamlandı |
+| `sanalpos.payment.authorized` | Ödeme yetkilendirildi (ön provizyon) | Ödeme yetkilendirildi (ön provizyon / preauth) |
+| `sanalpos.payment.failed` | Ödeme başarısız | Ödeme başarısız oldu |
+| `sanalpos.payment.not_completed` | Ödeme tamamlanmadı | İşlem tamamlanmadı (müşteri 3DS'i bitirmeden ayrıldı; banka reddi DEĞİL) |
+| `sanalpos.void.completed` | Ödeme iptal edildi | Ödeme iptali tamamlandı |
+| `sanalpos.void.failed` | Ödeme iptali başarısız | Ödeme iptali başarısız oldu (banka reddi / hata) |
+| `sanalpos.capture.completed` | Ön provizyon kapatıldı | Ön provizyon capture edildi |
+| `sanalpos.three_ds.completed` | 3D doğrulama tamamlandı | 3D Secure doğrulama başarıyla tamamlandı |
+| `sanalpos.three_ds.failed` | 3D doğrulama başarısız | 3D Secure doğrulama başarısız oldu |
+
+### İade ve itiraz
+
+| Kod | Ad | Açıklama |
+|---|---|---|
+| `sanalpos.refund.completed` | İade tamamlandı | İade işlemi tamamlandı |
+| `sanalpos.refund.failed` | İade başarısız | İade işlemi başarısız oldu (banka reddi / hata) |
+| `sanalpos.chargeback.opened` | İtiraz (ters ibraz) açıldı | Kart sahibi tarafından itiraz (chargeback) açıldı |
+| `sanalpos.chargeback.resolved` | İtiraz sonuçlandı | İtiraz (chargeback) sonuçlandı |
+
+### Abonelik (tekrarlı ödeme)
+
+| Kod | Ad | Açıklama |
+|---|---|---|
+| `sanalpos.subscription.charged` | Abonelik tahsilatı alındı | Abonelik taksidi başarıyla çekildi |
+| `sanalpos.subscription.failed` | Abonelik başlatılamadı | Abonelik taksidi başarısız oldu |
+| `sanalpos.subscription.cancelled` | Abonelik iptal edildi | Abonelik iptal edildi |
+| `sanalpos.subscription.completed` | Abonelik tamamlandı | Abonelik planı tüm taksitlerini tamamladı |
+| `sanalpos.subscription_charge.reversed` | Abonelik tahsilatı geri alındı | Daha önce çekilmiş taksit provider tarafından tersine çevrildi (aynı gün iade / reversal) |
+| `sanalpos.subscription_charge.failed` | Abonelik tahsilatı başarısız | Daha önce başarılı gözüken taksit provider tarafından hata olarak raporlandı (geç düzeltme) |
+
+### Pazaryeri
+
+| Kod | Ad | Açıklama |
+|---|---|---|
+| `sanalpos.submerchant.created` | Alt bayi oluşturuldu | Alt bayi oluşturuldu |
+| `sanalpos.submerchant.updated` | Alt bayi güncellendi | Alt bayi bilgileri güncellendi |
+| `sanalpos.submerchant.deactivated` | Alt bayi pasife alındı | Alt bayi devre dışı bırakıldı |
+| `sanalpos.payment_split.created` | Paylaşım oluşturuldu | Ödeme bölmesi oluşturuldu; onay bekleniyor |
+| `sanalpos.payment_split.approved` | Paylaşım onaylandı | Ödeme bölmesi onaylandı |
+| `sanalpos.payment_split.held` | Paylaşım bekletmeye alındı | Ödeme bölmesi emanete alındı (escrow) |
+| `sanalpos.payment_split.released` | Paylaşım serbest bırakıldı | Emanetteki ödeme bölmesi alt bayiye serbest bırakıldı |
+| `sanalpos.payment_split.refunded` | Paylaşım iade edildi | Ödeme bölmesi tamamen iade edildi |
+| `sanalpos.payment_split.partially_refunded` | Paylaşım kısmen iade edildi | Ödeme bölmesi kısmi olarak iade edildi |
+| `sanalpos.payment_split.auto_release_scheduled` | Paylaşım otomatik serbest bırakmaya alındı | Emanetteki bölme için otomatik serbest bırakma zamanlandı |
+
+### Hakediş
+
+Sanal POS hakediş olaylarının (sayfa sonunda) tamamını (`sanalpos.settlement.*`) ve parçalı
+hakediş olayını (`sanalpos.split_settlement.created`) yayınlar.
+
+## Para Transferi (`para-transferi`)
+
+| Kod | Ad | Açıklama |
+|---|---|---|
+| `para-transferi.transfer.completed` | Transfer gönderildi | Havale tamamlandı |
+| `para-transferi.transfer.delivered` | Transfer alıcıya ulaştı | Havale bankaya teslim edildi (senkron onay) |
+| `para-transferi.transfer.failed` | Transfer başarısız | Havale başarısız oldu |
+| `para-transferi.transfer.rejected` | Transfer reddedildi | Transfer reddedildi; para hiç hareket etmedi |
+| `para-transferi.transfer.refunded` | Transfer iade edildi | Transfer iade edildi (banka reversal API'si olmadığı için defter düzeltmesi) |
+| `para-transferi.recurring_execution.succeeded` | Tekrarlayan transfer gerçekleşti | Tekrarlı transfer planının günlük çekilimi bankaya başarıyla iletildi |
+| `para-transferi.recurring_execution.failed` | Tekrarlayan transfer başarısız | Tekrarlı transfer planının günlük çekilimi başarısız oldu; plan hâlâ aktif |
+| `para-transferi.recurring_transfer.suspended` | Tekrarlayan transfer askıya alındı | Tekrarlı transfer planı ardışık hatalar nedeniyle otomatik askıya alındı; manuel devam etmek gerekiyor |
+
+Ayrıca hakediş olayları (sayfa sonunda): `para-transferi.settlement.*`.
+
+## Fatura Ödeme (`fatura-odeme`)
+
+| Kod | Ad | Açıklama |
+|---|---|---|
+| `fatura-odeme.invoice.paid` | Fatura ödendi | Fatura ödendi |
+| `fatura-odeme.invoice.cancelled` | Fatura ödemesi iptal edildi | Fatura ödemesi iptal edildi |
+| `fatura-odeme.invoice_payment.failed` | Fatura ödemesi başarısız | Kuruma ödeme nihai olarak başarısız oldu; bayi yeniden deneyebilir (cüzdan tükenmedi) |
+| `fatura-odeme.invoice_query.failed` | Fatura sorgusu başarısız | Tüm konnektörler fatura sorgusunda hata döndü; fatura kaydı oluşturulamadı |
+
+Ayrıca hakediş olayları (sayfa sonunda): `fatura-odeme.settlement.*`.
+
+## Kredi Kartı Borç Ödeme (`kredi-kart`)
+
+| Kod | Ad | Açıklama |
+|---|---|---|
+| `kredi-kart.debt.paid` | Kart borcu ödendi | Kart borcu ödemesi tamamlandı |
+| `kredi-kart.debt.cancelled` | Kart borcu ödemesi iptal edildi | Ödenmiş kart borcu iptal / iade edildi |
+| `kredi-kart.debt_inquiry.failed` | Kart borcu sorgusu başarısız | Kart borcu sorgusu tüm konnektörlerde başarısız oldu |
+| `kredi-kart.debt_payment.failed` | Kart borcu ödemesi başarısız | Kart borcu ödemesi nihai olarak başarısız oldu |
+
+Ayrıca hakediş olayları (sayfa sonunda): `kredi-kart.settlement.*`.
+
+## e-Fatura (`e-fatura`)
+
+| Kod | Ad | Açıklama |
+|---|---|---|
+| `e-fatura.invoice.issued` | e-Belge kesildi | Belge entegratöre iletildi; numara ve ETTN alındı |
+| `e-fatura.invoice.accepted` | e-Belge kabul edildi | GİB / alıcı belgeyi kabul etti |
+| `e-fatura.invoice.rejected` | e-Belge reddedildi | GİB / alıcı belgeyi reddetti |
+| `e-fatura.invoice.cancelled` | e-Belge iptal edildi | Belge iptal edildi |
+| `e-fatura.invoice.failed` | e-Belge gönderilemedi | Belge gönderimi teknik hatayla bitti |
+| `e-fatura.incoming_invoice.accepted` | Gelen e-Belge kabul edildi | Bayi gelen belgeyi kabul etti |
+| `e-fatura.incoming_invoice.rejected` | Gelen e-Belge reddedildi | Bayi gelen belgeyi reddetti |
+
+## Cüzdan (`cuzdan`)
+
+| Kod | Ad | Açıklama |
+|---|---|---|
+| `cuzdan.balance.credited` | Bakiye arttı | Bayi bakiyesine alacak yazıldı |
+| `cuzdan.balance.debited` | Bakiye azaldı | Bayi bakiyesinden borç yazıldı |
+| `cuzdan.balance.negative` | Bakiye eksiye düştü | Bayinin bakiyesi eksi ve borç bir takip eşiğini aştı |
+| `cuzdan.bank_account.changed` | Ödeme hesabı değişti | Bayinin ödeme hesabı eklendi/doğrulandı/varsayılan oldu/kapandı |
+| `cuzdan.payout.tariff_changed` | Çekim ücreti değişiyor | Çekim ücreti artacak — yürürlükten önce ön bildirim |
+| `cuzdan.payout.paid` | Hakediş hesaba geçti | Çekim tamamlandı; para bayinin hesabına/kartına geçti |
+| `cuzdan.payout.failed` | Hakediş ödemesi gönderilemedi | Çekim bankaya hiç geçemedi; bloke çözüldü, para cüzdanda |
+| `cuzdan.payout.returned` | Hakediş ödemesi bankadan iade edildi | Banka gönderilmiş parayı geri döndürdü; bloke çözüldü |
+| `cuzdan.payout.rejected` | Çekim talebi reddedildi | Operatör çekim talebini reddetti; gerekçe olayda taşınır |
+
+## İşyeri (`merchant`)
+
+| Kod | Ad | Açıklama |
+|---|---|---|
+| `merchant.card.issued` | Kart verildi | Bayiye kart verildi |
+| `merchant.card.status_changed` | Kart durumu değişti | Kart durumu değişti (aktif / bloke / iptal) |
+| `merchant.card.loaded` | Karta yükleme yapıldı | Karta bakiye yüklendi |
+| `merchant.cashout.created` | Hesaba aktarım talebi oluşturuldu | Hesaba aktarım talebi oluşturuldu |
+| `merchant.cashout.completed` | Hesaba aktarım tamamlandı | Hesaba aktarım tamamlandı; para bayinin hesabına geçti |
+| `merchant.cashout.failed` | Hesaba aktarım başarısız | Hesaba aktarım başarısız; tutar kart lot'unda kaldı |
+| `merchant.request.approved` | Talep onaylandı | Bayi talebi onaylandı (paket / limit / canlıya geçiş) |
+| `merchant.request.rejected` | Talep reddedildi | Bayi talebi reddedildi; gerekçe olayda taşınır |
+| `merchant.webhook_endpoint.disabled` | Webhook adresi ulaşılamadığı için kapatıldı | Webhook ucu 3 gün boyunca olayları kabul etmediği için kapatıldı |
+| `merchant.webhook_endpoint.test` | Deneme olayı | Adresi doğrulamak için gönderilen deneme olayı |
+
+<Note>
+`merchant.webhook_endpoint.test` yalnız `POST /webhook-endpoints/{id}/test` ile gönderilir;
+saklanmaz ve `GET /events` listesinde görünmez.
+</Note>
+
+## Gelen Kutusu (`inbox`)
+
+| Kod | Ad | Açıklama |
+|---|---|---|
+| `inbox.announcement.published` | Duyuru yayımlandı | Yeni duyuru yayımlandı |
+| `inbox.conversation.created` | Yeni yazışma açıldı | Yeni destek yazışması açıldı |
+| `inbox.conversation.message_added` | Yazışmaya yanıt geldi | Açık yazışmaya yeni mesaj eklendi |
+
+## Hakediş olayları
+
+Hakediş olayları ürünün önekiyle üretilir: `{ürün}.settlement.{eylem}` ve
+`{ürün}.split_settlement.created`. Hangi ürünün hakedişine abone olduğunuzu önek belirler
+(`sanalpos.settlement.completed` ile `para-transferi.settlement.completed` ayrı kodlardır).
+
+| Eylem | Ad | Açıklama | Yayınlayan ürünler |
+|---|---|---|---|
+| `{ürün}.settlement.created` | Hakediş oluşturuldu | Günlük hakediş satırı oluşturuldu | `sanalpos`, `para-transferi`, `fatura-odeme`, `kredi-kart` |
+| `{ürün}.settlement.updated` | Hakediş güncellendi | Hakediş satırı iade/iptal ayarlamasıyla güncellendi — **rezerve**, katalogda yer alır ama bugün yayınlanmaz | aynı |
+| `{ürün}.settlement.processing` | Hakediş işleniyor | Hakediş ödemesi işleme alındı | aynı |
+| `{ürün}.settlement.completed` | Hakediş tamamlandı | Hakediş ödemesi tamamlandı | aynı |
+| `{ürün}.settlement.failed` | Hakediş başarısız | Hakediş ödemesi başarısız oldu | aynı |
+| `{ürün}.settlement.cancelled` | Hakediş iptal edildi | Hakediş satırı iptal edildi | aynı |
+| `{ürün}.split_settlement.created` | Parçalı hakediş oluşturuldu | N-saatlik hakediş pencere kaydı oluşturuldu | `sanalpos` |
+
+## Eski (öneksiz) kodlar
+
+2026-09-24 öncesinde kodlar ürün öneki taşımıyordu (`payment.completed`, `transfer.failed` ...).
+Eski kodlar artık **tanınmaz**: bir uca eski kodla abone olmak `422 webhook_event_type_unknown`
+döner. Eski → yeni eşlemesi: [Changelog — 2026-09-24](/resources/changelog).
