@@ -1,9 +1,13 @@
 ---
-title: "3. Adım — Bankaya Gönder"
-description: "Onaylı transferleri bankaya gönder, işlemi başlat."
+title: "Bankaya Gönder / Yeniden Gönder"
+description: "Başarısız (failed) transferi bilinçli olarak yeniden gönderme. Normal akışta onaylanan transfer otomatik gönderilir."
 ---
 
-Send, 4-eyes akışının son adımıdır. **`approved`** durumdaki transferler bankaya gönderilir, işlem başlatılır. Bu adımdan sonra para hesaplarınızdan çekilir.
+<Info>
+**Normal akışta bu uca ihtiyacınız yoktur.** [Onaylanan](/para-transferi/transfers/bulk-approve)
+transfer gönderim kuyruğuna alınır ve otomatik olarak bankaya iletilir. `bulk/send`, **`failed`**
+durumdaki bir transferi sizin açık kararınızla yeniden göndermek için kullanılır.
+</Info>
 
 ## Endpoint
 
@@ -11,10 +15,23 @@ Send, 4-eyes akışının son adımıdır. **`approved`** durumdaki transferler 
 POST /api/v1/transfers/bulk/send
 ```
 
-**Yetki:** `transfer-admin` rolü gerektirir.
+**Yetki:** transfer gönderme izni (`transfer-admin`).
+
+## Hangi durumlar gönderilebilir?
+
+| Durum | Gönderilebilir mi? |
+|---|---|
+| `failed` | **Evet** — bankanın kesin reddi ya da transferin bankaya hiç gidemediği (ör. banka oturumu alınamadı) durum. Yeniden göndermeden önce `error_code` / `provider_error_code`'u inceleyin |
+| `approved` | Evet, ancak gerekmez — kuyruk zaten gönderir |
+| `processing` | **Hayır.** Banka transferi işlemiş olabilir; sonuç otomatik ya da operatörce kesinleşir |
+| `delivered`, `completed`, `refunded` | Hayır |
+| `pending`, `rejected`, `awaiting_funds` | Hayır — önce onay gerekir |
 
 <Warning>
-**Bu adım geri alınamaz.** Bankaya gönderim başladıktan sonra `processing` aşamasına geçen transfer ancak banka tarafında reddedilirse `failed` olur. Hesaplarınızdan para çekilir.
+**`processing` transferi asla yeniden göndermeyin** (yeni `external_id` ile yeniden oluşturarak da).
+Banka yanıt vermediğinde (zaman aşımı) transfer `failed` yazılmaz, `processing`'te kalır; çünkü banka
+ilk isteği işlemiş olabilir ve ikinci gönderim aynı alıcıya ikinci kez para çıkarır. Sonuç banka
+sorgusu, banka bildirimi ya da operatör kararıyla kesinleşir ve `completed` / `failed` webhook'u gelir.
 </Warning>
 
 ## İstek
@@ -22,101 +39,110 @@ POST /api/v1/transfers/bulk/send
 ```bash
 curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/send \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID" \
-  -H "Idempotency-Key: payroll-2026-05-01-send" \
+  -H "Idempotency-Key: payroll-2026-05-01-resend-1" \
   -H "Content-Type: application/json" \
   -d '{
-    "transfer_ids": [
-      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-      "9f3d2b8e-..."
+    "transfers": [
+      { "transfer_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6", "notes": "Alıcı IBAN düzeltildi, yeniden gönderim" }
     ]
   }'
 ```
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `transfer_ids[]` | UUID array | Zorunlu | Gönderilecek transfer kimlikleri (max 1000 / istek) |
+| `transfers[]` | array | Zorunlu | Gönderilecek transferler |
+| `transfers[].transfer_id` | UUID | Zorunlu | Transfer kimliği |
+| `transfers[].notes` | string | Opsiyonel | Denetim notu |
 
 ## Yanıt
 
 ```http
-HTTP/1.1 202 Accepted
+HTTP/1.1 200 OK
 Content-Type: application/json
 ```
 
 ```json
 {
-  "sent": [
+  "total_requested":   3,
+  "successfully_sent": 1,
+  "failed":            1,
+  "outcome_unknown":   1,
+  "results": [
     {
-      "id":           "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-      "status":       "processing",
-      "sent_date":    "2026-05-03T12:34:58.000+03:00"
+      "transfer_id":         "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "is_success":          true,
+      "message":             "Transfer başarıyla işleme gönderildi.",
+      "error_code":          null,
+      "provider_error_code": null
     },
     {
-      "id":           "9f3d2b8e-...",
-      "status":       "completed",
-      "sent_date":    "2026-05-03T12:34:58.500+03:00",
-      "processed_date":"2026-05-03T12:34:59.234+03:00",
-      "receipt_no":   "TRF-20260503-0001"
+      "transfer_id":         "9f3d2b8e-...",
+      "is_success":          false,
+      "message":             "Banka oturumu alınamadı; transfer bankaya gönderilmedi.",
+      "error_code":          "PV_CONNECTOR_TOKEN_UNAVAILABLE",
+      "provider_error_code": "PV_CONNECTOR_TOKEN_UNAVAILABLE"
+    },
+    {
+      "transfer_id":         "a1b2c3d4-...",
+      "is_success":          false,
+      "message":             "Banka yanıtı alınamadı; transferin sonucu bankayla eşitlenerek kesinleşecek. Yeniden göndermeyin.",
+      "error_code":          "PV_TRANSFER_OUTCOME_UNKNOWN",
+      "provider_error_code": "PV_CONNECTOR_NO_RESPONSE"
     }
-  ],
-  "skipped": [],
-  "total_sent": 2
+  ]
 }
 ```
 
-`202 Accepted` — istek alındı, banka çağrıları yapıldı. Yanıttaki status'lar:
+| Alan | Açıklama |
+|---|---|
+| `total_requested` | İstekteki transfer sayısı |
+| `successfully_sent` | Bankaya iletilip olumlu yanıt alınan kalem sayısı |
+| `failed` | Gönderilemeyen ya da bankanın reddettiği kalem sayısı |
+| `outcome_unknown` | Bankaya gönderilen ama **yanıt alınamayan** kalem sayısı — bu transferler `processing`'te kalır |
+| `results[]` | Kalem başına sonuç: `is_success`, `message`, `error_code` (Payven kodu — kararınızı buna dayandırın), `provider_error_code` (bankanın ham kodu — destek talebinde paylaşın) |
 
-| Status | Anlam | Sonraki adım |
-|---|---|---|
-| `processing` | Bankaya gönderildi, yanıt bekleniyor | Webhook bekleyin veya `GET /transfers/{id}` ile sorgulayın |
-| `completed` | Banka senkron onayladı (genellikle remittance, küçük tutarlar) | İşlem tamam |
-| `delivered` | Banka FAST kanalında kabul etti, hesap geçişi asenkron | Sonradan `completed` olur, webhook gelir |
-| `failed` | Banka reddi (yetersiz bakiye, blok vb.) | `error_code` inceleyin |
+### `PV_TRANSFER_OUTCOME_UNKNOWN`
+
+Bir kalemde `error_code: "PV_TRANSFER_OUTCOME_UNKNOWN"` görürseniz banka yanıt vermemiştir:
+
+- Transfer **`processing`** durumunda kalır; **başarısız sayılmaz**.
+- **Yeniden göndermeyin.** Sonuç otomatik olarak (banka sorgusu / banka bildirimi) ya da operatörce kesinleşir.
+- `para-transferi.transfer.outcome_unknown` webhook'u gelir; kesin sonuç ayrıca `para-transferi.transfer.completed` ya da `para-transferi.transfer.failed` olarak bildirilir.
+
+Örnek mesaj ve kodlar temsilidir; banka redlerinde `provider_error_code` bankanın ham kodunu taşır ve
+bankaya göre değişir — bkz. [Hata Kodları](/para-transferi/errors/overview).
 
 ## Asenkron sonuç
 
-FAST ve EFT işlemleri çoğu zaman asenkron tamamlanır. `processing` veya `delivered` döndüğünde nihai sonucu **webhook** ile yakalayın:
+`is_success: true` kalemin **bankaya iletildiğini** gösterir; kesin sonuç her zaman webhook ile gelir:
 
-| Webhook olayı | Tetikleyici |
+| Webhook olayı | Anlam |
 |---|---|
-| `para-transferi.transfer.completed` | Transfer başarıyla tamamlandı (`completed`) |
-| `para-transferi.transfer.delivered` | Banka asenkron kabul etti (FAST ara durumu) |
-| `para-transferi.transfer.failed` | Banka reddi veya teknik hata |
+| `para-transferi.transfer.completed` | Transfer gerçekleşti |
+| `para-transferi.transfer.delivered` | Banka aldı; kesin sonuç sonra (`completed` ya da `failed`) |
+| `para-transferi.transfer.failed` | Bankanın kesin reddi |
+| `para-transferi.transfer.outcome_unknown` | Banka yanıt vermedi; bekleyin |
 
-Detay: [Webhook Olayları](/para-transferi/webhooks/events).
-
-Webhook gelmemişse `GET /api/v1/transfers/{id}` ile son durumu sorgulayabilirsiniz — bkz. [Transfer Detayı](/para-transferi/inquiries/transfer-detail).
-
-## Banka tarafından red
-
-Banka tarafı red veya bakiye yetersizliği gibi durumlarda response `422 Unprocessable Entity` + `application/problem+json` döner; `code` programatik karar için, `provider_error_code` bankanın orijinal kodunu taşır. Tam payload yapısı: [Hata Yönetimi](/documentation/concepts/errors#hata-yanit-formati).
-
-Sonradan `GET /api/v1/transfers/{id}` ile sorgulandığında failed transfer için `error_code` ve `provider_error_code` response body'sinde yer alır.
-
-## Akıllı yönlendirme ve fallback
-
-Sender hesabınız birden fazla banka konnektörüne bağlıysa, Payven uygun olanı seçer. Birinci konnektör hata verirse otomatik fallback'e düşer (`success_sender_account_id` yanıtta gerçek kullanılan hesabı taşır). Bu sırada `retry_count` artar.
+Webhook gelmezse `GET /api/v1/transfers?external_id=` ya da `?request_id=` ile sorgulayın — bkz.
+[Transfer Listesi](/para-transferi/inquiries/transfer-list).
 
 ## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `403` | `forbidden` | `transfer-admin` rolü yok |
-| `404` | `transfer_not_found` | Tüm verilen ID'ler bulunamadı |
-| `422` | `invalid_state_transition` | Transfer `approved` durumunda değil |
-| `422` | `insufficient_balance` | Kaynak hesapta yeterli bakiye yok |
-| `422` | `bank_declined` | Banka reddetti — `provider_error_code` daha spesifik bilgi taşır |
-| `422` | `recipient_blocked` | Alıcı blacklist'te |
-| `422` | `iban_not_eligible` | IBAN seçilen transfer tipinde işlenemez (örn. yurtdışı IBAN'a FAST) |
-| `503` | `connector_unavailable` | Banka konnektörü geçici olarak devre dışı |
-| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
+| `422` | `validation_failed` | `transfers[]` boş veya kimlik formatı geçersiz |
+| `403` | `forbidden` | Gönderim izni yok |
+| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı gövde için kullanılmış |
 
+Kalem bazındaki banka redleri HTTP hatası olarak değil, `200` yanıtın `results[]` dizisinde döner.
 Hata yanıtı RFC 9457 problem+json. Detay: [Hata Yönetimi](/documentation/concepts/errors).
 
 ## Sonraki adımlar
 
 <CardGroup cols={2}>
+  <Card title="Önerilen Entegrasyon Akışı" icon="route" href="/para-transferi/integration-guide">
+    Oluştur → onayla → webhook → sorgu yedeği.
+  </Card>
   <Card title="Webhook entegrasyonu" icon="bell" href="/para-transferi/webhooks/overview">
     Asenkron sonuçları gerçek zamanlı yakalayın.
   </Card>
@@ -125,8 +151,5 @@ Hata yanıtı RFC 9457 problem+json. Detay: [Hata Yönetimi](/documentation/conc
   </Card>
   <Card title="Dekont indirme" icon="file-arrow-down" href="/para-transferi/transfers/receipt">
     Tamamlanmış transferin makbuz PDF'i.
-  </Card>
-  <Card title="Tekrarlayan transfer" icon="repeat" href="/para-transferi/transfers/recurring">
-    Periyodik (maaş, kira, abonelik) transferler.
   </Card>
 </CardGroup>

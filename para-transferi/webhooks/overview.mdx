@@ -3,7 +3,7 @@ title: "Webhook Genel Bakış"
 description: "Para Transferi olaylarını gerçek zamanlı, asenkron olarak yakalama."
 ---
 
-Webhook'lar; transferin başarılı tamamlanma, asenkron kabul (delivered), başarısızlık, red ve iade olaylarını — ve tekrarlayan transfer çekilimlerinin sonuçlarını — **sunucunuza HTTP POST** ile gönderir. EFT/FAST işlemlerinin **asenkron** yapısı nedeniyle webhook entegrasyonu pratikte zorunludur — `processing` veya `delivered` durumdaki transferin son sonucunu webhook ile yakalarsınız.
+Webhook'lar; transferin oluşturulma, onay, banka sonucu (tamamlandı, bankaya ulaştı, başarısız, sonuç bekleniyor), red ve iade olaylarını — toplu transfer paketlerinin ve tekrarlayan transfer çekilimlerinin sonuçlarını — **sunucunuza HTTP POST** ile gönderir. EFT/FAST işlemlerinin **asenkron** yapısı nedeniyle webhook entegrasyonu pratikte zorunludur — `processing` veya `delivered` durumdaki transferin son sonucunu webhook ile yakalarsınız.
 
 ## Akış
 
@@ -14,12 +14,12 @@ sequenceDiagram
     participant Bank as Banka
     participant Webhook as Webhook Hedefi
 
-    App->>API: POST /transfers/bulk/send
-    API->>Bank: Banka API çağrısı
+    App->>API: POST /transfers/bulk/approve
+    API-->>App: 200 OK (status: approved)
+    API->>Bank: Otomatik gönderim (kuyruk)
     Bank-->>API: Kabul (delivered)
-    API-->>App: 202 Accepted (status: processing)
-    Note over Bank: Asenkron işlem (FAST)
-    Bank-)API: Sonuç bildirimi
+    Note over Bank: Kesin sonuç sonra (EFT valörü, kart)
+    Bank-)API: Sonuç bildirimi / durum sorgusu
     API->>Webhook: POST imzalı + idempotent
     Webhook-->>API: HTTP 2xx
     Note over API: Teslim başarılı kaydedilir
@@ -74,6 +74,12 @@ altındadır (uç `payload_format: flat` ile açıldıysa gövde yalnız bu nesn
       "description":          "Mayıs maaş ödemesi",
       "message":              "Transfer başarılı",
       "receipt_no":           "TRF-20260503-0001",
+      "error_code":           null,
+      "provider_error_code":  null,
+      "transfer_type":        "fast",
+      "request_id":           "PAYROLL-2026-05",
+      "bulk_transfer_batch_id": null,
+      "metadata":             {},
       "occurred_at":          "2026-05-03T15:34:58.123+03:00"
     }
   }
@@ -99,7 +105,13 @@ curl -X POST https://merchant.payven.com.tr/api/v1/webhook-endpoints \
   -H "Content-Type: application/json" \
   -d '{
     "url":            "https://example.com/webhooks/payven-transfers",
-    "enabled_events": ["para-transferi.transfer.completed", "para-transferi.transfer.delivered", "para-transferi.transfer.failed"]
+    "enabled_events": [
+      "para-transferi.transfer.outcome_unknown",
+      "para-transferi.transfer.delivered",
+      "para-transferi.transfer.completed",
+      "para-transferi.transfer.failed",
+      "para-transferi.transfer.rejected"
+    ]
   }'
 ```
 
@@ -139,10 +151,17 @@ async function handleTransferWebhook(req, res) {
 
   const event = req.body.data.object;   // olay zarfı; flat uçta: req.body
   const eventType = req.headers["x-payven-event"];
-  if (eventType === "para-transferi.transfer.completed" || eventType === "para-transferi.transfer.delivered") {
-    await markPayrollPaid(event.external_id, event.receipt_no);
-  } else if (eventType === "para-transferi.transfer.failed") {
-    await flagPayrollForReview(event.external_id, event);
+  switch (eventType) {
+    case "para-transferi.transfer.completed":
+      await markPayrollPaid(event.external_id, event.receipt_no);           // kesin başarı
+      break;
+    case "para-transferi.transfer.failed":
+      await flagPayrollForReview(event.external_id, event.error_code);      // kesin ret (delivered'dan sonra da gelebilir)
+      break;
+    case "para-transferi.transfer.delivered":
+    case "para-transferi.transfer.outcome_unknown":
+      await markPayrollPending(event.external_id);                          // bekle — YENİDEN GÖNDERME
+      break;
   }
 
   await db.processedEvents.insert({ id: eventId, processedAt: new Date() });
@@ -154,7 +173,7 @@ async function handleTransferWebhook(req, res) {
 
 <CardGroup cols={2}>
   <Card title="Olay Kataloğu" icon="list" href="/para-transferi/webhooks/events">
-    8 olay tipi ve payload alanlarının detayı.
+    Transfer, toplu paket ve tekrarlayan transfer olayları; payload alanları.
   </Card>
   <Card title="İmza Doğrulama" icon="shield-check" href="/sanal-pos/webhooks/signature">
     HMAC-SHA256 verifikasyon kodu (5 dilde).

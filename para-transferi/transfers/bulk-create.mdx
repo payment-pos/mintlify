@@ -3,7 +3,9 @@ title: "1. Adım — Transfer Oluştur"
 description: "Toplu transfer hazırlama — onay aşamasının ilk adımı."
 ---
 
-Para Transferi 4-eyes (çift onay) prensibiyle çalışır: bir transfer **oluşturmak**, **onaylamak** ve **göndermek** üç ayrı API çağrısı ve genellikle iki farklı kullanıcı gerektirir. Bu sayfa **birinci adım** olan oluşturmayı anlatır.
+Para Transferi 4-göz (çift onay) prensibiyle çalışır: bir transfer önce **oluşturulur**, sonra
+**onaylanır**; onaylanan transfer otomatik olarak bankaya gönderilir. Bu sayfa **birinci adım** olan
+oluşturmayı anlatır. Uçtan uca akış: [Önerilen Entegrasyon Akışı](/para-transferi/integration-guide).
 
 ## Endpoint
 
@@ -11,7 +13,7 @@ Para Transferi 4-eyes (çift onay) prensibiyle çalışır: bir transfer **oluş
 POST /api/v1/transfers/bulk/create
 ```
 
-**Yetki:** `transfer-admin` veya `transfer-operator` rolü gerektirir.
+**Yetki:** transfer oluşturma izni (`transfer-admin` veya `transfer-operator`).
 
 ## Akış
 
@@ -21,11 +23,18 @@ flowchart LR
     B --> C{Onay}
     C -->|Approve| D[status: approved]
     C -->|Reject| E[status: rejected]
-    D --> F[POST /transfers/bulk/send]
-    F --> G[status: processing → completed]
+    D -->|otomatik gönderim| F[status: processing]
+    F --> G[completed / delivered / failed]
 ```
 
 Oluşturulan transfer **`pending`** durumunda kaydedilir; onaylanana kadar bankaya gönderilmez.
+
+## Başlıklar
+
+| Başlık | Zorunluluk | Açıklama |
+|---|---|---|
+| `X-Request-Id` | Önerilir | Sizin **paket numaranız**. Pakette oluşan her transfere `request_id` olarak yazılır; `GET /transfers?request_id=` ile paketin tamamını sorgularsınız. Aynı değer **ikinci kez kullanılamaz** (`409 PV_DUPLICATE_REQUEST`). |
+| `Idempotency-Key` | Önerilir | Yanıtı kopan isteği **aynı anahtar + aynı gövdeyle** tekrarlarsanız ilk yanıt döner, yeni transfer açılmaz. Transfer uçlarında 24 saat saklanır. |
 
 ## İstek
 
@@ -34,7 +43,7 @@ Tek bir istek içinde **bir veya daha fazla** transfer kalemi gönderilir:
 ```bash
 curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/create \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "X-Request-Id: PAYROLL-2026-05" \
   -H "Idempotency-Key: payroll-2026-05-01" \
   -H "Content-Type: application/json" \
   -d '{
@@ -46,9 +55,8 @@ curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/create \
         "transfer_type":     "fast",
         "amount":            { "value": 1500000, "currency_code": "TRY" },
         "recipient": {
-          "holder_name":  "Ahmet Yılmaz",
-          "iban":         "TR330006100519786457841326",
-          "tax_id":       "12345678901"
+          "holder_name": "Ahmet Yılmaz",
+          "iban":        "TR330006100519786457841326"
         }
       },
       {
@@ -57,7 +65,8 @@ curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/create \
         "transfer_type":     "fast",
         "amount":            { "value": 2000000, "currency_code": "TRY" },
         "recipient": {
-          "recipient_id":  "abc-12345-..."
+          "recipient_id": "abc-12345-...",
+          "holder_name":  "Ayşe Demir"
         }
       }
     ]
@@ -68,117 +77,107 @@ curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/create \
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `items[]` | array | Zorunlu | Bir veya daha fazla transfer kalemi (max 1000 / istek) |
-| `items[].source_account_id` | UUID | Zorunlu | Organizasyonunuzun hangi hesabından gönderim yapılacağı |
-| `items[].external_id` | string | Önerilir | Sizin sisteminizdeki transfer kimliği (raporlama + idempotency için) |
-| `items[].description` | string | Opsiyonel | Banka ekstresi açıklaması (max 100 karakter) |
+| `items[]` | array | Zorunlu | Bir veya daha fazla transfer kalemi |
+| `items[].source_account_id` | UUID | Önerilir | Paranın çıkacağı gönderici hesap (kalem başına). Boş bırakılırsa transfer bir **talep** olarak açılır, hesap onayda seçilir |
+| `items[].external_id` | string | Önerilir | Sizin sisteminizdeki tekil referans (en fazla 250 karakter). **Aynı bayide tekildir** — aşağıya bakın. Verilmezse Payven bir GUID atar |
+| `items[].description` | string | Opsiyonel | Transfer açıklaması (en fazla 500 karakter) |
 | `items[].transfer_type` | enum | Zorunlu | `fast`, `eft`, `remittance` veya `credit_card` |
 | `items[].amount.value` | long (kuruş) | Zorunlu | Tutar — kuruş cinsinden 64-bit tam sayı |
 | `items[].amount.currency_code` | string | Zorunlu | Şu an yalnız `"TRY"` |
-| `items[].recipient` | object | Zorunlu | Alıcı bilgisi (aşağıdaki üç moddan biri) |
-| `items[].scheduled_date` | datetime | Opsiyonel | İleri tarihli transfer için. Boş = anlık. |
+| `items[].recipient` | object | Zorunlu | Alıcı bilgisi (aşağıdaki modlardan biri); `holder_name` her modda zorunlu |
+| `items[].metadata` | object | Opsiyonel | Serbest anahtar-değer (en fazla 50 anahtar; anahtar 40, değer 500 karakter). Webhook gövdesinde aynen geri döner |
 
-### Alıcı bilgisi — üç mod
+### `external_id` tekilliği
 
-`recipient` objesini üç farklı şekilde dolduarbilirsiniz:
+- Aynı bayide daha önce kullanılmış bir `external_id` gelirse **istek bütünüyle** reddedilir:
+  `409 PV_TRANSFER_EXTERNAL_ID_DUPLICATE`. **Hiçbir transfer oluşturulmaz** (geçerli kalemler dahil).
+- Aynı `external_id`'nin **istek içinde** tekrarlanması da aynı hatayı verir.
+- Bu kural, yanıtını kaybeden bir isteğin tekrarının ikinci bir havale açmasını engeller. 409 aldığınızda
+  önce `GET /transfers?external_id=...` ile mevcut transferi kontrol edin.
+
+### Alıcı bilgisi — modlar
 
 **Mod 1 — Saklı alıcı (önerilir):**
 
 ```json
 "recipient": {
-  "recipient_id": "abc-12345-..."
+  "recipient_id": "abc-12345-...",
+  "holder_name":  "Ayşe Demir"
 }
 ```
 
-`recipient_id`, [`POST /recipients`](/para-transferi/recipients/overview) ile önceden kaydettiğiniz alıcının kimliğidir. Alıcı master data'sından IBAN, isim, vergi kimliği bilgileri çekilir.
+`recipient_id`, [`POST /recipients`](/para-transferi/recipients/overview) ile önceden kaydettiğiniz alıcının kimliğidir.
 
 **Mod 2 — IBAN ile (ad-hoc):**
 
 ```json
 "recipient": {
   "holder_name": "Ahmet Yılmaz",
-  "iban":        "TR330006100519786457841326",
-  "tax_id":      "12345678901"
+  "iban":        "TR330006100519786457841326"
 }
 ```
 
 Tek seferlik transferler için. IBAN'ın geçerliliği [IBAN doğrulama](/para-transferi/validation/iban) ile önceden kontrol edilebilir.
 
-**Mod 3 — Karta para gönderme (P2C):**
+**Mod 3 — Karta para gönderme:**
 
 ```json
 "recipient": {
   "holder_name":  "Ahmet Yılmaz",
   "card_details": {
-    "card_number":  "4546711234567894",
-    "expire_month": "12",
-    "expire_year":  "2030"
+    "card_number": "4546711234567894"
   }
 }
 ```
 
-`transfer_type: "credit_card"` ile birlikte kullanılır.
+`transfer_type: "credit_card"` ile birlikte kullanılır. Kart transferini destekleyen bankalar:
+[Genel Bakış › Konnektör kapasitesi](/para-transferi/overview).
 
 ## Yanıt
 
 ```http
-HTTP/1.1 201 Created
+HTTP/1.1 200 OK
 Content-Type: application/json
 ```
 
+Oluşturulan her kalem, gönderdiğiniz alanlarla birlikte Payven'in atadığı `transfer_id` ile döner:
+
 ```json
-{
-  "transfers": [
-    {
-      "id":             "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-      "external_id":    "PAYROLL-001",
-      "status":         "pending",
-      "amount":         1500000,
-      "currency":       "TRY",
-      "transfer_type":  "fast",
-      "scheduled_date": "2026-05-03T12:00:00.000+03:00",
-      "created":        "2026-05-03T12:00:00.123+03:00"
-    },
-    {
-      "id":             "9f3d2b8e-...",
-      "external_id":    "PAYROLL-002",
-      "status":         "pending",
-      "amount":         2000000,
-      "currency":       "TRY",
-      "transfer_type":  "fast",
-      "scheduled_date": "2026-05-03T12:00:00.000+03:00",
-      "created":        "2026-05-03T12:00:00.156+03:00"
-    }
-  ],
-  "total_count":  2,
-  "total_amount": 3500000
-}
+[
+  {
+    "transfer_id":       "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+    "source_account_id": "550e8400-e29b-41d4-a716-446655440000",
+    "external_id":       "PAYROLL-001",
+    "description":       "Mayıs maaş ödemesi",
+    "transfer_type":     "fast",
+    "amount":            { "value": 1500000, "currency_code": "try" },
+    "recipient":         { "holder_name": "Ahmet Yılmaz", "iban": "TR330006100519786457841326" }
+  }
+]
 ```
 
-Yanıttaki her transferin `id` değerini saklayın — onay (`approve`) ve gönderim (`send`) adımlarında kullanacaksınız.
+Yanıttaki `transfer_id` değerlerini saklayın — onay (`approve`) adımında kullanacaksınız. Transferler
+`pending` durumundadır: bankaya hiçbir istek gönderilmedi, hesaplarınızdan para çekilmedi.
 
-`status: "pending"` → transferler oluşturuldu ama henüz onay bekliyor. Bankaya hiçbir istek gönderilmedi, hesaplarınızdan henüz para çekilmedi.
+İsteğe bağlı olarak `para-transferi.transfer.created` webhook olayına abone olabilirsiniz.
 
 ## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `400` | `validation_failed` | Eksik / geçersiz alan (örn. IBAN format) |
-| `403` | `forbidden` | `transfer-admin` veya `transfer-operator` rolü yok |
-| `404` | `source_account_not_found` | `source_account_id` bulunamadı |
-| `404` | `recipient_not_found` | `recipient_id` bulunamadı |
-| `422` | `invalid_iban` | IBAN checksum'ı geçmiyor |
-| `422` | `invalid_amount` | Tutar pozitif değil veya minimum altında |
-| `422` | `unsupported_transfer_type` | Bu kaynak hesap bu transfer tipini desteklemiyor |
-| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
+| `409` | `PV_TRANSFER_EXTERNAL_ID_DUPLICATE` | `external_id` bu bayide zaten kullanılmış ya da istek içinde tekrar ediyor — istek bütünüyle reddedildi, transfer oluşmadı |
+| `409` | `PV_DUPLICATE_REQUEST` | Bu `X-Request-Id` ile daha önce transfer oluşturulmuş |
+| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı gövde için kullanılmış |
+| `422` | `validation_failed` | Eksik / geçersiz alan — `errors` ile detay |
+| `403` | `forbidden` | Transfer oluşturma izni yok |
 
-Hata yanıtı RFC 9457 problem+json. Detay: [Hata Yönetimi](/documentation/concepts/errors).
+Hata yanıtı RFC 9457 problem+json. Detay: [Hata Kodları](/para-transferi/errors/overview).
 
 ## Sonraki adım
 
 <CardGroup cols={2}>
   <Card title="2. Adım — Onayla" icon="check" href="/para-transferi/transfers/bulk-approve">
-    Yetkili kullanıcı transferleri onaylar.
+    Yetkili kullanıcı transferleri onaylar; onaylanan transfer otomatik gönderilir.
   </Card>
   <Card title="2. Adım (alternatif) — Reddet" icon="xmark" href="/para-transferi/transfers/bulk-reject">
     Yanlışlıkla oluşturulan transferleri iptal edin.

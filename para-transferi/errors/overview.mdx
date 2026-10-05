@@ -35,7 +35,23 @@ Content-Type: application/problem+json
 | `422` | `payment_already_approved` | Transfer zaten onaylanmış |
 | `422` | `payment_already_sent` | Transfer zaten gönderilmiş |
 | `422` | `payment_already_rejected` | Transfer zaten reddedilmiş |
-| `409` | `duplicate_external_id` | Aynı `external_id` ile başka bir transfer zaten var |
+| `409` | `PV_TRANSFER_INVALID_STATE` | Transfer bu durumda bu işleme uygun değil |
+
+## Tekrar ve belirsiz sonuç
+
+Bu kodlar çift ödemeyi önlemek içindir; aldığınızda **yeniden denemeden önce** mevcut kaydı sorgulayın.
+
+| HTTP / yer | `code` | Anlam | Ne yapmalı |
+|---|---|---|---|
+| `409` | `PV_TRANSFER_EXTERNAL_ID_DUPLICATE` | `bulk/create`: `external_id` bu bayide daha önce kullanılmış **ya da** aynı istek içinde tekrar ediyor. **İstek bütünüyle reddedilir, hiçbir transfer oluşmaz** | `GET /transfers?external_id=` ile mevcut transferi bulun; büyük olasılıkla önceki denemeniz başarılıydı |
+| `409` | `PV_DUPLICATE_REQUEST` | `bulk/create`: bu `X-Request-Id` ile daha önce transfer oluşturulmuş | `GET /transfers?request_id=` ile paketi sorgulayın; yeni paket için yeni `X-Request-Id` kullanın |
+| `bulk/send` kalemi (`results[].error_code`) | `PV_TRANSFER_OUTCOME_UNKNOWN` | Banka yanıt vermedi (zaman aşımı). Transfer `processing`'te kalır, **başarısız değildir**; `provider_error_code` = `PV_CONNECTOR_NO_RESPONSE` | **Yeniden göndermeyin.** Sonuç otomatik ya da operatörce kesinleşir; `completed` / `failed` webhook'unu bekleyin |
+
+Toplu transfer paketlerinde (Excel, `POST /bulk-transfers` ve önizlemesi) daha önce kullanılmış ya da
+dosyada tekrar eden referanslar istek hatası değil **geçersiz satır** olarak döner (önizlemede de
+görünür) ve pakete alınmaz. Önizleme ile oluşturma arasında aynı referans başka bir istekle kullanılırsa
+oluşturma `409 PV_TRANSFER_EXTERNAL_ID_DUPLICATE` döner; önizlemeyi yenileyip tekrar deneyin. Uç
+ayrıntıları: [API Referansı](/api-reference/transfer).
 
 ## Tutar ve hesap kuralları
 
@@ -74,7 +90,7 @@ Content-Type: application/problem+json
 | HTTP | `code` | Anlam |
 |---|---|---|
 | `422` | `bank_declined` | Banka transferi reddetti — `provider_error_code` daha spesifik bilgi taşır |
-| `504` | `bank_timeout` | Banka yanıt vermedi (otomatik retry tetiklenmiş olabilir) |
+| `504` | `bank_timeout` | Banka yanıt vermedi. Bankaya ulaşmış bir transfer gönderimi zaman aşımına uğrarsa transfer `failed` olmaz, `processing`'te kalır — bkz. `PV_TRANSFER_OUTCOME_UNKNOWN` |
 | `503` | `connector_unavailable` | Banka konnektörü geçici olarak devre dışı (circuit breaker açık) |
 | `502` | `bank_system_error` | Banka tarafında bilinmeyen hata |
 
@@ -100,8 +116,9 @@ Content-Type: application/problem+json
 | `03` | Hesap dondurulmuş / blokeli | "Alıcı hesabı işleme uygun değil." |
 | `04` | Limit aşımı | "Bu transfer banka limitlerini aşıyor." |
 | `05` | TC kimlik eşleşmiyor | "Alıcı bilgilerinde uyumsuzluk." |
-| `91` | Banka sistemi yanıt vermedi | (Otomatik retry devreye girer) |
-| `96` | Sistem hatası | (Otomatik retry) |
+| `91` | Banka sistemi yanıt vermedi | Bankaya göre değişir |
+| `96` | Sistem hatası | Bankaya göre değişir |
+| `PV_CONNECTOR_NO_RESPONSE` | Banka yanıt vermedi; sonuç bilinmiyor (transfer `processing`'te kalır) | (Yeniden göndermeyin; sonuç kesinleşince bildirilir) |
 
 Banka-spesifik tam kod listesi konsoldaki **Konnektör Hata Kodları** ekranında bulunabilir.
 

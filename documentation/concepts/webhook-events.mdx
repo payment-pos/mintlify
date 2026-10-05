@@ -77,11 +77,15 @@ hakediş olayını (`sanalpos.split_settlement.created`) yayınlar.
 
 | Kod | Ad | Açıklama |
 |---|---|---|
-| `para-transferi.transfer.completed` | Transfer gönderildi | Havale tamamlandı |
-| `para-transferi.transfer.delivered` | Transfer alıcıya ulaştı | Havale bankaya teslim edildi (senkron onay) |
+| `para-transferi.transfer.created` | Transfer oluşturuldu | Transfer oluşturuldu ve onay bekliyor; para henüz hareket etmedi |
+| `para-transferi.transfer.approved` | Transfer onaylandı | Transfer onaylandı ve bankaya gönderim kuyruğuna alındı |
+| `para-transferi.transfer.outcome_unknown` | Transfer sonucu bekleniyor | Banka yanıtı alınamadı; transfer yeniden gönderilmemeli, sonuç bankayla eşitlenince ayrıca bildirilir |
+| `para-transferi.transfer.completed` | Transfer tamamlandı | Banka transferi gerçekleştirdi |
+| `para-transferi.transfer.delivered` | Transfer bankaya ulaştı | Banka transferi aldı; kesin sonuç (EFT valörü, kart transferi) ayrıca bildirilir |
 | `para-transferi.transfer.failed` | Transfer başarısız | Havale başarısız oldu |
 | `para-transferi.transfer.rejected` | Transfer reddedildi | Transfer reddedildi; para hiç hareket etmedi |
 | `para-transferi.transfer.refunded` | Transfer iade edildi | Transfer iade edildi (banka reversal API'si olmadığı için defter düzeltmesi) |
+| `para-transferi.bulk_transfer.completed` | Toplu transfer tamamlandı | Toplu transfer paketinin tüm kalemleri sonuçlandı; başarılı/başarısız sayıları ve tutarları içerir |
 | `para-transferi.recurring_execution.succeeded` | Tekrarlayan transfer gerçekleşti | Tekrarlı transfer planının günlük çekilimi bankaya başarıyla iletildi |
 | `para-transferi.recurring_execution.failed` | Tekrarlayan transfer başarısız | Tekrarlı transfer planının günlük çekilimi başarısız oldu; plan hâlâ aktif |
 | `para-transferi.recurring_transfer.suspended` | Tekrarlayan transfer askıya alındı | Tekrarlı transfer planı ardışık hatalar nedeniyle otomatik askıya alındı; manuel devam etmek gerekiyor |

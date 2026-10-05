@@ -11,7 +11,7 @@ Bir transferin **mevcut** durumunu ve banka tarafından dönen ham detayları ç
 GET /api/v1/transfers/{id}
 ```
 
-`id` parametresi UUID formatındadır — `POST /transfers/bulk/create` çağrısının yanıtında dönen kimlik veya `external_id` üzerinden listelemeden alınmış kimlik.
+`id` parametresi UUID formatındadır — `POST /transfers/bulk/create` yanıtında dönen `transfer_id` ya da `GET /transfers?external_id=` ile bulunan kaydın `id`'si.
 
 **Yetki:** `transfer-admin`, `transfer-operator` veya `transfer-viewer` rolü.
 
@@ -32,7 +32,7 @@ curl https://transfer.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c9
   "id":                       "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
   "merchant_id":              "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "external_id":              "PAYROLL-001",
-  "request_id":               "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8",
+  "request_id":               "PAYROLL-2026-05",
   "description":              "Mayıs maaş ödemesi",
   "receipt_no":               "TRF-20260503-0001",
 
@@ -152,8 +152,14 @@ Failed durumunda `history` array'i hata sebebini ve hangi adımda olduğunu gös
 - **Banka tarafı sorununu** debug etmek (`bank_response_code` + `provider_error_code`)
 
 <Warning>
-**Polling kullanmayın.** Yüksek hacimli senaryolarda her transfer için periyodik `GET` çağrısı yapmayın — bunun yerine [webhook](/para-transferi/webhooks/overview) entegre edin. Webhook gelmemişse İşyeri paneli › **Geliştirici › Webhook'lar** ekranından (ya da `POST /webhook-endpoints/deliveries/{id}/retry` ile) teslimi yeniden gönderebilir veya olayı `GET /events` ile çekebilirsiniz.
+**Polling kullanmayın.** Yüksek hacimli senaryolarda her transfer için periyodik `GET` çağrısı yapmayın — bunun yerine [webhook](/para-transferi/webhooks/overview) entegre edin. Webhook gelmemişse İşyeri paneli › **Geliştirici › Webhook'lar** ekranından (ya da `POST /webhook-endpoints/deliveries/{id}/retry` ile) teslimi yeniden gönderebilir veya olayı `GET /events` ile çekebilirsiniz. Toplu yedek sorgu için transfer başına detay yerine `GET /transfers?request_id=` (paket) ya da `?external_id=` kullanın — bkz. [Önerilen Entegrasyon Akışı](/para-transferi/integration-guide).
 </Warning>
+
+<Note>
+`processing` durumundaki transfer **yeniden gönderilmemelidir** — banka yanıt vermediğinde transfer bu
+durumda kalır (`provider_error_code: "PV_CONNECTOR_NO_RESPONSE"`) ve sonucu banka sorgusu, banka
+bildirimi ya da operatör kesinleştirir.
+</Note>
 
 ## Hata response'ları
 

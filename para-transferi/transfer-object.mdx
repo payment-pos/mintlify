@@ -17,7 +17,7 @@ Content-Type: application/json
   "id":                       "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
   "merchant_id":              "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "external_id":              "EXT-2026-001",
-  "request_id":               "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8",
+  "request_id":               "PAYROLL-2026-05",
   "description":              "Mayıs maaş ödemesi",
   "receipt_no":               "TRF-20260503-0001",
 
@@ -50,8 +50,9 @@ Content-Type: application/json
 |---|---|---|
 | `id` | UUID | Payven tarafından atanan benzersiz transfer kimliği. Sorgulama / aksiyon endpoint'lerinde URL parametresi olarak kullanılır. |
 | `merchant_id` | UUID | Transferin merchant kimliği |
-| `external_id` | string | Sizin sisteminizdeki transfer kimliği (istek body'sinden gelir, echo edilir) |
-| `request_id` | UUID | İstek korelasyon kimliği — destek talebinde paylaşın |
+| `external_id` | string | Sizin sisteminizdeki transfer kimliği (istek gövdesinden gelir). Aynı bayide tekildir; `GET /transfers?external_id=` ile birebir sorgulanır |
+| `request_id` | string | Oluşturma isteğindeki `X-Request-Id` başlığı (paket numaranız). `GET /transfers?request_id=` ile birebir sorgulanır |
+| `bulk_transfer_batch_id` | UUID \| null | Transfer bir toplu transfer paketinden (Excel) geldiyse paket kimliği |
 | `description` | string \| null | Transfer açıklaması (banka ekstresine yansıyabilir) |
 | `receipt_no` | string \| null | Banka makbuz numarası (yalnız `delivered`/`completed` durumda dolar) |
 
@@ -102,14 +103,15 @@ Detay: [Transfer Tipleri](#transfer-tipleri).
 
 | `status` | Anlam | Sonraki adım |
 |---|---|---|
-| `pending` | Transfer oluşturuldu, **onay bekliyor** (4-eyes principle) | `POST /transfers/bulk/approve` veya `/reject` |
-| `approved` | Onaylandı, banka gönderimine hazır | `POST /transfers/bulk/send` |
-| `rejected` | İç onayda reddedildi | — (yeni transfer oluşturmak gerekir) |
-| `processing` | Bankaya gönderildi, yanıt bekleniyor | Asenkron — webhook veya `GET` ile takip |
-| `delivered` | Banka kabul etti, hesap geçişi asenkron (FAST modeli) | Banka kesinleştirince `completed` |
-| `completed` | Banka senkron onayladı veya `delivered`'dan ilerledi | İade/geri dönüş yapılabilir |
-| `failed` | Banka reddetti veya teknik hata | — |
-| `refunded` | Transfer iade edildi (alıcı tarafından geri çekildi) | — |
+| `pending` | Transfer oluşturuldu, **onay bekliyor** (4-göz) | `POST /transfers/bulk/approve` veya `/reject` |
+| `awaiting_funds` | Onaylandı; bayinin talebi hakedişinden karşılanacak, fon bekleniyor | Bekleyin — fon ayrılınca `approved`, yetersizse `rejected` |
+| `approved` | Onaylandı, gönderim kuyruğunda | Bekleyin — **otomatik** bankaya gönderilir, ayrıca `send` çağrısı gerekmez |
+| `processing` | Bankaya gönderildi, kesin sonuç henüz yok. Banka yanıt vermediyse (zaman aşımı) transfer `failed` olmaz, **burada kalır** (`provider_error_code: "PV_CONNECTOR_NO_RESPONSE"`) | **Yeniden göndermeyin.** Sonuç banka sorgusu / banka bildirimiyle ya da operatörce kesinleşir; webhook ile takip edin |
+| `delivered` | Banka aldı, kesin sonuç bekleniyor (EFT valörü, kart transferi) | Bekleyin — `completed` ya da `failed` olur |
+| `completed` | Banka transferi gerçekleştirdi | — (iade edilirse `refunded`) |
+| `failed` | Bankanın kesin reddi ya da transfer bankaya gönderilemedi (ör. banka oturumu alınamadı) | `error_code` / `provider_error_code` inceleyin; isterseniz `POST /transfers/bulk/send` ile **açıkça** yeniden gönderin |
+| `rejected` | Gönderilmeden reddedildi; para hareket etmedi | Yeniden onaylanabilir ya da yeni transfer oluşturulur |
+| `refunded` | Gönderilmiş transfer iade edildi (defter düzeltmesi) | — |
 
 ## Yaşam döngüsü diyagramı
 
@@ -117,18 +119,22 @@ Detay: [Transfer Tipleri](#transfer-tipleri).
 stateDiagram-v2
     [*] --> pending: POST /transfers/bulk/create
     pending --> approved: POST /transfers/bulk/approve
+    pending --> awaiting_funds: Onay (hakedişten karşılanan talep)
+    awaiting_funds --> approved: Fon ayrıldı
+    awaiting_funds --> rejected: Fon yetersiz
     pending --> rejected: POST /transfers/bulk/reject
-    approved --> processing: POST /transfers/bulk/send
-    processing --> completed: Banka senkron onay
-    processing --> delivered: Banka asenkron kabul (FAST)
-    processing --> failed: Banka reddi
-    delivered --> completed: Sonradan webhook ile
-    completed --> refunded: Alıcı iadesi
-    completed --> [*]
-    refunded --> [*]
-    failed --> [*]
-    rejected --> [*]
+    approved --> rejected: POST /transfers/bulk/reject
+    approved --> processing: Otomatik gönderim
+    processing --> completed: Banka onayı
+    processing --> delivered: Banka aldı
+    processing --> failed: Banka kesin reddi
+    delivered --> completed: Banka kesinleştirdi
+    delivered --> failed: Banka sonradan reddetti
+    failed --> processing: POST /transfers/bulk/send
+    completed --> refunded: İade
 ```
+
+Akış önerisi ve yeniden gönderim kuralları: [Önerilen Entegrasyon Akışı](/para-transferi/integration-guide).
 
 ## Transfer tipleri
 

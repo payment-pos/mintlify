@@ -41,34 +41,41 @@ Payven Para Transferi modülü; lisanslı ödeme kuruluşları ve büyük platfo
 stateDiagram-v2
     [*] --> pending: POST /transfers/bulk/create
     pending --> approved: POST /transfers/bulk/approve
-    approved --> processing: POST /transfers/bulk/send
-    processing --> completed: Banka onayı (sync)
-    processing --> delivered: Banka kabul (async, FAST)
-    processing --> failed: Banka reddi
-    delivered --> completed: Webhook ile
-    completed --> [*]
-    failed --> [*]
+    pending --> awaiting_funds: Onay (hakedişten karşılanan talep)
+    awaiting_funds --> approved: Fon ayrıldı
+    approved --> processing: Otomatik gönderim (kuyruk)
+    processing --> completed: Banka onayı
+    processing --> delivered: Banka aldı, kesin sonuç sonra
+    processing --> failed: Banka kesin reddi
+    delivered --> completed: Banka kesinleştirdi
+    delivered --> failed: Banka sonradan reddetti
+    failed --> processing: POST /transfers/bulk/send (açık yeniden gönderim)
+    completed --> refunded: İade
     pending --> rejected: POST /transfers/bulk/reject
-    rejected --> [*]
+    approved --> rejected: POST /transfers/bulk/reject
 ```
 
 | Durum | Anlam |
 |---|---|
-| `pending` | Transfer oluşturuldu, onay bekliyor (4-eyes principle) |
-| `approved` | Onaylandı, banka gönderimine hazır |
-| `processing` | Bankaya gönderildi, yanıt bekleniyor |
-| `completed` | Banka tarafından onaylandı (senkron başarı) |
-| `delivered` | Banka kabul etti, hesap geçişi asenkron (FAST modeli) |
-| `failed` | Banka reddetti veya teknik hata |
-| `rejected` | İç onay sürecinde reddedildi |
+| `pending` | Transfer oluşturuldu, onay bekliyor (4-göz) |
+| `awaiting_funds` | Onaylandı; bayinin talebi hakedişinden karşılanacak, fon bekleniyor |
+| `approved` | Onaylandı, gönderim kuyruğunda — **ayrıca gönderim çağrısı gerekmez** |
+| `processing` | Bankaya gönderildi, kesin sonuç henüz yok. Banka yanıt vermediyse (zaman aşımı) transfer **burada kalır, `failed` olmaz** ve yeniden gönderilmemelidir; sonuç banka sorgusu / banka bildirimiyle ya da operatör tarafından kesinleştirilir |
+| `delivered` | Banka aldı, kesin sonuç bekleniyor (EFT valörü, kart transferi); sonradan `completed` ya da `failed` olabilir |
+| `completed` | Banka transferi gerçekleştirdi |
+| `failed` | Bankanın kesin reddi ya da transfer bankaya gönderilemedi (ör. banka oturumu alınamadı). Yalnız sizin açık kararınızla `POST /transfers/bulk/send` ile yeniden gönderilebilir |
+| `rejected` | Gönderilmeden reddedildi; para hareket etmedi |
+| `refunded` | Gönderilmiş transfer iade edildi (defter düzeltmesi) |
+
+Önerilen akış ve yeniden gönderim kuralları: [Önerilen Entegrasyon Akışı](/para-transferi/integration-guide).
 
 ## Endpoint kategorileri
 
 | Kategori | Endpoint örnekleri |
 |---|---|
 | Transfer yaşam döngüsü | `POST /transfers/bulk/create`, `/approve`, `/reject`, `/send` |
-| Sorgulama | `GET /transfers`, `GET /transfers/{id}` |
-| Dekont | `GET /transfers/{id}/receipt/download`, `/base-64` |
+| Sorgulama | `GET /transfers` (`external_id`, `request_id` ile birebir), `GET /transfers/{id}` |
+| Dekont | `GET /transfers/{id}/receipt/download`, `/base64` |
 | Hesaplar | `GET /accounts`, `/accounts/transactions` |
 | Alıcılar | `POST /recipients`, `GET /receiveraccounts` |
 | Tekrarlayan | `POST /recurringtransfers` |
@@ -77,40 +84,41 @@ stateDiagram-v2
 ## Hızlı başlangıç
 
 ```bash
-# 1. Bulk transfer oluştur (4-eyes: önce create)
+# 1. Toplu transfer oluştur (4-göz: önce oluştur)
 curl -X POST https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/create \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Request-Id: PAYROLL-2026-05" \
   -H "Idempotency-Key: payroll-2026-05-01" \
   -H "Content-Type: application/json" \
   -d '{
-    "transfers": [
+    "items": [
       {
-        "external_id":      "PAYROLL-001",
-        "amount":           { "amount": 1500000, "currency": "TRY" },
-        "transfer_type":    "fast",
-        "sender_account_id": "3fa85f64-...",
-        "receiver_account": {
-          "iban":           "TR000006100000000000000001",
-          "owner_name":     "Ahmet Yilmaz",
-          "owner_tax_id":   "12345678901"
-        },
-        "description":      "Mayıs maaş ödemesi"
+        "source_account_id": "550e8400-e29b-41d4-a716-446655440000",
+        "external_id":       "PAYROLL-001",
+        "description":       "Mayıs maaş ödemesi",
+        "transfer_type":     "fast",
+        "amount":            { "value": 1500000, "currency_code": "TRY" },
+        "recipient": {
+          "holder_name": "Ahmet Yılmaz",
+          "iban":        "TR330006100519786457841326"
+        }
       }
     ]
   }'
 
-# 2. Onayla (yetkilendirilmiş kullanıcı tarafından)
+# 2. Onayla — onaylanan transfer otomatik olarak bankaya gönderilir
 curl -X POST https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/approve \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{ "transfer_ids": ["8e3f5c12-..."] }'
+  -d '{ "transfers": [ { "transfer_id": "8e3f5c12-..." } ] }'
 
-# 3. Bankaya gönder
-curl -X POST https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/send \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{ "transfer_ids": ["8e3f5c12-..."] }'
+# 3. Sonucu webhook ile alın; webhook gelmezse kendi paket numaranızla sorgulayın
+curl "https://transfer-sandbox.payven.com.tr/api/v1/transfers?request_id=PAYROLL-2026-05" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
+
+`POST /transfers/bulk/send` normal akışta gerekmez; yalnız `failed` transferi bilinçli olarak yeniden
+göndermek için kullanılır.
 
 ## Konnektör kapasitesi
 
@@ -133,15 +141,17 @@ konsoldan tanımlanan **konnektör konfigürasyonuna** göre seçilir.
 
 | Olay | Tetikleyici |
 |---|---|
-| `para-transferi.transfer.completed` | Banka senkron onay verdi |
-| `para-transferi.transfer.delivered` | Banka asenkron kabul etti (FAST) |
-| `para-transferi.transfer.failed` | Banka reddi veya teknik hata |
+| `para-transferi.transfer.created` | Transfer oluşturuldu, onay bekliyor |
+| `para-transferi.transfer.approved` | Transfer onaylandı, gönderim kuyruğunda |
+| `para-transferi.transfer.outcome_unknown` | Banka yanıt vermedi; transfer `processing`'te kalır, **yeniden gönderilmemeli** — kesin sonuç sonra `completed` / `failed` olarak gelir |
+| `para-transferi.transfer.delivered` | Banka aldı; kesin sonuç sonra bildirilir |
+| `para-transferi.transfer.completed` | Banka transferi gerçekleştirdi |
+| `para-transferi.transfer.failed` | Bankanın kesin reddi ya da gönderilemedi (`delivered`'dan sonra da gelebilir) |
 | `para-transferi.transfer.rejected` | Transfer gönderilmeden reddedildi; para hareket etmedi |
 | `para-transferi.transfer.refunded` | Gönderilmiş transfer iade edildi (defter düzeltmesi) |
+| `para-transferi.bulk_transfer.completed` | Toplu transfer paketinin tüm kalemleri sonuçlandı (paket başına bir kez) |
 | `para-transferi.recurring_execution.succeeded` / `.failed` | Tekrarlayan transferin günlük çekilimi başarılı / başarısız |
 | `para-transferi.recurring_transfer.suspended` | Tekrarlayan transfer ardışık hatalarla askıya alındı |
-
-Oluşturma/onay/gönderim adımları webhook yayınlamaz — operatör eylemleri konsol audit log'una düşer.
 
 Webhook uçları İşyeri API'sinde (`/api/v1/webhook-endpoints`) yönetilir; tek uç tüm ürünlerin
 olaylarını alabilir. Teslim: HMAC-SHA256 imzalı, 10 deneme / ~2,5 gün (±%20 sapma), 15 sn zaman

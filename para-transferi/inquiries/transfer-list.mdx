@@ -20,23 +20,29 @@ Tüm parametreler **snake_case**'dir.
 | Parametre | Tip | Açıklama |
 |---|---|---|
 | `page` | int | Sayfa numarası (varsayılan `1`) |
-| `page_size` | int | Sayfa başı kayıt (1–100, varsayılan `25`) |
-| `start_date`, `end_date` | datetime | Tarih aralığı (UTC, ISO 8601) — `created` üzerinde filtreler |
-| `status` | enum | `pending`, `approved`, `rejected`, `processing`, `delivered`, `completed`, `failed`, `refunded` |
-| `transfer_type` | enum | `fast`, `eft`, `remittance`, `credit_card` |
-| `source_account_id` | UUID | Kaynak hesap filtresi |
-| `recipient_id` | UUID | Saklı alıcı filtresi |
-| `external_id` | string | Sizin sisteminizdeki transfer kimliği |
-| `min_amount`, `max_amount` | int (kuruş) | Tutar aralığı |
-| `currency` | string | Para birimi (`TRY`) |
-| `iban` | string | Alıcı IBAN ile filtre (tam eşleşme veya prefix) |
-| `merchant_id` | UUID | Multi-merchant tenant'larda merchant filtresi |
-| `search_term` | string | `external_id`, `receipt_no`, alıcı adı ve IBAN üzerinde "içerir" araması (max 200 karakter) |
+| `page_size` | int | Sayfa başı kayıt (1–100, varsayılan `10`) |
+| `external_id` | string | Sizin referansınızla **birebir** eşleşme (oluştururken verdiğiniz `external_id`) |
+| `request_id` | string | Oluşturma isteğinde gönderdiğiniz `X-Request-Id` (paket numaranız) ile **birebir** eşleşme — paketin tüm transferlerini döner |
+| `bulk_transfer_batch_id` | UUID | Toplu transfer paketi (Excel) kimliği |
+| `unsettled` | bool | `true`: bankaya gönderilmiş ama **30 dakikadan uzun süredir** sonucu kesinleşmemiş (`processing` / `delivered`) transferler |
+| `status` | enum | `pending`, `awaiting_funds`, `approved`, `rejected`, `processing`, `delivered`, `completed`, `failed`, `refunded` |
+| `transfer_type` | enum | `fast`, `eft`, `remittance`, `credit_card` (talep edilen tip) |
+| `from_date`, `to_date` | datetime | Tarih aralığı (ISO 8601, `+03:00` ile gönderin) — `scheduled_date` üzerinde filtreler |
+| `min_amount`, `max_amount` | long (kuruş) | Tutar aralığı |
+| `connector_account_id` | UUID | Gönderici hesap filtresi |
+| `receiver_account_id` | UUID | Alıcı hesap filtresi |
+| `search_term` | string | `external_id`, `request_id`, açıklama ve alıcı adı üzerinde "içerir" araması (en fazla 100 karakter) |
+
+<Note>
+`external_id` / `request_id` **birebir** eşleşir ve indekslidir — kendi kaydınızı bulmak için bunları
+kullanın. `search_term` ise "içerir" araması yapar; ekran araması içindir, entegrasyon mantığına
+bağlamayın.
+</Note>
 
 ## İstek
 
 ```bash
-curl "https://transfer.payven.com.tr/api/v1/transfers?start_date=2026-05-01T00:00:00Z&end_date=2026-05-31T23:59:59Z&status=completed&transfer_type=fast&page_size=50" \
+curl "https://transfer.payven.com.tr/api/v1/transfers?from_date=2026-05-01T00:00:00%2B03:00&to_date=2026-05-31T23:59:59%2B03:00&status=completed&transfer_type=fast&page_size=50" \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "X-Tenant-Id: $TENANT_ID"
 ```
@@ -90,16 +96,36 @@ Sayfalama detayı: [API Response Formatı](/documentation/concepts/response-form
 
 ## Filtreleme örnekleri
 
+**Kendi referansınızla tek transfer:**
+
+```http
+GET /api/v1/transfers?external_id=PAYROLL-001
+```
+
+**Bir paketin (`X-Request-Id`) tüm transferleri — webhook kesintisinde yedek sorgu:**
+
+```http
+GET /api/v1/transfers?request_id=PAYROLL-2026-05&page_size=100
+```
+
+**Excel paketinin kalemleri:**
+
+```http
+GET /api/v1/transfers?bulk_transfer_batch_id=4b6f2c1e-...&page_size=100
+```
+
+**Sonucu 30 dakikadan uzun süredir kesinleşmemiş transferler:**
+
+```http
+GET /api/v1/transfers?unsettled=true
+```
+
+Bu listedeki transferler **yeniden gönderilmemelidir**; sonuç otomatik ya da operatörce kesinleşir.
+
 **Bugün başarılı tamamlanan tüm FAST transferleri:**
 
 ```http
-GET /api/v1/transfers?start_date=2026-05-03T00:00:00Z&end_date=2026-05-03T23:59:59Z&status=completed&transfer_type=fast
-```
-
-**Belirli bir alıcıya yapılan son transferler:**
-
-```http
-GET /api/v1/transfers?recipient_id=abc-12345-...&page_size=20
+GET /api/v1/transfers?from_date=2026-05-03T00:00:00%2B03:00&to_date=2026-05-03T23:59:59%2B03:00&status=completed&transfer_type=fast
 ```
 
 **100.000 TL üzeri başarısız işlemler:**
@@ -108,19 +134,15 @@ GET /api/v1/transfers?recipient_id=abc-12345-...&page_size=20
 GET /api/v1/transfers?status=failed&min_amount=10000000
 ```
 
-**Kendi sipariş ID'nize göre arama:**
-
-```http
-GET /api/v1/transfers?external_id=PAYROLL-001
-```
-
 ## Tek bir transferin detayı
 
 Listedeki bir kaydın `id` değerini kullanarak detay endpoint'ine gidin: [Transfer Detayı](/para-transferi/inquiries/transfer-detail).
 
 ## Export
 
-Programatik export şu an konsoldan yapılır — **Konsol → Transferler** ekranından CSV/XLSX indirme aktiftir. Public bir `/transfers/export` endpoint'i yol haritasındadır.
+`GET /api/v1/transfers/export` aynı filtrelerle CSV (UTF-8 BOM, Excel uyumlu) döner: `scope=page`
+istekteki sayfayı, `scope=all` (varsayılan) tüm filtreli kayıtları indirir. Konsolda **Transferler**
+ekranından CSV/XLSX indirme de mümkündür.
 
 ## Hata response'ları
 

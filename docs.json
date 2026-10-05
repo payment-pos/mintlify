@@ -189,6 +189,7 @@
             "pages": [
               "para-transferi/overview",
               "para-transferi/authentication",
+              "para-transferi/integration-guide",
               "para-transferi/transfer-object"
             ]
           },

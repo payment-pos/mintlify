@@ -1,9 +1,11 @@
 ---
 title: "2. Adım — Transfer Onayla"
-description: "Pending transferleri yetkili kullanıcı ile onaylama — gönderim öncesi son kontrol."
+description: "Pending transferleri yetkili kullanıcı ile onaylama — onaylanan transfer otomatik olarak bankaya gönderilir."
 ---
 
-Approve, 4-eyes akışının ikinci adımıdır. **`pending`** durumdaki transferleri yetkili kullanıcı onaylar; sadece onaylananlar bankaya gönderilebilir.
+Approve, 4-göz akışının ikinci adımıdır. **`pending`** durumdaki transferleri yetkili kullanıcı onaylar.
+Onaylanan transfer gönderim kuyruğuna alınır ve **otomatik olarak bankaya gönderilir** — normal akışta
+ayrıca [`bulk/send`](/para-transferi/transfers/bulk-send) çağırmanız gerekmez.
 
 ## Endpoint
 
@@ -11,40 +13,39 @@ Approve, 4-eyes akışının ikinci adımıdır. **`pending`** durumdaki transfe
 POST /api/v1/transfers/bulk/approve
 ```
 
-**Yetki:** `transfer-admin` rolü gerektirir. `transfer-operator` rolü yeterli **değildir** (oluşturmadan farklı kullanıcı zorunluluğu için).
+**Yetki:** transfer onaylama izni (`transfer-admin`).
 
 <Note>
-**Aynı kullanıcı oluşturup onaylayabilir mi?** Backend tarafında engellenmez — ancak **iç güvenlik politikanız** bunu zorunlu kılmalıdır. Organizasyonunuzun rol matrisinde `transfer-operator` ve `transfer-admin` rollerinin farklı kullanıcılara verilmesi 4-eyes principle'ın anlamlı uygulamasını sağlar.
+**Aynı kimlik oluşturup onaylayabilir mi?** Organizasyonunuzda ayrı onaylayıcı (4-göz) kuralı açıksa
+transferi oluşturan kullanıcı / API anahtarı onu onaylayamaz; o kalem `results[]` içinde
+`is_success: false` döner. Kural kapalıysa aynı kimlik onaylayabilir. Ayar Payven tarafında bayi
+bazında yapılır.
 </Note>
+
+Toplu transfer paketinden (Excel, `bulk_transfer_batch_id` dolu) gelen kalemler tek tek onaylanamaz
+(`error_code: "PV_BULK_ITEM_REQUIRES_BATCH_APPROVAL"`); paket kendi onay ucuyla onaylanır.
 
 ## İstek
 
 ```bash
 curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/approve \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID" \
   -H "Idempotency-Key: payroll-2026-05-01-approve" \
   -H "Content-Type: application/json" \
   -d '{
-    "transfer_ids": [
-      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-      "9f3d2b8e-..."
+    "transfers": [
+      { "transfer_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6", "approval_note": "Mayıs maaşları — finans onayı" },
+      { "transfer_id": "9f3d2b8e-..." }
     ]
   }'
 ```
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `transfer_ids[]` | UUID array | Zorunlu | Onaylanacak transfer kimlikleri (max 1000 / istek) |
-
-İsteğe bağlı not eklemek için:
-
-```json
-{
-  "transfer_ids": ["8e3f5c12-..."],
-  "remarks":      "Mayıs maaşları — finans onayı 2026-05-03"
-}
-```
+| `transfers[]` | array | Zorunlu | Onaylanacak transferler |
+| `transfers[].transfer_id` | UUID | Zorunlu | Transfer kimliği |
+| `transfers[].connector_account_id` | UUID | Koşullu | Gönderici hesap. Oluştururken hesap vermediyseniz (talep) **zorunlu**; verdiyseniz boş bırakın |
+| `transfers[].approval_note` | string | Opsiyonel | Onay notu (denetim kaydında saklanır) |
 
 ## Yanıt
 
@@ -55,67 +56,61 @@ Content-Type: application/json
 
 ```json
 {
-  "approved": [
+  "total_requested":       2,
+  "successfully_approved": 1,
+  "failed":                1,
+  "results": [
     {
-      "id":            "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-      "status":        "approved",
-      "validate_date": "2026-05-03T12:34:55.000+03:00"
+      "transfer_id":         "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "is_success":          true,
+      "message":             "Transfer approved successfully.",
+      "error_code":          null,
+      "provider_error_code": null
     },
     {
-      "id":            "9f3d2b8e-...",
-      "status":        "approved",
-      "validate_date": "2026-05-03T12:34:55.000+03:00"
+      "transfer_id":         "9f3d2b8e-...",
+      "is_success":          false,
+      "message":             "Transfer cannot be approved. Current status: Completed",
+      "error_code":          null,
+      "provider_error_code": null
     }
-  ],
-  "skipped": [],
-  "total_approved": 2
+  ]
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `approved[]` | Başarıyla onaylanan transferler |
-| `skipped[]` | Onaylanmayan transferler (örn. zaten onaylı, reddedilmiş, başka tenant'a ait) — her biri için `reason` döner |
-| `total_approved` | Onaylanan transfer sayısı |
+| `total_requested` | İstekteki transfer sayısı |
+| `successfully_approved` | Onaylanan transfer sayısı |
+| `failed` | Onaylanamayan transfer sayısı |
+| `results[]` | Kalem başına sonuç: `is_success`, `message`, `error_code` (Payven kodu), `provider_error_code` |
 
-`status: "approved"` ve `validate_date` doldurulmuş → transferler bankaya gönderime hazır.
+Toplu onayda bazı kalemler onaylanamayabilir; yanıt yine `200 OK` döner, her kalemin akıbeti
+`results[]` içindedir. Karar için `is_success`'i kullanın; `error_code` bazı ret nedenlerinde
+(ör. durum uygun değil, 4-göz) boş gelebilir, açıklama `message` alanındadır.
 
-## Kısmi başarı
+## Onaydan sonra
 
-Toplu onay'da bir veya daha fazla transfer onaylanamayabilir (örn. zaten onaylı veya reddedilmiş). Bu durum yine `200 OK` döner; başarısızlar `skipped[]` array'inde gözükür:
+| Durum | Anlam |
+|---|---|
+| `approved` | Gönderim kuyruğunda; kısa süre içinde `processing` olur |
+| `awaiting_funds` | Bayinin talebi hakedişinden karşılanacak; fon ayrılınca gönderilir |
 
-```json
-{
-  "approved": [
-    { "id": "8e3f5c12-...", "status": "approved", "validate_date": "..." }
-  ],
-  "skipped": [
-    {
-      "id":      "9f3d2b8e-...",
-      "reason":  "already_approved",
-      "message": "Bu transfer zaten onaylanmış."
-    }
-  ],
-  "total_approved": 1
-}
-```
-
-İstek tamamen başarısızsa (örn. tüm transfer ID'ler geçersiz) `422 Unprocessable Entity` döner.
+Sonucu webhook ile dinleyin (`para-transferi.transfer.approved`, ardından `completed` / `delivered` /
+`failed` / `outcome_unknown`) — bkz. [Olay Kataloğu](/para-transferi/webhooks/events).
 
 ## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `400` | `validation_failed` | `transfer_ids[]` boş veya ID formatı geçersiz |
-| `403` | `forbidden` | `transfer-admin` rolü yok |
-| `404` | `transfer_not_found` | Tüm verilen ID'ler bulunamadı |
-| `422` | `invalid_state_transition` | Transfer `pending` durumunda değil |
-| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
+| `422` | `validation_failed` | `transfers[]` boş veya kimlik formatı geçersiz |
+| `403` | `forbidden` | Onay izni yok |
+| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı gövde için kullanılmış |
 
 Hata yanıtı RFC 9457 problem+json.
 
 ## Sonraki adım
 
-<Card title="3. Adım — Bankaya Gönder" icon="paper-plane" href="/para-transferi/transfers/bulk-send">
-  Onaylanmış transferleri bankaya gönderip işlemeye başlayın.
+<Card title="Sonucu takip edin" icon="bell" href="/para-transferi/integration-guide">
+  Webhook ile sonucu dinleyin; webhook gelmezse `request_id` / `external_id` ile sorgulayın.
 </Card>
