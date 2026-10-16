@@ -1,68 +1,80 @@
 ---
 title: "Identity & Auth"
-description: "Payven platformunun ortak kimlik, yetkilendirme ve referans veri servisi."
+description: "Payven platformunun ortak kimlik, yetkilendirme, referans veri ve olay merkezi servisi."
 ---
 
-Identity & Auth servisi, Payven platformunun **omurgasıdır**. Tüm ürünler için ortak olan üç işlevi sağlar:
+Identity servisi, Payven platformunun **omurgasıdır**. Entegrasyonunuzun çağıracağı işlevler:
 
-<CardGroup cols={3}>
+<CardGroup cols={2}>
   <Card title="Kimlik Doğrulama" icon="shield-keyhole" href="/documentation/concepts/authentication">
-    OAuth 2.0 Client Credentials akışıyla access token üretimi, refresh kullanımı ve süre yönetimi.
+    `client_id` + `client_secret` ile access token üretimi, refresh ve süre yönetimi.
   </Card>
   <Card title="API Anahtarı Yönetimi" icon="key" href="/identity/api-keys/overview">
-    Organizasyon başına `client_id` / `client_secret` çiftlerinin üretimi, rotasyonu ve revoke.
+    Test / canlı ortamlı anahtarlar, API kapsamı, IP kısıtı, rotasyon ve silme.
+  </Card>
+  <Card title="Oturum Bilgisi" icon="user" href="/identity/auth/me">
+    `GET /me`: kullanıcı, tenant, bayi, roller ve açık modüller.
   </Card>
   <Card title="Referans Veriler" icon="database" href="/identity/lookups/banks">
-    Banka, BIN, MCC, şehir/ilçe gibi ortak lookup tabloları.
+    Banka, BIN, MCC, il / ilçe, vergi dairesi ve resmî tatil listeleri.
+  </Card>
+  <Card title="Doğrulama" icon="check" href="/identity/validation/card">
+    Kart (Luhn + BIN çözümleme) ve IBAN (mod-97 + banka çözümleme).
+  </Card>
+  <Card title="Webhook Uçları ve Olaylar" icon="webhook" href="/identity/webhooks/endpoints">
+    Tek uçla tüm ürünlerin olaylarını alın; kaçırılanları `GET /events` ile çekin.
   </Card>
 </CardGroup>
 
 ## Base URL
 
-```
-https://identity.payven.com.tr/api/v1
-```
+| Ortam | Base URL |
+|---|---|
+| Production | `https://identity.payven.com.tr/api/v1` |
 
 ## Auth modeli
 
-Identity, OAuth 2.0 Client Credentials akışına göre çalışır: `client_id` + `client_secret` ile bir access token alır, sonraki tüm istekleri (Identity dahil ürün servisleri) `Authorization: Bearer <access_token>` header'ı ile yaparsınız.
+Identity OAuth 2.0 Client Credentials akışıyla çalışır: API anahtarınızın `client_id` + `client_secret` çiftiyle bir access token alır, sonraki tüm isteklerde (Identity dahil tüm ürün servisleri) `Authorization: Bearer <access_token>` gönderirsiniz.
 
 ```http
 Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
 ```
 
-Identity'den alınan tek access token, planınızdaki **tüm ürün servislerinde** geçerlidir — Sanal POS, Para Transferi ve Identity'nin kendisi. Servis başına ayrı kimlik akışı yoktur.
+Token'ın hangi servislere geçerli olacağı **anahtarın API kapsamıyla** belirlenir (anahtar oluştururken seçtiğiniz `features`). Kapsamda olmayan servis `401 audience_invalid` döner. Kapsam seçimi: [Yeni API Anahtarı](/identity/api-keys/create).
 
 Token nasıl alınır: [Kimlik Doğrulama](/documentation/concepts/authentication).
 
-## Slug tabanlı oturum
+## Slug tabanlı oturum uçları
 
-Identity, çoklu organizasyon (multi-tenant) yapısı için **slug tabanlı** URL'ler kullanır:
+Token uçları tenant slug'ını URL'de taşır; slug size onboarding sırasında verilir.
 
 ```
-POST /api/v1/auth/{slug}/token
+POST /api/v1/auth/{slug}/token       # client_credentials
 POST /api/v1/auth/{slug}/refresh
 POST /api/v1/auth/{slug}/logout
-GET  /api/v1/auth/{slug}/me
+GET  /api/v1/auth/{slug}/me          # yalnız userinfo (ham)
 ```
 
-`slug` organizasyonunuzun benzersiz tanımlayıcısıdır (örn. `acme-bank`); onboarding sırasında atanır.
+`/auth/{slug}/token` istek gövdesi: `client_id`, `client_secret`, isteğe bağlı `offline` (uzun ömürlü refresh token; yalnız "offline erişim" izni verilmiş anahtarlarda).
 
-## Akış
+Token alırken anahtarın kendi kısıtları denetlenir:
 
-```mermaid
-flowchart LR
-    Client["Sizin Backendiniz"] -->|"client_id + client_secret"| ID["Payven Identity"]
-    ID -->|"access_token"| Client
-    Client -->|"Authorization: Bearer ..."| Products["Ürün Servisleri<br/>(Sanal POS, Para Transferi)"]
-    Client -->|"Authorization: Bearer ..."| ID
-```
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `400` | `client_credentials_required` | `client_id` / `client_secret` boş |
+| `401` | `client_unauthorized` | Anahtar veya secret geçersiz; anahtar pasif ya da silinmiş |
+| `401` | `api_key_expired` | Anahtarın `expires_at` tarihi geçti |
+| `403` | `api_key_ip_not_allowed` | İstek `allowed_ips` listesi dışından geldi |
 
-API anahtarı yönetimi, lookup ve diğer Identity endpoint'leri de aynı Bearer access token ile çağrılır.
+Hata yanıtı daima `PayvenProblemDetails` zarfıdır (`code`, `message`, `category`); bkz. [Hata Yönetimi](/documentation/concepts/errors).
 
-## Ortam URL'leri
+## Genel sözleşme
 
-| Ortam | Identity Base URL |
-|---|---|
-| Sandbox | `https://identity-sandbox.payven.com.tr/api/v1` |
-| Production | `https://identity.payven.com.tr/api/v1` |
+- Tüm alanlar, query parametreleri ve enum değerleri **snake_case**; camelCase query `400` döner.
+- Tarihler `+03:00` ofsetiyle döner; istekte ofsetsiz tarih UTC sayılır, bu yüzden ofseti her zaman yazın.
+- Liste uçları (API anahtarları, webhook uçları, olaylar) sayfalıdır: `page`, `page_size`, yanıt `items`, `page`, `total_pages`, `total_count`, `has_previous_page`, `has_next_page`. Referans veri listeleri (banka, BIN, MCC, il, ilçe) **sayfasız düz dizidir**.
+- Tutarlar kuruş (`long`) cinsindendir.
+
+## Rol kapsamı
+
+Rol adının önekine göre belirlenir: `tenant-*` roller tüm bayileri, diğer roller (`merchant-*`, bayiye özel roller) yalnızca kendi bayisini görür. Bayi kapsamlı bir anahtar `merchant-admin`, bayisiz (tenant geneli) anahtar `tenant-admin` rolü taşır.

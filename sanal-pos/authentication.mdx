@@ -1,12 +1,12 @@
 ---
 title: "Kimlik Doğrulama"
-description: "Sanal POS API'sine Bearer access token ile erişim."
+description: "Sanal POS API'sine API anahtarı ile alınan Bearer access token ile erişim."
 ---
 
-Sanal POS API'si Payven'in standart OAuth 2.0 Client Credentials akışını kullanır. Identity'den alınan access token, Sanal POS endpoint'lerine `Authorization: Bearer <access_token>` header'ı ile gönderilir.
+Sanal POS API'si Payven'in standart OAuth 2.0 Client Credentials akışını kullanır. Panelden ürettiğiniz API anahtarıyla (`client_id` + `client_secret`) Identity'den access token alır, Sanal POS endpoint'lerine `Authorization: Bearer <access_token>` header'ı ile istek atarsınız.
 
 <Note>
-**Genel akış, kod örnekleri ve token süreleri** için kanonik [Kimlik Doğrulama](/documentation/concepts/authentication) sayfasına bakın. Bu sayfa Sanal POS'a özgü endpoint URL'lerini ve örneklerini içerir.
+**Genel akış, kod örnekleri ve token süreleri** için kanonik [Kimlik Doğrulama](/documentation/concepts/authentication) sayfasına bakın. Bu sayfa Sanal POS'a özgü kuralları içerir: ortam, bayi seçimi, Idempotency-Key, limitler ve kimlik hataları.
 </Note>
 
 ## Endpoint URL'leri
@@ -14,18 +14,8 @@ Sanal POS API'si Payven'in standart OAuth 2.0 Client Credentials akışını kul
 | Ortam | Identity (token alma) | Sanal POS API |
 |---|---|---|
 | **Production** | `https://identity.payven.com.tr` | `https://vpos.payven.com.tr` |
-| **Sandbox** | `https://identity-sandbox.payven.com.tr` | `https://vpos-sandbox.payven.com.tr` |
 
-## Realm seçimi
-
-Payven Identity multi-tenant — token endpoint URL'sinde **realm slug'ı** kullanılır: `POST /api/v1/auth/{slug}/token`. Slug'ınız onboarding sırasında size atanır:
-
-| Slug | Kullanım |
-|---|---|
-| `payven` | Master realm — Payven platform admin'leri |
-| `tenant-{your-slug}` | Sizin tenant realm'iniz (örn. `tenant-acme`) |
-
-Slug'ınızı **Konsol → Ayarlar → API Erişimi** sekmesinde görebilirsiniz. Token'ın `iss` claim'i realm'e işaret eder; SanalPos backend tüm kabul edilen realm'leri otomatik doğrular — composer'a tek tek tanıtım gerekmez.
+Token endpoint'i `POST /api/v1/auth/{slug}/token`'dır; `{slug}` onboarding sırasında size atanan tenant slug'ıdır (**Ayarlar → API Erişimi**). Başarılı yanıt `{ "token": { "access_token": ..., "expires_in": 300, ... }, "challenge": null }` zarfındadır; `access_token`'ı `token` nesnesinin içinden okuyun.
 
 ## Hızlı başlangıç
 
@@ -41,11 +31,23 @@ curl https://vpos.payven.com.tr/api/v1/payments \
 
 Tam ödeme isteği örneği için: [Hızlı Başlangıç](/documentation/quickstart#2-i̇lk-odemeyi-gerceklestirin).
 
-## Merchant kimliği
+## API anahtarı özellikleri
 
-Access token içinde merchant kimliği claim olarak taşınır — tek-merchant tenant'larda ek bir header göndermenize gerek yoktur. Backend bu claim'den okuyup işlemi doğru merchant adına kayıt eder.
+Sunucu anahtarlarının `client_id` değeri `pvk-` ile başlar. Anahtar oluşturulurken şu kısıtlar belirlenir ve her istekte uygulanır:
 
-**Multi-merchant senaryolar** (bir tenant altında birden çok merchant'a işlem alıyorsanız) için override header'ları:
+| Özellik | Etki | Hata |
+|---|---|---|
+| **Ortam** (`test` / `live`) | Test anahtarıyla yapılan her istek [Sandbox](/sanal-pos/test/sandbox) olarak çalışır. Ortam anahtar oluşturulduktan sonra değişmez; canlı anahtar yalnız canlı bayiye verilir. | — |
+| **Erişim düzeyi** (`full` / `read_only`) | Salt okunur anahtar veri değiştiren (POST/PUT/DELETE) uçları çağıramaz. | `403 credential_read_only` |
+| **İzinli IP listesi** | Tanımlıysa istek yalnız bu IP veya CIDR aralıklarından kabul edilir. | `403 api_key_ip_not_allowed` |
+| **Son kullanma tarihi** | Süresi geçen anahtarla token alınamaz / istek yapılamaz. | `401 api_key_expired` |
+
+## Bayi (merchant) seçimi
+
+Para hareketi yapan her uç bir **bayi adına** çalışır. Bayi şu sırayla belirlenir:
+
+- **Bayiye bağlı anahtar** (bayi panelinden üretilen): bayi token'dan gelir, ek başlık göndermeniz gerekmez. Başlıkla farklı bir bayi göstermeye çalışırsanız `403 merchant_context_mismatch` döner.
+- **Şirket (tenant) düzeyinde anahtar**: bayi **zorunlu olarak** başlıkla seçilir; başlık yoksa `400 merchant_context_missing` döner.
 
 ```http
 X-Merchant-Id:          3fa85f64-5717-4562-b3fc-2c963f66afa6
@@ -57,48 +59,85 @@ Veya kendi sisteminizdeki kimlik ile:
 X-External-Merchant-Id: M-IST-001
 ```
 
-Her ikisi gönderilirse `X-Merchant-Id` öncelikli olur.
-
 | Header | Tip | Anlam | Kaynak |
 |---|---|---|---|
-| `X-Merchant-Id` | UUID | Payven'in atadığı dahili kimlik | Konsoldan kopyalanır (Merchant.id) |
-| `X-External-Merchant-Id` | string | Sizin sisteminizdeki kimlik | Onboarding sırasında belirlenir (Merchant.external_id) |
+| `X-Merchant-Id` | UUID | Payven'in atadığı dahili kimlik | Panelde bayi detayı |
+| `X-External-Merchant-Id` | string | Sizin sisteminizdeki kimlik | Bayi oluşturulurken verilir (`external_id`) |
+
+İkisinden biri yeterlidir; eksik olanı Payven tamamlar. İkisi de gönderilir ve farklı bayilere işaret ederse `403 merchant_context_mismatch` döner. Bayi kimliği istek gövdesinde veya query'de taşınmaz.
+
+### Bayi durumu
+
+Pasif veya onaylanmamış bir bayi giriş yapabilir ve geçmişini okuyabilir, ancak **para hareketi başlatan** uçlar (ödeme, 3D init, order-link, recurring plan, checkout ödemesi) reddedilir:
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `400` | `merchant_context_missing` | Hiçbir bayi bilgisi gelmedi |
+| `422` | `merchant_not_found` | Bildirilen bayi bulunamadı |
+| `422` | `merchant_inactive` | Bayi pasif |
+| `422` | `merchant_not_approved` | Bayinin onayı tamamlanmamış veya reddedilmiş |
+| `422` | `merchant_limit_exceeded` | Bayinin günlük / haftalık / aylık hacim limiti veya tek işlem tavanı aşılıyor |
+
+<Note>
+`merchant_inactive` bizim bayi kaydınızın pasif olması demektir. Bankanın üye işyeri/terminalinin pasif olması ise `PV_MERCHANT_INACTIVE` koduyla ayrı döner.
+</Note>
+
+## Idempotency-Key
+
+Tüm `POST` isteklerinde `Idempotency-Key` başlığı gönderebilirsiniz. Anahtar bayi ve test/canlı mod kapsamında benzersizdir.
+
+| Durum | Davranış |
+|---|---|
+| Aynı anahtar, aynı gövde | İlk yanıt aynen tekrar döner ve yanıta `Idempotent-Replayed: true` başlığı eklenir. Yanıt `payments` için **1 gün** saklanır. |
+| Aynı anahtar, **farklı** gövde | `409 idempotency_key_in_use` |
+| Aynı anahtarlı ilk istek hâlâ işleniyor | Yaklaşık 10 sn beklenir; bitmezse `409 idempotency_request_in_progress` + `Retry-After`. Aynı anahtarla tekrar deneyin. |
+
+`POST /payments` ve `POST /payments/3d/init` için ek olarak **`external_id` zorunludur** (`422 external_id_required`): aynı sipariş için tekrar gönderilen istekte çift çekimi önleyen ikinci anahtardır. Aynı bayi ve `external_id` ile tekrar gönderimde: ilk işlem hâlâ sürüyorsa `409 PV_DUPLICATE_ORDER` (mevcut `transaction_id` ile birlikte; yeniden göndermeyin, durumu `GET /payments/{id}` ile izleyin); ilk işlem tamamlanmışsa mevcut sonuç aynı `transaction_id` ile tekrar döner; tutar veya para birimi farklıysa `422 PV_ORDER_AMOUNT_MISMATCH`.
 
 ## Response header'ları
 
-Her response'da Payven aşağıdakileri ekler:
-
 ```http
 X-Correlation-Id:       9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
-X-RateLimit-Limit:      200
-X-RateLimit-Remaining:  187
+X-RateLimit-Limit:      100
+X-RateLimit-Remaining:  87
 X-RateLimit-Reset:      1746450896
+X-Payven-Mode:          test
 ```
 
 | Header | Açıklama |
 |---|---|
 | `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Destek talebi açarken paylaşın. |
-| `X-RateLimit-*` | Mevcut kota. [Detay](/documentation/concepts/rate-limiting). |
-| `Retry-After` | Yalnız `429` yanıtında — kaç saniye sonra tekrar denemeniz gerektiği. |
-| `Idempotent-Replayed` | Yalnız idempotent replay'lerde — yanıt cache'den geldiyse `true`. |
+| `X-RateLimit-*` | Dakikalık pencere için kota; `Reset` Unix saniyesidir. [Detay](/documentation/concepts/rate-limiting). |
+| `Retry-After` | `429` ve `409 idempotency_request_in_progress` yanıtlarında — kaç saniye sonra tekrar deneyeceğiniz. |
+| `Idempotent-Replayed` | Yalnız idempotent replay'lerde `true`. |
+| `X-Payven-Mode` | İsteğin çalıştığı mod: `test` veya `live`. |
 
-## Hata response'ları (kimlik doğrulama)
+### Limitler
+
+Limit tenant + istemci + endpoint başınadır ve dakikalıktır. Varsayılanlar: genel 1000/dk, `payments` 100/dk, `checkout` 200/dk. Tenant'a özel limit tanımlanmış olabilir; geçerli değeri her yanıttaki `X-RateLimit-Limit` verir.
+
+## Kimlik ve erişim hataları
+
+Tüm hatalar [problem+json zarfında](/sanal-pos/errors/overview) döner.
 
 | HTTP | `code` | Anlam | Çözüm |
 |---|---|---|---|
-| `401` | `invalid_token` | `Authorization` header'ı eksik / geçersiz | Token alın veya refresh edin |
-| `401` | `token_expired` | Access token süresi doldu | Refresh akışı |
-| `403` | `merchant_inactive` | Merchant pasif statüde | Konsol → Merchants |
-| `403` | `merchant_not_found` | Belirtilen merchant bulunamadı | Header'ı doğrulayın |
-| `403` | `product_not_licensed` | Sanal POS modülü planınızda etkin değil | Plan yükseltme |
-| `429` | `rate_limit_exceeded` | Limit aşıldı | `Retry-After` header'ına uyun |
+| `401` | `unauthorized` | `Authorization` header'ı eksik, geçersiz veya token süresi dolmuş | Yeni token alın |
+| `401` | `api_key_expired` | API anahtarının süresi dolmuş | Panelden yeni anahtar üretin |
+| `403` | `forbidden` | Anahtarın bu uç için yetkisi yok | Anahtara ilgili izni verin |
+| `403` | `credential_read_only` | Salt okunur anahtarla veri değiştirme denendi | Tam yetkili anahtar kullanın |
+| `403` | `api_key_ip_not_allowed` | İstek izinli IP listesi dışından geldi | IP listesini kontrol edin |
+| `403` | `merchant_context_mismatch` | Başlıktaki bayi, anahtarın bayisiyle uyuşmuyor | Başlığı kaldırın veya düzeltin |
+| `403` | `feature_not_available` | İlgili Sanal POS alt modülü (örn. ürün kataloğu) tenant'ınızda kapalı | Plan / modül açtırın |
+| `400` / `422` | `merchant_*` | [Bayi durumu](#bayi-durumu) tablosuna bakın | — |
+| `429` | `rate_limit_exceeded` | Limit aşıldı | `Retry-After` süresince bekleyin |
 
-Tam hata kataloğu için: [Hata Yönetimi](/documentation/concepts/errors).
+Tam hata kataloğu için: [Hata Kodları](/sanal-pos/errors/overview).
 
 ## Güvenlik kuralları
 
 <Check>**Token cache** — Her API çağrısında token alıp Identity'yi yormayın. Bellek-içi cache + 60sn margin ile auto-refresh kullanın.</Check>
 <Check>**Sadece sunucu tarafı** — `client_secret`'ı frontend, mobil veya public repo'ya **asla** koymayın.</Check>
 <Check>**HTTPS zorunlu** — HTTP istekleri reddedilir.</Check>
-<Check>**Production = ayrı client** — Production ve sandbox için ayrı `client_id`/`client_secret` kullanın.</Check>
+<Check>**Canlı ve test ayrı anahtar** — Canlı ve test için ayrı `client_id`/`client_secret` kullanın.</Check>
 <Check>**Loglarda maskele** — `access_token`, `refresh_token`, `client_secret` değerlerini log'lara yazmayın.</Check>

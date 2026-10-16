@@ -1,0 +1,57 @@
+---
+title: "Hata Kodları ve Sandbox"
+description: "e-Fatura hata kodları ve test modu davranışı."
+---
+
+Hata zarfı fleet genelinde aynıdır ([Hata Yönetimi](/documentation/concepts/errors)): `code`, `message`, `category`, `param`. Karar `code` üzerinden verilir.
+
+## Sık karşılaşılan kodlar
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `PV_MERCHANT_PROFILE_MISSING` | 422 | Bayinin fatura kaydı tanımlı değil (canlı mod) |
+| `PV_TENANT_DEFAULT_CONNECTOR_MISSING` | 422 | Tenant için varsayılan entegratör seçilmemiş |
+| `PV_SELLER_INFO_INCOMPLETE` | 422 | Satıcı VKN / unvan eksik (bayi kaydından tamamlanır) |
+| `PV_PACKAGE_CAPABILITY_REQUIRED` | 422 | Bayinin paketi e-Fatura içermiyor |
+| `PV_INVOICE_HAS_NO_LINES` | 422 | En az bir kalem gerekir |
+| `PV_INVALID_TAX_NUMBER` / `PV_INVALID_VAT_RATE` / `PV_INVALID_UNIT_CODE` | 422 | Geçersiz VKN-TCKN / KDV oranı / birim kodu |
+| `PV_EXCHANGE_RATE_REQUIRED` | 422 | TRY dışı para biriminde kur zorunlu |
+| `PV_ORIGINAL_INVOICE_REFERENCE_REQUIRED` | 422 | İade faturasında orijinal belge referansı yok |
+| `PV_RETURN_EXCEEDS_ORIGINAL` | 422 | İade toplamı orijinali aşıyor |
+| `PV_EFATURA_CANCEL_NOT_ALLOWED` | 422 | Kesilmiş e-Fatura iptal edilemez; iade kesin |
+| `PV_CANCEL_WINDOW_EXPIRED` | 422 | e-Arşiv iptal süresi doldu; iade kesin |
+| `PV_INVOICE_NOT_EDITABLE` | 409 | Kesilmiş belge değiştirilemez |
+| `PV_INVOICE_ALREADY_ISSUED` / `PV_INVOICE_ALREADY_CANCELLED` | 409 | Belge zaten kesilmiş / iptal edilmiş |
+| `PV_DUPLICATE_EXTERNAL_ID` | 409 | Bu `external_id` ile belge var |
+| `PV_SOURCE_ALREADY_INVOICED` | 409 | Bu kayıt için satış belgesi var |
+| `PV_PROVIDER_REJECTED` | 422 | Entegratör belgeyi reddetti |
+| `PV_SEND_FAILED` | 422 | Gönderim başarısız; düzeltip `retry` |
+| `PV_SEND_INDETERMINATE` | 422 | Sonuç belirsiz; düzenlemeden önce `retry`/`sync` |
+| `PV_TAXPAYER_CHECK_FAILED` | 422 | Mükellef sorgusu yapılamadı |
+| `PV_TIMEOUT` | 504 | Zaman aşımı |
+
+Entegratörün kendi reddi `provider_error_code` olarak ayrıca taşınır.
+
+## Sandbox (test modu)
+
+Test modu: **test API anahtarı**, panelin test seçimi (`X-Payven-Mode: test`) ya da bayinin ortamının `sandbox` olması. Test modunda:
+
+- **Entegratöre ve GİB'e hiçbir belge gitmez.** Gönderim Payven'de simüle edilir; `provider_document_id` `SIM-` önekli olur. ETTN, durum geçişleri ve geçmiş gerçek kayıttır.
+- **Kurulum istenmez:** entegratör kaydı ve bayi fatura kaydı olmadan ilk belge kesilebilir.
+- **Numara serisi ayrıdır:** test belgeleri `TST{yıl}{sıra}` numarası alır, canlı seriyi tüketmez.
+- Cari ve ürün kartları moda bağlıdır; test kartı canlı belgede kullanılamaz (`PV_PARTY_NOT_FOUND` / `PV_PRODUCT_NOT_FOUND`).
+- Takip işlemleri (durum, iptal, PDF, yeniden gönderim) `payven` sandbox modülüne düşer; sandbox modülü olmayan işlem `422 sandbox_operation_not_supported` döner, gerçek entegratöre geçilmez.
+- Sandbox PDF'i ASCII'dir; Türkçe karakterler sadeleştirilir.
+
+### Sandbox alıcı kimlikleri
+
+| Alıcı VKN/TCKN | Davranış |
+|---|---|
+| `0000000000` | Mükellef değil, e-Arşiv |
+| `9999999999` | Gönderim reddedilir (`PVN-REJECT`) |
+| Diğer 10 haneli | Mükellef, e-Fatura |
+| 11 haneli | Mükellef değil, e-Arşiv |
+
+<Warning>
+Canlı mod belgesi **test moduna alınmış bir entegratör konfigürasyonuna** gitmez (`422 PV_TEST_CONNECTOR_IN_LIVE_MODE`). GİB'e ulaşan belge yasaldır; geri alınması iade/iptal belgesi gerektirir.
+</Warning>

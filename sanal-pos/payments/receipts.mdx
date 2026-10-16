@@ -1,0 +1,110 @@
+---
+title: "Makbuz"
+description: "Ödeme ve iade makbuzunu veri, yazdırılabilir HTML veya e-posta/SMS olarak alın."
+---
+
+Payven her başarılı ödeme ve iade için müşteriye verilebilecek tek tasarımlı bir makbuz üretir. Makbuz numarası kayıttan türetilir (`MKB-XXXXX-XXXXX`) ve her kanalda (ekran, e-posta, SMS) aynıdır.
+
+## Makbuz kaynakları
+
+| `source` | `id` | Ne zaman var |
+|---|---|---|
+| `transaction` | `transaction_id` | İşlem `completed`, `refunded` veya `canceled` iken |
+| `refund` | `GET /refunds` listesindeki `id` (`refund_id`) | İade başarıyla tamamlanmışsa |
+
+Makbuzun olup olmadığını işlem yanıtındaki **`receipt_available`** alanından okuyun (`GET /payments/{id}`, `GET /transactions/{id}`); durum listesi tutmayın. Bekleyen, başarısız ve ön provizyon (`authorized`) durumundaki işlemin makbuzu yoktur: `409 receipt_not_available`.
+
+## Uçlar
+
+Yetki: işlemi görüntüleme izni (`CanViewTransactions`).
+
+```http
+GET  /api/v1/receipts/sources
+GET  /api/v1/receipts/{source}/{id}
+GET  /api/v1/receipts/{source}/{id}/html
+POST /api/v1/receipts/{source}/{id}/send
+```
+
+| Uç | Yanıt |
+|---|---|
+| `GET /receipts/sources` | Bu serviste geçerli `source` listesi |
+| `GET /receipts/{source}/{id}` | Makbuz verisi (JSON) |
+| `GET /receipts/{source}/{id}/html` | Yazdırılabilir HTML (`text/html`); tarayıcıdan yazdırın veya PDF'e çevirin. Önbelleğe alınmaz |
+| `POST /receipts/{source}/{id}/send` | Müşteriye e-posta veya SMS ile gönderir |
+
+### Makbuz verisi
+
+```json
+{
+  "source": "transaction",
+  "source_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "kind": "payment",
+  "status": "paid",
+  "number": "MKB-8E3F5-C129A",
+  "occurred_at": "2026-05-03T13:02:11.000+03:00",
+  "amount": 15000,
+  "currency": "TRY",
+  "payment_method": "Mastercard •••• 0006",
+  "issuer": { "display_name": "Acme Mağaza", "legal_name": "…", "tax_id": "…" },
+  "lines": [],
+  "totals": [],
+  "sections": [],
+  "notices": [],
+  "is_test": false
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `kind` | `payment`, `refund`, `void` |
+| `status` | `paid`, `refunded`, `partially_refunded`, `voided`, `completed` |
+| `amount` | Kuruş |
+| `is_test` | Test modundaki işlem |
+| `issuer`, `lines`, `totals`, `sections`, `notices` | Düzenleyen taraf, kalemler, toplamlar, ek bilgi bölümleri ve bilgi notları |
+
+### Müşteriye gönderme
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/receipts/transaction/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/send \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "channel": "email", "recipient": "musteri@example.com" }'
+```
+
+| Alan | Tip | Zorunluluk | Açıklama |
+|---|---|---|---|
+| `channel` | enum | **Zorunlu** | `email` veya `sms` |
+| `recipient` | string | Opsiyonel | E-posta adresi veya telefon. Boşsa işlemde kayıtlı müşteri bilgisi kullanılır; o da yoksa `422 receipt_recipient_required` |
+
+```json
+{ "channel": "email", "masked_recipient": "m*****@example.com", "delivered": true, "simulated": false, "message": "…" }
+```
+
+- Aynı alıcıya **60 saniye** içinde tekrar gönderilmez.
+- **Test modundaki** işlemin makbuzu müşteriye gönderilmez; `simulated: true` döner.
+- Salt okunur anahtarlar `send` ucunu çağıramaz (`403 credential_read_only`).
+
+## Hosted checkout makbuzu
+
+Hosted checkout sayfası ödeme sonrası müşteriye makbuzu kendisi gösterir:
+
+```http
+GET /api/v1/checkout/sessions/{session_id}/receipt?transaction_id={transaction_id}
+```
+
+Kimlik doğrulamasız, oturum kimliğiyle sınırlıdır; yalnızca o oturumda yapılan işlemin makbuzunu döner (`text/html`). Sunucu tarafı makbuz ihtiyacınız için yukarıdaki kimlikli uçları kullanın. Bkz. [Ödeme Oturumu](/sanal-pos/payments/checkout-sessions).
+
+## Hatalar
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `resource_not_found` | Kayıt yok veya bayiye ait değil |
+| `404` | `receipt_source_unknown` | Geçersiz `source` |
+| `409` | `receipt_not_available` | Bu durumdaki kaydın makbuzu yok |
+| `422` | `receipt_recipient_required` | Alıcı belirtilmedi ve kayıtlı bilgi yok |
+| `422` | `receipt_recipient_invalid` | Alıcı adresi/telefonu geçersiz |
+| `503` | `receipt_delivery_failed` | Gönderim şu an yapılamadı, tekrar deneyin |
+
+## Banka dekontu
+
+Makbuz Payven belgesidir; bankanın kendi dekontu değildir. Bankanın döndürdüğü dekont numarası ve RRN işlem/iade yanıtında `receipt_id` ve `host_reference` alanlarındadır.

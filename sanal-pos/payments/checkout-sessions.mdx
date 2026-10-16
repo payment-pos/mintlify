@@ -1,0 +1,124 @@
+---
+title: "Ödeme Oturumu"
+description: "Hosted checkout oturumunun ömrü, durumları, alanları, şablon/tema seçimi ve müşteri sayfasının kullandığı uçlar."
+---
+
+Ödeme oturumu, bir ödeme niyetini temsil eder: tutar, sipariş referansı ve ödeme ayarları oturumda sabitlenir; müşteri Payven'in barındırdığı sayfada ödemeyi tamamlar. Oturumu oluşturma ve müşteriyi yönlendirme akışı için [Hosted Checkout](/sanal-pos/payments/hosted-checkout) sayfasına bakın; burada oturumun kendisi anlatılır.
+
+## Oturum oluşturma
+
+```http
+POST /api/v1/checkout/sessions
+```
+
+Yetki: `CanManageCheckout`. Bayi kapsamı `X-Merchant-Id` / `X-External-Merchant-Id` başlığından gelir (hiç bayi bildirilmezse `400 merchant_context_missing`). Pasif veya onaysız bayinin oturumu oluşur ama müşterinin ödeme adımı `422 merchant_inactive` / `merchant_not_approved` ile reddedilir. Yanıt `201 Created`.
+
+| Alan | Tip | Zorunluluk | Açıklama |
+|---|---|---|---|
+| `amount` | int (kuruş) | **Zorunlu** | `0`'dan büyük. Düz sayıdır, nesne değildir |
+| `currency` | string | Opsiyonel | ISO-4217; boşsa `TRY` |
+| `merchant_name` | string | Opsiyonel | Sayfada görünen ad; boşsa bayi kaydındaki ad |
+| `external_id`, `basket_id`, `description` | string | Opsiyonel | Sipariş referansları. `external_id` webhook payload'ında geri gelir |
+| `customer_email`, `customer_phone` | string | Opsiyonel | Müşteri bilgisi |
+| `payment_mode` | enum | Opsiyonel | `non_3d`, `three_d_secure`, `three_d_pay`, `three_d_pay_hosting`. Boşsa tenant politikasındaki `preferred_three_d_flow`; politika yoksa `three_d_secure` |
+| `allow_pre_auth` | bool | Opsiyonel | Sayfada ön provizyon seçeneği (varsayılan `false`) |
+| `installment`, `installment_amount` | int / int (kuruş) | Opsiyonel | **Sabit taksit**: ikisi de `0`'dan büyükse sayfa taksit seçtirmez, bu planı uygular ve başka sayıyı reddeder |
+| `splits` | object[] | Opsiyonel | Pazaryeri payları: `sub_merchant_id`, `amount`, ve en fazla biri `commission_rate_pct` / `commission_fixed`. Toplam `amount`'u aşamaz |
+| `invoice_details` | object | Opsiyonel | Fatura bilgisi: `type` (`individual` / `corporate`), `identity_number` (TCKN/VKN), `title`, `tax_office_city_code`, `tax_office_code`. Geçersiz VKN oturum açılırken reddedilir |
+| `success_url`, `cancel_url` | url | Opsiyonel | Ödeme sonrası müşterinin dönüş adresi |
+| `metadata` | object | Opsiyonel | Serbest anahtar-değer |
+| `is_test_session` | bool | Opsiyonel | Sayfada test araçlarını gösterir |
+
+<Note>
+`allowed_installments` alanı kabul edilir ama etkisizdir: sunulan taksit planları bayinin taksit kurallarından (banka × marka × taksit) BIN'e göre hesaplanır. Taksiti zorlamak için `installment` + `installment_amount` kullanın.
+</Note>
+
+### Yanıt
+
+```json
+{
+  "session_id": "8e3f5c129a7b4c8dbc4e2c963f66afa6",
+  "checkout_url": "https://vpos.payven.com.tr/s/Ab3kX9qZmn",
+  "checkout_page_url": "https://vpos.payven.com.tr/checkout/classic/?session=8e3f5c129a7b4c8dbc4e2c963f66afa6",
+  "expires_at": "2026-05-04T13:00:00.000+03:00",
+  "opened_ttl_minutes": 30
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `session_id` | 128 bit rastgele kimlik |
+| `checkout_url` | Müşteriye vereceğiniz **kısa** adres (`{host}/s/{kod}` → 302). SMS, e-posta, QR için uygundur; kısa link üretilemezse `checkout_page_url` ile aynı değeri taşır |
+| `checkout_page_url` | Sayfanın doğrudan adresi; seçili şablon bu adrese sabitlenir |
+| `expires_at` | Oturumun açılabileceği son an |
+| `opened_ttl_minutes` | Müşteri sayfayı açtıktan sonra ödemeyi tamamlamak için tanınan süre |
+
+Kısa link yalnızca müşteriye verilen insan-yüzlü adrestir; 3D Secure dönüşü, `success_url` / `cancel_url` yönlendirmeleri ve webhook'lar işlem kimliğiyle çalışır.
+
+## Oturumun ömrü
+
+İki aşamalıdır:
+
+1. **Açılmadan önce:** varsayılan **24 saat** (`expires_at`). Linki ertesi gün açılacak biçimde müşteriye gönderebilirsiniz.
+2. **Müşteri sayfayı ilk açtığında:** tamamlama penceresi başlar, varsayılan **30 dakika** (`opened_ttl_minutes`). Sayfa yenilense de süre uzamaz; süre `expires_at` tavanını aşmaz.
+
+Süreler tenant veya bayi bazında ayarlanır (`sanalpos.checkout:session_ttl_minutes`, `sanalpos.checkout:session_opened_ttl_minutes`) ve oturum açılırken sabitlenir.
+
+<Warning>
+`GET /checkout/sessions/{session_id}` müşteri sayfasının kullandığı uçtur ve çağrıldığında oturumu "açıldı" sayar (30 dakikalık pencere başlar). Müşteri linki açmadan sunucunuzdan bu ucu çağırmayın.
+</Warning>
+
+## Durumlar
+
+| `status` | Anlam |
+|---|---|
+| `open` | Ödeme alınabilir |
+| `completed` | Ödeme tamamlandı (terminal) |
+| `failed` | Deneme hakkı (3) doldu veya 3D reddedildi (terminal); yeniden denemek için yeni oturum açın |
+
+Süresi dolan oturum ayrı bir durum taşımaz; süre dolunca oturum okunamaz (`409 PV_CHECKOUT_SESSION_EXPIRED` veya `404`). Tamamlanmış oturumun `GET`'i `409 PV_CHECKOUT_SESSION_CLOSED`, deneme hakkı dolmuşunki `409 PV_CHECKOUT_MAX_ATTEMPTS_EXCEEDED` döner.
+
+**Sonucu öğrenmenin güvenilir yolu:** `sanalpos.payment.completed` / `sanalpos.payment.failed` webhook'u (payload'da `external_id`, `basket_id`, `transaction_id` gelir) ve ardından [`GET /payments/{transaction_id}`](/sanal-pos/inquiries/payment-detail). `success_url`'e eklenen bir parametre yoktur; yönlendirme adresi olduğu gibi kullanılır. Eşleştirme için kendi sipariş numaranızı `success_url`'in içine yazın.
+
+## Müşteri sayfasının kullandığı uçlar
+
+Kimlik doğrulaması gerektirmez, oturum kimliğiyle sınırlıdır; sayfa bunları çağırır, entegrasyonunuz çağırmaz. Bilgi amaçlı listelenmiştir.
+
+| Uç | Ne yapar |
+|---|---|
+| `GET /checkout/sessions/{id}` | Oturum bilgisi (kart verisi içermez) |
+| `GET /checkout/sessions/{id}/payment-methods` | Oturumda kullanılabilir ödeme yöntemleri |
+| `POST /checkout/sessions/{id}/installment-quote` | Gövde `{ "card_bin": "540061" }`; BIN'e göre taksit planları: `count`, `total_amount_kurus`, `per_installment_kurus`, `interest_rate`, `interest_amount_kurus`, `interest_mode` |
+| `POST /checkout/sessions/{id}/pay` | Kart bilgisiyle ödemeyi başlatır. Tutar/para birimi oturumdakiyle birebir eşleşmelidir |
+| `GET /checkout/sessions/{id}/transaction-status?transaction_id=` | 3D sonucunu yoklar |
+| `GET /checkout/sessions/{id}/receipt?transaction_id=` | Müşteri makbuzu (HTML), bkz. [Makbuz](/sanal-pos/payments/receipts) |
+| `POST /checkout/sessions/{id}/complete` | Sayfa tamamlandı bildirimi |
+
+Kart verisi hiçbir zaman sizin sunucunuza uğramaz.
+
+### Ödeme sırasındaki hatalar
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `PV_CHECKOUT_SESSION_NOT_FOUND` | Oturum yok |
+| `409` | `PV_CHECKOUT_SESSION_CLOSED` | Oturum kapalı (tamamlanmış) |
+| `409` | `PV_CHECKOUT_SESSION_EXPIRED` | Süre dolmuş |
+| `409` | `PV_CHECKOUT_MAX_ATTEMPTS_EXCEEDED` | Deneme hakkı dolmuş |
+| `422` | `PV_CHECKOUT_SESSION_AMOUNT_MISMATCH` | Tutar/para birimi oturumla eşleşmiyor |
+| `422` | `PV_CHECKOUT_SESSION_INSTALLMENT_NOT_ALLOWED` | Sabit taksitli oturumda başka taksit seçilmiş |
+| `422` | `PV_CHECKOUT_PREAUTH_NOT_ALLOWED` | Oturumda ön provizyon kapalı |
+| `422` | `PV_CHECKOUT_PAYMENT_MODE_NOT_ALLOWED` | Ödeme modu desteklenmiyor |
+| `422` | `PV_NON_3D_NOT_ALLOWED` | `non_3d` oturumda bayide Non-3D kapalı (ödeme anında döner, oturum açılırken değil) |
+
+## Şablon ve tema
+
+Sayfanın görünümü iki katmandır; ikisi de entegrasyon isteğiyle değil, panel ayarlarıyla yönetilir:
+
+- **Şablon (sayfa iskeleti):** `GET /api/v1/checkout/templates` kullanılabilir şablonları (`classic`, `dark`, `livecard`, `minimal`, `spotlight`) ve etkin olanı listeler. Seçim Identity ayarı `sanalpos.checkout:template` ile bayi veya tenant bazında yapılır. Seçilen şablon oturum açıldığında `checkout_page_url`'e sabitlenir; ayar sonradan değişse de açık oturumun linki aynı sayfayı açar.
+- **Tema (marka):** `GET/POST/PUT/DELETE /api/v1/checkout/themes` logo, favicon, ana/vurgu rengi, yerleşim, yazı tipi, destek bilgileri, satış koşulları ve ek alanları tutar. Okuma `CanViewCheckoutBranding`, yazma `CanManageCheckoutBranding` ister (alt özellik: `checkout-branding`). Tema oturum açılırken kopyalanır ve oturum boyunca sabit kalır.
+
+White-label alan adı için satış ekibinize başvurun.
+
+## Test
+
+Test modundaki bayinin oturumunda ödeme, bankaya gitmeden Payven simülatörüne düşer; oturum ve işlem kaydı gerçek yazılır. Test kartları: [Test Kartları](/sanal-pos/test/test-cards), [Sandbox](/sanal-pos/test/sandbox).

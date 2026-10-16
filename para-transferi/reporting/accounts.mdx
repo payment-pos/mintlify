@@ -1,104 +1,105 @@
 ---
-title: "Organizasyon Hesapları"
-description: "Para transferi için kullanılan kaynak banka hesaplarınızı ve bakiyelerini görüntüleyin."
+title: "Hesaplar"
+description: "Transfer çıkışında kullanılan gönderici hesaplarınızı listeleyin ve banka tarafındaki hesapları sorgulayın."
 ---
 
-Organizasyon hesapları, organizasyonunuzun **transfer çıkışında kullanılan** banka hesaplarıdır. Her hesap bir konnektör konfigürasyonuyla eşleşir — yani Payven üzerinden gerçek bir bankada gerçek bakiyenizdir.
+Transfer çıkışında kullanılan banka hesapları iki katmanda görünür:
 
-Bu sayfa **raporlama / izleme** odaklıdır: bakiye sorgulama, hesap hareketlerini listeleme, muhasebe sistemine besleme.
+| Katman | Uç | Ne döner |
+|---|---|---|
+| **Gönderici hesaplar** | `GET /connector-accounts` | Payven'e tanımlı hesaplar. `source_account_id` değeri buradan gelir |
+| **Banka hesapları** | `GET /accounts` | Bir banka bağlantısı üzerinden bankada görünen hesaplar |
+
+Hesapların **kurulumu** (banka bağlantısı, kimlik bilgisi, hesap tanımı) konsoldan yapılır; bayi yöneticisi kendi bankasını bağlar. Bu sayfadaki uçlar transfer entegrasyonu için okuma amaçlıdır.
 
 <Note>
-Bu hesapların **konfigürasyonu** (banka credential, kurulum) konsoldan yapılır. Bu API ürün entegrasyonu için **salt okunur** raporlama amaçlıdır.
+Hesap bakiyesi için ayrı bir API ucu yoktur; transfer öncesi bakiye kontrolünü bankanızın kanalından ya da konsoldan yapın. Yetersiz bakiye bankanın reddi olarak transfer sonucuna (`failed`, `error_code` / `provider_error_code`) yansır.
 </Note>
 
-## Endpoint'ler
+## Gönderici hesaplar
 
 ```http
-GET /api/v1/accounts                                # Tüm hesapları listele
-GET /api/v1/accounts/{id}                           # Tek hesap detayı + bakiye
+GET /api/v1/connector-accounts
 ```
 
-**Yetki:** `transfer-viewer` veya üzeri.
-
-## Hesap listesi
+**Yetki:** `CanViewConnectors`. Bayi kapsamlı kimlik yalnız kendi bayisinin hesaplarını görür.
 
 ```bash
-curl https://transfer.payven.com.tr/api/v1/accounts \
+curl "https://transfer.payven.com.tr/api/v1/connector-accounts?page_size=50" \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID"
+  -H "X-Merchant-Id: $MERCHANT_ID"
 ```
-
-Yanıt (sayfasız, organizasyon başına tipik olarak 50'den az hesap):
 
 ```json
 {
   "items": [
     {
-      "id":                  "550e8400-e29b-41d4-a716-446655440000",
-      "name":                "Garanti — Operasyon Hesabı",
-      "iban":                "TR860006400000000000000123",
-      "iban_masked":         "TR86 **** **** **** **** 0123",
-      "bank_id":             "bank-garanti-uuid",
-      "bank_name":           "Garanti BBVA",
-      "bank_code":           "GARANTI",
-      "branch_name":         "Maslak Şubesi",
-      "currency":            "TRY",
-      "available_balance":   125000000,
-      "blocked_balance":     5000000,
-      "total_balance":       130000000,
-      "balance_updated_at":  "2026-05-07T10:35:00.123+03:00",
-      "supported_transfer_types": ["fast", "eft", "remittance"],
-      "is_active":           true,
-      "created":             "2026-01-15T10:00:00.000+03:00"
+      "id":                          "550e8400-e29b-41d4-a716-446655440000",
+      "merchant_id":                 "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "is_default_payout_source":    false,
+      "connector_configuration_id":  "9d1c2f3a-0000-0000-0000-000000000001",
+      "connector_configuration_name":"Operasyon bağlantısı",
+      "bank_id":                     "5e0b0f2a-0000-0000-0000-000000000003",
+      "bank_name":                   "Garanti BBVA",
+      "bank_code":                   "00062",
+      "holder_name":                 "Örnek A.Ş.",
+      "iban":                        "TR860006400000000000000123",
+      "account_number":              null,
+      "description":                 "Operasyon hesabı"
     }
   ],
-  "total_count": 4
+  "page": 1, "total_pages": 1, "total_count": 1,
+  "has_previous_page": false, "has_next_page": false
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `available_balance` | Transfer gönderilebilir tutar (kuruş) |
-| `blocked_balance` | Açık ön provizyon, beklenen transfer gibi nedenlerle bloke tutar |
-| `total_balance` | Toplam (`available + blocked`) |
-| `balance_updated_at` | Bakiyenin son güncellenme zamanı |
-| `supported_transfer_types` | Bu hesabın desteklediği transfer tipleri |
+| `id` | `source_account_id` olarak transfer isteğinde kullanılır |
+| `merchant_id` | `null` = organizasyon (tenant) hesabı, dolu = bayinin kendi hesabı |
+| `is_default_payout_source` | Organizasyonun hakediş ödeme hesabı mı |
+| `connector_configuration_id`, `connector_configuration_name` | Hesabın bağlı olduğu banka bağlantısı |
+| `bank_name`, `bank_code` | Banka adı ve 5 haneli TCMB kodu |
 
-<Warning>
-**Bakiye gerçek zamanlı değildir.** Bankadan periyodik olarak çekilir (tipik 1-5 dakika tazelik). Hassas işlemlerde transfer atmadan önce hesap detayını sorgulamak iyi pratik olsa da, transfer anında bankanın gerçek bakiyesi tek geçerli kaynaktır.
-</Warning>
+Filtreler: `connector_configuration_id`, `connector_id`, `holder_name`, `account_number`, `iban`, `search_term`, `include_inactive`.
 
-## Tek hesap detayı
+Bayi yalnız **kendi** hesabından transfer çıkarabilir. Organizasyonun hesapları (`merchant_id: null`) yalnız `tenant-*` kullanıcılarına görünür: `GET /connector-accounts/tenant` (yetki `CanApproveTransfers`) hesapsız talebi onaylarken hesap seçimi içindir; bayi rolleri `403 PV_TENANT_ACCOUNTS_REQUIRE_TENANT_ROLE` alır.
 
-```bash
-curl https://transfer.payven.com.tr/api/v1/accounts/550e8400-e29b-41d4-a716-446655440000 \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID"
+## Banka hesapları
+
+```http
+GET /api/v1/accounts?connector_configuration_id={id}
 ```
 
-Liste yanıtındaki tek bir kayıt + son 5 başarılı transfer özeti döner.
+**Yetki:** `CanViewConnectors`. Seçilen banka bağlantısı üzerinden bankanın bildirdiği hesapları döner (liste dizisidir, sayfalı değildir):
 
-## Tipik kullanım
+```json
+[
+  {
+    "account_id":     "1234567",
+    "account_number": "1234567",
+    "account_name":   "Operasyon hesabı",
+    "account_type":   "current",
+    "currency":       "TRY",
+    "status":         "active",
+    "additional_data": null
+  }
+]
+```
 
-- **Operasyonel dashboard** — günün başında tüm hesap bakiyelerini görüntüleme
-- **Pre-transfer kontrol** — bulk transfer öncesi yeterli bakiye var mı doğrulama
-- **Muhasebe entegrasyonu** — gün sonu bakiyeleri ERP'ye besleme
-- **Treasury** — fazla bakiyeyi nakit yönetimine taşıma kararı
-
-## Gerçek zamanlı bakiye yenileme
-
-Eğer son güncellemenin tazeliği yetmiyorsa konsoldaki **Hesaplar** ekranında hesabın yanındaki "Yenile" butonu bankadan anlık tazeleme tetikler. Programatik anlık tazeleme endpoint'i yol haritasındadır.
+`additional_data` bankaya özgü ek alanları taşır. Bağlantı bu işlemi desteklemiyorsa `422 PV_ACCOUNT_SERVICE_UNAVAILABLE` döner.
 
 ## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `account_not_found` | Verilen `id` bulunamadı |
+| `404` | `PV_CONNECTOR_ACCOUNT_NOT_FOUND` | Hesap bulunamadı ya da pasif |
+| `404` | `PV_CONNECTOR_CONFIGURATION_NOT_FOUND` | Banka bağlantısı bulunamadı ya da pasif |
+| `422` | `PV_ACCOUNT_SERVICE_UNAVAILABLE` | Bağlantı hesap sorgusunu desteklemiyor |
 | `403` | `forbidden` | Yetki yok |
-| `502` | `bank_balance_unavailable` | Banka tarafı bakiye sorgusu başarısız (önbellek değer döner) |
 
 ## Sonraki adım
 
 <Card title="Hesap Hareketleri" icon="list" href="/para-transferi/reporting/transactions">
-  Bir hesabın geçmiş giriş/çıkış hareketlerini listeleyin.
+  Bir gönderici hesabın banka hareketlerini listeleyin.
 </Card>

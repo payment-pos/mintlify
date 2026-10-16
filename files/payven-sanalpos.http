@@ -10,14 +10,14 @@
 # donen access_token degerini @access_token satirina yapistirin.
 
 # SanalPOS API taban adresi (prod: https://vpos.payven.com.tr)
-@vpos_base_url = https://vpos-sandbox.payven.com.tr
+@vpos_base_url = https://vpos.payven.com.tr
 # Identity taban adresi (prod: https://identity.payven.com.tr)
-@identity_base_url = https://identity-sandbox.payven.com.tr
+@identity_base_url = https://identity.payven.com.tr
 # Isyeri API taban adresi — webhook uclari + olaylar (prod: https://merchant.payven.com.tr)
-@merchant_base_url = https://merchant-sandbox.payven.com.tr
+@merchant_base_url = https://merchant.payven.com.tr
 # Tenant slug
 @slug = payven
-# Service-account client id (pvk_test_... / pvk_live_...)
+# Service-account client id (pvk-<ad>-test-xxxx / pvk-<ad>-live-xxxx)
 @client_id = <client_id>
 # Service-account secret
 @client_secret = <client_secret>

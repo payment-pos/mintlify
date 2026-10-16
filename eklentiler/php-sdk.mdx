@@ -1,0 +1,93 @@
+---
+title: "PHP SDK"
+description: "Framework bağımsız Payven PHP SDK: checkout oturumu, webhook uçları, iade ve imza doğrulama."
+---
+
+Payven PHP SDK, OpenCart, PrestaShop, Magento eklentilerinin ortak çekirdeğidir ve kendi PHP uygulamanızda da kullanılabilir.
+
+- **Gereksinim:** PHP 7.4+, `ext-curl`, `ext-json`
+- **Namespace:** `Payven\Sdk` (PSR-4)
+- **Kurulum:** Composer paketi `payven/php-sdk`; Composer yoksa `src/` dosyalarını elle dahil edin
+
+## Checkout oturumu
+
+```php
+use Payven\Sdk\Client;
+use Payven\Sdk\Config;
+use Payven\Sdk\PayvenException;
+
+$client = new Client(new Config([
+    'identity_url'         => 'https://identity.payven.com.tr',
+    'api_url'              => 'https://vpos.payven.com.tr',      // checkout + iade
+    'merchant_api_url'     => 'https://merchant.payven.com.tr',  // webhook uçları
+    'tenant_slug'          => 'magazaniz',
+    'client_id'            => 'pvk-magazaniz-xxxx',
+    'client_secret'        => '...',
+    'external_merchant_id' => '', // tek bayi ise boş
+]));
+
+try {
+    $session = $client->createCheckoutSession([
+        'amount'      => 15000,           // kuruş (150,00 TL)
+        'currency'    => 'TRY',
+        'external_id' => '12345',         // mağaza sipariş no
+        'success_url' => 'https://magaza.example/odeme/basarili?order=12345',
+        'cancel_url'  => 'https://magaza.example/sepet',
+    ], 'order-12345');                    // Idempotency-Key (isteğe bağlı)
+
+    header('Location: ' . $session['checkout_url']);
+} catch (PayvenException $e) {
+    // $e->getMessage(), $e->httpStatus (0 = ağ hatası)
+}
+```
+
+Token kısa ömürlüdür (yaklaşık 5 dakika) ve `expires_in - 30 sn` boyunca önbelleğe alınır.
+
+## Webhook doğrulama
+
+```php
+use Payven\Sdk\WebhookVerifier;
+use Payven\Sdk\WebhookPayload;
+
+$raw = file_get_contents('php://input');
+$ok = WebhookVerifier::verify(
+    $raw,
+    $_SERVER['HTTP_X_PAYVEN_SIGNATURE'] ?? null,
+    $_SERVER['HTTP_X_PAYVEN_TIMESTAMP'] ?? null,
+    $webhookSecret
+);
+if (!$ok) { http_response_code(401); exit; }
+
+$event = WebhookPayload::parse($raw); // düz gövde ya da olay zarfı aynı alanlara açılır
+// $event['event_type'], $event['external_id'], $event['transaction_id'] ...
+```
+
+Tekilleştirme anahtarı `X-Payven-Event-Id` başlığıdır (denemeler arasında değişmez). Webhook uçlarını kurmak için API anahtarında **İşyeri API** yetkisi gerekir: `listWebhookEndpoints()`, `createWebhookEndpoint($url, $events, $name)` (secret yalnız burada döner), `updateWebhookEndpoint()`, `enableWebhookEndpoint()`, `rotateWebhookSecret()`. SDK uçları `payload_format: "flat"` ile açar.
+
+## İade
+
+```php
+$res = $client->refund($transactionId, 7500, 'Kısmi iade'); // 75,00 TL
+
+if (empty($res['is_success'])) {
+    // reddedildi
+} elseif (Client::isRefundAwaitingFunds($res)) {
+    // KUYRUKTA: bayi bakiyesi yetersiz, para hareket etmedi; iade kaydını AÇMAYIN
+} else {
+    // iade tamamlandı
+}
+```
+
+`is_success: true` yanıtı parayı hareket ettirmiş olmayabilir: bayinin cüzdanı karşılamıyorsa iade **HTTP 202** ve `extra_properties.refund_state = "awaiting_funds"` ile kuyruğa alınır; karşılık oluşunca otomatik işlenir (`sanalpos.refund.completed`), işlenemezse `sanalpos.refund.failed` gelir.
+
+## Özel transport / önbellek
+
+Varsayılan `CurlTransport` ve istek ömürlü `ArrayCache` değiştirilebilir (ör. WordPress `wp_remote_*` + transient):
+
+```php
+$client = new Client($config, new MyTransport(), new MyCache(), function ($msg) { error_log($msg); });
+```
+
+`TransportInterface::request($method, $url, $headers, $body): HttpResponse` · `CacheInterface::get($key): ?string` / `set($key, $value, $ttlSeconds): void`
+
+Tutarlar kuruştur; hata `PayvenException`'dır. Webhook olay kodları: [Webhook Olay Referansı](/documentation/concepts/webhook-events).

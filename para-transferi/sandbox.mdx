@@ -1,0 +1,104 @@
+---
+title: "Test Modu ve Test Alıcıları"
+description: "Bankaya gitmeden transfer akışınızı deneyin: test modu, test alıcı IBAN'ları ve senaryolar."
+---
+
+Entegrasyonunuzu canlı para hareket ettirmeden denemek için iki mekanizma vardır: **test modu** ve **test alıcı hesapları**.
+
+## Test modu
+
+Bir istek şu üç kaynaktan biri test diyorsa **test modunda** çalışır; hiçbiri demiyorsa canlıdır:
+
+| Kaynak | Açıklama |
+|---|---|
+| Test API anahtarı | Test ortamlı anahtarın token'ı (`environment=test`) |
+| `X-Payven-Mode: test` | Konsolda oturum açmış kullanıcının "Test modu" seçimi |
+| Bayinin ortamı | Henüz canlıya geçmemiş (`sandbox`) bayinin hiçbir işlemi gerçek değildir |
+
+Hiçbir girdi test modunu canlıya **yükseltemez**: test anahtarıyla "canlı" başlığı göndermek ya da test bayisine canlı anahtarla istek atmak test olarak kalır. Yanıtın `X-Payven-Mode` başlığı (`test` / `live`) isteğin hangi modda çalıştığını söyler.
+
+Test modunda:
+
+- Transfer kaydı **gerçek yazılır** (oluşturma, onay, listeleme, detay uçları canlıdaki gibi çalışır); **bankaya gidilmez.**
+- Gönderim, banka yerine Payven'in simülatörüne düşer. Kayıtlı bir test alıcısı yoksa varsayılan senaryo **başarıdır**: onaylanan transfer kısa sürede `completed` olur.
+- Simülatörden geçen kayıt işaretlenir; sonraki işlemler de bankaya gitmez: `sync` kaydın doğal sonraki durumunu döner (`delivered` → `completed`), dekont **TEST** işaretiyle Payven tarafından üretilir, Payven makbuzu dışarı gönderilmez (`simulated: true`).
+- Simülatörden geçmiş kayıt için bankaya gitmesi gereken bir işlem istenirse `422 sandbox_operation_not_supported` döner.
+- Test modundaki bir banka bağlantısıyla **canlı** bir transfer gönderilemez: `422 PV_TEST_CONNECTOR_IN_LIVE_MODE`.
+
+## Test alıcı hesapları
+
+Belirli bir sonucu zorlamak (ret, yetersiz bakiye, zaman aşımı…) için alıcı IBAN'ını test alıcısı olarak kaydedin. Transferin alıcı IBAN'ı kayıtlı ve **aktif** bir test alıcısıyla eşleşirse gönderim bankaya gitmeden o senaryoyla sonuçlanır. Kayıtlı test alıcısı **her modda** çalışır (canlı kayıt da test alıcısına gönderilirse bankaya gitmez).
+
+```http
+GET    /api/v1/test-receiver-accounts                 # Liste
+GET    /api/v1/test-receiver-accounts/{id}
+POST   /api/v1/test-receiver-accounts                 # Yeni
+PUT    /api/v1/test-receiver-accounts/{id}
+DELETE /api/v1/test-receiver-accounts/{id}
+POST   /api/v1/test-receiver-accounts/{id}/activate
+POST   /api/v1/test-receiver-accounts/{id}/deactivate
+```
+
+**Yetki:** okuma `CanViewTestReceiverAccounts` (dört rol); yönetim `CanManageTestReceiverAccounts` (`tenant-admin`, `tenant-user`, `merchant-admin`).
+
+```bash
+curl -X POST https://transfer.payven.com.tr/api/v1/test-receiver-accounts \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: test-alici-red-1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "iban":            "TR330006100519786457841326",
+    "holder_name":     "Test Alıcı",
+    "expected_result": "insufficient_funds",
+    "simulated_delay_ms": 1500,
+    "label":           "Yetersiz bakiye senaryosu"
+  }'
+```
+
+| Alan | Tip | Açıklama |
+|---|---|---|
+| `iban` | string | Zorunlu (15–34 karakter, boşluk / tire yok sayılır). Aynı IBAN ikinci kez eklenemez |
+| `holder_name` | string | En fazla 250 karakter (varsayılan "Test Alici") |
+| `bank_code`, `account_number` | string | Opsiyonel |
+| `expected_result` | enum | Senaryo — aşağıdaki tablo (varsayılan `success`) |
+| `custom_error_code`, `custom_error_message` | string | Hata senaryolarında kod (en fazla 50) ve mesaj (en fazla 500) yerine geçer |
+| `simulated_delay_ms` | int | Gönderimden önce yapay gecikme, 0–30.000 ms |
+| `label` | string | Açıklama etiketi (en fazla 200) |
+
+Yanıt (`201`) kaydı döner: `id`, `iban`, `masked_iban`, `holder_name`, `expected_result`, `is_active`, `created` vb.
+
+### Senaryolar (`expected_result`)
+
+| Değer | Transfer sonucu |
+|---|---|
+| `success` | `completed` |
+| `delivered` | `delivered` (banka aldı, kesin sonuç sonra); `sync` ile `completed` olur |
+| `rejected` | `failed` — "Banka transferi reddetti" |
+| `insufficient_funds` | `failed` — "Yetersiz bakiye" |
+| `invalid_account` | `failed` — "Geçersiz alıcı hesabı / IBAN" |
+| `timeout` | `failed` — "İşlem zaman aşımına uğradı" (simülatörde belirsiz sonuç üretilmez) |
+| `gateway_error` | `failed` — "Banka gateway hatası" |
+| `random_failure` | `success`, `delivered`, `rejected`, `insufficient_funds`, `timeout`, `gateway_error` arasından rastgele |
+
+Hata senaryolarında transfer `failed` olur; `message` senaryo mesajını (ya da `custom_error_message`'ı) taşır. `failed` transfer, canlıdaki gibi yalnız açık kararınızla yeniden gönderilebilir — ancak simülatörden geçmiş kaydın yeniden gönderimi test alıcısının senaryosuna göre yine simüle edilir.
+
+<Note>
+Kayıtlı test alıcısı olmadan test modundaki her IBAN başarı senaryosuyla çalışır; test alıcıları yalnız **başarısız / farklı** sonuçları denemek içindir. Kayıtlı test alıcıları kalıcı bir listedir; denediğiniz her IBAN'ı kaydetmeniz gerekmez.
+</Note>
+
+## Önerilen test akışı
+
+<Steps>
+  <Step title="Başarı yolu">
+    Test modunda `bulk/create` → `bulk/approve`; transfer `completed` olur, webhook'unuzu ve `GET /transfers?external_id=` sorgunuzu doğrulayın.
+  </Step>
+  <Step title="Ret yolu">
+    `rejected` / `insufficient_funds` test alıcısına transfer gönderin; `failed` durumunu ve `message` alanını yakaladığınızı doğrulayın.
+  </Step>
+  <Step title="Bekleyen sonuç">
+    `delivered` test alıcısıyla "banka aldı, kesin sonuç sonra" durumunu işleyin; `POST /transfers/{id}/sync` ile `completed`'a ulaşın.
+  </Step>
+  <Step title="Yeniden deneme güvenliği">
+    Aynı `external_id` ile ikinci `bulk/create` çağrısının `409 PV_TRANSFER_EXTERNAL_ID_DUPLICATE` döndüğünü doğrulayın.
+  </Step>
+</Steps>

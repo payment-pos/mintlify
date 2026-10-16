@@ -3,7 +3,7 @@ title: "Mimari Genel Bakış"
 description: "Payven platformunun servis topolojisi ve entegrasyon noktaları."
 ---
 
-Payven, ortak bir kimlik servisi etrafında düzenlenmiş bağımsız ürün servislerinden oluşur. **Tek bir access token ile** planınızdaki tüm ürünleri çağırırsınız.
+Payven, ortak bir kimlik servisi etrafında düzenlenmiş bağımsız ürün servislerinden oluşur. **Tek bir access token ile** anahtarınızın kapsadığı tüm ürünleri çağırırsınız.
 
 ## Servis topolojisi
 
@@ -11,43 +11,45 @@ Payven, ortak bir kimlik servisi etrafında düzenlenmiş bağımsız ürün ser
 flowchart LR
     Client["Sizin Backendiniz"]
 
-    Identity["Payven Identity<br/>identity.payven.com.tr"]
-    VPOS["Sanal POS<br/>vpos.payven.com.tr"]
-    Transfer["Para Transferi<br/>transfer.payven.com.tr"]
+    Identity["Identity"]
+    VPOS["Sanal POS"]
+    Transfer["Para Transferi"]
+    Merchant["İşyeri API'si"]
 
     Client -->|"1- client_id + client_secret"| Identity
     Identity -->|"access_token"| Client
     Client -->|"2- Authorization: Bearer ..."| VPOS
     Client -->|"Authorization: Bearer ..."| Transfer
+    Client -->|"Authorization: Bearer ..."| Merchant
+    VPOS -.->|"olay"| Identity
+    Transfer -.->|"olay"| Identity
+    Identity -.->|"imzalı webhook"| Client
 ```
 
-İlk adımda Identity'den `client_credentials` akışıyla bir access token alırsınız; sonraki tüm istekleri ürün servislerine `Authorization: Bearer <access_token>` header'ı ile yaparsınız. Aynı token Sanal POS ve Para Transferi servislerinin ikisinde de geçerlidir.
+İlk adımda Identity'den `client_credentials` akışıyla access token alırsınız; sonraki istekleri ürün servislerine `Authorization: Bearer <access_token>` header'ı ile yaparsınız. Token, API anahtarının **seçili ürünleri** için geçerlidir.
 
 | Servis | Sorumluluk |
 |---|---|
-| **Identity** | Organizasyon ve kullanıcı yönetimi, API anahtarı yaşam döngüsü, OAuth 2.0 token üretimi |
-| **Sanal POS** | Kart ödemeleri, 3D Secure, akıllı yönlendirme, mutabakat, webhook teslimi |
-| **Para Transferi** | Çoklu banka üzerinden FAST, EFT ve havale yönlendirme |
-| **Fraud** | Sanal POS akışlarının içinde otomatik çalışan risk motoru — kural yönetimi, blacklist/whitelist, manuel inceleme kuyruğu |
+| **Identity** | Organizasyon, işyeri (bayi) ve kullanıcı yönetimi, rol ve izinler, API anahtarı yaşam döngüsü, OAuth 2.0 token üretimi, **webhook uçları ve olay merkezi** |
+| **Sanal POS** | Kart ödemeleri, 3D Secure, Hosted Checkout, ödeme linki, akıllı yönlendirme, iade/iptal, mutabakat |
+| **Para Transferi** | Havale, EFT ve FAST; toplu ve tekrarlı transferler |
+| **Cüzdan** | Bayi bakiyesi, hakediş, komisyon ve çekim |
+| **Fatura Ödeme, Kredi Kartı Borç Ödeme, e-Fatura** | Kurum tahsilatı, kart borcu ödeme, e-Fatura / e-Arşiv kesimi |
+| **Fraud** | Ödeme akışlarında çalışan risk kural motoru (satılabilir modül) |
+| **İşyeri API'si** | İşyeri panelinin gateway'i; bayi kartı, hesaba aktarım, entegrasyon durumu. Webhook ve olay uçlarını Identity'ye iletir |
 
-Tüm ürün servisleri aynı **Bearer access token**'ı kabul eder; servis başına ayrı kimlik akışı yoktur. Fraud servisinin endpoint'leri (kural CRUD, manuel inceleme) Sanal POS API'siyle birlikte sunulur.
+Hangi ürünlerin kurulu olduğu ortama göre değişir. Kurulu olmayan bir ürünün olayları ve uçları sunulmaz; organizasyonunuzda kapalı bir ürüne giden istek `403 feature_not_available` alır.
 
-<Note>
-**Yol haritasında:** Fatura Ödeme ve Açık Bankacılık modülleri geliştirme aşamasındadır. Bu servisler henüz canlı API'ye dahil değildir. [Yol haritası](/#yol-haritasi).
-</Note>
-
-## Organizasyon ve merchant modeli
-
-Payven üç katmanlı bir hesap yapısı kullanır:
+## Organizasyon ve işyeri modeli
 
 ```mermaid
 flowchart TB
     T["Organizasyon (Tenant)<br/><i>Payven'i kullanan firma</i>"]
-    M1["Merchant 1<br/><i>Bayi / Müşteri</i>"]
-    M2["Merchant 2"]
-    M3["Merchant 3"]
-    SM1["Alt Merchant"]
-    SM2["Alt Merchant"]
+    M1["İşyeri 1<br/><i>Bayi / Müşteri</i>"]
+    M2["İşyeri 2"]
+    M3["İşyeri 3"]
+    SM1["Alt bayi"]
+    SM2["Alt bayi"]
 
     T --> M1
     T --> M2
@@ -56,15 +58,15 @@ flowchart TB
     M1 --> SM2
 ```
 
-- **Organizasyon (Tenant):** Payven'i kullanan firma. Tipik olarak ödeme kuruluşu, banka veya büyük platform olur — lisans zorunluluğu yoktur. Tüm API anahtarları ve banka konfigürasyonları bu seviyede yönetilir.
-- **Merchant:** Organizasyona bağlı bayi veya alt müşteri. Her ödeme bir merchant adına gerçekleştirilir.
-- **Alt Merchant:** İsteğe bağlı olarak merchant ağacında ek seviye (örneğin marketplace satıcıları).
+- **Organizasyon (Tenant):** Payven'i kullanan firma. Banka konfigürasyonları, yönlendirme ve ödeme politikaları bu seviyede yönetilir.
+- **İşyeri (Bayi):** Organizasyona bağlı müşteri. Her ödeme bir işyeri adına gerçekleştirilir; işyerinin ortamı (`sandbox` / `live`) işlemin gerçek olup olmadığını belirler.
+- **Alt bayi:** İsteğe bağlı olarak marketplace satıcıları.
 
 Detay: [Hesap Yapısı](/documentation/account-model).
 
 ## İstek yaşam döngüsü
 
-Aşağıda kart ödeme isteğinin Sanal POS servisinden geçişi gösterilmiştir; Para Transferi ve Fraud için de mantık aynıdır.
+Aşağıda kart ödeme isteğinin Sanal POS'tan geçişi gösterilmiştir; diğer ürünlerde de ortak adımlar aynıdır.
 
 ```mermaid
 sequenceDiagram
@@ -74,27 +76,35 @@ sequenceDiagram
     participant Bank as Banka
 
     App->>API: POST /api/v1/payments<br/>Authorization: Bearer ...
-    API->>API: Token doğrulama
+    API->>API: Token, bayi ve izin doğrulama
     API->>API: Idempotency-Key kontrolü
-    API->>Routing: Konnektör seçimi (kural motoru)
-    Routing->>Bank: Banka API isteği
-    Bank-->>Routing: Yanıt
-    Routing-->>API: Sonuç
-    API-->>App: HTTP 200 + payment objesi
+    API->>API: Rate limit
+    alt Test modu
+        API->>API: Simülatör (bankaya gidilmez)
+    else Canlı
+        API->>Routing: Konnektör seçimi (kural motoru)
+        Routing->>Bank: Banka API isteği
+        Bank-->>Routing: Yanıt
+        Routing-->>API: Sonuç
+    end
+    API-->>App: HTTP 200 + ödeme sonucu
     API-)App: webhook (asenkron)
 ```
 
-## Ortam URL'leri
+Her yanıt `X-Correlation-Id` header'ı taşır; destek talebinde bu değeri paylaşın.
 
-Her servis kendi alt-domain'i üzerinden hizmet verir. Tüm path'ler `/api/v1` ile başlar.
+## Ortam adresleri
 
-| Servis | Sandbox | Production |
-|---|---|---|
-| **Identity** | `https://identity-sandbox.payven.com.tr` | `https://identity.payven.com.tr` |
-| **Sanal POS** | `https://vpos-sandbox.payven.com.tr` | `https://vpos.payven.com.tr` |
-| **Para Transferi** | `https://transfer-sandbox.payven.com.tr` | `https://transfer.payven.com.tr` |
-| **İşyeri API'si** (webhook uçları, olaylar) | `https://merchant-sandbox.payven.com.tr` | `https://merchant.payven.com.tr` |
+Her servis kendi alt alan adı üzerinden hizmet verir; alan adı kurulumunuza bağlıdır. Tüm yollar `/api/v1` ile başlar.
 
-Fraud kontrolü Sanal POS akışlarının içinde **otomatik** çalışır — sizin tarafınızdan ayrı bir API çağrısı gerekmez. Kural yönetimi [konsoldan](https://dashboard.payven.com.tr) yapılır.
+| Servis | Alt alan adı |
+|---|---|
+| **Identity** | `identity.<alan-adı>` |
+| **Sanal POS** | `vpos.<alan-adı>` |
+| **Para Transferi** | `transfer.<alan-adı>` |
+| **Cüzdan** | `wallet.<alan-adı>` |
+| **Fatura Ödeme** | `invoice.<alan-adı>` |
+| **e-Fatura** | `efatura.<alan-adı>` |
+| **İşyeri API'si** | `merchant.<alan-adı>` |
 
-Sandbox ortamı, organizasyonunuzun konnektör konfigürasyonuna göre ya simülasyonla yanıt üretir ya da bankanın test ortamına gerçek çağrı atar — bkz. [Sandbox Ortamı](/sanal-pos/test/sandbox#banka-cagri-modu). Production geçişi öncesinde [Go-live kontrol listesini](/documentation/security/go-live-checklist) tamamlayın.
+**Test ve canlı için ayrı adres yoktur.** Aynı adreste, kullandığınız API anahtarının ortamı (`test` / `live`) ve işyerinin ortamı işlemin modunu belirler. Kendi adreslerinizi İşyeri paneli › Ayarlar › Entegrasyon ekranında görürsünüz. Canlıya geçmeden önce [Production Geçiş Kontrol Listesi](/documentation/security/go-live-checklist)'ni tamamlayın.

@@ -1,102 +1,104 @@
 ---
 title: "Hesap Yapısı"
-description: "Organizasyon, merchant ve API anahtarı arasındaki ilişki."
+description: "Organizasyon, işyeri (bayi), kullanıcı ve API anahtarı arasındaki ilişki; test ve canlı mod."
 ---
 
-Payven'i doğru kullanmak için **organizasyon**, **merchant** ve **API anahtarı** arasındaki farkı anlamak gerekir.
+Payven'i doğru kullanmak için **organizasyon**, **işyeri (bayi)**, **API anahtarı** ve **mod** (test / canlı) kavramlarını ayırmak gerekir.
 
 ## Kavramlar
 
 <Tabs>
   <Tab title="Organizasyon (Tenant)">
-    Payven'i kullanan firma. Tipik olarak ödeme kuruluşu, banka veya büyük e-ticaret platformu olur — lisans zorunluluğu yoktur. Bir organizasyonun:
+    Payven'i kullanan firma. Tipik olarak ödeme kuruluşu, banka veya büyük platform olur. Bir organizasyonun:
 
-    - Birden fazla **merchant**'ı,
-    - Birden fazla **API anahtarı** (`client_id` / `client_secret` çifti),
-    - Birden fazla **banka konfigürasyonu**,
-    - Bir **plan**'ı (kullanım kotaları) olur.
+    - Birden fazla **işyeri (bayi)**'si,
+    - Birden fazla **kullanıcısı** ve rolü,
+    - Organizasyon geneli ya da bayiye bağlı **API anahtarları**,
+    - Banka / sağlayıcı konfigürasyonları,
+    - Bir **planı** (kullanım kotaları, açık ürünler) olur.
 
-    Tüm idari işlemler — kullanıcı yönetimi, plan, banka credential'ları, akıllı yönlendirme kuralları — organizasyon seviyesindedir.
+    Banka credential'ları, yönlendirme kuralları, ödeme politikaları ve ticari ayarlar organizasyon seviyesindedir. Her organizasyonun bir **kısa adı (slug)** vardır; token adresi bu kısa adı taşır (`/auth/{slug}/token`).
   </Tab>
-  <Tab title="Merchant">
-    Organizasyona bağlı bayi veya alt müşteridir. Her ödeme bir merchant adına gerçekleştirilir. Bir merchant'ın:
+  <Tab title="İşyeri (Bayi)">
+    Organizasyona bağlı müşteri. Her ödeme bir işyeri adına gerçekleştirilir. Bir işyerinin:
 
-    - **Kimliği** (`merchantId` — UUID),
-    - **Dış kimliği** (`externalId` — sizin sisteminizdeki kimlik),
-    - **Vergi bilgileri**, iletişim bilgileri,
-    - Bağlı olduğu **banka profilleri** olur.
+    - **Kimliği** (`id` — UUID),
+    - **Dış kimliği** (`external_id` — sizin sisteminizdeki kimlik),
+    - Vergi numarası, unvan ve iletişim bilgileri,
+    - **Ortamı** (`sandbox` / `live`),
+    - **Paketi** (hangi hizmetleri ve limitleri kullanabileceği) olur.
 
-    API çağrılarında merchant'ı `X-Merchant-Id` veya `X-External-Merchant-Id` header'ı ile belirtirsiniz.
+    İstek kapsamı iki headerla belirtilir: `X-Merchant-Id` (UUID) ve `X-External-Merchant-Id` (sizin kimliğiniz). Bayiye bağlı anahtarlarda ikisi de token'dan gelir.
   </Tab>
-  <Tab title="Alt Merchant">
-    İhtiyaç halinde merchant'ın altında ek seviye. Marketplace ortamlarında satıcıları temsil eder.
-
-    Alt merchant kullanımı **opsiyoneldir**. İhtiyacınız yoksa merchant seviyesinde kalabilirsiniz.
+  <Tab title="Alt bayi">
+    Marketplace modelinde bir bayinin altındaki satıcılar. Üst bayi (`parent`) alt bayiyi açar; alt bayinin onayı ve IBAN'ı olmadan ödeme bölüştürülemez. Alt bayi kullanımı **opsiyoneldir**; ihtiyacınız yoksa tek seviyede kalın. Bkz. [Marketplace Onboarding](/recipes/marketplace-onboarding).
   </Tab>
   <Tab title="API Anahtarı">
-    API'ye erişim için OAuth 2.0 Client Credentials çifti kullanılır:
+    Sunucu-sunucu erişim için OAuth 2.0 Client Credentials çifti:
 
-    - `client_id`: Public tanımlayıcı (`pvk_live_…` veya `pvk_test_…` ile başlar).
-    - `client_secret`: Gizli secret — yalnızca oluşturma anında gösterilir, güvenli bir vault'ta saklayın.
+    - `client_id`: `pvk-<kısa-ad>-test-<kod>` ya da `pvk-<kısa-ad>-live-<kod>` biçiminde, anahtarın **ortamını** taşıyan tanımlayıcı.
+    - `client_secret`: gizli değer; canlı anahtarlarda yalnız oluşturma anında gösterilir.
 
-    Bu çift ile [Payven Identity'den](/documentation/concepts/authentication) bir **access token** alır, sonraki tüm istekleri `Authorization: Bearer <access_token>` header'ı ile yaparsınız.
+    Bu çiftle [Payven Identity'den](/documentation/concepts/authentication) bir **access token** alınır; sonraki istekler `Authorization: Bearer <access_token>` ile yapılır.
 
-    API anahtarı **organizasyon seviyesindedir** — aynı çiftle organizasyona bağlı tüm merchant'lar adına işlem yapabilirsiniz. Hangi merchant adına işlem yaptığınızı her istekte ilgili merchant header'ı ile belirtirsiniz.
+    Anahtar iki kapsamda olabilir: **bayiye bağlı** (bayi token'dan gelir, başka bayi adına işlem yapamaz) ya da **organizasyon geneli** (işlem yapan uçlarda bayi header'ı gerekir). Anahtarın ortamı (`test` / `live`), erişim düzeyi (`full` / `read_only`), erişebildiği ürünler, izinli IP'leri ve son kullanma tarihi oluşturulurken belirlenir.
   </Tab>
 </Tabs>
 
-## Bir bakışta hiyerarşi
+## Hiyerarşi
 
 ```
 Organizasyon (Tenant)
 ├── Plan ve kotalar
-├── Kullanıcılar (konsol erişimi)
-├── API anahtarları (client_id + client_secret çiftleri)
-├── Banka konfigürasyonları
-├── Akıllı yönlendirme kuralları
-└── Merchant'lar
-    ├── Merchant 1
-    │   ├── Vergi / iletişim bilgileri
-    │   ├── Banka profilleri
-    │   └── Alt Merchant'lar (opsiyonel)
-    ├── Merchant 2
+├── Kullanıcılar ve roller
+├── Tenant geneli API anahtarları
+├── Banka / sağlayıcı konfigürasyonları, yönlendirme kuralları
+└── İşyerleri
+    ├── İşyeri 1  (ortam: sandbox | live)
+    │   ├── Bayiye bağlı API anahtarları (test, canlı)
+    │   ├── Kullanıcılar (işletme yöneticisi, kasiyer ...)
+    │   ├── Webhook uçları
+    │   └── Alt bayiler (opsiyonel)
+    ├── İşyeri 2
     └── ...
 ```
 
-## Merchant kimliği — iki form
+## Roller ve kapsam
 
-Her API isteğinde merchant'ı **iki şekilde** belirtebilirsiniz. Hangisini kullanacağınızı sisteminize en uygun olana göre seçersiniz.
+Rolün **adındaki önek** kapsamı belirler: `tenant-` ile başlayan roller organizasyonun tüm bayilerini görür, diğer roller yalnız kendi bayilerini. Bayi kapsamlı bir kullanıcı için bayi seçimi zorunludur ve backend'de de uygulanır. Bir kullanıcı kendi seviyesinin **üstündeki** kullanıcıyı yönetemez ve o rolü atayamaz.
+
+Anahtar oluşturma, webhook yönetimi ve canlıya geçiş talebi gibi işlemler ilgili izne bağlıdır; izin adları ve rol matrisi organizasyon yöneticisinin panelinde yönetilir.
+
+## Merchant kimliği — iki form
 
 | Header | Değer | Ne zaman kullanılır? |
 |---|---|---|
-| `X-Merchant-Id` | UUID (örn. `3fa85f64-5717-4562-b3fc-2c963f66afa6`) | Payven'in atadığı dahili kimlik. Konsol üzerinden alınır. |
-| `X-External-Merchant-Id` | Serbest metin (örn. `M-IST-001`) | Sizin sisteminizdeki merchant kimliği. Onboarding sırasında belirlenir. |
+| `X-Merchant-Id` | UUID (örn. `3fa85f64-5717-4562-b3fc-2c963f66afa6`) | Payven'in atadığı dahili kimlik. |
+| `X-External-Merchant-Id` | Serbest metin (örn. `ACME-001`) | Sizin sisteminizdeki kimlik; işyeri açılırken `external_id` olarak verilir. |
 
-İki header'dan **biri** zorunludur. İkisini birden gönderirseniz öncelik `X-Merchant-Id`'dedir.
+- **Bayiye bağlı anahtar** kullanıyorsanız header göndermeniz gerekmez. Token'daki bayiyle çelişen bir header `403 merchant_context_mismatch` ile reddedilir.
+- **Organizasyon geneli anahtar** ile işlem yapan (ödeme, iade vb.) uçlarda iki header'dan **en az biri** zorunludur; hiçbiri yoksa `400 merchant_context_missing`.
+- Bayi bulunamazsa `422 merchant_not_found`, bayi pasifse `422 merchant_inactive`, bayi onaysızsa `422 merchant_not_approved` döner.
+- Header'daki bayi bilgisi **body'ye değil, header'a** yazılır; isteklerde `merchantId` alanı taşınmaz.
 
-## Çoklu ürün senaryosu
+## Test ve canlı mod
 
-Aynı `client_id` / `client_secret` çiftiyle alınan tek bir access token, planınızdaki tüm ürünlerde geçerlidir:
+Her istek ve her kayıt bir **mod** taşır; test verisi canlı listelerde görünmez, canlı veri test modunda görünmez.
 
-```mermaid
-flowchart LR
-    Key["client_id + client_secret"] -->|"client_credentials"| Identity["Payven Identity"]
-    Identity -->|"access_token"| Token["Access Token"]
-    Token --> VPOS["Sanal POS"]
-    Token --> Transfer["Para Transferi"]
-```
+| Mod belirleyen | Açıklama |
+|---|---|
+| **API anahtarının ortamı** | `test` anahtarıyla yapılan her istek test modundadır. |
+| **İşyerinin ortamı** | `sandbox` ortamındaki bir işyerinin hiçbir işlemi gerçek değildir (canlı anahtarla bile). |
+| **Panel seçimi** | Panelde açılan "Test modu"; istekte `X-Payven-Mode: test`. |
 
-Her ürün için ayrı API anahtarı oluşturmanıza gerek yoktur. **Plan**, hangi ürünlerin etkin olduğunu belirler.
+Kural tek yönlüdür: **hiçbir girdi test modunu canlıya yükseltemez**. Test modunda ödeme, transfer, fatura ve e-Fatura işlemleri gerçek kayıt olarak yazılır ama bankaya, kuruma ya da GİB'e gitmez; test işlemi için SMS ve e-posta gönderilmez. Webhook teslimi ise test modunda da gerçektir (`livemode: false`). Canlıya geçiş için: [Hızlı Başlangıç](/documentation/quickstart#7-canliya-gecis).
 
-## Sınırlar ve kotalar
+## Çoklu ürün
 
-Plan seviyenize bağlı olarak:
+Tek bir `client_id` / `client_secret` çifti ile alınan token, anahtarda **seçili ürünlerin** hepsinde geçerlidir (Sanal POS, Para Transferi, Cüzdan ...). Anahtarın hangi ürünlere erişeceği oluşturulurken seçilir ve organizasyonun planında açık olan ürünlerle sınırlıdır. Erişimi olmayan bir ürüne giden istek `401 audience_invalid` alır.
 
-- Saniyede istek sayısı (rate limit),
-- Aylık işlem hacmi,
-- Eşzamanlı webhook hedefi,
-- Aktif merchant sayısı
+## Plan ve limitler
 
-gibi limitler uygulanır. Mevcut planınızı ve kullanımınızı [Konsol → Plan ve Kullanım](https://dashboard.payven.com.tr/my-plan) ekranından izleyebilirsiniz.
+Plan, organizasyonun hangi ürünleri kullanabileceğini ve istek kotalarını belirler. Anahtara plan ya da anahtara özel limit atanabilir. Rate limit davranışı, `429` yanıtı ve `Retry-After` header'ı için: [Rate Limiting](/documentation/concepts/rate-limiting).
 
-Rate limit davranışı, `429` yanıtı ve `Retry-After` header'ı için: [Rate Limiting](/documentation/concepts/rate-limiting).
+Planınızı ve kullanımınızı organizasyon yöneticisi panelinde **Planım** ekranından izleyebilirsiniz.

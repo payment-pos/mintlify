@@ -1,196 +1,154 @@
 ---
 title: "Reçete — Marketplace Bayi Onboarding"
-description: "Çoklu bayi modelinde yeni bayi ekleme, banka profili tahsisi ve yönlendirme kuralı kurma."
+description: "Pazaryeri modelinde alt bayi ekleme, onaylama ve tek tahsilatı alt bayilere bölme."
 ---
 
-Bu reçete, **marketplace** veya **alt bayi yönetimi** olan bir senaryoyu kapsar: ödeme kuruluşu olarak müşterilerinize (bayilere) hizmet veriyorsunuz, her bayi kendi POS hesabıyla işlem alıyor, akıllı yönlendirme bayi-bazlı kurallarla bankaya yönlendirme yapıyor.
+Bu reçete **pazaryeri** senaryosunu kapsar: bir ana bayi (platform) müşteriden tek ödeme alır; tutar, ana bayiye bağlı **alt bayilere** (satıcılara) bölünür, hold süresince emanette tutulur ve serbest bırakılır.
+
+<Note>
+Marketplace, Cüzdan modülünün kurulu olduğu ortamlarda çalışır ve `sanalpos.marketplace` alt özelliğinin organizasyon için açık olmasını ister. Ayrıntılı kurallar: [Marketplace — Ödeme Bölme](/sanal-pos/payments/marketplace-splits).
+</Note>
 
 ## Akış
 
 ```mermaid
 flowchart LR
-    A[Yeni bayi başvurusu] --> B[Identity'de Merchant oluştur]
-    B --> C[Bayinin banka profilini tanımla<br/>POS hesabı + IBAN]
-    C --> D[Konnektör konfigürasyonu<br/>banka-spesifik credential]
-    D --> E[Yönlendirme kuralı yaz<br/>BIN/tutar/taksit kosulu]
-    E --> F[Test işlemi]
-    F --> G[Canlıya al]
+    A[Ana bayi hazır] --> C[Alt bayi oluştur<br/>Identity: marketplace_role = sub_merchant]
+    C --> D[Operatör onayı<br/>status = approved]
+    D --> B[Alt bayi marketplace profili<br/>komisyon]
+    B --> E[Split'li ödeme<br/>splits dizisi]
+    E --> F[Hold süresi]
+    F --> G[Serbest bırakma<br/>otomatik ya da elle]
 ```
 
-## 1. Identity'de bayi (merchant) oluştur
+## 1. Alt bayiyi oluşturun
+
+Alt bayi Identity'de, ana bayiye bağlı ve `marketplace_role: "sub_merchant"` olarak açılır. Ana bayinin işletme yöneticisi yalnız **kendi** bayisinin altında alt bayi açabilir (`parent_id` kendi bayi kimliğidir); organizasyon yöneticisi herhangi bir ana bayinin altında açabilir.
 
 ```bash
 curl -X POST https://identity.payven.com.tr/api/v1/merchants \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name":        "Acme Online",
-    "external_id": "ACME-001",
-    "tax_number":  "1234567890",
-    "mcc_code":    "5732",
-    "contact": {
-      "email":     "finance@acme.example",
-      "phone":     "+905551112233"
-    },
-    "billing_address": {
-      "city":         "Istanbul",
-      "country":      "TR",
-      "address":      "Maslak Mh. ...",
-      "postal_code":  "34485"
-    }
+    "name":              "Örnek Satıcı",
+    "legal_name":        "Örnek Satıcı Ltd. Şti.",
+    "tax_id":            "9876543210",
+    "external_id":       "SELLER-0042",
+    "email":             "satici@example.com",
+    "parent_id":         "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "marketplace_role":  "sub_merchant",
+    "merchant_type":     "corporate",
+    "payout_iban":       "TR330006100519786457841326",
+    "payout_iban_owner": "Örnek Satıcı Ltd. Şti."
   }'
 ```
 
-Yanıt `id` (Guid) ve `external_id` döner. Her ikisini de saklayın — Sanal POS'ta `X-Merchant-Id` veya `X-External-Merchant-Id` header'ında geçer.
+| Alan | Açıklama |
+|---|---|
+| `parent_id` | Ana bayinin `id` değeri. Alt bayi için **zorunlu** |
+| `marketplace_role` | `sub_merchant` |
+| `payout_iban` / `payout_iban_owner` | Alt bayinin hakediş hesabı. Alt bayi için **zorunlu**; IBAN geçerli olmalı, hesap sahibi adı eşlik etmeli |
+| `merchant_type` | `individual`, `sole_trader` ya da `corporate` |
 
-## 2. Bayi banka profilini tanımla
+Alt bayi `status: "pending"` doğar; **onaylanmadan split alamaz.** Açılışı `sanalpos.submerchant.created` olayı ile bildirilir. Marketplace alt bayisi entegrasyon yapmadığı için ona API anahtarı açılmaz; para ana bayinin tahsilatından bölünerek gelir.
 
-Bayinin hangi bankalarda POS hesabı olduğunu Payven'e bildirin. Mutabakat ve raporlama bu profil üzerinden çalışır.
+## 2. Alt bayiyi onaylayın
+
+Onay operatör (organizasyon yöneticisi) kararıdır; ana bayi kendi alt bayisini onaylayamaz. Güncelleme `PUT /merchants/{id}` **tam değiştirmedir**: mevcut alanları (özellikle `name`) birlikte gönderin.
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/merchants/{merchant_id}/bank-profiles \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+curl -X PUT https://identity.payven.com.tr/api/v1/merchants/$SUB_MERCHANT_ID \
+  -H "Authorization: Bearer $TENANT_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "bank_code":     "ZIRAATBANK",
-    "iban":          "TR330006100519786457841326",
-    "account_name":  "Acme Online Ticaret A.S.",
-    "merchant_id_at_bank": "MID-12345"
+    "name":             "Örnek Satıcı",
+    "legal_name":       "Örnek Satıcı Ltd. Şti.",
+    "email":            "satici@example.com",
+    "parent_id":        "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "marketplace_role": "sub_merchant",
+    "payout_iban":      "TR330006100519786457841326",
+    "payout_iban_owner":"Örnek Satıcı Ltd. Şti.",
+    "is_active":        true,
+    "status":           "approved"
   }'
 ```
 
-Birden fazla banka için bu adımı tekrarlayın.
+Ödeme sırasında alt bayi şu koşulları sağlamalıdır; aksi halde istek, ödeme başlamadan reddedilir:
 
-## 3. Konnektör konfigürasyonu
+| Koşul | Hata |
+|---|---|
+| Alt bayi bulunmalı | `sub_merchant_not_found` |
+| `marketplace_role = sub_merchant` | `not_a_sub_merchant` |
+| `parent_id` ödemeyi yapan ana bayi | `parent_mismatch` |
+| Aktif | `sub_merchant_inactive` |
+| `status = approved` | `sub_merchant_not_approved` |
+| Marketplace profili tanımlı | `sub_merchant_profile_missing` |
 
-Konnektör = banka entegrasyon sürücüsü. Konfigürasyon = bu konnektörün **bu bayi için** çalışması gereken credential'ları (mağaza kodu, terminal ID, secret).
+## 3. Marketplace profillerini tanımlayın
+
+Komisyon **alt bayinin** profilinden gelir; **split'li ödeme için her alt bayinin profili zorunludur** (yoksa `422 sub_merchant_profile_missing`). Bekleme süresi (`settlement_hold_days`) ve otomatik serbest bırakma ise **ana bayinin** profilinden okunur; ana bayinin profili yoksa varsayılan bekleme süresi (7 gün) uygulanır.
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/connector-configurations \
+# Alt bayi: komisyon
+curl -X PUT https://vpos.payven.com.tr/api/v1/merchants/$SUB_MERCHANT_ID/marketplace-profile   -H "Authorization: Bearer $PAYVEN_TOKEN"   -H "Content-Type: application/json"   -d '{ "commission_rate_pct": 8.5 }'
+
+# Ana bayi: bekleme süresi ve otomatik serbest bırakma
+curl -X PUT https://vpos.payven.com.tr/api/v1/merchants/$PARENT_MERCHANT_ID/marketplace-profile   -H "Authorization: Bearer $PAYVEN_TOKEN"   -H "Content-Type: application/json"   -d '{ "settlement_hold_days": 7, "auto_release_enabled": true }'
+```
+
+`commission_rate_pct` (yüzde) ile `commission_rate_fixed` (sabit, kuruş) birlikte verilemez.
+
+## 4. Split'li ödeme alın
+
+Ödeme isteğindeki `splits[]` tek tahsilatı böler. Split kayıtları ödeme **başarıyla tamamlandığında** oluşur.
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/checkout/sessions \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: ORDER-5521" \
   -H "Content-Type: application/json" \
   -d '{
-    "connector_id":  "<ZIRAATBANK_CONNECTOR_ID>",
-    "merchant_id":   "<merchant_id>",
-    "name":          "Acme — Ziraat POS",
-    "credentials": {
-      "store_id":    "...",
-      "terminal_id": "...",
-      "username":    "...",
-      "password":    "..."
-    }
+    "amount":      25000,
+    "currency":    "TRY",
+    "external_id": "ORDER-5521",
+    "success_url": "https://pazaryeri.example/odeme/basarili",
+    "cancel_url":  "https://pazaryeri.example/odeme/iptal",
+    "splits": [
+      { "sub_merchant_id": "6d1c9a52-0e84-4b7f-9c31-a5d8e2f10b47", "amount": 15000 },
+      { "sub_merchant_id": "a40b77e1-3c25-4f8a-b6d9-1e7c0a5f2d83", "amount": 10000, "commission_rate_pct": 5 }
+    ]
   }'
 ```
 
-Aktif et:
+`splits[]` aynı şekilde `POST /payments` ve `POST /payments/3d/init` isteklerinde de kullanılır. Kurallar: `sum(splits[].amount)` ödeme tutarını aşamaz; `commission_rate_pct` ile `commission_fixed` aynı split'te birlikte verilemez; komisyon önceliği istek değeri, sonra profil değeridir.
 
-```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/connector-configurations/{id}/activate \
-  -H "Authorization: Bearer $PAYVEN_TOKEN"
-```
+## 5. Split yaşam döngüsü
 
-Bağlantıyı test et:
+Split `pending` doğar, hold süresi dolunca (profilde otomatik serbest bırakma açıksa) alt bayiye serbest bırakılır. Elle yönetim:
 
-```bash
-curl https://vpos.payven.com.tr/api/v1/connector-configurations/{id}/health \
-  -H "Authorization: Bearer $PAYVEN_TOKEN"
-```
+| Uç | İş | Varsayılan yetkili |
+|---|---|---|
+| `POST /marketplace/splits/{id}/approve` | Onayla | organizasyon / işletme yöneticisi |
+| `POST /marketplace/splits/{id}/hold` | Emanete al (`note` zorunlu) | organizasyon / işletme yöneticisi |
+| `POST /marketplace/splits/{id}/release` | Alt bayiye serbest bırak | yalnız organizasyon yöneticisi |
+| `POST /marketplace/splits/{id}/refund` | İade et | organizasyon / işletme yöneticisi |
 
-`status: "healthy"` görene kadar credential'ı kontrol edin.
+Her adım webhook yayınlar: `sanalpos.payment_split.created`, `.approved`, `.held`, `.released`, `.refunded`, `.partially_refunded`, `.auto_release_scheduled`. Ödeme tamamlandı ama split'ler yazılamadıysa işlem `GET /marketplace/splits/orphan` listesine düşer ve `POST /marketplace/splits/orphan/{transaction_id}/retry` ile yeniden dağıtılır.
 
-## 4. Yönlendirme kuralı (akıllı routing)
+## 6. Test ve canlı
 
-Bu bayinin işlemlerini hangi bankaya, hangi koşulda yönlendireceğini tanımlayın. Örnek: 1.000 ₺ üzerinde Garanti, altında Ziraat.
+Tüm akış test modunda (test anahtarı / sandbox bayi) denenebilir; test split'leri canlı listelerde görünmez. Canlıya geçişte her bayinin ortamı ayrı ayrı yönetilir: [Hızlı Başlangıç](/documentation/quickstart#7-canliya-gecis).
 
-```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "merchant_id":  "<merchant_id>",
-    "name":         "Acme — Yüksek tutar Garanti",
-    "score":        100,
-    "is_active":    true,
-    "conditions": [
-      { "field": "amount", "op": "gte", "value": 100000 }
-    ],
-    "target": {
-      "connector_configuration_id": "<garanti_config_id>"
-    }
-  }'
-```
+## Kontrol listesi
 
-Daha düşük öncelikli (`score: 10`) bir varsayılan kural ile fallback tanımlayın:
-
-```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules \
-  -d '{
-    "merchant_id": "<merchant_id>",
-    "name":        "Acme — Varsayılan Ziraat",
-    "score":       10,
-    "is_active":   true,
-    "conditions":  [],
-    "target":      { "connector_configuration_id": "<ziraat_config_id>" }
-  }'
-```
-
-<Tip>
-Birden fazla kural tetiklenirse Payven en yüksek `score`'a sahip kuralı seçer. Score 0-1000 aralığında olmalı; tipik yapı: belirli BIN/tutar koşullarına 100+, varsayılana 10.
-</Tip>
-
-## 5. Test işlemi
-
-Sandbox'ta yeni bayi adına bir test işlemi gönderin:
-
-```bash
-curl -X POST https://vpos-sandbox.payven.com.tr/api/v1/payments \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Merchant-Id: <merchant_id>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "external_id": "ACME-TEST-001",
-    "amount":      { "amount": 150000, "currency": "TRY" },
-    "installment": 1,
-    "card":        { ... }
-  }'
-```
-
-Yanıttaki `extra_properties.connector_code` → `"ZIRAATBANK"` veya `"GARANTI"` olmalı (yönlendirme kuralının doğru uyguladığını doğrular).
-
-## 6. Canlıya alma
-
-<Check>Sandbox'ta her banka için en az 5 başarılı + 2 başarısız test işlemi yapıldı mı?</Check>
-<Check>Webhook ucu (`/webhook-endpoints`) bu bayi için kurulu mu?</Check>
-<Check>Bayinin operasyon ekibi konsola erişim aldı mı?</Check>
-<Check>Mutabakat dosyası şablonu bayi tarafından kabul edildi mi?</Check>
-<Check>Identity'de bayiye uygun rol (`pos-merchant-admin` / `pos-merchant-user`) atandı mı?</Check>
-
-Production'a aynı adımları **prod organizasyon slug'ı + prod credential'lar** ile tekrarlayın.
-
-## Çoklu bayi yönetimi
-
-Birden fazla bayi için bu işlemi otomatize edebilirsiniz. Tipik bir onboarding API'si:
-
-```mermaid
-sequenceDiagram
-    participant Ops as Operasyon Paneli
-    participant App as Onboarding Servisi
-    participant Id as Identity
-    participant Vpos as Sanal POS
-
-    Ops->>App: POST /onboard (formdata)
-    App->>Id: POST /merchants
-    App->>Vpos: POST /merchants/{id}/bank-profiles (her banka)
-    App->>Vpos: POST /connector-configurations (her config)
-    App->>Vpos: POST /connector-configurations/{id}/activate
-    App->>Vpos: GET /connector-configurations/{id}/health
-    App->>Vpos: POST /routing-rules (her kural)
-    App->>Vpos: POST /payments (test)
-    App-->>Ops: { merchant_id, status: "ready" }
-```
+<Check>Her alt bayinin marketplace profili (komisyon) tanımlı mı?</Check>
+<Check>Alt bayilerde `payout_iban` doğru ve `status = approved` mı?</Check>
+<Check>`sum(splits[].amount)` ödeme tutarını aşmıyor mu?</Check>
+<Check>`sanalpos.payment_split.*` ve `sanalpos.submerchant.*` olayları için webhook ucu kurulu mu?</Check>
+<Check>Yetim split listesi düzenli izleniyor mu?</Check>
 
 ## İlgili sayfalar
 
 - [Hesap Yapısı](/documentation/account-model)
-- [Yönlendirme Genel Bakış](/sanal-pos/routing/overview)
-- [Konnektör Yönetimi (API ref)](/api-reference/sanal-pos/connectors)
+- [Marketplace — Ödeme Bölme](/sanal-pos/payments/marketplace-splits)
+- [Webhook Olay Referansı](/documentation/concepts/webhook-events)

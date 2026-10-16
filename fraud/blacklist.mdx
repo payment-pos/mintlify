@@ -1,0 +1,112 @@
+---
+title: "Kara Liste ve Bayi Politikası"
+description: "Kart, e-posta, IP, cihaz ve IBAN engel listesini yönetin; bayi bazında fraud kontrolünü açıp kapatın."
+---
+
+Base URL: `https://fraud.payven.com.tr/api/v1`.
+
+## Kara liste
+
+Kara liste kaydı, bir değeri (kart, e-posta, IP, cihaz, IBAN, bayi) engellenecek olarak işaretler. Listede olup olmadığı **`blacklist` tipi bir kural** üzerinden işleme etki eder; kural `action: "block"` ise işlem `422 fraud_declined` ile reddedilir. Yeni tenant'lara bu kuralı içeren temel bir set yüklenir; kendi kuralınızı [Kurallar](/fraud/rules) sayfasındaki gibi tanımlayabilirsiniz.
+
+`Fraud.CanViewBlacklist` (okuma), `Fraud.CanManageBlacklist` (ekle / sil) izni gerekir.
+
+### Kayıt ekleme
+
+```bash
+curl -X POST https://fraud.payven.com.tr/api/v1/fraud/blacklist \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: bl-ip-203-0-113-9" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "entry_type": "ip",
+    "value":      "203.0.113.9",
+    "reason":     "Kart deneme saldırısı",
+    "expires_at": "2026-12-31T23:59:59+03:00"
+  }'
+```
+
+| Alan | Zorunluluk | Açıklama |
+|---|---|---|
+| `entry_type` | Zorunlu | `card`, `email`, `ip`, `device`, `iban`, `merchant_external_id` |
+| `value` | Zorunlu | Engellenecek ham değer. Tipe göre normalize edilir (e-posta / IP / cihaz küçük harf; IBAN boşluksuz büyük harf; kart boşluk ve tiresiz) |
+| `display_value` | Opsiyonel | Listede gösterilecek ad. Verilmezse kart `454671******7894`, e-posta `a***@example.com`, IBAN maskeli, diğerleri kısaltılmış değer olarak gösterilir |
+| `reason` | Opsiyonel | Açıklama |
+| `expires_at` | Opsiyonel | Kaydın otomatik sona ereceği an (`+03:00`) |
+
+`201 Created`:
+
+```json
+{
+  "id": "b3d2...", "tenant_id": "1a2b3c4d-...", "merchant_id": null,
+  "entry_type": "ip", "display_value": "203.0.113.9",
+  "reason": "Kart deneme saldırısı", "expires_at": "2026-12-31T23:59:59.000+03:00",
+  "is_active": true, "created": "2026-10-16T14:20:00.000+03:00"
+}
+```
+
+<Note>
+Ham değer (`value`) **saklanmaz ve yanıtta dönmez**: yalnız tek yönlü özeti tutulur; listede yalnız maskeli `display_value` görünür. Kart numarasını kendi sunucunuzdan, TLS ile gönderin.
+</Note>
+
+Kapsam kural kapsamıyla aynıdır: bayi kapsamlı çağıranın kaydı kendi bayisine (`merchant_id` dolu), bayi seçmeyen tenant yöneticisinin kaydı tenant geneline (`merchant_id: null`) yazılır. Aynı tür + kapsam + değer ikinci kez eklenemez (`409 fraud_blacklist_entry_duplicate`).
+
+### Listeleme ve silme
+
+```bash
+curl "https://fraud.payven.com.tr/api/v1/fraud/blacklist?entry_type=ip&page=1&page_size=50" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+
+curl -X DELETE https://fraud.payven.com.tr/api/v1/fraud/blacklist/b3d2... \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"        # 204
+```
+
+Liste sayfalıdır; `entry_type` ile süzülür. Silinen kayıt artık eşleşmez. Başka bayinin kaydı `404` döner. Dışa aktarma: `GET /fraud/blacklist/export` ve `/export/schema`.
+
+## Bayi politikası
+
+Bayi politikası, bir bayi için **süreç bazında** fraud kontrolünü kapatmanıza izin verir. Kapalı bayinin işlemi kurallara sokulmaz ve her zaman geçer; kayıt yine de loglanır (`R-MERCHANT-OPT-OUT`). Politika kaydı yoksa fraud **açıktır**.
+
+`Fraud.CanViewMerchantPolicies` (okuma), `Fraud.CanManageMerchantPolicies` (yazma) izni gerekir.
+
+```bash
+curl https://fraud.payven.com.tr/api/v1/fraud/merchants/M-IST-001/policy \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+Route'taki `{merchant_id}` bayinin **external id**'sidir (`M-IST-001`). Bayi kapsamlı çağıranda route değeri yok sayılır ve kendi bayisi kullanılır.
+
+```json
+{
+  "tenant_id": "1a2b3c4d-...",
+  "merchant_external_id": "M-IST-001",
+  "policies": [
+    { "id": "e1f2...", "tenant_id": "1a2b3c4d-...", "merchant_external_id": "M-IST-001",
+      "process": "sanal_pos", "enabled": false, "reason": "Pilot dönemi",
+      "last_modified": "2026-10-10T11:00:00.000+03:00" }
+  ]
+}
+```
+
+Güncelleme (`PATCH`, süreç başına upsert):
+
+```bash
+curl -X PATCH https://fraud.payven.com.tr/api/v1/fraud/merchants/M-IST-001/policy \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "policies": [ { "process": "sanal_pos", "enabled": false, "reason": "Pilot dönemi" } ] }'
+```
+
+Her öğe: `process` (`sanal_pos`, `para_transferi`, `fatura_odeme`), `enabled` (varsayılan `true`), `reason`. Gönderilmeyen süreçler değişmez. Yanıt güncel politika paketidir.
+
+<Warning>
+Fraud'u kapatmak o bayinin kara liste ve hız korumasını da devre dışı bırakır. Kapatmayı yalnız geçici ve gerekçeli kullanın; kapatma gerekçesini `reason` alanına yazın.
+</Warning>
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `403` | `forbidden` | İzin yok veya bayi bağlamı yok |
+| `404` | `resource_not_found` | Kayıt yok veya kapsam dışı |
+| `409` | `fraud_blacklist_entry_duplicate` | Değer zaten listede |
+| `422` | `validation_failed` | `value` boş |

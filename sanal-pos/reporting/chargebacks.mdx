@@ -1,150 +1,160 @@
 ---
 title: "Chargeback (Ters İbraz) Yönetimi"
-description: "Müşteri bankası tarafından açılan ters ibraz dosyalarını izleyin ve yönetin."
+description: "Kart sahibinin bankası üzerinden açılan ters ibraz kayıtlarını izleyin ve sonuçlandırın."
 ---
 
-Chargeback, kart sahibinin bankasına başvurarak işlemi reddetmesi durumunda **bankanın size karşı açtığı geri alma talebidir**. Cevap vermez veya kaybederseniz tutar hesabınızdan çekilir.
+Chargeback, kart sahibinin bankasına başvurarak işlemi reddetmesi durumunda **bankanın size karşı açtığı geri alma talebidir**. Payven'de ters ibraz **kayıt ve durum takibi** olarak yürür: banka bildirimini kayda geçirir, itirazınızı ve sonucu işlersiniz. Bankaya kanıt evrakı iletimi Payven dışında, banka süreçlerinizle yapılır.
 
-<Note>
-Şu anda Payven chargeback **kayıt + status takibi** destekler — ham yanıt evrakının
-bankaya iletimi konnektör + banka iş süreçleri üzerinden gerçekleştirilir.
-Programatik "respond + evidence upload" akışı yol haritasındadır.
-</Note>
+## Para etkisi
 
-## Endpoint'ler
+- Kayıt açıldığında (`opened`) ters ibraz tutarı bayinin bakiyesinden **düşülür**.
+- İtiraz **lehinize** sonuçlanırsa (`won`) düşülen tutar bayiye geri verilir.
+- Aleyhinize sonuçlanırsa ya da kabul ederseniz (`lost`) düşüm kalıcı olur.
+
+## Uçlar
 
 ```http
 GET    /api/v1/chargebacks                  # Liste (sayfalı)
-GET    /api/v1/chargebacks/{id}             # Tek chargeback detayı
-POST   /api/v1/chargebacks                  # Manuel chargeback kaydı (banka tarafından bildirilen)
-PUT    /api/v1/chargebacks/{id}/status      # Durum güncelle
+GET    /api/v1/chargebacks/{id}             # Detay
+GET    /api/v1/chargebacks/export           # CSV (scope=page|all)
+GET    /api/v1/chargebacks/export/schema    # Dışa aktarma kolon şeması
+POST   /api/v1/chargebacks                  # Ters ibraz kaydı aç — 201 { "id": "..." }
+PUT    /api/v1/chargebacks/{id}/status      # Durumu ilerlet — 204
 ```
 
-Bearer access token gerektirir (OAuth 2.0 Client Credentials).
+Okuma `CanViewTransactions`, yazma `CanManageTransactions` izni ister. Bayi kapsamı `X-Merchant-Id` / `X-External-Merchant-Id` başlığından uygulanır.
 
 ## Liste
 
+Filtreler: `status`, `transaction_id`, `start_date`, `end_date` (`+03:00`), `page`, `page_size`.
+
 ```bash
-curl "https://vpos.payven.com.tr/api/v1/chargebacks?status=open&page=1&page_size=20" \
-  -H "Authorization: Bearer $PAYVEN_TOKEN"
+curl "https://vpos.payven.com.tr/api/v1/chargebacks?status=opened&page=1&page_size=20" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Merchant-Id: $MERCHANT_ID"
 ```
 
 ```json
 {
   "items": [
     {
-      "id":                "9f3d2b8e-...",
-      "transaction_id":    "8e3f5c12-...",
-      "amount":            15000,
-      "currency":          "TRY",
-      "reason":            "İşlem yetkisiz",
-      "reason_code":       "4837",
-      "bank_reference_no": "CB-GAR-789",
-      "status":            "opened",
-      "response_deadline": "2026-05-22T23:59:59.000+03:00",
-      "resolved_at":       null,
-      "merchant_response": null,
-      "notes":             null,
-      "created":           "2026-05-15T10:30:00.000+03:00"
+      "id":                 "9f3d2b8e-1c4a-4e7b-8a52-6d0f93b1c7e2",
+      "transaction_id":     "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "amount":             15000,
+      "currency":           "TRY",
+      "reason":             "İşlem yetkisiz",
+      "reason_code":        "4837",
+      "bank_reference_no":  "CB-GAR-789",
+      "status":             "opened",
+      "response_deadline":  "2026-10-22T23:59:59.000+03:00",
+      "resolved_at":        null,
+      "merchant_response":  null,
+      "notes":              null,
+      "created":            "2026-10-15T10:30:00.000+03:00",
+      "merchant_name":      "Örnek Ticaret A.Ş.",
+      "masked_card_number": "454671******7894",
+      "transaction_amount": 15000
     }
   ],
-  "page":              1,
-  "total_pages":       1,
-  "total_count":       3,
+  "page": 1,
+  "total_pages": 1,
+  "total_count": 1,
   "has_previous_page": false,
-  "has_next_page":     false
+  "has_next_page": false
 }
 ```
 
-## `status` değerleri
+## Durum makinesi
 
-| Status | Anlam |
+```mermaid
+stateDiagram-v2
+    [*] --> opened: POST /chargebacks
+    opened --> disputed: action=dispute
+    opened --> lost: action=accept / lost
+    opened --> won: action=won
+    disputed --> won: action=won
+    disputed --> lost: action=lost / accept
+    won --> [*]
+    lost --> [*]
+```
+
+| `status` | Anlam |
 |---|---|
-| `opened` | Banka chargeback açtı, merchant yanıtı bekleniyor |
-| `disputed` | Merchant yanıt gönderdi, banka kararı bekleniyor (`merchant_response` doldurulmuş) |
-| `won` | Lehinize karara bağlandı, tutar kalır |
-| `lost` | Aleyhinize karara bağlandı, tutar düşüldü |
+| `opened` | Banka itirazı bildirdi; tutar bakiyeden düşüldü |
+| `disputed` | Bayi itiraz etti, banka kararı bekleniyor (terminal değil) |
+| `won` | İtiraz bayi lehine sonuçlandı; tutar geri verilir (terminal) |
+| `lost` | İtiraz aleyhe sonuçlandı ya da bayi kabul etti; düşüm kalıcı (terminal) |
 
-## Manuel chargeback kaydı
+<Warning>
+`won` ve `lost` **geri alınamaz**: karar para hareketi üretir. Sonuçlanmış kaydı değiştirmeye çalışmak hata döner. Hatalı karar, manuel bakiye düzeltmesiyle destek üzerinden giderilir.
+</Warning>
 
-Banka chargeback bildirimini Payven dışından (e-posta, banka portalı) aldıysanız sisteme manuel kaydedebilirsiniz:
+## Kayıt açma
+
+Banka bildirimini (e-posta, banka portalı) Payven'e kaydedin. `transaction_id` mevcut bir işleme ait olmalıdır; kayıt işlemin test/canlı moduyla açılır.
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/chargebacks \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Merchant-Id: $MERCHANT_ID" \
   -H "Idempotency-Key: cb-bank-ref-789" \
   -H "Content-Type: application/json" \
   -d '{
-    "transaction_id":    "8e3f5c12-...",
+    "transaction_id":    "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
     "amount":            15000,
     "currency":          "TRY",
     "reason":            "İşlem yetkisiz",
     "reason_code":       "4837",
-    "response_deadline": "2026-05-22T23:59:59+03:00",
-    "bank_reference_no": "CB-GAR-789"
+    "bank_reference_no": "CB-GAR-789",
+    "response_deadline": "2026-10-22T23:59:59+03:00"
   }'
 ```
 
-## Status güncelleme
+| Alan | Zorunluluk | Açıklama |
+|---|---|---|
+| `transaction_id` | Zorunlu | İtiraz edilen işlem |
+| `amount` | Zorunlu | Ters ibraz tutarı (kuruş) |
+| `currency` | Opsiyonel | ISO-4217 büyük harf; boşsa `TRY` |
+| `reason` | Zorunlu | Banka gerekçesi (metin) |
+| `reason_code` | Opsiyonel | Şema neden kodu |
+| `bank_reference_no` | Opsiyonel | Bankanın dosya numarası |
+| `response_deadline` | Opsiyonel | İtiraz için son gün (`+03:00`) |
+| `notes` | Opsiyonel | Kalıcı not |
 
-Bankaya yanıt gönderdikten veya banka kararını öğrendikten sonra:
+Yanıt `201`: `{ "id": "..." }`. Kayıt `sanalpos.chargeback.opened` webhook'unu yayınlar.
+
+## Durumu ilerletme
 
 ```bash
-curl -X PUT https://vpos.payven.com.tr/api/v1/chargebacks/9f3d2b8e.../status \
+curl -X PUT https://vpos.payven.com.tr/api/v1/chargebacks/$ID/status \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Merchant-Id: $MERCHANT_ID" \
   -H "Content-Type: application/json" \
   -d '{
-    "status":            "disputed",
-    "merchant_response": "Müşteri ile yazışmalar + kargo teslim fişi banka portalına yüklendi (REF: ABC-123)",
-    "notes":             "Banka portal evrak no: 2026-04-789"
+    "action":            "dispute",
+    "merchant_response": "Teslimat kanıtı banka portalına yüklendi (REF: ABC-123)",
+    "notes":             "Banka portal evrak no: 2026-10-789"
   }'
 ```
 
-`merchant_response` alanı bankaya iletilecek dispute içeriği; `notes` operatör notları için kalıcı saklanır — audit/dispute süreci için kritik.
-
-## Reason kodları (Visa/Mastercard)
-
-Sık karşılaşılan kodlar:
-
-| Kod | Açıklama (Visa/MC) |
+| `action` | Etki |
 |---|---|
-| `4837` | İşlem yetkisiz (No Cardholder Authorization) |
-| `4855` | Mal/hizmet teslim edilmedi |
-| `4853` | Mal/hizmet kalitesinde sorun |
-| `4863` | Cardholder Does Not Recognize |
-| `4870` | Sahtecilik şüphesi (chip/non-chip) |
-| `4880` | Yetkisiz tekrar tahsilat |
+| `dispute` | `disputed`; `merchant_response` itiraz içeriğini saklar |
+| `accept` | Ters ibrazı kabul eder → `lost` |
+| `won` | Lehe sonuç → `won`, tutar geri verilir |
+| `lost` | Aleyhe sonuç → `lost` |
 
-Tam liste için banka anlaşma dokümanlarınıza veya kart şeması sözlüğüne (Visa Reason Codes / MC Chargeback Reason Codes) bakın.
-
-## Süre kısıtı
-
-Chargeback'lere genellikle **7 gün** içinde yanıt verilmesi beklenir (banka anlaşmanıza göre değişir). Süreyi geçirirseniz banka çoğu durumda otomatik müşteri lehine karar verir.
-
-## Önleme prensipleri
-
-<Check>**3D Secure kullanın** — başarılı 3DS sonrası chargeback sorumluluğu bankaya geçer (özellikle 4837 kategorisi için kritik).</Check>
-<Check>**Müşteri iletişim kayıtlarını saklayın** — yazışmalar, sipariş onayı, teslim kanıtı.</Check>
-<Check>**Net merchant adı** — kart ekstresinde müşterinin tanıyacağı isim kullanın (`Acme Magaza` yerine `XYZ Bilgi Tek` müşteriyi şüpheye düşürür).</Check>
-<Check>**Hızlı iade politikası** — müşteri sizden iade alabilse chargeback açmaz; en pratik chargeback önleme yolu.</Check>
-<Check>**Fraud kuralları** — yüksek riskli işlemleri önceden işaretleyin (kurallar konsol → Fraud ekranından yönetilir).</Check>
+`won` / `lost` geçişi `sanalpos.chargeback.resolved` webhook'unu yayınlar. Eksik ya da tanınmayan `action` hata döner (kayıt bulunamadı anlamına gelmez).
 
 ## Webhook olayları
 
-Chargeback yaşam döngüsü iki webhook olayı yayınlar — webhook ucunuzun `enabled_events` listesine
-ekleyin:
-
 | Olay | Tetikleyici |
 |---|---|
-| `sanalpos.chargeback.opened` | Kart sahibi işleme itiraz etti (ters ibraz açıldı) |
-| `sanalpos.chargeback.resolved` | İtiraz sonuçlandı |
+| `sanalpos.chargeback.opened` | Ters ibraz kaydı açıldı |
+| `sanalpos.chargeback.resolved` | İtiraz sonuçlandı (`status` = `won` / `lost`) |
 
-Payload alanları: [Webhook Olay Kataloğu](/sanal-pos/webhooks/events).
-Kayıtları `GET /api/v1/chargebacks` listesinden de izleyebilirsiniz.
+Gövde alanları: `chargeback_id`, `transaction_id`, `amount`, `currency`, `status`, `reason`, `reason_code`, `external_id`, `bank_reference_no`, `response_deadline`, `occurred_at` — bkz. [Webhook Olay Kataloğu](/sanal-pos/webhooks/events).
 
-## Yol haritası
+## Süre ve önleme
 
-- **Programatik evidence upload** — `POST /chargebacks/{id}/evidence` (PDF/JPG attach)
-- **Visa/MC reason kodu kataloğu** — konsoldan açıklama görüntüleme
-
-Güncellemeler için: [Changelog](/resources/changelog).
+Bankalar genellikle birkaç gün içinde yanıt bekler (`response_deadline`); süre geçerse itiraz çoğu zaman müşteri lehine sonuçlanır. Başarılı 3D Secure doğrulaması, teslim kanıtı saklama ve hızlı iade politikası ters ibraz riskini azaltır.

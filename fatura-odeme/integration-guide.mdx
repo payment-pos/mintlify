@@ -1,0 +1,64 @@
+---
+title: "Entegrasyon Akışı"
+description: "Fatura sorgulama, kuruma ödeme ve tahsilat adımları."
+---
+
+<Steps>
+  <Step title="Token alın">
+    API anahtarınızla Identity'den access token alın ([Kimlik Doğrulama](/documentation/concepts/authentication)).
+    Anahtarda **Fatura Ödeme** yetkisi seçili olmalıdır. Birden çok bayiniz varsa her istekte
+    `X-External-Merchant-Id` (ya da `X-Merchant-Id`) başlığını gönderin.
+  </Step>
+  <Step title="Kurum kodunu bulun">
+    `GET /api/v1/invoice-providers` kurum listesini döner. Sorgularda kurumun `code` değeri (`pv_ornek_kurum`) kullanılır.
+  </Step>
+  <Step title="Faturayı sorgulayın">
+    ```bash
+    curl -X POST https://invoice.payven.com.tr/api/v1/invoices/query \
+      -H "Authorization: Bearer $PAYVEN_TOKEN" \
+      -H "X-External-Merchant-Id: BAYI-001" \
+      -H "Content-Type: application/json" \
+      -d '{ "provider_code": "pv_ornek_kurum", "subscriber_no": "1234567890", "tckn": "12345678901" }'
+    ```
+    Yanıt `{ "is_success", "error_code", "error_message", "invoices": [...] }` biçimindedir; zarf (`data`) yoktur.
+    Kurum sorguyu reddederse `is_success: false` ve `error_code` gelir.
+  </Step>
+  <Step title="Kuruma ödeyin">
+    Sorgudan dönen `invoices[].id` ile:
+    ```bash
+    curl -X POST https://invoice.payven.com.tr/api/v1/invoices/8e3f5c12-.../pay \
+      -H "Authorization: Bearer $PAYVEN_TOKEN" \
+      -H "X-External-Merchant-Id: BAYI-001" \
+      -H "Idempotency-Key: pay-8e3f5c12" \
+      -H "Content-Type: application/json" \
+      -d '{ "comment": "Mayıs faturası" }'
+    ```
+    Başarılı yanıtta `is_success: true`, `provider_transaction_id` ve `payment` (fatura ödemesi) gelir.
+    Bu adım bayi bakiyesine dokunmaz; bayinin müşteriden **alacağını** (`amount_receivable`) doğurur ve tahsilat adımıyla kapanır.
+  </Step>
+  <Step title="Müşteriden tahsil edin">
+    ```bash
+    curl -X POST https://invoice.payven.com.tr/api/v1/invoice-payments/{payment_id}/collections \
+      -H "Authorization: Bearer $PAYVEN_TOKEN" \
+      -H "Idempotency-Key: col-8e3f5c12" \
+      -H "Content-Type: application/json" \
+      -d '{ "source": "balance", "amount": 15000 }'
+    ```
+    `source`: `balance` (bayi bakiyesi), `credit_card` (kart; `card` + `buyer` ile doğrudan çekim ya da `return_url` ile yönlendirmeli 3D akışı), `external_pos` (`external_receipt_ref` ile harici POS fişi).
+    Kısmi tahsilat mümkündür; `collected_amount` toplam tahsilatı, `amount_receivable` kalanı gösterir, `is_settled` hepsi bitince `true` olur.
+  </Step>
+  <Step title="Sonucu izleyin">
+    Sonuç için webhook'lara ([Webhook'lar](/fatura-odeme/webhooks)) güvenin; kaçırırsanız `GET /invoices/payments/{id}` ile sorgulayın.
+  </Step>
+</Steps>
+
+## Hata durumunda ne yapılır?
+
+| Durum | Yapılacak |
+|---|---|
+| Sorgu `is_success: false` | `error_code`'a göre abone numarasını düzeltin veya başka kurum deneyin |
+| Ödeme `422 PV_PAYMENT_FAILED` | Kurum reddetti; `provider_error_code` destek için saklayın, tekrar denemeden önce faturayı yeniden sorgulayın |
+| `504 PV_TIMEOUT` | Ödeme kurumda gerçekleşmiş olabilir; **yeniden ödemeden önce** `GET /invoices/payments?invoice_number=...` ile durumu kontrol edin |
+| Aynı isteği tekrarlıyorsunuz | Aynı `Idempotency-Key` ile gönderin; paralel çift tıklama sunucuda serileştirilir |
+
+Fatura ödemesini iptal etmek için `POST /invoices/{payment_id}/cancel` kullanılır (bkz. [Fatura Uçları](/fatura-odeme/invoices#iptal)).

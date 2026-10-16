@@ -1,0 +1,43 @@
+---
+title: "Webhook'lar"
+description: "Fatura Ödeme olay kodları ve gövde alanları."
+---
+
+Webhook ucu tüm ürünler için tek yerden tanımlanır: [Webhook'lar](/documentation/concepts/webhooks). Aşağıdaki kodları `enabled_events` listesine yazın; geçerli liste daima `GET /api/v1/webhook-endpoints/event-types` yanıtıdır. İmza doğrulama: [İmza Doğrulama](/sanal-pos/webhooks/signature).
+
+| Olay | Tetikleyici |
+|---|---|
+| `fatura-odeme.invoice.paid` | Bir tahsilat başarıyla tamamlandı (kısmi tahsilatta her tahsilat için ayrı olay) |
+| `fatura-odeme.invoice.cancelled` | Fatura ödemesi iptal edildi |
+| `fatura-odeme.invoice_payment.failed` | Kuruma ödeme nihai olarak başarısız oldu; yeniden denenebilir |
+| `fatura-odeme.invoice_query.failed` | Tüm konnektörler sorguda hata döndü; fatura kaydı oluşmadı |
+
+Hakediş olayları (`fatura-odeme.settlement.*`) için [Webhook Olay Referansı](/documentation/concepts/webhook-events).
+
+## `invoice.paid` alanları
+
+| Alan | Açıklama |
+|---|---|
+| `invoice_payment_id` | Fatura ödemesi kimliği |
+| `merchant_id`, `tenant_id` | Kapsam |
+| `principal` | Ödemenin tamamı (kuruş) |
+| `invoice_number` | Fatura numarası |
+| `collection_id` | Tahsilat kimliği |
+| `collection_source` | `balance`, `credit_card`, `external_pos`. Kaynak yalnız bu alanın **değerini** değiştirir, gövde şekli aynıdır |
+| `collection_amount` | Bu tahsilatın tutarı (kuruş) |
+| `occurred_at` | `+03:00` |
+
+Komisyon alanı taşınmaz.
+
+## `invoice.cancelled` alanları
+
+`invoice_payment_id`, `merchant_id`, `tenant_id`, `amount`, `reason` (`invoice_cancelled`), `collection_sources[]` (başarılı tahsilat kaynakları; boşsa hiç tahsil edilmemiş), `occurred_at`.
+
+## `invoice_payment.failed` ve `invoice_query.failed`
+
+| Olay | Alanlar |
+|---|---|
+| `invoice_payment.failed` | `invoice_payment_id`, `invoice_id`, `merchant_id`, `tenant_id`, `amount`, `provider_code`, `invoice_number`, `error_code`, `error_message` |
+| `invoice_query.failed` | `merchant_id`, `tenant_id`, `provider_code`, `subscriber_no`, `tckn`, `error_code`, `error_message`, `occurred_at` |
+
+Aynı olay birden çok kez gelebilir; `X-Payven-Event-Id` ile tekilleştirin.

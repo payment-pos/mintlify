@@ -1,0 +1,67 @@
+---
+title: "Yapay Zeka Asistanı Bağlantısı (MCP)"
+description: "Claude, ChatGPT, Cursor gibi asistanları Payven hesabınıza güvenle bağlayın."
+---
+
+Payven, [Model Context Protocol (MCP)](https://modelcontextprotocol.io) üzerinden çalışan **uzak bir MCP sunucusu** sunar. Asistanınız hesabınıza bağlanır ve "son bir ayın ödemelerini getir", "bu haftanın red nedenlerini kırılımla" gibi soruları doğrudan yanıtlar. Varsayılan bağlantı **salt okunurdur**; yazma yalnız sizin açıkça verdiğiniz izinle ve sınırlı iki araçla mümkündür.
+
+## Ne zaman kullanılır?
+
+- Bayi veya şirket (master PF) kullanıcısı olarak ödeme, iade ve bakiye verilerini sohbet ile sorgulamak istiyorsanız.
+- Ödeme linki oluşturma veya bekleyen transferi onaylama gibi tekrarlı işleri asistana yaptırmak istiyorsanız (ayrı yazma izni gerekir).
+- Tarayıcı oturumu olmayan bir ajan/otomasyon için salt okunur **ajan anahtarı** (`pvak_...`) ile bağlanacaksanız.
+
+<Note>
+MCP sunucusu mevcut servislerin önünde ince bir katmandır. Asistanın erişimi, bağlanan **kullanıcının kendi yetkisi** ve onayda seçtiği izin/işletme kümesi ile sınırlıdır; ayrı bir yetki matrisi yoktur.
+</Note>
+
+## Adres
+
+| | |
+|---|---|
+| MCP sunucusu | `https://mcp.payven.com.tr` (MCP ucu kök adrestir) |
+| Yetkilendirme sunucusu | `https://identity.payven.com.tr/oauth` |
+| Taşıma | Streamable HTTP, durumsuz |
+
+Beyaz etiket kurulumlarda adresler müşterinin kendi alan adıdır; hesap (tenant) bağlantı sırasında onay ekranında seçilir, adreste yer almaz.
+
+## Kurulum
+
+<Tabs>
+  <Tab title="Claude Code">
+    ```bash
+    claude mcp add --transport http payven https://mcp.payven.com.tr
+    ```
+    İlk kullanımda tarayıcı açılır; Payven hesabınıza girip izinleri onaylarsınız.
+  </Tab>
+  <Tab title="Claude / ChatGPT / Cursor / VS Code">
+    Uygulamanın **Bağlayıcılar / MCP sunucuları** ekranında uzak sunucu olarak `https://mcp.payven.com.tr` adresini ekleyin. Yetkilendirme otomatik başlar. Dinamik istemci kaydı (DCR) ve istemci kimlik belgesi (CIMD) desteklenir; elle `client_id` oluşturmanız gerekmez.
+  </Tab>
+  <Tab title="Ajan anahtarı">
+    Tarayıcı akışı olmayan ajanlar için panelde **API Anahtarları → Ajan (MCP)** türünde anahtar oluşturun ve `Authorization: Bearer pvak_...` ile bağlanın. Ajan anahtarı **daima salt okunurdur**, yazma izni taşıyamaz.
+  </Tab>
+</Tabs>
+
+## Bağlantı akışı
+
+<Steps>
+  <Step title="Yetkilendirme">
+    İstemci OAuth 2.1 (PKCE) akışını başlatır. Onay sayfasında şunları seçersiniz: **hesap**, **ortam** (`live` / `test`), **işletmeler** (bayi kullanıcısı kendi ve doğrudan alt işletmelerinden; şirket kullanıcısı tümü ya da en fazla 50 seçili) ve **izinler**.
+  </Step>
+  <Step title="Kullanım">
+    Asistan araçları çağırır. İzin verilmeyen araç hiç listelenmez ve adıyla çağrılsa da reddedilir.
+  </Step>
+  <Step title="Yönetim ve iptal">
+    **Ayarlar → Bağlı uygulamalar** (Portal) veya işyeri panelinde **Entegrasyon** ekranından bağlantıları ve her aracın çağrı geçmişini görür, tek tek ya da toplu keser; iptal hemen yürürlüğe girer.
+  </Step>
+</Steps>
+
+Test ortamındaki bağlantılar yalnız test verisini görür; test modundaki bayiye yalnız `test` ortamı sunulur.
+
+## Sonraki adımlar
+
+<CardGroup cols={3}>
+  <Card title="Araçlar" icon="screwdriver-wrench" href="/mcp/tools">12 araç, argümanlar, tutar ve tarih kuralları.</Card>
+  <Card title="İzinler ve Güvenlik" icon="shield-halved" href="/mcp/permissions">Okuma/yazma kapsamları, denetim kaydı.</Card>
+  <Card title="Anahtarlar" icon="key" href="/identity/api-keys/overview">API anahtarı yönetimi.</Card>
+</CardGroup>

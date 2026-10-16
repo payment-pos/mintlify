@@ -1,0 +1,57 @@
+---
+title: "İşyeri API'si"
+description: "İşyeri (KOBİ) panelinin arka ucu; entegratör için webhook uçları ve olay geçmişi."
+---
+
+İşyeri API'si, **İşyeri Paneli**'nin tek arka ucudur. İki işi birlikte yapar: bayinin kendi iş alanını (Payven Kart, hesaba aktarım, borç ödemesi) yürütmek ve panelin ihtiyaç duyduğu diğer ürünlere (Sanal POS, Cüzdan, e-Fatura, Identity) tek bir geçit olmak. Yüzeyin büyük kısmı bir **kullanıcı arayüzü için** tasarlanmıştır; sunucudan sunucuya entegrasyonda kullanacağınız kısım ise küçüktür.
+
+## Base URL
+
+| Ortam | URL |
+|---|---|
+| Production | `https://merchant.payven.com.tr` |
+
+Kimlik doğrulama diğer ürünlerle aynıdır ([Kimlik Doğrulama](/documentation/concepts/authentication)); API anahtarında **İşyeri API** (`merchant`) yetkisi seçili olmalıdır, aksi halde `401 audience_invalid` alırsınız. Bayi kapsamı `X-Merchant-Id` / `X-External-Merchant-Id` başlıklarıyla belirlenir.
+
+## Entegratöre açık kısım: webhook uçları ve olaylar
+
+Tüm ürünlerin (Sanal POS, Para Transferi, Fatura Ödeme, e-Fatura, Cüzdan, İşyeri) olayları **tek bir webhook ucuna** teslim edilir. Uç yönetimi İşyeri API'sinin adresinden yapılır:
+
+| Uç | İş |
+|---|---|
+| `GET/POST /api/v1/webhook-endpoints` | Uçları listele / oluştur (`url`, `enabled_events`, `payload_format`) |
+| `GET/PUT/DELETE /api/v1/webhook-endpoints/{id}` | Tek uç |
+| `GET /api/v1/webhook-endpoints/event-types` | Geçerli olay kodları (Türkçe ad, açıklama, ürün) |
+| `POST /api/v1/webhook-endpoints/{id}/rotate-secret` | İmza sırrını yenile |
+| `GET /api/v1/events` | Saklanan olaylar (`type`, `created_gte`, `page`, `page_size`) |
+
+İstekler olay merkezine iletilir; yetki, bayi kapsamı ve mod orada uygulanır. Olay zarfı, imza doğrulama ve yeniden deneme kuralları için: [Webhook'lar](/documentation/concepts/webhooks) ve [Webhook Olay Referansı](/documentation/concepts/webhook-events).
+
+İşyeri ürününün kendi olayları (`merchant.*`) aynı katalogdadır: `merchant.card.*`, `merchant.cashout.created|completed|failed`, `merchant.request.approved|rejected`. Uç 3 gün boyunca olayları kabul etmezse kapatılır ve `merchant.webhook_endpoint.disabled` olayı yayınlanır. Uç açma/kapama, `test`, teslim listesi ve yeniden deneme uçlarının tamamı: [Webhook'lar](/documentation/concepts/webhooks).
+
+## Panele özgü kısım
+
+Aşağıdaki yüzeyler panelin kullanıcı akışı için tasarlanmıştır; sunucu entegrasyonu için sözleşme garantisi verilmez.
+
+| Yüzey | Neden entegrasyona uygun değil |
+|---|---|
+| `/gateway/{servis}/{yol}` | Panelin diğer ürünlere geçidi. Bir izin listesiyle sınırlıdır; entegrasyonda ürünün **kendi adresini** kullanın (Sanal POS için `vpos`, e-Fatura için `efatura` vb.) |
+| `/cards`, `/cashouts`, `/debt-payments` | Payven Kart ve hesaba aktarım: kart doğrulaması 3D Secure sayfası ile etkileşimli yürür, kart başvurusu operatör onayındadır |
+| `/overview`, `/statements`, `/settings/*`, `/team`, `/payout-settings`, `/merchant-profile` | Panel ekranlarının özet ve ayar uçları |
+| `/auth/*`, `/me` | Panel oturumu |
+| `/platform/*` | Yalnız operatör (backoffice) |
+
+## Sandbox
+
+Test modundaki bayi (`environment=sandbox`) ya da test API anahtarı ile yapılan istekler test verisini görür; panel başvuru aşamasından geçen bayi önce test modunda açılır, canlıya geçiş operatör onayıyla olur.
+## Hata kodları
+
+Standart zarf: [Hata Yönetimi](/documentation/concepts/errors). Bayi bağlamı hataları:
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `merchant_context_missing` | 400 | Hangi bayi olduğu belirtilmedi |
+| `merchant_not_found` | 422 | Belirtilen bayi bulunamadı |
+| `merchant_inactive` / `merchant_not_approved` | 422 | Pasif/onaysız bayi para üreten uçlarda işlem yapamaz |
+| `PV_PRODUCT_NOT_INSTALLED` | 404 | İstenen ürün bu kurulumda yok |
+| `PV_UPSTREAM_PATH_FORBIDDEN` | 403 | Geçit izin listesinde olmayan yol |

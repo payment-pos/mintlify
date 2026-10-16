@@ -1,0 +1,64 @@
+---
+title: "İzinler ve Güvenlik"
+description: "Okuma ve yazma kapsamları, işletme sınırı, ortam ve denetim kaydı."
+---
+
+## İzin kapsamları
+
+Onay ekranında hangi kapsamları vereceğinizi siz seçersiniz; `account.read` daima verilir.
+
+| Kapsam | Tür | Açtığı araçlar |
+|---|---|---|
+| `account.read` | Okuma (daima) | `get_account` |
+| `merchants.read` | Okuma | `list_merchants` |
+| `payments.read` | Okuma | `list_payments`, `get_payment`, `summarize_payments`, `payment_breakdown` |
+| `refunds.read` | Okuma | `list_refunds` |
+| `balance.read` | Okuma | `get_balance`, `list_wallet_activity` |
+| `records.create:payment_link` | Yazma (Oluşturma) | `create_payment_link` |
+| `actions.approve:transfer` | Yazma (İşlem onayı) | `list_pending_transfers`, `approve_transfer` |
+
+- Yazma izinleri onay sayfasında **varsayılan olarak işaretsizdir** ve ayrı uyarıyla sunulur.
+- Kapsam **grup + işlem** biçimindedir: bir işlemi vermek kardeş işlemi ya da başka grubu açmaz.
+- Yeni bir araç eklendiğinde mevcut bağlantılara kendiliğinden verilmez.
+
+## Yazma için ayrı kimlik
+
+Yazma yetkisi bir kapsam seçimi değil, **ayrı bir kimliktir**: okuma ve yazma farklı Keycloak istemcileriyle çalışır (`payven-mcp` salt okunur, `payven-mcp-write` tam). Yazma kapsamı vermediyseniz yazma oturumu hiç açılmaz; asistan yazmayı denerse "yazma izni verilmemiş" yanıtı alır. Yazma oturumu yalnız parolayla giriş sırasında açılabilir, sonradan yükseltilemez.
+
+## Ajan anahtarı
+
+| Özellik | Ajan anahtarı (`pvak_...`) |
+|---|---|
+| Erişim | Daima salt okunur |
+| Yazma kapsamı | Taşıyamaz (`422 api_key_agent_write_scope_not_allowed`) |
+| İzinler | Anahtar oluşturulurken seçilen asistan okuma izinleri (boşsa hepsi) |
+| Tür | Sonradan değiştirilemez (`api_key_kind_immutable`) |
+
+Anahtar yalnız oluşturma ve sır yenileme yanıtında tek parça gösterilir.
+
+## İşletme ve ortam sınırı
+
+- Token'da onayda seçtiğiniz işletmeler taşınır; araç çağrıları bu kümeyle kesiştirilir, dışındaki işletme okunamaz.
+- Bayi kullanıcısı kendi ve **doğrudan** alt işletmelerinden seçebilir; şirket kullanıcısı tümünü ya da en fazla 50 işletmeyi seçebilir.
+- `live` bağlantı gerçek veriyi, `test` bağlantı yalnız test modu verisini görür. Tenant yöneticisi ortam başına asistan erişimini kapatabilir; kapatmak o ortamın tüm bağlantılarını keser.
+
+## Güvenlik sözleşmesi
+
+| Konu | Davranış |
+|---|---|
+| Token | Asistana verilen erişim token'ı 5 dakikalıktır, yalnız MCP sunucusu için geçerlidir ve **hiçbir Payven servisine iletilmez**. Servislere bağlantının kullanıcı yetkisiyle ayrı bir token gider |
+| Yenileme | Refresh token rotasyonludur; yeniden kullanım tespit edilirse bağlantı iptal edilir |
+| İptal | Bağlantıyı kestiğiniz an bir sonraki istek `401` alır |
+| Denetim | Her araç çağrısı (reddedilenler dahil) **Bağlı uygulamalar** geçmişine yazılır: araç, maskelenmiş argüman özeti (en fazla 2000 karakter), sonuç durumu. Sonuç gövdesi saklanmaz; günlük otomatik silinmez |
+| Kanal | Asistan kaynaklı tüm servis çağrıları `X-Client-Channel: 105` (`ai_assistant`) taşır. Bu yalnız raporlama içindir, yetki kararı buna dayanmaz |
+| Modül | Satılabilir `identity-core.ai-connector` modülü kapalıysa onay, token ve mevcut bağlantılar reddedilir |
+
+## Hata ve durum kodları
+
+| Durum | Anlam |
+|---|---|
+| `401` + `WWW-Authenticate: Bearer resource_metadata=...` | Token yok/geçersiz ya da bağlantı iptal edildi; istemci yeniden yetkilendirir |
+| `403 account_offline_access_missing` | Giriş sırasında hesapta `offline_access` rolü yok; yöneticinize başvurun |
+| `403 ai_connector_write_not_granted` | Bağlantıya yazma izni verilmemiş |
+| `409 ai_connector_disabled` | Asistan erişimi bu ortam/modül için kapalı |
+| Araç hatası (`isError`) | Türkçe cümle asistana aynen gider (ör. geçersiz argüman, izinsiz işletme) |

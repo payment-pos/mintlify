@@ -1,25 +1,32 @@
 ---
 title: "Dekont (Makbuz) İndirme"
-description: "Tamamlanmış transferin banka makbuz PDF'ini indirin veya Base64 olarak alın."
+description: "Transferin banka dekontunu PDF/Base64 olarak ve Payven makbuzunu alın."
 ---
 
-`completed` veya `delivered` durumdaki transferlerin **banka makbuzu** PDF olarak indirilebilir. İki seçenek vardır: doğrudan PDF dosyası veya Base64-encoded string (e-posta eki, S3 yükleme veya CRM kayıtları için pratik).
+Bir transfer için iki belge alınabilir:
 
-## Endpoint'ler
+| Belge | Uç | Nedir |
+|---|---|---|
+| **Banka dekontu** | `GET /transfers/{id}/receipt/download`, `/receipt/base64` | Bankanın ürettiği resmi dekont (PDF) |
+| **Payven makbuzu** | `GET /receipts/transfer/{id}` (+ `/html`, `/send`) | Her bankada aynı tasarımla, işyerinin kimliğiyle ve anlaşılır dille hazırlanan makbuz |
+
+İki belge **aynı durumlarda** vardır: `delivered`, `completed`, `refunded`. Transferin `receipt_available`
+alanı bu kararı verir; durum listesini kendi tarafınızda tutmayın.
+
+## Banka dekontu
 
 ```http
 GET /api/v1/transfers/{id}/receipt/download   # PDF dosyası (binary)
 GET /api/v1/transfers/{id}/receipt/base64     # Base64-encoded string
 ```
 
-**Yetki:** transfer görüntüleme yetkisi (`CanViewTransfers`).
+**Yetki:** `CanViewTransfers`.
 
-## PDF dosyası olarak indirme
+### PDF dosyası olarak indirme
 
 ```bash
 curl https://transfer.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/receipt/download \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID" \
   -o makbuz.pdf
 ```
 
@@ -29,12 +36,9 @@ Yanıt:
 HTTP/1.1 200 OK
 Content-Type: application/pdf
 Content-Disposition: attachment; filename="PAYVEN_8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6.pdf"
-Content-Length: 47823
 ```
 
-PDF binary içeriği döner. Tarayıcıda doğrudan görüntülemek için `Content-Disposition: inline` ile sunabilirsiniz.
-
-## Base64 olarak alma
+### Base64 olarak alma
 
 E-posta eki, mobil uygulama görüntüleme veya başka bir sistemden yükleme yaparken doğrudan Base64 string almak daha pratiktir:
 
@@ -65,35 +69,45 @@ await mailer.send({
 });
 ```
 
-## Dekont içeriği
-
-Banka tarafından üretilen makbuz şu bilgileri taşır (banka şablonuna göre değişebilir):
-
-- **Banka ve şube logosu**
-- **İşlem tarihi ve saati**
-- **İşlem referans numarası** (banka tarafı)
-- **Gönderici hesap** (IBAN, isim, açıklama)
-- **Alıcı hesap** (IBAN, isim, açıklama)
-- **Tutar ve para birimi**
-- **Banka komisyonu**
-- **Transfer tipi** (FAST / EFT / Havale)
-- **Banka onay imzası / kaşesi**
-
-## Hangi durumlarda mevcut?
+### Hangi durumlarda mevcut?
 
 | Transfer durumu | Dekont alınabilir mi? |
 |---|---|
-| `pending`, `approved`, `processing` | — banka henüz onaylamadı |
-| `delivered` | ⚠️ Bazı bankalar henüz dekont üretmemiş olabilir |
-| `completed` |  |
-| `failed`, `rejected` | — başarılı işlem yok |
-| `refunded` | — ek olarak iade dekontu da alınabilir |
+| `pending`, `awaiting_funds`, `approved`, `processing`, `failed`, `rejected` | Hayır — `409 PV_RECEIPT_NOT_AVAILABLE` |
+| `delivered` | Evet; bazı bankalar dekontu henüz üretmemiş olabilir (`422 PV_RECEIPT_GENERATION_FAILED`) |
+| `completed`, `refunded` | Evet |
+
+Test modunda üretilen transferler için bankaya gidilmez; dekont Payven tarafından **TEST** işaretiyle
+üretilir (bkz. [Test Modu](/para-transferi/sandbox)).
+
+## Payven makbuzu
+
+```http
+GET  /api/v1/receipts/transfer/{id}         # Yapılandırılmış makbuz (JSON)
+GET  /api/v1/receipts/transfer/{id}/html    # Yazdırılabilir HTML
+POST /api/v1/receipts/transfer/{id}/send    # E-posta / SMS ile gönderim
+```
+
+**Yetki:** `CanViewTransfers`. Makbuz numarası, tutar (`amount` kuruş), `occurred_at`, düzenleyen (işyeri)
+bilgisi, alıcı/gönderici bölümleri ve `is_test` bayrağını içerir.
+
+```bash
+curl -X POST https://transfer.payven.com.tr/api/v1/receipts/transfer/8e3f5c12-.../send \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "channel": "email", "recipient": "ahmet@example.com" }'
+```
+
+`channel`: `email` ya da `sms`. Yanıt `channel`, `masked_recipient`, `delivered`, `simulated`, `message`
+alanlarını taşır; test modundaki işlemin makbuzu dışarı gönderilmez (`simulated: true`).
 
 ## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `resource_not_found` | Verilen `id` bulunamadı, transfer henüz dekont üretmemiş veya banka dekontu döndüremedi — `message` alanında detay bulunur |
+| `404` | `PV_TRANSFER_NOT_FOUND` | `id` bulunamadı ya da başka bayiye ait |
+| `409` | `PV_RECEIPT_NOT_AVAILABLE` | Transferin mevcut durumunda dekont yok |
+| `422` | `PV_RECEIPT_GENERATION_FAILED` | Banka dekontu döndüremedi — `message` alanında detay bulunur |
 | `403` | `forbidden` | Yetki yok |
 
-Banka dekontu henüz üretmediyse kısa süre sonra tekrar deneyin. Banka tarafı 24 saatte üretmediyse [destek talebi](/resources/support) açın; konsol üzerinden manuel temin edilebilir.
+Banka dekontu henüz üretmediyse kısa süre sonra tekrar deneyin. Banka tarafı 24 saatte üretmediyse [destek talebi](/resources/support) açın.

@@ -1,63 +1,65 @@
 ---
 title: "Alıcılar (Recipients)"
-description: "Saklı alıcı master data — tek seferlik IBAN doldurma yerine kayıtlı alıcılarla transfer."
+description: "Kayıtlı alıcı hesapları — düzenli transfer ettiğiniz kişi ve kurumları bir kez kaydedin."
 ---
 
-Alıcı (recipient), düzenli transfer ettiğiniz kişilerin / kurumların **kayıtlı master data**'sıdır. Alıcı kaydedince her transferde IBAN ve kimlik bilgilerini tekrar girmeniz gerekmez; `recipient_id` referans verirsiniz, Payven kalan bilgileri çeker.
+Alıcı (recipient), düzenli transfer ettiğiniz kişilerin / kurumların **kayıtlı hesap bilgisidir**: ad, banka ve IBAN (ya da hesap numarası / kart token'ı) tek kayıtta durur. Alıcı kaydı iki yerde kullanılır:
+
+- **Tekrarlayan transferler** alıcıyı `recipient_id` ile referans verir; IBAN alıcı kaydından okunur ([Tekrarlayan Transferler](/para-transferi/transfers/recurring)).
+- **Tekil transferlerde** `recipient.recipient_id` yalnız oluşan alıcı hesabı kaydı alıcıya bağlar; IBAN yine istekte verilir ([1. Adım — Oluştur](/para-transferi/transfers/bulk-create#alıcı-bilgisi)).
 
 ## Ne zaman kullanılır?
 
-| Senaryo | Saklı alıcı | Ad-hoc IBAN |
+| Senaryo | Kayıtlı alıcı | Ad-hoc IBAN |
 |---|---|---|
-| Maaş bordrosu (her ay aynı çalışanlar) |  | — |
-| Tedarikçi ödemesi (sürekli iş yapılan firmalar) |  | — |
-| Tek seferlik müşteri iadesi | — |  |
-| Marketplace satıcıya ödeme (kayıtlı satıcı) |  | — |
+| Tekrarlayan maaş / kira / abonelik | Evet (zorunlu) | — |
+| Maaş bordrosu, tedarikçi ödemesi (her ay aynı kişiler) | Önerilir | Mümkün |
+| Tek seferlik müşteri iadesi | — | Evet |
 
 ## Endpoint'ler
 
 ```http
-POST   /api/v1/recipients                       # Yeni alıcı
-GET    /api/v1/recipients                       # Liste (sayfalı)
-GET    /api/v1/recipients/by-bank/{bank_id}     # Banka bazlı liste
-PUT    /api/v1/recipients/{id}                  # Güncelleme
-DELETE /api/v1/recipients/{id}                  # Silme
+POST   /api/v1/recipients                        # Yeni alıcı
+GET    /api/v1/recipients                        # Liste (sayfalı)
+GET    /api/v1/recipients/by-bank/{bank_id}      # Banka bazlı liste
+PUT    /api/v1/recipients/{id}                   # Güncelleme (tam değiştirme)
+DELETE /api/v1/recipients/{id}                   # Silme
+POST   /api/v1/recipients/{id}/blacklist         # IBAN'ı kara listeye ekle
+GET    /api/v1/recipients/export                 # CSV (scope=page|all)
+GET    /api/v1/recipients/export/schema          # Kolon şeması
 ```
 
-**Yetki:** Listeleme için `transfer-viewer` yeterli; CRUD operasyonları `transfer-admin` gerektirir.
+**Yetki:** okuma `CanViewRecipients`; oluşturma, güncelleme, silme ve kara liste `CanManageRecipients`.
 
 ## Alıcı oluşturma
 
 ```bash
 curl -X POST https://transfer.payven.com.tr/api/v1/recipients \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "X-Merchant-Id: $MERCHANT_ID" \
   -H "Idempotency-Key: recipient-ahmet-yilmaz-2026" \
   -H "Content-Type: application/json" \
   -d '{
-    "holder_name":    "Ahmet Yılmaz",
-    "tax_id":         "12345678901",
-    "tax_id_type":    "tckn",
-    "email":          "ahmet@example.com",
-    "phone":          "+905551112233",
-    "label":          "Mayıs maaş listesi — Yazılım Ekibi",
-    "external_id":    "EMP-001"
+    "bank_id":      "5e0b0f2a-0000-0000-0000-000000000001",
+    "holder_name":  "Ahmet Yılmaz",
+    "first_name":   "Ahmet",
+    "last_name":    "Yılmaz",
+    "iban":         "TR330006100519786457841326",
+    "description":  "Mayıs maaş listesi — Yazılım Ekibi"
   }'
 ```
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `holder_name` | string | Zorunlu | Alıcının adı (max 100 karakter) |
-| `tax_id` | string | Zorunlu | TC kimlik no (gerçek kişi) veya vergi numarası (tüzel kişi) |
-| `tax_id_type` | enum | Zorunlu | `tckn` (gerçek kişi) veya `vkn` (tüzel kişi) |
-| `email` | string | Opsiyonel | Bilgilendirme e-postası gönderilecek adres (raporlama için) |
-| `phone` | string | Opsiyonel | İletişim numarası |
-| `label` | string | Opsiyonel | Operatör için etiket (örn. "Maaş listesi 2026 Mayıs") |
-| `external_id` | string | Önerilir | Sizin sisteminizdeki kayıt kimliği |
+| `bank_id` | UUID | Zorunlu | Alıcının bankası; [banka kataloğundaki](/identity/lookups/banks) **aktif** bir banka (`GET /api/v1/lookups/banks`) |
+| `holder_name` | string | Zorunlu | Hesap sahibi adı (en fazla 250 karakter) |
+| `first_name`, `last_name` | string | Opsiyonel | En fazla 100 karakter |
+| `iban` | string | Hesap tanımlayıcısı | IBAN (en fazla 50 karakter) |
+| `account_number` | string | Hesap tanımlayıcısı | Hesap numarası (en fazla 50 karakter) |
+| `masked_card_no`, `card_token` | string | Kartlı alıcı | Maskeli kart numarası (en fazla 50) ve kart token'ı (en fazla 250) |
+| `description` | string | Opsiyonel | Etiket / açıklama (en fazla 500 karakter) |
 
-<Note>
-**Alıcı = master kayıt**, **alıcı hesabı = IBAN**. Bir alıcının birden fazla IBAN'ı olabilir (örn. farklı bankalardaki hesapları). IBAN'lar [Alıcı Hesapları](/para-transferi/recipients/receiver-accounts) ile ayrı yönetilir.
-</Note>
+Bayi kapsamı `X-Merchant-Id` başlığından gelir; gövdede bayi alanı yoktur.
 
 ## Yanıt
 
@@ -67,101 +69,72 @@ Content-Type: application/json
 ```
 
 ```json
-{
-  "id":            "abc-12345-6789-...",
-  "holder_name":   "Ahmet Yılmaz",
-  "tax_id":        "12345678901",
-  "tax_id_type":   "tckn",
-  "email":         "ahmet@example.com",
-  "phone":         "+905551112233",
-  "label":         "Mayıs maaş listesi — Yazılım Ekibi",
-  "external_id":   "EMP-001",
-  "is_active":     true,
-  "created":       "2026-05-03T12:00:00.123+03:00"
-}
+"abc12345-0000-0000-0000-000000000000"
 ```
 
-`id` değerini saklayın — transfer oluştururken `recipient_id` olarak kullanılacak.
+Gövde yeni alıcının kimliğidir (UUID string). Bu `id`'yi tekrarlayan transferde `recipient_id` olarak kullanırsınız.
 
 ## Listeleme
 
 ```bash
 curl "https://transfer.payven.com.tr/api/v1/recipients?page_size=50&search_term=Yılmaz" \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID"
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-Standart sayfalı liste yapısı döner.
+Standart sayfalı liste yapısı döner (`items[]`: `id`, `bank_id`, `bank_name`, `bank_code`, `first_name`, `last_name`, `holder_name`, `description`, `iban`, `account_number`, `masked_card_no`, `card_token`).
 
 | Sorgu parametresi | Açıklama |
 |---|---|
-| `search_term` | `holder_name`, `tax_id`, `external_id`, `label` üzerinde arama |
-| `is_active` | `true` (varsayılan) veya `false` (silinmişler dahil) |
-| `tax_id_type` | `tckn` veya `vkn` filtresi |
-
-## Banka bazlı liste
-
-Belirli bir bankadaki hesaplara ait alıcıları döndürür:
-
-```bash
-curl https://transfer.payven.com.tr/api/v1/recipients/by-bank/$BANK_ID \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID"
-```
-
-`bank_id` Identity'deki [banka kataloğundan](/identity/lookups/banks) gelir.
+| `search_term` | Serbest arama (en fazla 100 karakter) |
+| `bank_id` | Banka filtresi (`/recipients/by-bank/{bank_id}` ile aynı) |
+| `holder_name`, `first_name`, `last_name`, `iban`, `account_number` | Alan bazlı filtre |
+| `extra_properties_search_term` | Ek özellik değerlerinde arama |
+| `include_inactive` | Pasif kayıtları da getirir |
 
 ## Güncelleme
 
+`PUT /recipients/{id}` kaydı **tam olarak değiştirir**: gönderilmeyen alanlar boşalır. Kaydı önce okuyup değişen alanlarla birlikte tamamını gönderin.
+
 ```bash
-curl -X PUT https://transfer.payven.com.tr/api/v1/recipients/abc-12345-... \
+curl -X PUT https://transfer.payven.com.tr/api/v1/recipients/abc12345-... \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID" \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "ahmet.yilmaz@yenisirket.com",
-    "label": "Maaş — Yazılım Ekibi (yeni iletişim)"
+    "bank_id":     "5e0b0f2a-0000-0000-0000-000000000001",
+    "holder_name": "Ahmet Yılmaz",
+    "iban":        "TR330006100519786457841326",
+    "description": "Maaş — yeni şirket"
   }'
 ```
 
-Yalnızca değiştirmek istediğiniz alanları gönderin. `tax_id` değiştirilemez (yeni alıcı oluşturmanız gerekir).
+Yanıt `200`, gövde alıcı kimliğidir.
 
 ## Silme
 
+`DELETE /recipients/{id}` `204` döner. Kayıt silinir (soft delete); bu alıcıya ait geçmiş transferler etkilenmez.
+
+## Kara liste
+
 ```bash
-curl -X DELETE https://transfer.payven.com.tr/api/v1/recipients/abc-12345-... \
+curl -X POST https://transfer.payven.com.tr/api/v1/recipients/abc12345-.../blacklist \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID"
+  -H "Content-Type: application/json" \
+  -d '{ "reason": "Sahte hesap bildirimi" }'
 ```
 
-**Soft delete** uygulanır — kayıt veritabanında kalır ama listelemelerde görünmez. Bu alıcıya ait geçmiş transferler etkilenmez.
-
-## Alıcıya transfer
-
-Saklı alıcıya transfer oluştururken:
-
-```json
-{
-  "recipient": {
-    "recipient_id": "abc-12345-..."
-  }
-}
-```
-
-`holder_name`, `iban`, `tax_id` otomatik olarak alıcı master data'sından çekilir. IBAN'ın hangi hesap olduğunu da belirtmek isterseniz `receiver_account_id` ile birlikte gönderin (bkz. [Alıcı Hesapları](/para-transferi/recipients/receiver-accounts)).
+Alıcının IBAN'ı için Fraud modülüne kara liste olayı yayınlanır (senkron çağrı yoktur; Fraud modülü kuruluysa olayı kuyruktan işler). Yanıt `true` döner.
 
 ## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `400` | `validation_failed` | Eksik / format hatalı alan |
-| `403` | `forbidden` | `transfer-admin` rolü yok |
-| `404` | `recipient_not_found` | `id` bulunamadı |
-| `422` | `invalid_tax_id` | TC kimlik / vergi no checksum'ı geçmiyor |
-| `409` | `duplicate_external_id` | Aynı `external_id` ile başka alıcı zaten var |
+| `404` | `resource_not_found` | `id` ya da `bank_id` bulunamadı / pasif banka |
+| `422` | `validation_failed` | Eksik / format hatalı alan |
+| `422` | `PV_RECIPIENT_BLACKLIST_FAILED` | Kara liste talebi oluşturulamadı |
+| `403` | `forbidden` | `CanManageRecipients` izni yok |
 
 ## Sonraki adım
 
 <Card title="Alıcı Hesapları" icon="building-columns" href="/para-transferi/recipients/receiver-accounts">
-  Bir alıcının IBAN'larını ve banka hesaplarını yönetin.
+  Transferlerin hedef hesap kayıtları ve doğrudan hesap yönetimi.
 </Card>

@@ -3,28 +3,28 @@ title: "Para Transferi"
 description: "Çoklu banka EFT, FAST, havale ve banka hesabı transferi altyapısı."
 ---
 
-Payven Para Transferi modülü; lisanslı ödeme kuruluşları ve büyük platformlar için **çoklu banka transfer altyapısı** sunar. EFT, FAST ve havale işlemlerini tek API üzerinden çoklu banka konnektörü üzerinden yürütür; toplu işlem desteği, otomatik mutabakat ve transfer iade yönetimi içerir.
+Payven Para Transferi modülü; lisanslı ödeme kuruluşları ve büyük platformlar için **çoklu banka transfer altyapısı** sunar. EFT, FAST ve havale işlemlerini tek API üzerinden yürütür; 4-göz onay, toplu transfer paketleri, tekrarlayan transferler, belirsiz banka sonuçlarının kesinleştirilmesi, dekont ve transfer iadesi içerir.
 
 ## Temel özellikler
 
 <CardGroup cols={2}>
-  <Card title="Çoklu Banka Konnektörleri" icon="building-columns">
-    Kuveyt Türk, Fibabanka, İş Bankası, Akbank, HalkBank ve diğerleri — banka entegrasyonlarının teknik farklarını Payven soyutlar; sizin payload'unuz tüm bankalarda aynıdır.
+  <Card title="Çoklu Banka" icon="building-columns">
+    Banka bağlantıları ihtiyacınıza göre özel olarak geliştirilir ve entegratör yapılandırması üzerinden sizin tarafınızdan yönetilir; sizin payload'unuz tüm bankalarda aynıdır.
   </Card>
   <Card title="EFT + FAST + Havale" icon="arrow-right-arrow-left">
-    Tek API ile üç transfer tipi. Bankaya göre otomatik FAST / EFT seçimi.
+    Tek API ile üç transfer tipi ve karta para gönderme.
   </Card>
-  <Card title="Bulk İşlem" icon="layer-group">
-    Onlarca-yüzlerce transferi tek istekte gönderin; banka batch API'leri otomatik kullanılır.
+  <Card title="Toplu İşlem" icon="layer-group">
+    Tek istekte birden çok transfer (`bulk/create`) ya da 5.000 satıra kadar onaylı transfer paketi (`/bulk-transfers`).
   </Card>
-  <Card title="Otomatik Resilience" icon="arrows-rotate">
-    Geçici hatalarda exponential backoff retry, eşik aşımında devre kesici, token tazeleme — hepsi otomatik.
+  <Card title="Belirsiz Sonuç Güvenliği" icon="arrows-rotate">
+    Banka yanıt vermezse transfer `processing`'te kalır ve yeniden gönderilmez; sonuç bankayla eşitlenerek kesinleşir.
   </Card>
-  <Card title="Webhook + Realtime Dashboard" icon="bell">
-    Transfer durum değişimleri webhook ile teslim edilir; konsol gerçek zamanlı güncellenir.
+  <Card title="Webhook" icon="bell">
+    Transfer durum değişimleri imzalı webhook ile teslim edilir.
   </Card>
   <Card title="Tenant İzolasyonu" icon="shield-keyhole">
-    Her organizasyonun verisi diğer organizasyonlardan tamamen yalıtılmıştır.
+    Her organizasyonun verisi diğer organizasyonlardan tamamen yalıtılmıştır; bayi kapsamı istek başlığından gelir.
   </Card>
 </CardGroup>
 
@@ -32,8 +32,9 @@ Payven Para Transferi modülü; lisanslı ödeme kuruluşları ve büyük platfo
 
 | Ortam | URL |
 |---|---|
-| Sandbox | `https://transfer-sandbox.payven.com.tr` |
 | Production | `https://transfer.payven.com.tr` |
+
+Test modunda çalışan hesaplar için bkz. [Test Modu ve Test Alıcıları](/para-transferi/sandbox).
 
 ## Transfer yaşam döngüsü
 
@@ -43,6 +44,7 @@ stateDiagram-v2
     pending --> approved: POST /transfers/bulk/approve
     pending --> awaiting_funds: Onay (hakedişten karşılanan talep)
     awaiting_funds --> approved: Fon ayrıldı
+    awaiting_funds --> rejected: Fon yetersiz
     approved --> processing: Otomatik gönderim (kuyruk)
     processing --> completed: Banka onayı
     processing --> delivered: Banka aldı, kesin sonuç sonra
@@ -50,42 +52,49 @@ stateDiagram-v2
     delivered --> completed: Banka kesinleştirdi
     delivered --> failed: Banka sonradan reddetti
     failed --> processing: POST /transfers/bulk/send (açık yeniden gönderim)
-    completed --> refunded: İade
+    completed --> refunded: POST /transfers/{id}/refund
+    delivered --> refunded: POST /transfers/{id}/refund
     pending --> rejected: POST /transfers/bulk/reject
     approved --> rejected: POST /transfers/bulk/reject
+    awaiting_funds --> rejected: POST /transfers/bulk/reject
+    rejected --> approved: POST /transfers/bulk/approve
 ```
 
 | Durum | Anlam |
 |---|---|
 | `pending` | Transfer oluşturuldu, onay bekliyor (4-göz) |
 | `awaiting_funds` | Onaylandı; bayinin talebi hakedişinden karşılanacak, fon bekleniyor |
-| `approved` | Onaylandı, gönderim kuyruğunda — **ayrıca gönderim çağrısı gerekmez** |
-| `processing` | Bankaya gönderildi, kesin sonuç henüz yok. Banka yanıt vermediyse (zaman aşımı) transfer **burada kalır, `failed` olmaz** ve yeniden gönderilmemelidir; sonuç banka sorgusu / banka bildirimiyle ya da operatör tarafından kesinleştirilir |
+| `approved` | Onaylandı, gönderim kuyruğunda — **ayrıca gönderim çağrısı gerekmez**. Banka oturumu alınamadığı için bankaya hiç gidemeyen transfer de burada bekler ve onaydan itibaren 2 saat boyunca otomatik yeniden denenir |
+| `processing` | Bankaya gönderildi, kesin sonuç henüz yok. Banka yanıt vermediyse (zaman aşımı) transfer **burada kalır, `failed` olmaz** ve yeniden gönderilmemelidir; sonuç banka sorgusu / banka bildirimiyle ya da operatör kararıyla kesinleşir |
 | `delivered` | Banka aldı, kesin sonuç bekleniyor (EFT valörü, kart transferi); sonradan `completed` ya da `failed` olabilir |
 | `completed` | Banka transferi gerçekleştirdi |
-| `failed` | Bankanın kesin reddi ya da transfer bankaya gönderilemedi (ör. banka oturumu alınamadı). Yalnız sizin açık kararınızla `POST /transfers/bulk/send` ile yeniden gönderilebilir |
-| `rejected` | Gönderilmeden reddedildi; para hareket etmedi |
-| `refunded` | Gönderilmiş transfer iade edildi (defter düzeltmesi) |
+| `failed` | Bankanın kesin reddi ya da transfer 2 saatlik otomatik deneme süresi içinde bankaya gönderilemedi. Yalnız sizin açık kararınızla `POST /transfers/bulk/send` ile yeniden gönderilebilir |
+| `rejected` | Gönderilmeden reddedildi; para hareket etmedi. `bulk/approve` ile yeniden onaylanabilir |
+| `refunded` | `completed` / `delivered` transfer iade edildi (defter düzeltmesi; bankada geri hareket oluşmaz) |
 
 Önerilen akış ve yeniden gönderim kuralları: [Önerilen Entegrasyon Akışı](/para-transferi/integration-guide).
 
 ## Endpoint kategorileri
 
-| Kategori | Endpoint örnekleri |
+| Kategori | Endpoint'ler |
 |---|---|
-| Transfer yaşam döngüsü | `POST /transfers/bulk/create`, `/approve`, `/reject`, `/send` |
-| Sorgulama | `GET /transfers` (`external_id`, `request_id` ile birebir), `GET /transfers/{id}` |
-| Dekont | `GET /transfers/{id}/receipt/download`, `/base64` |
-| Hesaplar | `GET /accounts`, `/accounts/transactions` |
-| Alıcılar | `POST /recipients`, `GET /receiveraccounts` |
-| Tekrarlayan | `POST /recurringtransfers` |
-| Validasyon | `POST /validation/iban` |
+| Transfer yaşam döngüsü | `POST /transfers/bulk/create`, `/bulk/approve`, `/bulk/reject`, `/bulk/send` |
+| Belirsiz sonuç ve iade | `POST /transfers/{id}/sync`, `/transfers/{id}/resolve`, `/transfers/{id}/refund` — bkz. [Belirsiz Sonuç ve İade](/para-transferi/transfers/outcome-resolution) |
+| Toplu transfer paketi | `/bulk-transfers` (önizleme, oluşturma, onay, iptal) — bkz. [Toplu Transfer Paketi](/para-transferi/transfers/bulk-batches) |
+| Tekrarlayan | `/recurring-transfers` |
+| Sorgulama | `GET /transfers` (`external_id`, `request_id` ile birebir), `GET /transfers/{id}`, `/transfers/{id}/history`, `/transfers/stats`, `/transfers/export` |
+| Dekont | `GET /transfers/{id}/receipt/download`, `/receipt/base64`; Payven makbuzu `GET /receipts/transfer/{id}` |
+| Gönderici hesaplar | `GET /connector-accounts` (`source_account_id` değerleri) |
+| Banka hesapları | `GET /accounts`, `GET /accounts/transactions` |
+| Alıcılar | `/recipients`, `/receiver-accounts` |
+| IBAN doğrulama | `POST /validation/iban` (Identity API'si) |
+| Test | `/test-receiver-accounts` |
 
 ## Hızlı başlangıç
 
 ```bash
 # 1. Toplu transfer oluştur (4-göz: önce oluştur)
-curl -X POST https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/create \
+curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/create \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "X-Request-Id: PAYROLL-2026-05" \
   -H "Idempotency-Key: payroll-2026-05-01" \
@@ -106,35 +115,32 @@ curl -X POST https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/create
     ]
   }'
 
-# 2. Onayla — onaylanan transfer otomatik olarak bankaya gönderilir
-curl -X POST https://transfer-sandbox.payven.com.tr/api/v1/transfers/bulk/approve \
+# 2. Onayla (4-göz açıksa oluşturandan farklı bir kimlikle) — onaylanan transfer otomatik bankaya gönderilir
+curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/approve \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "transfers": [ { "transfer_id": "8e3f5c12-..." } ] }'
 
 # 3. Sonucu webhook ile alın; webhook gelmezse kendi paket numaranızla sorgulayın
-curl "https://transfer-sandbox.payven.com.tr/api/v1/transfers?request_id=PAYROLL-2026-05" \
+curl "https://transfer.payven.com.tr/api/v1/transfers?request_id=PAYROLL-2026-05" \
   -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
 `POST /transfers/bulk/send` normal akışta gerekmez; yalnız `failed` transferi bilinçli olarak yeniden
 göndermek için kullanılır.
 
-## Konnektör kapasitesi
+## Transfer tipleri
 
-| Konnektör | EFT | FAST | Havale | Kart Transferi | Dekont PDF | Bulk |
-|---|---|---|---|---|---|---|
-| Kuveyt Türk |  | Evet |  | Evet |  | Evet |
-| Fibabanka | Evet | Evet | Evet | Evet | — | Evet |
-| İş Bankası |  | Evet |  | Evet |  | Evet |
-| Akbank |  | Evet |  | Evet |  | Evet |
-| HalkBank |  | Evet |  | — |  | Evet |
-| DenizBank | Evet | Evet | Evet | — | Evet | Evet |
-| VakıfBank | Evet | Evet | Evet | — | — | Evet |
+| `transfer_type` | Açıklama |
+|---|---|
+| `fast` | FAST — 7×24 anlık; tutar üst limiti vardır |
+| `eft` | EFT — iş saatleri ve valör kurallarına tabidir |
+| `remittance` | Havale — alıcı aynı bankadaysa |
+| `credit_card` | Karta para gönderme (yalnız `bulk/create`; toplu transfer paketlerinde ve tekrarlayan transferde yoktur) |
 
 <Note>
-İstek payload'unuz tüm bankalarda aynıdır. Hangi banka konnektörünün kullanılacağı
-konsoldan tanımlanan **konnektör konfigürasyonuna** göre seçilir.
+İstek payload'unuz tüm bankalarda aynıdır. Paranın hangi bankadan çıkacağını `source_account_id`
+(gönderici hesap) belirler; hesaplar [`GET /connector-accounts`](/para-transferi/reporting/accounts) ile listelenir.
 </Note>
 
 ## Webhook olayları
@@ -162,16 +168,8 @@ aşımı; tükenen teslim panelden ya da API ile yeniden gönderilir. Detay:
 
 <Warning>
 Para transferi modülü **iyi yapılandırılmış AML/KYC süreçlerinizle birlikte**
-çalışır. IBAN doğrulama (`/validation/iban`) ve alıcı doğrulama
-(`recipients` master) ile birlikte sahte transfer riskini düşürün.
+çalışır. [IBAN doğrulama](/para-transferi/validation/iban) ve alıcı kara listesi
+(`POST /recipients/{id}/blacklist`) ile birlikte sahte transfer riskini düşürün.
 </Warning>
-
-## Yol haritası
-
-Para transferi referans dokümanı genişlemeye devam ediyor. Yakında:
-- **Transfer Object** — tüm alanların referansı
-- **Transfer akışları** — create/approve/send adımlarının ayrı detay sayfaları
-- **Recurring Transfers** — periyodik transfer kurulumu
-- **Hesap & Alıcı yönetimi** — master data yapıları
 
 API referansı için: [Para Transferi OpenAPI](/api-reference/transfer).

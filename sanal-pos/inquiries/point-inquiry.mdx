@@ -1,12 +1,12 @@
 ---
 title: "Puan Sorgulama"
-description: "Bonus, Maximum, World gibi banka programlarının puan bakiyesini sorgulayın."
+description: "Bonus, Maximum, World gibi banka programlarının kullanılabilir puan tutarını sorgulayın."
 ---
 
-Türk bankalarının kart programları (Bonus, Maximum, Axess, World, Paraf, Cardfinans, Wings) müşteriye **puan biriktirme** sunar. Bu endpoint, kart bazında puan bakiyesi sorgulamak için kullanılır.
+Türk bankalarının kart programları (Bonus, Maximum, Axess, World, Paraf, Cardfinans, Wings) müşteriye **puan biriktirme** sunar. Bu uç, mevcut bir işlemin geçtiği banka üzerinden kartın kullanılabilir puan tutarını sorgular.
 
 <Note>
-Tüm bankalar puan sorgu API'si sunmaz. Şu anda **HalkBank VPOS** üzerinde aktiftir. Diğer konnektörler için destek genişlemektedir — güncel matris için konsoldaki **Konnektörler** ekranına bakın.
+Puan sorgusu **bankaya özgüdür**; her banka desteklemez. İşlemin geçtiği banka desteklemiyorsa `422 POINT_INQUIRY_NOT_SUPPORTED` döner. Desteklenen bankalar için destek ekibinize danışın.
 </Note>
 
 ## Endpoint
@@ -15,22 +15,34 @@ Tüm bankalar puan sorgu API'si sunmaz. Şu anda **HalkBank VPOS** üzerinde akt
 POST /api/v1/payments/{transaction_id}/point-inquiry
 ```
 
-Mevcut bir ödeme/3DS init kaydına bağlı kart için puan sorgular. Genellikle 3DS init sonrası, otorizasyon öncesi çağrılır — müşteriye "X puanınız var, kullanmak ister misiniz?" akışı için.
+Gerekli yetki `CanManageTransactions`. `transaction_id`, puan sorgulanacak kartla başlatılmış bir ödeme / 3DS init kaydıdır; sorgu o işlemin geçtiği banka üzerinden yapılır.
 
 ## İstek
+
+Kart bilgisi isteğin gövdesinde gönderilir:
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/point-inquiry \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "extra_properties": {}
+    "card": {
+      "holder_name":  "Test Kullanici",
+      "number":       "4546711234567894",
+      "expire_month": "12",
+      "expire_year":  "2030",
+      "cvv":          "000"
+    }
   }'
 ```
 
-| Alan | Tip | Açıklama |
-|---|---|---|
-| `extra_properties` | object | Konnektör-spesifik ek alanlar (genelde boş) |
+| Alan | Tip | Zorunluluk | Açıklama |
+|---|---|---|---|
+| `card.number` | string | Zorunlu | Kart numarası |
+| `card.expire_month` | string | Zorunlu | İki hane (`01`–`12`) |
+| `card.expire_year` | string | Zorunlu | İki veya dört hane |
+| `card.holder_name`, `card.cvv` | string | Bankaya göre | Bazı bankalar sorgu için ister |
+| `extra_properties` | object | Opsiyonel | Bankaya özgü ek alanlar (kart verisi anahtarları yok sayılır) |
 
 ## Yanıt
 
@@ -38,66 +50,35 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
 {
   "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
   "status":         "three_d_secure_init_processing",
+  "is_success":     true,
   "extra_properties": {
-    "processed_at":      "2026-05-03T12:34:57.123+03:00",
-    "point_balance":     "12500",
-    "point_program":     "Bonus",
-    "point_currency":    "TRY",
-    "max_usable_points": "12500"
+    "processed_at":           "2026-05-03T12:34:57.123+03:00",
+    "available_point_amount": "125.00"
   }
 }
 ```
 
-<Note>
-Yanıttaki `status` alanı **mevcut Transaction durumunu yansıtır** (PointInquiry handler'ı durumu değiştirmez). Tipik akışta bu sorgu 3DS init sonrası yapılır, dolayısıyla `three_d_secure_init_processing` görürsünüz. Direkt sorgu (3DS olmadan) yapıldıysa `processing` veya `authorized` olabilir.
-</Note>
-
-
-| `extra_properties` alanı | Açıklama |
+| Alan | Açıklama |
 |---|---|
-| `point_balance` | Mevcut puan bakiyesi (kuruş cinsinden TRY karşılığı) |
-| `point_program` | Banka programı (Bonus, Maximum, Axess, World, Paraf, vb.) |
-| `point_currency` | Birim (genellikle TRY) |
-| `max_usable_points` | Bu işlemde kullanılabilecek maksimum puan |
+| `extra_properties.available_point_amount` | Bankanın bildirdiği kullanılabilir puan tutarı (metin). Banka tutar vermezse `"0"` |
+| `extra_properties.processed_at` | Sorgunun işlendiği zaman (`+03:00`) |
+| `status` | İşlemin **mevcut** durumu; sorgu durumu değiştirmez |
 
-<Note>
-Konnektöre göre alan isimleri değişebilir — `point_balance` her konnektörde
-garanti değildir. Yanıt schema'sını **`extra_properties` altındaki gerçek
-anahtarlarla** çalışın; gelmeyen alanları boş varsayın.
-</Note>
+Puan kullanarak ödeme için Payven'de standart bir alan yoktur; puanla ödeme bankanın kendi akışına bağlıdır.
 
-## Puan kullanarak ödeme
-
-Şu an puan kullanımı **konnektöre özgü** bir akıştır — `CreatePaymentRequest.extra_properties` ile aktarılır:
-
-```json
-{
-  "amount":         { "amount": 15000, "currency": "TRY" },
-  "installment":    1,
-  "card":           { ... },
-  "extra_properties": {
-    "use_points":   "5000"
-  }
-}
-```
-
-Banka talebi onaylarsa kalan tutar (10.000 kuruş) karttan çekilir, 5.000 puan düşülür. Top-level standart bir `use_points` alanı yol haritasındadır.
-
-## Hata response'ları
-
-Hata yanıtı RFC 9457 problem+json formatındadır:
+## Hata yanıtları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `payment_not_found` | İşlem bulunamadı |
-| `422` | `point_inquiry_not_supported` | Bu konnektör puan sorgusu desteklemiyor |
-| `422` | `point_inquiry_failed` | Banka puan sorgusunu reddetti |
-| `502` | `point_inquiry_exception` | Sorgu sırasında konnektör tarafında beklenmeyen hata |
+| `404` | `PV_TRANSACTION_NOT_FOUND` | İşlem bulunamadı |
+| `400` | `invalid_request_body` | Gövde okunamadı |
+| `422` | `validation_failed` | `card.number`, `card.expire_month` veya `card.expire_year` eksik |
+| `422` | `POINT_INQUIRY_NOT_SUPPORTED` | İşlemin geçtiği banka puan sorgusunu desteklemiyor |
+| `422` | `POINT_INQUIRY_FAILED` | Banka puan sorgusunu reddetti (`provider_error_code` bankanın ham kodu) |
+| `422` | `POINT_INQUIRY_EXCEPTION` | Sorgu sırasında beklenmeyen hata |
 
-## Konnektör desteği matrisi
+Hata yanıtı RFC 9457 problem+json formatındadır.
 
-| Konnektör | Point Inquiry | Notlar |
-|---|---|---|
-| HalkBank VPOS |  | Paraf programı |
-| NestPay (genel) | ⚠️ Konfigürasyon-bağlı | Banka anlaşmasına göre |
-| Diğer konnektörler |  | Yol haritasında |
+## Test ortamı
+
+Test modundaki ya da test kartıyla yapılmış işlemde sorgu bankaya gitmez; başarılı bir yanıt ve `available_point_amount: "0"` döner.

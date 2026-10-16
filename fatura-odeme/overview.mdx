@@ -1,0 +1,66 @@
+---
+title: "Fatura Ödeme"
+description: "Elektrik, su, doğalgaz ve diğer kurum faturalarını tek API ile sorgulayın ve ödeyin."
+---
+
+Payven Fatura Ödeme modülü; bayilerin müşterileri adına **kurum faturalarını sorgulamasını, kuruma ödemesini ve müşteriden tahsilat almasını** tek API üzerinden sağlar. Kurum entegratörleri ihtiyaca göre özel olarak geliştirilir ve entegratör yapılandırması üzerinden sizin tarafınızdan yönetilir; farklar Payven tarafında soyutlanır; sizin istekleriniz tüm kurumlarda aynıdır.
+
+## Ne zaman kullanılır?
+
+- Bayi panelinizde veya mobil uygulamanızda "fatura öde" ekranı sunuyorsanız.
+- Aynı müşterinin birden çok aboneliğini (ev, iş yeri, aile) tek sepette tutmak istiyorsanız.
+- Fatura ödemesinin tahsilatını bayi bakiyesinden, kredi kartından ya da harici POS'tan almak istiyorsanız.
+
+## Temel kavramlar
+
+| Kavram | Anlam |
+|---|---|
+| **Kurum (provider)** | Faturayı kesen kurum. Kararlı kodla anılır: `pv_ornek_kurum` (`pv_` öneki zorunludur). Kod ortamlar arasında değişmez. |
+| **Fatura (invoice)** | Kurumdan sorgulanan borç kaydı. Tutar **kuruş** cinsindendir (`15000` = 150,00 TL). |
+| **Fatura ödemesi (invoice payment)** | Faturanın kuruma ödenmesi. Bir ödeme birden çok kısmi tahsilat alabilir. |
+| **Tahsilat (collection)** | Bayinin müşteriden aldığı para. Kaynağı `balance`, `credit_card` veya `external_pos`. |
+| **Sepet (cart)** | Müşteriye ait kalıcı abonelik listesi (TCKN/telefon ile bulunur). |
+
+<Info>
+Fatura ödeme iki adımlıdır: önce kuruma **ödeme** yapılır (`invoices/{id}/pay`), ardından müşteriden
+**tahsilat** alınır (`collections`). Sepet ödemesi (`carts/{id}/pay`) bu iki adımı sizin yerinize yönetir.
+</Info>
+
+## Base URL
+
+| Ortam | URL |
+|---|---|
+| Production | `https://invoice.payven.com.tr` |
+| Sandbox | Hesabınız için Payven bildirir; test API anahtarı ile test moduna düşer ([Hata ve Sandbox](/fatura-odeme/errors-sandbox)) |
+
+Tüm uçlar `/api/v1` altındadır. Kimlik doğrulama diğer ürünlerle aynıdır: [Kimlik Doğrulama](/documentation/concepts/authentication).
+
+## Endpoint kategorileri
+
+| Kategori | Endpoint'ler |
+|---|---|
+| Kurumlar | `GET /invoice-providers` |
+| Fatura sorgu / ödeme | `POST /invoices/query`, `POST /invoices/{id}/pay`, `POST /invoices/{id}/cancel` |
+| Listeleme | `GET /invoices`, `GET /invoices/{id}`, `GET /invoices/payments`, `GET /invoices/payments/{id}` |
+| Tahsilat | `POST /invoice-payments/{payment_id}/collections`, `GET` aynı yol |
+| Sepet | `/carts` (CRUD, `inquire`, `pay`, `payments/{payment_id}`) |
+| Makbuz | `GET /receipts/...` |
+
+## Yetkiler
+
+| Politika | Kapsam |
+|---|---|
+| `CanViewInvoices` | Sorgu, listeleme, tahsilat listesi, makbuz |
+| `CanManageInvoices` | Ödeme, iptal, tahsilat |
+| `CanViewCarts` / `CanManageCarts` | Sepet okuma / sepet işlemleri ve sepet ödemesi |
+
+Bayi kapsamı `X-Merchant-Id` / `X-External-Merchant-Id` başlıklarından çözülür; istek gövdesinde bayi alanı taşınmaz. Pasif veya onaysız bayi para üreten uçlarda (`pay`, `collections`, `carts/{id}/pay`) `422 merchant_inactive` / `merchant_not_approved` alır.
+
+## Sonraki adımlar
+
+<CardGroup cols={2}>
+  <Card title="Entegrasyon Akışı" icon="route" href="/fatura-odeme/integration-guide">Sorgu → ödeme → tahsilat adım adım.</Card>
+  <Card title="Fatura Uçları" icon="file-invoice" href="/fatura-odeme/invoices">Alan referansı ve örnekler.</Card>
+  <Card title="Sepet ve Tahsilat" icon="cart-shopping" href="/fatura-odeme/carts">Kalıcı müşteri sepeti, kartla ödeme.</Card>
+  <Card title="Webhook'lar" icon="bell" href="/fatura-odeme/webhooks">Olay kodları ve gövde alanları.</Card>
+</CardGroup>

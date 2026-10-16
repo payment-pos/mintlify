@@ -1,127 +1,46 @@
 ---
 title: "Smart Retry"
-description: "Geçici banka hatasında işlemi otomatik olarak alternatif konnektöre yönlendirin."
+description: "Banka karar vermediğinde ya da geçici hata verdiğinde yedek bankaya güvenli geçiş."
 ---
 
-Smart Retry, **birinci tercih konnektör geçici hata** verdiğinde işlemi alternatif konnektöre yönlendiren mekanizmadır. Müşteriden yeniden bilgi almaz; routing kuralında tanımlı `fallback_connector_config_id` üzerinden ikinci denemeyi yapar.
+Smart Retry, yönlendirme planındaki **birinci banka başarısız olduğunda** aynı ödemeyi sıradaki adaya (kuralın `fallback_connector_config_id` konfigürasyonu ya da kural dışı yedek) deneyen mekanizmadır. Müşteriden yeniden bilgi istenmez; siz tek bir ödeme isteği gönderirsiniz ve tek bir sonuç alırsınız.
 
-## Hangi durumlarda devreye girer?
+## Sıradaki bankaya ne zaman geçilir?
 
-| Banka yanıtı | Smart Retry uygulanır mı? |
+Karar, bankanın dönüş koduna göre Payven hata kataloğundan verilir; her kod için "yeniden denenebilir mi" bilgisi katalogda tutulur.
+
+| Banka sonucu | Davranış |
 |---|---|
-| Başarılı (`provider_error_code: "00"`) | İhtiyaç yok |
-| Yetersiz bakiye, expired card, fraud | Müşteri/kart kaynaklı — retry sonuç değiştirmez |
-| Limit aşımı, kart blokajı | Müşteri kaynaklı |
-| Banka HTTP 5xx | Alternatif konnektöre yönlendirilir |
-| Banka timeout | Yönlendirilir |
-| Bağlantı / TLS hatası | Yönlendirilir |
-| Connector circuit breaker açık | Yönlendirilir |
+| Onay | İşlem `completed` (ön provizyonda `authorized`); plan biter |
+| **Kesin ret** — yetersiz bakiye, geçersiz/süresi dolmuş kart, kart sahibi kaynaklı ret | Plan durur, işlem `failed` olur, `sanalpos.payment.failed` yayınlanır |
+| **Geçici/altyapı** — banka tarafı hata, yapılandırma ya da sistem kaynaklı ret | Sıradaki adaya geçilir |
+| **Karar vermeyen cevap** — zaman aşımı, ağ geçidi 5xx, yanıt ortasında kopma | Önce aynı bankaya işlemin durumu sorulur (aşağıya bakın) |
 
-Genel kural: **kart sahibi kaynaklı reddetmeler retry edilmez**, **banka altyapısı kaynaklı geçici sorunlar retry edilir**.
+## Çift çekim koruması
 
-## Akış
+Banka karar vermeden düştüğünde (zaman aşımı gibi) para çekilmiş **olabilir**. Bu durumda yedek bankaya doğrudan geçmek müşteriden ikinci kez çekmek demektir. Bu yüzden:
 
-```mermaid
-sequenceDiagram
-    participant App as Sunucunuz
-    participant Engine as Routing Engine
-    participant Bank1 as Birinci tercih
-    participant Bank2 as Fallback konnektör
+1. Payven aynı bankaya, en çok 5 saniye bekleyerek işlemin durumunu sorar.
+2. Banka işlemi **onayladıysa** satış tamamlanır ve yedek banka hiç denenmez.
+3. Banka işlemi **açıkça reddettiyse** ya da yanıt vermediyse yedek banka denenir; sonucu belirsiz kalan deneme kaydedilir ve arka planda bankaya yeniden sorulur. Para çekilmişse o deneme otomatik iptal edilir.
 
-    App->>Engine: POST /payments
-    Engine->>Bank1: target_connector_config_id
-    Bank1-->>Engine: HTTP 503 / timeout
-    Note over Engine: Geçici hata → fallback'e geç
-    Engine->>Bank2: fallback_connector_config_id
-    Bank2-->>Engine: HTTP 200 — başarılı
-    Engine-->>App: PaymentOperationResult
-    Note over Engine: TransactionHistory:<br/>2 satır kaydedilir<br/>(her deneme bir history)
-```
-
-## Kural konfigürasyonu
-
-[Routing kuralında](/sanal-pos/routing/rules) `fallback_connector_config_id` alanını doldurun:
-
-```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name":                          "Bonus → Garanti, fallback Akbank",
-    "priority":                      10,
-    "is_active":                     true,
-    "card_brand_filter":             "bonus",
-    "min_amount":                    100,
-    "max_amount":                    20000000,
-    "target_connector_config_id":    "cfg_garanti_prod-001",
-    "fallback_connector_config_id":  "cfg_akbank_prod-001",
-    "weight":                        70,
-    "success_rate":                  99.2,
-    "average_response_time_ms":      850,
-    "cost_score":                    80
-  }'
-```
-
-`fallback_connector_config_id` boş bırakılırsa o kural için Smart Retry devreye girmez — birinci tercih başarısız olursa işlem `failed` olur.
-
-## Yanıt davranışı
-
-Müşteri tarafından bakıldığında Smart Retry **görünmez** — tek bir başarılı `PaymentOperationResult` döner:
-
-```json
-{
-  "transaction_id": "8e3f5c12-...",
-  "status":         "completed",
-  "extra_properties": {
-    "processed_at":            "2026-05-03T12:34:58.123+03:00",
-    "auth_code":               "789012",
-    "host_reference":          "AKBANK-REF-456",
-    "provider_transaction_id": "..."
-  }
-}
-```
-
-Hangi konnektörün başarılı olduğunu işlem detayında (`GET /transactions/{id}`) → `connector_code` ve `connector_configuration_id` alanlarından görebilirsiniz. Tüm denemelerin geçmişi [İşlem Geçmişi (Timeline)](/sanal-pos/inquiries/payment-history) üzerinden çekilir — her başarısız+başarılı deneme ayrı bir `TransactionHistory` kaydı olur.
-
-## Banka sağlığı + Smart Retry
-
-Smart Retry tek başına çalışmaz; **Circuit Breaker** ile birlikte hareket eder:
-
-- Banka hata oranı eşiği aşarsa Circuit Breaker açılır → o konnektör yönlendirme havuzundan **çıkar**
-- Yeni gelen istekler **doğrudan** fallback konnektöre gider (birinci denemeden sırasında değil, kuralda)
-- Sağlık geri gelince Circuit Breaker yarı-açık → kapalı → konnektör yine ana havuzda
-
-Detay: [Circuit Breaker](/sanal-pos/routing/circuit-breaker).
-
-## Performans etkisi
-
-Toplam istek süresi, denenen konnektörlerin toplamı + transition overhead'idir:
-
-- Tek başarılı deneme: ~1-2 sn
-- 1 retry sonrası başarı: ~3-7 sn (birinci timeout + ikinci başarılı)
-- Timeout sonrası fallback: ~5-10 sn
-
-İstemcinizin HTTP timeout'unu yeterince yüksek ayarlayın — **30 saniye** önerilir.
-
-## Idempotency korunur
-
-Smart Retry sırasında aynı `Idempotency-Key` Payven tarafında korunur. Birinci konnektöre giderken Payven tarafı, fallback'e giderken yine korunur — `Idempotency-Key` zaten Payven cache + DB'sinde tutulur. Sizin tarafınızda bir şey yapmanız gerekmez.
+Bankaya hiç ulaşılamayan bağlantı hataları (DNS, TCP, TLS) aynı bankaya en çok 2 kez kısa aralıkla tekrar denenir; 5xx ve zaman aşımı ise aynı bankaya tekrarlanmaz.
 
 <Note>
-**Banka komisyon farkı:** birinci ve fallback konnektörün komisyon oranları farklı olabilir. Smart Retry'a düşmüş işlemleri raporlarken `connector_code` üzerinden hangi konnektörün başarılı olduğunu görüp komisyon hesaplamanızı buna göre yapın.
+Banka cevabı ve işlem durumu hakkında kesinlik gerektiğinde işlemi
+`GET /payments/{id}/query` ile bankaya sorabilirsiniz.
 </Note>
 
-## Yapılandırma sınırları
+## Yanıtta nasıl görünür?
 
-| Parametre | Varsayılan |
-|---|---|
-| Retry sayısı | 1 (birinci tercih + fallback) |
-| Birinci tercih timeout | 30 sn |
-| Fallback timeout | 30 sn |
+Smart Retry istemci için **görünmezdir**: tek ödeme isteği tek sonuç döner. Hangi bankanın işlemi yaptığı işlem detayındaki `connector_code` ve `connector_configuration_id` alanlarındadır. Her deneme [işlem geçmişinde](/sanal-pos/inquiries/payment-history) ayrı bir kayıt olarak görünür ("birinci tercih ile ... basarisiz", "yedek ile ... basarili").
 
-İleri seviye senaryolar (çoklu fallback, exponential backoff arasında) için yol haritası:
-- Çoklu `fallback_chain` desteği
-- İstek başına timeout konfigürasyonu
-- Retry kararı için ML tabanlı sinyaller (banka sağlığı + geçmiş başarı)
+Plan boyunca işlem `processing` kalır; yalnız son aday da başarısız olduğunda (ya da kesin retle) `failed`'a geçer. Webhook'u tek defa, nihai sonuçta alırsınız.
 
-Güncellemeler için: [Changelog](/resources/changelog).
+## Süre ve idempotency
+
+Tek bir banka denemesi en çok 100 sn sürebilir ve plan birden fazla bankayı sırayla dener; istemci zaman aşımınızı yüksek (en az **120 sn**) ayarlayın. İstek ortasında bağlantınız kopsa bile banka akışı iptal edilmez; sonucu `Idempotency-Key` ile aynı isteği tekrarlayarak ya da [`GET /payments/{id}`](/sanal-pos/inquiries/payment-detail) ile okuyun.
+
+## Yapılandırma
+
+Yedek banka kuralda `fallback_connector_config_id` ile tanımlanır ([Yönlendirme Kuralları](/sanal-pos/routing/rules)). Yedek tanımlı olmasa da yeterli aday yoksa plan, bayinin diğer aktif banka konfigürasyonlarıyla tamamlanır (taksitli işlem hariç, bkz. [genel bakış](/sanal-pos/routing/overview)).

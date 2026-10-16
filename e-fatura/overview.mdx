@@ -1,0 +1,66 @@
+---
+title: "e-Fatura"
+description: "e-Fatura ve e-Arşiv belgesi kesimi, durum takibi ve satışlardan otomatik faturalama."
+---
+
+Payven e-Fatura modülü; bayi adına **e-Fatura / e-Arşiv belgesi keser**, entegratör üzerinden GİB'e iletir, durumunu takip eder ve Sanal POS satışlarında belgeyi **otomatik** üretir. Entegratör farkları Payven tarafında soyutlanır; belge isteğiniz tüm entegratörlerde aynıdır.
+
+## Ne zaman kullanılır?
+
+- ERP/ön muhasebe sisteminizden bayi adına API ile fatura kesmek istiyorsanız.
+- Sanal POS'tan tahsil edilen her satış için faturanın kendiliğinden kesilmesini istiyorsanız ([Otomatik Kesim](/e-fatura/automation)).
+- Kesilmiş belgeyi iade, iptal, alıcıya yeniden gönderim veya PDF indirme ile yönetecekseniz.
+- Gelen e-Faturaları listeleyip kabul/red kararı vereceksiniz.
+
+## Temel kavramlar
+
+| Kavram | Anlam |
+|---|---|
+| **Belge türü** (`document_kind`) | `e_fatura` veya `e_arsiv`. **Alıcının mükellefiyetinden** gelir (GİB sorgusu); VKN uzunluğundan tahmin edilmez. Alıcı mükellef değilse e-Arşiv zorlanır. |
+| **Profil** (`profile_type`) | `temel_fatura`, `ticari_fatura`, `e_arsiv_fatura`, `ihracat_fatura` |
+| **Senaryo** (`scenario_type`) | `satis`, `iade`, `tevkifat`, `istisna`, `ozel_matrah`, `ihrac_kayitli`. Boşsa `satis` |
+| **Gönderim modu** (`send_mode`) | `draft` (taslak, `issue` ile kesilir) veya `immediate` (aynı istekte keser) |
+| **ETTN** | Belgenin evrensel kimliği; kesimde atanır |
+| **Entegratör** | Belgeyi GİB'e ileten entegratör bağlantısı. Entegratör bağlantıları ihtiyaca göre özel olarak geliştirilir; **tenant** entegratör yapılandırmasıyla (kimlik bilgileri, varsayılan seçimi) kendisi yönetir. Belge başına seçilmez. |
+
+Tutarlar **kuruş**, birim fiyatlar **KDV hariç**, tarihler `+03:00`, enum değerleri snake_case'tir.
+
+## Base URL
+
+| Ortam | URL |
+|---|---|
+| Production | `https://efatura.payven.com.tr` |
+| Sandbox | Hesabınız için Payven bildirir; test API anahtarı ile test moduna düşer ([Hata ve Sandbox](/e-fatura/errors-sandbox)) |
+
+Tüm uçlar `/api/v1` altındadır. Kimlik doğrulama: [Kimlik Doğrulama](/documentation/concepts/authentication).
+
+## Endpoint kategorileri
+
+| Kategori | Endpoint'ler |
+|---|---|
+| Belge kesimi | `POST /invoices`, `POST /invoices/{id}/issue`, `PUT /invoices/{id}`, `DELETE /invoices/{id}` (taslak) |
+| Belge yönetimi | `POST /invoices/{id}/return`, `/cancel`, `/retry`, `/sync`, `/resend-to-buyer` |
+| Sorgu | `GET /invoices`, `GET /invoices/{id}`, `GET /invoices/{id}/document` (PDF) |
+| Katalog | `GET /taxpayers/{tax_number}`, `GET /invoices/vat-rates`, `GET /invoices/unit-codes` |
+| Otomasyon | `GET/PUT /automation-rules`, `DELETE /automation-rules/{id}` |
+| Gelen fatura | `GET /invoices/incoming`, `POST /invoices/incoming/{document_id}/accept` ve `/reject` |
+| Cari / ürün kartı | `/invoice-parties`, `/invoice-products` |
+
+## Yetkiler
+
+| Politika | Kapsam |
+|---|---|
+| `CanViewInvoices` | Belge okuma, PDF, mükellef sorgusu |
+| `CanManageInvoices` | Belge oluşturma, kesim, düzeltme, iade, yeniden gönderim |
+| `CanCancelInvoices` | İptal |
+| `CanViewAutomationRules` / `CanManageAutomationRules` | Otomasyon kuralları |
+| `CanViewIncomingInvoices` / `CanManageIncomingInvoices` | Gelen fatura |
+
+Bayi kapsamı `X-Merchant-Id` / `X-External-Merchant-Id` başlıklarından çözülür. Belge oluşturma, kesim, iade ve yeniden deneme uçları pasif/onaysız bayiye kapalıdır (`422 merchant_inactive` / `merchant_not_approved`). Elle kesim ve otomasyon kuralını **açmak** bayinin paketinde e-Fatura yeteneği ister (`422 PV_PACKAGE_CAPABILITY_REQUIRED`).
+
+<CardGroup cols={2}>
+  <Card title="Entegrasyon Akışı" icon="route" href="/e-fatura/integration-guide">Belge oluştur, kes, izle.</Card>
+  <Card title="Belge Uçları" icon="file-invoice" href="/e-fatura/invoices">İade, iptal, düzeltme, PDF.</Card>
+  <Card title="Otomatik Kesim" icon="wand-magic-sparkles" href="/e-fatura/automation">Sanal POS satışından fatura.</Card>
+  <Card title="Webhook'lar" icon="bell" href="/e-fatura/webhooks">Belge ve gelen fatura olayları.</Card>
+</CardGroup>

@@ -10,15 +10,17 @@ Aşağıdaki kurallara uymak sızıntı riskini ve sızıntı sonrası etkiyi mi
 
 ## Kuralname
 
-<Check>**Asla kaynak kodda tutmayın** — `client_secret`'ı `.env`, secret manager veya environment variable olarak yönetin.</Check>
-<Check>**Asla istemcide tutmayın** — tarayıcı, mobil uygulama veya desktop client'a göndermeyin. Token alma sunucu tarafında yapılmalı; istemciye yalnızca kısa ömürlü access token gider.</Check>
-<Check>**Asla loglara yazmayın** — log framework'ünüzde request/response loglama açıksa `Authorization` header'ı ile `client_secret` body alanını maskeleyin.</Check>
-<Check>**Asla destek ekibine paylaşmayın** — Payven destek ekibi sizden `client_secret` istemez.</Check>
-<Check>**Sandbox ve production'ı ayırın** — farklı client'lar, farklı secret store'lar.</Check>
-<Check>**IP whitelist tanımlayın** — production client'ları için zorunlu kabul edin (Identity tarafında enforce edilir).</Check>
-<Check>**Düzenli rotasyon** — minimum 6 ayda bir, sızıntı şüphesinde anında.</Check>
-<Check>**Audit logları izleyin** — konsoldaki API kayıtları ekranından beklenmeyen istek varsa hemen tepki verin.</Check>
-<Check>**Token cache uygulayın** — her istek öncesi yeni token almayın; access token süresi dolmadan (60sn margin) refresh edin.</Check>
+<Check>**Asla kaynak kodda tutmayın**: `client_secret`'ı `.env`, secret manager veya environment variable olarak yönetin.</Check>
+<Check>**Asla istemcide tutmayın**: tarayıcı, mobil uygulama veya desktop client'a göndermeyin. Token alma sunucu tarafında yapılmalı; istemciye yalnızca kısa ömürlü access token gider.</Check>
+<Check>**Asla loglara yazmayın**: log framework'ünüzde request/response loglama açıksa `Authorization` header'ı ile `client_secret`, `refresh_token` body alanlarını maskeleyin.</Check>
+<Check>**Asla destek ekibine paylaşmayın**: Payven destek ekibi sizden `client_secret` istemez.</Check>
+<Check>**Test ve canlı anahtarı ayırın**: anahtarın ortamı (`test` / `live`) oluşturulurken seçilir ve değişmez; farklı secret store'lar kullanın.</Check>
+<Check>**İzinli IP listesi tanımlayın**: canlı anahtarlar için zorunlu kabul edin ([IP Whitelist](/documentation/concepts/ip-whitelist)).</Check>
+<Check>**Yetkiyi daraltın**: anahtarı yalnız ihtiyaç duyduğu ürünlerle (`features`) oluşturun; yalnız okuma yapan servisler için `read_only` erişim düzeyi seçin (yazma isteği `403 credential_read_only` alır).</Check>
+<Check>**Son kullanma tarihi verin**: geçici entegrasyonlar için `expires_at` tanımlayın; süresi dolan anahtar `401 api_key_expired` döner.</Check>
+<Check>**Düzenli rotasyon**: en az 6 ayda bir, sızıntı şüphesinde anında.</Check>
+<Check>**API kayıtlarını izleyin**: panelde API kayıtları ekranında beklenmeyen istek varsa hemen tepki verin.</Check>
+<Check>**Token cache uygulayın**: her istek öncesi yeni token almayın; access token süresi dolmadan (60 sn margin) yenileyin.</Check>
 
 ## Saklama önerileri
 
@@ -33,54 +35,56 @@ Aşağıdaki kurallara uymak sızıntı riskini ve sızıntı sonrası etkiyi mi
 
 ## Çoklu client stratejisi
 
-Tek bir client'la çalışmak yerine **işlevlere göre ayrılmış** client'lar oluşturmanız önerilir:
+Tek bir client'la çalışmak yerine **işlevlere göre ayrılmış** anahtarlar oluşturmanız önerilir:
 
-| Client | Kullanım |
+| Anahtar | Kullanım |
 |---|---|
-| `payments-prod` | Sadece ödeme alma servisinde kullanılan production client'ı |
-| `reporting-prod` | Sadece raporlama job'larında kullanılan, daha kısıtlı IP whitelist'li client |
-| `dev-team-sandbox` | Geliştirici ekibinin paylaştığı sandbox client'ı |
+| `payments-prod` | Yalnız ödeme alan serviste kullanılan canlı anahtar |
+| `reporting-prod` | Yalnız raporlama job'larında kullanılan, `read_only`, daha dar IP listeli canlı anahtar |
+| `dev-team-test` | Geliştirici ekibinin paylaştığı test anahtarı |
 
-Avantajlar: Bir `client_secret` sızdığında etki alanı sınırlı kalır, audit'lerde hangi servisin ne yaptığını ayırt etmek kolaylaşır.
+Bir secret sızdığında etki alanı sınırlı kalır, denetimde hangi servisin ne yaptığını ayırt etmek kolaylaşır.
 
 ## Rotasyon prosedürü
 
-Sıfır kesinti ile rotasyon:
+`POST /merchants/me/api-keys/{id}/rotate-secret` (organizasyon geneli anahtarlarda `/tenants/me/api-keys/{id}/rotate-secret`) mevcut anahtarın secret'ını **hemen** yeniler: eski secret ve anahtara bağlı tüm açık oturumlar (refresh token'lar) aynı anda geçersiz olur. Bu yüzden kesintisiz rotasyon için secret'ı yenilemek yerine **yeni bir anahtar** oluşturup geçiş yapın:
 
 <Steps>
-  <Step title="Yeni client veya secret üretin">
-    Konsol → API Anahtarları → **Yeni Client Oluştur** (veya mevcut client için **Secret Rotate**). Mevcut secret'ı **silmeyin** — Identity, geçiş süresince eski ve yeni secret'ı geçici olarak birlikte kabul eder.
+  <Step title="Yeni anahtar oluşturun">
+    Aynı ortam (`live`), ürün seçimi ve IP listesiyle yeni bir anahtar üretin. Eski anahtarı **silmeyin**; iki anahtar birlikte geçerlidir.
   </Step>
   <Step title="Yeni secret'ı secret store'a yazın">
-    Production secret manager'ında yeni değeri kaydedin.
+    Canlı anahtarın secret'ı yalnız oluşturulurken gösterilir; hemen kaydedin.
   </Step>
   <Step title="Servisinizi yeniden deploy edin">
-    Yeni secret ile başlayan servis pod/instance'ları çalışmaya başlasın. Eski olanlar hâlâ eski secret'la çalışıyor — geçiş penceresinde ikisi de geçerli.
+    Servis yeni `client_id` / `client_secret` ile token almaya başlasın. Eski instance'lar eski anahtarla çalışmayı sürdürür.
   </Step>
-  <Step title="Audit log'u izleyin">
-    Konsol → API Kayıtları ekranında eski secret'a gelen istek olup olmadığını izleyin. Trafik sıfıra inene dek bekleyin.
+  <Step title="API kayıtlarını izleyin">
+    Eski anahtarla gelen istek kalmadığını panelde API kayıtlarından doğrulayın.
   </Step>
-  <Step title="Eski secret'ı pasife alın">
-    Trafik tamamen kesildiğinde eski secret'ı revoke edin.
+  <Step title="Eski anahtarı silin ya da pasife alın">
+    Trafik kesildiğinde eski anahtarı silin (`DELETE`) ya da pasife alın.
   </Step>
 </Steps>
+
+Kesintiyi göze alabileceğiniz durumlarda (örn. test anahtarı) `rotate-secret` tek adımdır; yeni secret yanıtta yalnız bir kez döner.
 
 ## Sızıntı şüphesinde acil müdahale
 
 `client_secret`'ınızın sızdığını düşündüğünüz an aşağıdaki adımları **paralel** uygulayın:
 
 <Steps>
-  <Step title="Secret'ı hemen revoke edin">
-    Konsoldan client'ı **pasife çekin** veya secret'ı rotate edin. Süreç anlıktır.
+  <Step title="Anahtarı hemen devre dışı bırakın">
+    Anahtarı panelden pasife alın ya da silin; `rotate-secret` ile secret'ı yenilemek de eski secret'ı ve açık oturumları anında geçersiz kılar.
   </Step>
-  <Step title="Yeni secret üretip servisinizi rotasyona alın">
-    Yukarıdaki adımları hızlandırılmış şekilde uygulayın.
+  <Step title="Yeni anahtar üretip servisinizi geçirin">
+    Yukarıdaki rotasyon adımlarını hızlandırılmış uygulayın.
   </Step>
-  <Step title="Audit log incelemesi">
-    Sızıntı penceresinde gerçekleşen tüm işlemleri konsol → API Kayıtları'ndan ekstrakt edin.
+  <Step title="API kayıtlarını inceleyin">
+    Sızıntı penceresindeki tüm istekleri panelde API kayıtlarından çıkarın; para hareketi yapan işlemleri ayrıca kontrol edin.
   </Step>
   <Step title="Destek ekibine bildirin">
-    [Destek talebi](/resources/support) açın — etki analizi konusunda yardım alın.
+    [Destek talebi](/resources/support) açın; etki analizi için yardım alın.
   </Step>
 </Steps>
 

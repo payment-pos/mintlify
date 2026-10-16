@@ -3,9 +3,9 @@ title: "Webhook Olay Kataloğu"
 description: "Sanal POS'un yayınladığı tüm webhook olayları ve payload alanları."
 ---
 
-Sanal POS şu anda **36 olay tipi** yayınlar: işlem yaşam döngüsü (11) + recurring/subscription (6) +
-itiraz/chargeback (2) + marketplace sub-merchant (3) + marketplace split (7) + settlement (6) +
-parçalı hakediş (1). Webhook ucunu oluştururken `enabled_events` dizisinde dinlemek istediklerinizi
+Sanal POS **32 olay tipi** yayınlar: işlem yaşam döngüsü (11) + recurring/subscription (6) +
+itiraz/chargeback (2) + ürün/stok (2) + ödeme linki (1) + marketplace sub-merchant (3) +
+marketplace split (7). Webhook ucunu oluştururken `enabled_events` dizisinde dinlemek istediklerinizi
 belirtirsiniz. Güncel liste (Türkçe ad ve açıklamayla) `GET /api/v1/webhook-endpoints/event-types`
 ucundan (İşyeri API'si) alınır; tüm ürünlerin kodları: [Webhook Olay Referansı](/documentation/concepts/webhook-events).
 
@@ -85,7 +85,7 @@ tümü aynı gövde şemasını kullanır:
   "masked_card_number":      "454671******7894",
   "card_brand":              "bonus",
   "connector_config_id":     "5b2e7c10-...",
-  "bank_code":               "akbank",
+  "bank_code":               "00099",
   "payment_method_category": "card",
   "installment_count":       1,
   "occurred_at":             "2026-05-03T15:34:58.123+03:00"
@@ -229,6 +229,20 @@ Payload: `event_type`, `webhook_event_id`, `chargeback_id`, `transaction_id`, `t
 `merchant_id`, `amount`, `currency`, `status`, `reason`, `reason_code`, `external_id`,
 `bank_reference_no`, `response_deadline`, `occurred_at`. Ayrıntı: [Ters İbraz](/sanal-pos/reporting/chargebacks).
 
+## Ürün ve ödeme linki olayları
+
+Bu olayların gövdesi işlem olaylarından farklıdır. Hepsinde `event_type`, `tenant_id`,
+`merchant_id` (UUID) ve `occurred_at` bulunur. Test işleminin olayı da yayınlanır; yalnız
+bayiye giden SMS/e-posta bildirimi gönderilmez.
+
+| Olay | Tetikleyici | Ek alanlar |
+|---|---|---|
+| `sanalpos.product.low_stock` | Stok takipli ürünün (ya da varyantın) stoğu bayinin tanımladığı eşiğin **altına indi**. Eşiği geçen satışta bir kez yayınlanır | `product_id`, `variant_id`, `product_name`, `remaining_quantity`, `threshold`, `transaction_id` |
+| `sanalpos.product.oversold` | Stok yetmezken satış tamamlandı (eş zamanlı iki ödeme). Kart çekilmiştir; teslimat ya da iade gerekir. Yetmeyen her kalem ayrı olaydır | `product_id`, `variant_id`, `product_name`, `requested_quantity`, `available_quantity`, `transaction_id`, `external_id` |
+| `sanalpos.payment_link.exhausted` | Kullanım sınırı olan ödeme linki son hakkını tüketti ve kapandı. Link başına bir kez | `payment_link_id`, `slug`, `title`, `max_uses`, `current_uses`, `transaction_id` |
+
+Ayrıntı: [Ürünler](/sanal-pos/payments/products), [Ödeme Linki](/sanal-pos/payments/pay-by-link).
+
 ## Marketplace olayları
 
 ### Sub-merchant lifecycle
@@ -257,42 +271,6 @@ Payload: `event_type`, `split_id`, `transaction_id`, `tenant_id`, `parent_mercha
 | `sanalpos.payment_split.refunded` | Split tam iade edildi |
 | `sanalpos.payment_split.partially_refunded` | Split kısmi iade edildi |
 | `sanalpos.payment_split.auto_release_scheduled` | Otomatik serbest bırakma planlandı |
-
-## Settlement olayları
-
-Settlement olayları **feature-prefix'li** isimlendirilir (`sanalpos.settlement.*`):
-
-| Olay | Tetikleyici |
-|---|---|
-| `sanalpos.settlement.created` | Gün/dönem settlement kaydı oluşturuldu |
-| `sanalpos.settlement.updated` | Rezerve — event-types listesinde yer alır, şu an yayınlanmaz (dönem sonrası düzeltmeler [devreden kalem](/sanal-pos/reporting/settlements#devreden-kalemler-carry-forward) modeliyle yeni satıra yansır) |
-| `sanalpos.settlement.processing` | Settlement işleme alındı |
-| `sanalpos.settlement.completed` | Settlement tamamlandı |
-| `sanalpos.settlement.failed` | Settlement başarısız |
-| `sanalpos.settlement.cancelled` | Settlement iptal edildi |
-
-Payload: `event_type`, `settlement_id`, `tenant_id`, `merchant_id`, `source_feature`,
-`source_code`, `currency`, `gross_amount`, `refund_amount`, `bank_commission`,
-`platform_commission`, `parent_commission_paid`, `net_amount`,
-`marketplace_commission_income`, `sub_payout_obligations`, `real_net_earning`,
-`transaction_count`, `refund_count`, `period_start`, `period_end`, `status`,
-`bank_reference`, `occurred_at`. Alan anlamları için bkz.
-[Hakediş Kayıtları](/sanal-pos/reporting/settlements#liste).
-
-## Parçalı hakediş olayı
-
-[Parçalı hakediş](/sanal-pos/reporting/split-settlements) penceresi üretildiğinde
-(bayi, para birimi, pencere) başına **tek** olay yayınlanır — status geçişleri webhook yaymaz:
-
-| Olay | Tetikleyici |
-|---|---|
-| `sanalpos.split_settlement.created` | N-saatlik hakediş pencere kaydı oluşturuldu |
-
-Payload: `event_type`, `split_settlement_id`, `tenant_id`, `merchant_id`, `period_start`
-(dahil), `period_end` (hariç), `interval_hours`, `currency`, `gross_amount`, `refund_amount`,
-`bank_commission`, `platform_commission`, `parent_commission_paid`, `net_amount`,
-`marketplace_commission_income`, `sub_payout_obligations`, `real_net_earning`,
-`transaction_count`, `refund_count`, `occurred_at`.
 
 ## Olay → İşlem durumu eşleşmesi
 
@@ -338,12 +316,3 @@ curl -X POST https://merchant.payven.com.tr/api/v1/webhook-endpoints \
 Boş liste ya da `["*"]` **tüm olaylara** (tüm ürünlerin) abone eder. Açık liste tutmak ileride
 eklenen olay tiplerini bilinçli almanızı sağlar (handler'ınızda olmayan olay tipleri unhandled
 error fırlatmasın). Katalogda olmayan kod `422 webhook_event_type_unknown` döner.
-
-## Yol haritası
-
-İleride eklenmesi planlanan olaylar (kodlar yayınlandığında [Webhook Olay Referansı](/documentation/concepts/webhook-events)'na eklenir):
-
-- Banka sağlık durumu değişimi (circuit breaker açıldı / kapandı)
-- Mutabakat olayları (fark tespit edildi, mutabakat kesinleşti)
-
-Güncellemeler için [Changelog](/resources/changelog) sayfasını izleyin.

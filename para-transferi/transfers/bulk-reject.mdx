@@ -12,7 +12,7 @@ durumuna geçer; bankaya hiçbir istek gönderilmez ve hesaplarınızdan para ç
 POST /api/v1/transfers/bulk/reject
 ```
 
-**Yetki:** transfer onaylama izni (`transfer-admin`; onay yetkisiyle aynı).
+**Yetki:** `CanApproveTransfers` (onay yetkisiyle aynı).
 
 ## Hangi durumlar reddedilebilir?
 
@@ -61,9 +61,9 @@ curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/reject \
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `transfers[]` | array | Zorunlu | Reddedilecek transferler |
+| `transfers[]` | array | Zorunlu | Reddedilecek transferler (en fazla 100) |
 | `transfers[].transfer_id` | UUID | Zorunlu | Transfer kimliği |
-| `transfers[].rejection_reason` | string | Opsiyonel | Red gerekçesi — denetim kaydında saklanır ve webhook'un `message` alanında döner |
+| `transfers[].rejection_reason` | string | Opsiyonel (en fazla 500 karakter) | Red gerekçesi — denetim kaydında saklanır ve webhook'un `message` alanında döner |
 
 ## Yanıt
 

@@ -19,14 +19,28 @@
     "strict": false
   },
   "fonts": {
-    "heading": { "family": "Inter", "weight": 600 },
-    "body": { "family": "Inter" }
+    "heading": {
+      "family": "Inter",
+      "weight": 600
+    },
+    "body": {
+      "family": "Inter"
+    }
   },
   "navbar": {
     "links": [
-      { "label": "Konsol", "href": "https://dashboard.payven.com.tr" },
-      { "label": "Durum", "href": "/resources/status" },
-      { "label": "Changelog", "href": "/resources/changelog" }
+      {
+        "label": "Konsol",
+        "href": "https://dashboard.payven.com.tr"
+      },
+      {
+        "label": "Durum",
+        "href": "/resources/status"
+      },
+      {
+        "label": "Changelog",
+        "href": "/resources/changelog"
+      }
     ],
     "primary": {
       "type": "button",
@@ -118,7 +132,15 @@
               "sanal-pos/payments/refund",
               "sanal-pos/payments/void",
               "sanal-pos/payments/installment",
-              "sanal-pos/payments/dcc"
+              "sanal-pos/payments/dcc",
+              "sanal-pos/payments/checkout-sessions",
+              "sanal-pos/payments/recurring",
+              "sanal-pos/payments/saved-cards",
+              "sanal-pos/payments/products",
+              "sanal-pos/payments/marketplace-splits",
+              "sanal-pos/payments/refund-requests",
+              "sanal-pos/payments/cancellation-requests",
+              "sanal-pos/payments/receipts"
             ]
           },
           {
@@ -156,10 +178,9 @@
             ]
           },
           {
-            "group": "Raporlama & İzleme",
+            "group": "Raporlama & Hakediş",
             "pages": [
               "sanal-pos/reporting/settlements",
-              "sanal-pos/reporting/split-settlements",
               "sanal-pos/reporting/chargebacks"
             ]
           },
@@ -190,6 +211,7 @@
               "para-transferi/overview",
               "para-transferi/authentication",
               "para-transferi/integration-guide",
+              "para-transferi/sandbox",
               "para-transferi/transfer-object"
             ]
           },
@@ -199,7 +221,9 @@
               "para-transferi/transfers/bulk-create",
               "para-transferi/transfers/bulk-approve",
               "para-transferi/transfers/bulk-reject",
-              "para-transferi/transfers/bulk-send"
+              "para-transferi/transfers/bulk-send",
+              "para-transferi/transfers/bulk-batches",
+              "para-transferi/transfers/outcome-resolution"
             ]
           },
           {
@@ -245,7 +269,9 @@
           },
           {
             "group": "Hata Kodları",
-            "pages": ["para-transferi/errors/overview"]
+            "pages": [
+              "para-transferi/errors/overview"
+            ]
           }
         ]
       },
@@ -254,7 +280,17 @@
         "groups": [
           {
             "group": "Genel Bakış",
-            "pages": ["fraud/overview"]
+            "pages": [
+              "fraud/overview"
+            ]
+          },
+          {
+            "group": "Yönetim API'si",
+            "pages": [
+              "fraud/rules",
+              "fraud/alerts",
+              "fraud/blacklist"
+            ]
           }
         ]
       },
@@ -263,7 +299,9 @@
         "groups": [
           {
             "group": "Genel Bakış",
-            "pages": ["identity/overview"]
+            "pages": [
+              "identity/overview"
+            ]
           },
           {
             "group": "Oturum Bilgisi",
@@ -295,6 +333,102 @@
             "pages": [
               "identity/validation/card",
               "identity/validation/iban"
+            ]
+          },
+          {
+            "group": "Webhook ve Olaylar",
+            "pages": [
+              "identity/webhooks/endpoints",
+              "identity/webhooks/events"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Fatura Ödeme",
+        "groups": [
+          {
+            "group": "Genel Bakış",
+            "pages": [
+              "fatura-odeme/overview",
+              "fatura-odeme/integration-guide"
+            ]
+          },
+          {
+            "group": "Uçlar",
+            "pages": [
+              "fatura-odeme/invoices",
+              "fatura-odeme/carts"
+            ]
+          },
+          {
+            "group": "Webhook'lar ve Test",
+            "pages": [
+              "fatura-odeme/webhooks",
+              "fatura-odeme/errors-sandbox"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "e-Fatura",
+        "groups": [
+          {
+            "group": "Genel Bakış",
+            "pages": [
+              "e-fatura/overview",
+              "e-fatura/integration-guide"
+            ]
+          },
+          {
+            "group": "Belgeler",
+            "pages": [
+              "e-fatura/invoices",
+              "e-fatura/automation"
+            ]
+          },
+          {
+            "group": "Webhook'lar ve Test",
+            "pages": [
+              "e-fatura/webhooks",
+              "e-fatura/errors-sandbox"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "İşyeri API'si",
+        "groups": [
+          {
+            "group": "Genel Bakış",
+            "pages": [
+              "isyeri-api/overview"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Yapay Zeka (MCP)",
+        "groups": [
+          {
+            "group": "MCP",
+            "pages": [
+              "mcp/overview",
+              "mcp/tools",
+              "mcp/permissions"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Eklentiler",
+        "groups": [
+          {
+            "group": "E-Ticaret Eklentileri",
+            "pages": [
+              "eklentiler/overview",
+              "eklentiler/setup",
+              "eklentiler/php-sdk"
             ]
           }
         ]

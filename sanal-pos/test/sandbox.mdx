@@ -1,69 +1,74 @@
 ---
 title: "Sandbox Ortamı"
-description: "Production ile birebir aynı API yüzeyini sunan, gerçek para hareketi yapmayan test ortamı."
+description: "Production ile birebir aynı API yüzeyini sunan, bankaya gitmeyen ve gerçek para hareketi yapmayan test modu."
 ---
 
-Sandbox ortamı, production ile **birebir aynı API**'yi sunar — gerçek para hareketi yapılmaz. Banka çağrıları organizasyonunuzun sandbox konnektör konfigürasyonuna göre ya simüle edilir ya da bankanın test ortamına yönlendirilir.
+Test modu, production ile **birebir aynı API**'yi sunar. Test modundaki bir istek gerçek bankaya, kuruma veya GİB'e **hiçbir zaman** gitmez; Payven kayıtları gerçek gibi yazar (işlem, iade, plan, makbuz, webhook), banka kısmını kendi simülatörüyle yanıtlar.
 
-## URL
+## Test modu nasıl belirlenir
 
-```
-https://vpos-sandbox.payven.com.tr
-```
+Mod URL'den değil **isteğin kimliğinden** gelir. Aşağıdakilerden biri yeterlidir:
 
-## Sandbox kimlik bilgileri
-
-Konsolu sandbox modunda açıp **Ayarlar → API Anahtarları** ekranından `client_id` + `client_secret` çifti üretin. Sandbox client ID'leri `pvk_test_...` prefix'i ile başlar; production'dan ayrıdır.
-
-Identity'den access token alma akışı [Kimlik Doğrulama](/documentation/concepts/authentication) sayfasında. Sandbox token endpoint'i:
-
-```
-https://identity-sandbox.payven.com.tr/api/v1/auth/{slug}/token
-```
-
-## Production'dan farklılıklar
-
-| Özellik | Production | Sandbox |
-|---|---|---|
-| Para hareketi |  |  |
-| Webhook teslimi |  | (gerçek HTTP isteği) |
-| Mutabakat | — gerçek banka raporu | — simüle veya banka test raporu |
-| Rate limit | Plan'a göre | 50 RPS |
-
-## Banka çağrı modu
-
-Sandbox'ta banka çağrısı, organizasyonunuzun konnektör konfigürasyonuna göre iki şekilde yapılabilir:
-
-| Konfigürasyon | Davranış |
+| Kaynak | Açıklama |
 |---|---|
-| **Mock konnektör** | Banka tarafına hiç çağrı atılmaz. Yanıt Payven tarafında simüle edilir; entegrasyon testleri ve CI için idealdir. |
-| **Banka test ortamı konnektörü** | Bankanın resmi test ortamına gerçek HTTP çağrısı yapılır. Banka tarafı simülasyon kurallarıyla çalışır (tipik test kartları, 3DS test sayfası, vb.). Banka entegrasyonunun uçtan uca doğrulanması için kullanın. |
+| **Test API anahtarı** | Ortamı `test` olan sunucu anahtarıyla (`pvk-...`) yapılan her istek test modundadır. Anahtarın ortamı sonradan değişmez. |
+| **Bayinin ortamı** | Henüz canlıya geçmemiş (ortamı `sandbox`) bayinin hiçbir işlemi gerçek değildir. |
+| **Panel seçimi** | Panelde oturum açmış kullanıcının "Test modu" düğmesi (`X-Payven-Mode: test` başlığı). |
 
-Hangi modun aktif olduğunu konsol → **Konnektör Konfigürasyonları** ekranından görebilirsiniz. Yeni bir konfigürasyon eklerken modu seçersiniz.
+Hiçbir girdi test modunu canlıya **yükseltemez**: test anahtarıyla "canlı" başlığı göndermek veya test modundaki bayiye canlı anahtarla istek atmak test olarak kalır. Her yanıt, istek modunu `X-Payven-Mode: test|live` başlığıyla bildirir.
 
-## Test kart numaraları
+Canlıya geçiş bayi başına yapılır: bayi canlıya geçiş talep eder, operatör onaylar; ardından aynı bayi için canlı anahtar üretebilirsiniz. Mevcut test anahtarları test kalır.
 
-Test kart numaraları **bankanın test ortamı tarafından** belirlenir. Konsoldaki **Test Kartları** ekranında, organizasyonunuzun aktif sandbox konfigürasyonlarına göre derlenmiş güncel matris yer alır:
+## URL'ler
 
-→ [Konsol → Test Kartları](https://dashboard.payven.com.tr/test-cards)
+| Ortam | Sanal POS | Identity |
+|---|---|---|
+| Production | `https://vpos.payven.com.tr` | `https://identity.payven.com.tr` |
 
-Bu ekran her banka için: başarılı işlem kartları, ret senaryoları (yetersiz bakiye, kart bloke), 3DS challenge/frictionless test kartları ve geçerli son kullanma tarihi / CVV bilgilerini içerir.
+Token alma akışı [Kimlik Doğrulama](/documentation/concepts/authentication) sayfasındadır. Ayrı bir sandbox adresi yoktur; aynı adresler kullanılır ve modu API anahtarının ortamı (test/canlı) belirler.
+
+## Simüle edilen akışlar
+
+| Akış | Test modundaki davranış |
+|---|---|
+| Non-3D / 3D Secure ödeme | Varsayılan sonuç **başarı**dır. 3D Secure adımında Payven'in tek simülatör sayfası açılır; sayfa **herhangi bir 6 haneli kodu** kabul eder. Sonuç sayfadaki girişe değil, kartın senaryosuna bağlıdır. |
+| Capture, iade, iptal | Simülatörde sonuçlanır; bankaya gidilmez. |
+| Puan sorgulama | Simüle başarı (bakiye `0`). |
+| Banka durum sorgusu / sipariş geçmişi | Dış sorgu yapılmaz, kayıttan yanıtlanır. |
+| Sipariş linki (`order-link`) | Simülatörde ödenen link üretilir. |
+| Tekrarlayan ödeme | Plan simülatör modülünde yürür; 3D adımı aynı simülatör sayfasını kullanır. |
+| Hosted checkout / ödeme linki | Oturum ve link aldığı modu ödemeye taşır; test modunda oluşturulan oturum simülatörde ödenir. |
+| Mutabakat düzeltmesi | Test kaydı banka ile düzeltilemez. |
+| Webhook | Gerçek HTTP isteğiyle teslim edilir; olay `livemode: false` taşır. |
+| e-Fatura / makbuz | Test belgesi üretilir; test işleminin makbuzu dışarıya gönderilmez. |
+
+Simülatörü olmayan bir sağlayıcı işlemi istenirse istek **canlı sağlayıcıya düşmez**; `422 sandbox_operation_not_supported` döner.
+
+<Note>
+Bayi genelindeki politika kapıları test modunda da geçerlidir: Non-3D kapalıysa `PV_NON_3D_NOT_ALLOWED`, CVV zorunluysa `PV_CVV_REQUIRED` döner.
+</Note>
+
+## Test kayıtları canlıdan ayrıdır
+
+İşlemler, planlar, iade ve ters ibraz kayıtları, ödeme linkleri, indirim kodları ve checkout oturumları **moda göre ayrılır**. Test anahtarıyla listeleme yalnızca test kayıtlarını gösterir; `external_id` benzersizliği ve `Idempotency-Key` kapsamı da mod başınadır. Bayi, banka profili, yönlendirme kuralı, komisyon ve tema gibi yapılandırmalar iki modda ortaktır.
+
+Test işlemlerinin cüzdan, hakediş ve bildirim olayları sandbox işareti taşır; canlı bakiyeye ve canlı raporlara karışmaz.
+
+## Test kartları
+
+Varsayılan olarak test modunda **her** geçerli kart numarası başarıyla sonuçlanır. Başarısızlık, gecikme veya özel hata denemek için [kayıtlı test kartı](/sanal-pos/test/test-cards) tanımlayın — kayıtlı kartın senaryosu modundan bağımsız olarak uygulanır.
 
 ## Sandbox → production geçişi
 
 <Steps>
-  <Step title="Production credentials">
-    Konsoldan production ortamı seçip yeni `client_id` + `client_secret` üretin (`pvk_live_...`).
-  </Step>
-  <Step title="Base URL'leri değiştirin">
-    Identity: `identity-sandbox.payven.com.tr` → `identity.payven.com.tr`<br/>
-    Sanal POS: `vpos-sandbox.payven.com.tr` → `vpos.payven.com.tr`
+  <Step title="Canlı bayi ve anahtar">
+    Bayiniz canlıya geçince panelden **canlı** ortamlı yeni `client_id` + `client_secret` üretin. Test anahtarı canlı işlem yapmaz.
   </Step>
   <Step title="Webhook uçları">
-    Production webhook uçları farklı `secret` ile gelir — secret manager'ınızı güncelleyin.
+    Canlı webhook uçları ayrı `secret` taşır — secret manager'ınızı güncelleyin.
   </Step>
   <Step title="Test kartları kaldırın">
-    Test kart numaralarını koddan kaldırın, ilk production işleminizi gerçek kartla yapın.
+    Test kart numaralarını koddan kaldırın, ilk canlı işleminizi gerçek kartla yapın.
   </Step>
   <Step title="Go-Live Checklist">
     [Production geçişi kontrol listesi](/documentation/security/go-live-checklist) — IP whitelist, secret yönetimi, rate limit, izleme.

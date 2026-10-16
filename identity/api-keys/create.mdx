@@ -1,38 +1,18 @@
 ---
 title: "Yeni API Anahtarı Oluşturma"
-description: "Konsoldan veya API üzerinden OAuth Client Credentials çifti üretin."
+description: "Test veya canlı ortamlı, API kapsamı seçilmiş bir OAuth Client Credentials çifti üretin."
 ---
 
-Yeni anahtarlar konsol veya programatik olarak oluşturulabilir. İki durumda da **`client_secret` yalnızca yanıtta bir kez** döner — sonradan tekrar erişilemez.
+Anahtarlar Payven panellerinden (Portal ve İşyeri Paneli) ya da doğrudan API'den oluşturulur; paneller aynı uçları çağırır. İki durumda da **`secret` yalnızca oluşturma yanıtında bir kez** döner (test anahtarı hariç — bkz. [Test anahtarının secret'ı](/identity/api-keys/create)).
 
-## Konsoldan oluşturma
+## Endpoint
 
-<Steps>
-  <Step title="API Anahtarları sayfası">
-    Konsol → **Ayarlar → API Anahtarları**.
-  </Step>
-  <Step title="Yeni Anahtar Oluştur">
-    Sağ üstteki butona basın.
-  </Step>
-  <Step title="Bilgileri girin">
-    - **Görünen ad** — hangi servis/ortam için (örn. *"Production — Ödeme Servisi"*).
-    - **İletişim e-postası** — opsiyonel; alarm/uyarı için.
-    - **Plan** — bu anahtara atanacak plan (rate limit + kotalar).
-    - **IP whitelist** — production için zorunlu kabul edin.
-    - **Geçerlilik tarihi** — opsiyonel; geçici anahtarlar için.
-  </Step>
-  <Step title="Secret'i kopyalayın">
-    Üretilen `client_secret` değerini güvenli bir yere (vault, secret manager) kopyalayın. **Bu pencere kapatıldıktan sonra bir daha gösterilmez.**
-  </Step>
-</Steps>
+| Yüzey | Endpoint | Rol |
+|---|---|---|
+| Tenant | `POST /api/v1/tenants/me/api-keys` | `tenant-admin` |
+| Bayi | `POST /api/v1/merchants/me/api-keys` | `merchant-admin` |
 
-## API ile oluşturma
-
-```http
-POST /api/v1/tenants/me/api-keys
-```
-
-Bearer access token gerektirir + kullanıcı `tenant-admin` rolünde olmalı.
+Bearer access token gerekir. Bayi yüzeyinde `merchant_id` göndermeyin; token'daki bayi yazılır ve `plan_id` / `*_limit_override` alanları yok sayılır.
 
 ```bash
 curl -X POST https://identity.payven.com.tr/api/v1/tenants/me/api-keys \
@@ -40,77 +20,121 @@ curl -X POST https://identity.payven.com.tr/api/v1/tenants/me/api-keys \
   -H "Idempotency-Key: api-key-prod-payments-1" \
   -H "Content-Type: application/json" \
   -d '{
-    "display_name":            "Production — Ödeme Servisi",
-    "contact_email":           "ops@example.com",
-    "merchant_id":             "M-IST-001",
-    "plan_id":                 "abc-...",
-    "daily_limit_override":    null,
-    "monthly_limit_override":  null,
-    "rate_limit_override":     null,
-    "allowed_ips":             "52.18.42.10,52.18.42.0/24",
-    "expires_at":              null
+    "display_name":  "Production — Ödeme Servisi",
+    "contact_email": "ops@example.com",
+    "merchant_id":   "M-IST-001",
+    "environment":   "live",
+    "access_level":  "full",
+    "features":      ["sanalpos", "para-transferi"],
+    "allowed_ips":   "52.18.42.10,52.18.42.0/24",
+    "expires_at":    "2027-06-30T23:59:59+03:00"
   }'
 ```
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `display_name` | string | Zorunlu | Anahtar için açıklayıcı ad |
-| `contact_email` | string | Opsiyonel | Alarm / uyarı e-postası |
-| `merchant_id` | string | Opsiyonel | Default merchant external ID — access token claim'ine yansır |
-| `plan_id` | UUID | Opsiyonel | Atanacak plan — boş bırakılırsa tenant default'u |
-| `daily_limit_override` | int | Opsiyonel | Plan günlük limitini override eder (kuruş) |
-| `monthly_limit_override` | int | Opsiyonel | Plan aylık limit override |
-| `rate_limit_override` | int | Opsiyonel | Plan RPS override |
-| `allowed_ips` | string | Opsiyonel | CSV IP / CIDR listesi (örn. `52.18.42.10,10.0.0.0/8`). Boş = tüm IP'ler |
-| `expires_at` | datetime | Opsiyonel | Anahtarın otomatik pasifleşeceği tarih (UTC, ISO 8601) |
+| `display_name` | string | Zorunlu | Anahtarın görünen adı |
+| `environment` | `test` \| `live` | **Zorunlu** | Sonradan değişmez. Eksikse `400 api_key_environment_required`. Test modundaki bayiye `live` verilemez |
+| `features` | string[] | Önerilir | Anahtarın erişeceği API'ler ([aşağıda](/identity/api-keys/create)). Boş = hiçbir ürün API'si (yalnız Identity) |
+| `access_level` | `full` \| `read_only` | Opsiyonel | Varsayılan `full` |
+| `contact_email` | string | Opsiyonel | Bilgi amaçlı iletişim adresi |
+| `merchant_id` | string | Opsiyonel | Anahtarı bir bayiye bağlar (bayi `external_id`). Boş = tenant geneli anahtar. Token'a yansır |
+| `plan_id` | UUID | Opsiyonel | Atanacak plan; boşsa tenant planı. Geçersiz / pasif plan reddedilir |
+| `daily_limit_override`, `monthly_limit_override`, `rate_limit_override` | int | Opsiyonel | Plan limitini ezer |
+| `allowed_ips` | string | Opsiyonel | Virgülle ayrılmış tam IP veya CIDR (`203.0.113.10`, `203.0.113.0/24`). Boş = kısıtsız. Geçersiz girdi `422 api_key_allowed_ips_invalid` |
+| `expires_at` | datetime | Opsiyonel | Son kullanma anı (`+03:00` ofsetiyle). Geçince `401 api_key_expired` |
+| `allow_offline_access` | bool | Opsiyonel | Uzun ömürlü (offline) refresh token izni; varsayılan `false`. Yalnız arka planda kesintisiz çalışan entegrasyonlar için açın |
+| `kind`, `agent_scopes` | | Opsiyonel | Yapay zekâ asistanı anahtarı — bkz. [genel bakış](/identity/api-keys/overview) |
+
+`Idempotency-Key` başlığı desteklenir; ağ hatasında aynı anahtarla tekrar denemek ikinci bir anahtar üretmez.
+
+## API kapsamı (`features`)
+
+`features` listesi anahtarın **hangi servislere** erişebileceğini belirler. Her kod için ilgili `*-api` audience'ı token'a yazılır; kapsamda olmayan servise yapılan istek `401 audience_invalid` döner. `identity-api` her anahtara otomatik eklenir ve kaldırılamaz.
+
+| `features` kodu | Servis |
+|---|---|
+| `sanalpos` | Sanal POS |
+| `para-transferi` | Para Transferi |
+| `fatura-odeme` | Fatura Ödeme |
+| `kredi-kart` | Kredi Kartı |
+| `cuzdan` | Cüzdan |
+| `fraud` | Fraud |
+| `e-fatura` | e-Fatura |
+| `merchant` | İşyeri API'si |
+
+Seçilebilir liste tenant'a ve kuruluma göre değişir (tenant'ın açık olmayan modülü seçilemez). Güncel listeyi bayi yüzeyinde sorgulayın:
+
+```bash
+curl https://identity.payven.com.tr/api/v1/merchants/me/api-keys/assignable-scopes \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+```json
+[
+  { "code": "sanalpos", "display_name": "Sanal POS", "scope": "sanalpos-api" },
+  { "code": "para-transferi", "display_name": "Para Transferi", "scope": "para-transferi-api" }
+]
+```
+
+<Note>
+Webhook uçlarını İşyeri API'si üzerinden yönetecekseniz `merchant` kapsamı seçili olmalıdır (Identity'ye doğrudan çağrıda gerekmez). Kapsam değişikliği `PUT` ile yapılır ve yeni token'dan itibaren geçerlidir.
+</Note>
 
 ## Yanıt
 
-`201 Created` — `CreateApiKeyResult`:
+`201 Created`:
 
 ```json
 {
   "api_key": {
-    "id":                       "8e3f5c12-...",
-    "tenant_id":                "1a2b3c4d-...",
-    "client_id":       "pvk-payven-a1b2c3",
-    "display_name":             "Production — Ödeme Servisi",
-    "contact_email":            "ops@example.com",
-    "merchant_id":              "M-IST-001",
-    "plan_id":                  "abc-...",
-    "plan_code":                "standard",
-    "plan_name":                "Standart Plan",
-    "effective_daily_limit":    100000,
-    "effective_monthly_limit":  3000000,
-    "effective_rate_limit":     200,
-    "allowed_ips":              "52.18.42.10,52.18.42.0/24",
-    "expires_at":               null,
-    "is_active":                true,
-    "created":                  "2026-05-03T12:34:56.789+03:00"
+    "id":                "8e3f5c12-...",
+    "keycloak_client_id": "pvk-payven-live-a1b2c3d4",
+    "display_name":      "Production — Ödeme Servisi",
+    "merchant_id":       "M-IST-001",
+    "environment":       "live",
+    "access_level":      "full",
+    "features":          ["sanalpos", "para-transferi"],
+    "effective_rate_limit": 200,
+    "allowed_ips":       "52.18.42.10,52.18.42.0/24",
+    "is_active":         true,
+    "created":           "2026-10-16T12:34:56.789+03:00"
   },
-  "secret": "AbC123dEf456GhI789jKl012MnO345pQ"
+  "secret":    "AbC123dEf456GhI789jKl012MnO345pQrStUvWx",
+  "agent_key": null
 }
 ```
 
+`api_key` nesnesi [listedeki ile aynı alanları](/identity/api-keys/overview) taşır (kısaltıldı). `Location` başlığı `GET .../api-keys/{id}` adresini gösterir.
+
 <Warning>
-**`secret` alanı yalnızca bu yanıtta dönecek.** Liste/detay endpoint'lerinde döndürülmez.
-Hemen secret manager'ınıza (HashiCorp Vault, AWS Secrets Manager, Azure Key Vault, Doppler, vb.) kaydedin.
+**Canlı anahtarın `secret` değeri yalnızca bu yanıtta (ve rotasyon yanıtında) döner.** Hemen bir secret manager'a (Vault, AWS Secrets Manager, Azure Key Vault vb.) kaydedin. Kaybederseniz [rotasyon](/identity/api-keys/rotate) yapın.
 </Warning>
+
+### Test anahtarının secret'ı
+
+Test anahtarının secret'ı sonradan tekrar okunabilir:
+
+```bash
+curl https://identity.payven.com.tr/api/v1/tenants/me/api-keys/8e3f5c12-.../secret \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+# → { "secret": "...", "agent_key": null }
+```
+
+Canlı anahtarda bu uç `422 api_key_secret_not_revealable` döner.
 
 ## Hemen kullanmaya başlama
 
-Aldığınız `client_id` + `client_secret` çifti ile [Identity'den access token alın](/documentation/concepts/authentication) ve ürün servislerine gönderin.
+`keycloak_client_id` + `secret` ile [token alın](/documentation/concepts/authentication) ve ürün servislerine gönderin. Token'da tenant, bayi, `environment`, `access_level`, limitler ve `aud` (seçtiğiniz servisler) claim'leri taşınır; ürün servisleri bunları doğrudan doğrular.
 
-Access token içinde `tenant_id`, `merchant_id`, `plan_code`, `daily_limit`, `monthly_limit`, `rate_limit` gibi claim'ler taşınır — ürün servisleri bunları doğrudan doğrular, ek bir kimlik akışı gerekmez.
+## Hata yanıtları
 
-## Hata response'ları
-
-Hata yanıtı RFC 9457 problem+json.
+Hata gövdesi `PayvenProblemDetails` zarfıdır.
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `403` | `forbidden` | `tenant-admin` rolü yok |
-| `404` | `plan_not_found` | Belirtilen `plan_id` bulunamadı |
-| `409` | `api_key_limit_reached` | Plan kotanız aktif anahtar sayısı için doldu |
-| `422` | `invalid_ip_format` | `allowed_ips` formatı geçersiz (IP / CIDR olmalı) |
-| `422` | `invalid_expires_at` | Geçmiş tarih veya format hatalı |
+| `400` | `api_key_environment_required` | `environment` verilmedi |
+| `403` | `forbidden` | Rol yetersiz (`tenant-admin` / `merchant-admin` gerekir) |
+| `422` | `api_key_live_requires_live_merchant` | Test modundaki bayiye canlı anahtar |
+| `422` | `api_key_allowed_ips_invalid` | `allowed_ips` içinde geçersiz IP / CIDR |
+| `422` | `api_key_agent_*` | Ajan anahtarı kuralı ihlali (yalnız salt okunur; yazma izni yok; bilinmeyen izin) |

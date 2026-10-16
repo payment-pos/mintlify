@@ -82,21 +82,16 @@ def kurus_to_lira(kurus: int) -> Decimal:
 
 ## Para birimleri
 
-| Kod | Para birimi | Doğrudan kabul | DCC çıktısı |
-|---|---|---|---|
-| `TRY` | Türk Lirası | Evet | — |
-| `USD` | Amerikan Doları | — | Evet |
-| `EUR` | Euro | — | Evet |
-| `GBP` | İngiliz Sterlini | — | Evet |
+Para birimi ISO-4217 alfa-3 kodudur ve **büyük harfle** yazılır (`TRY`). Bugün işlem yapılabilen tek para birimi **`TRY`**'dir; `currency` boş bırakılırsa `TRY` kabul edilir. Tanınmayan bir kod `TRY`'ye çevrilmez, olduğu gibi (büyük harfle) taşınır ve işlem yapılamayan para birimi olarak reddedilir.
 
-Request body'sinde `currency` alanına şu an yalnız `"TRY"` gönderilir. Yabancı kartlarda **DCC (Dynamic Currency Conversion)** akışı devreye girerse Payven, kart para birimindeki çevrilmiş tutarı response body'sinde döner — istemci `USD`/`EUR`/`GBP` değerini doğrudan göndermez. Detay: [DCC Akışı](/sanal-pos/payments/dcc).
+Ondalık basamak sayısı para birimine bağlıdır (TRY için 2). Tutarı gösterim için dönüştürürken her para biriminde `/100` varsaymayın; çok para birimli bir sistem yazıyorsanız basamak sayısını para birimi tablosundan okuyun.
 
 ## Sınır değerler
 
-| Kural | Limit |
+| Kural | Davranış |
 |---|---|
-| Minimum işlem tutarı | 100 kuruş (1,00 ₺) |
-| Maksimum tek işlem tutarı | Plan ve banka anlaşmanıza göre değişir |
-| Kısmi iade tutarı | Orijinal işlem tutarını aşamaz |
+| Tutar | Sıfırdan büyük tam sayı olmalı; aksi halde `422` (`PV_INVALID_AMOUNT` ya da `validation_failed`) |
+| Maksimum tek işlem tutarı | Bayinin paketine ve banka anlaşmasına göre değişir; bayi limiti aşılırsa `422 merchant_limit_exceeded` |
+| Kısmi iade tutarı | Kalan tutarı aşamaz (`REFUND_AMOUNT_EXCEEDS_REMAINING`, `422`) |
 
-İhlal durumunda `invalid_amount` veya `refund_exceeds_original` kodu ile `422 Unprocessable Entity` döner. Tüm hata yanıtları RFC 9457 problem+json formatındadır — bkz. [Hata Yönetimi](/documentation/concepts/errors).
+Tüm hata yanıtları problem+json formatındadır — bkz. [Hata Yönetimi](/documentation/concepts/errors).

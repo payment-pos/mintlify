@@ -3,7 +3,7 @@ title: "Transfer Detayı"
 description: "Tek bir transferin son durumunu, tarihçesini ve banka yanıt detaylarını sorgulayın."
 ---
 
-Bir transferin **mevcut** durumunu ve banka tarafından dönen ham detayları çekmek için kullanılır.
+Bir transferin **mevcut** durumunu, durum geçişlerini ve webhook teslim denemelerini çekmek için kullanılır.
 
 ## Endpoint
 
@@ -13,143 +13,149 @@ GET /api/v1/transfers/{id}
 
 `id` parametresi UUID formatındadır — `POST /transfers/bulk/create` yanıtında dönen `transfer_id` ya da `GET /transfers?external_id=` ile bulunan kaydın `id`'si.
 
-**Yetki:** `transfer-admin`, `transfer-operator` veya `transfer-viewer` rolü.
+**Yetki:** `CanViewTransfers`.
 
 ## İstek
 
 ```bash
 curl https://transfer.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6 \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID"
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
 ## Yanıt
 
-`TransferDetailDto` döner — listeleme yanıtının üzerine **banka ham yanıtı** ve **durum geçiş tarihçesi** ekler:
+[Transfer Objesi](/para-transferi/transfer-object) döner; liste yanıtından farkı `events`, `webhook_deliveries`, `channel_suggestions` ve (parçalı ödemede) `split_group` alanlarının dolu gelmesidir:
 
 ```json
 {
-  "id":                       "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "merchant_id":              "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "external_id":              "PAYROLL-001",
-  "request_id":               "PAYROLL-2026-05",
-  "description":              "Mayıs maaş ödemesi",
-  "receipt_no":               "TRF-20260503-0001",
+  "id":                        "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "external_id":               "PAYROLL-001",
+  "request_id":                "PAYROLL-2026-05",
+  "status":                    "completed",
+  "amount":                    1500000,
+  "currency":                  "try",
+  "request_transfer_type":     "fast",
+  "success_transfer_type":     "fast",
+  "receipt_no":                "TRF-20260503-0001",
+  "receipt_available":         true,
+  "message":                   "Transfer başarılı",
+  "error_code":                null,
+  "provider_error_code":       null,
 
-  "source_account_id":        "550e8400-e29b-41d4-a716-446655440000",
-  "source_account_iban":      "TR860006400000000000000123",
-  "source_account_bank":      "Garanti BBVA",
-
-  "recipient": {
-    "id":            "abc-12345-...",
-    "holder_name":   "Ahmet Yılmaz",
-    "iban":          "TR330006100519786457841326",
-    "tax_id":        "12345678901",
-    "bank_name":     "Akbank",
-    "bank_code":     "AKBANK"
+  "receiver_account": {
+    "id":          "11111111-2222-3333-4444-555555555555",
+    "holder_name": "Ahmet Yılmaz",
+    "iban":        "TR330006100519786457841326",
+    "bank_name":   "Akbank",
+    "bank_code":   "00046"
   },
 
-  "amount":                   1500000,
-  "currency":                 "TRY",
-  "fee_amount":               350,
+  "events": [
+    { "id": "e4…", "status": "completed",  "event_type": "BankStatusSync", "created_at": "2026-05-03T12:35:00.000+03:00" },
+    { "id": "e3…", "status": "processing", "event_type": null,                "created_at": "2026-05-03T12:34:58.000+03:00" },
+    { "id": "e2…", "status": "approved",   "event_type": "TransferApproved",  "created_at": "2026-05-03T12:34:55.000+03:00" }
+  ],
 
-  "request_transfer_type":    "fast",
-  "success_transfer_type":    "fast",
-
-  "status":                   "completed",
-  "retry_count":              0,
-  "error_code":               null,
-  "provider_error_code":      null,
-  "error_message":            null,
-
-  "scheduled_date":           "2026-05-03T12:00:00.000+03:00",
-  "validate_date":            "2026-05-03T12:34:55.000+03:00",
-  "sent_date":                "2026-05-03T12:34:58.000+03:00",
-  "processed_date":           "2026-05-03T12:35:00.000+03:00",
-  "created":                  "2026-05-03T12:00:00.123+03:00",
-
-  "history": [
+  "webhook_deliveries": [
     {
-      "previous_status": null,
-      "new_status":      "pending",
-      "occurred_at":     "2026-05-03T12:00:00.123+03:00",
-      "actor":           "operator-create"
-    },
-    {
-      "previous_status": "pending",
-      "new_status":      "approved",
-      "occurred_at":     "2026-05-03T12:34:55.000+03:00",
-      "actor":           "operator-approve"
-    },
-    {
-      "previous_status": "approved",
-      "new_status":      "processing",
-      "occurred_at":     "2026-05-03T12:34:58.000+03:00",
-      "actor":           "operator-send"
-    },
-    {
-      "previous_status":           "processing",
-      "new_status":                "completed",
-      "occurred_at":               "2026-05-03T12:35:00.000+03:00",
-      "actor":                     "bank-callback",
-      "bank_response_code":        "00",
-      "bank_response_message":     "Onaylandı",
-      "provider_transaction_id":   "AKBANK-FAST-9f3d2b8e"
+      "id":             "b1…",
+      "url":            "https://example.com/webhooks/payven-transfers",
+      "event":          "para-transferi.transfer.completed",
+      "status":         "delivered",
+      "attempt_count":  1,
+      "response_code":  200,
+      "created_at":     "2026-05-03T12:35:01.000+03:00",
+      "next_retry_at":  null
     }
   ]
 }
 ```
 
-## Alan referansı
+| Alan | Açıklama |
+|---|---|
+| `events[]` | Durum geçişleri, yeni → eski: `status`, `event_type`, `created_at` |
+| `webhook_deliveries[]` | Bu transfer için yapılan teslim denemeleri; `status`: `pending` (yeniden deneme planlı), `delivered`, `failed` (deneme hakkı bitti) |
+| `channel_suggestions[]` | FAST ile gönderilip başarısız olan transfer için öneriler (`kind`, `transfer_type`, `split_count`, `max_part_amount`, `fast_limit`) |
 
-`recipient`, `source_account_*`, tutar ve durum alanları için: [Transfer Objesi](/para-transferi/transfer-object).
+## İşlem geçmişi
 
-### `history[]`
+Kullanıcı eylemlerini ve banka iletişimini kronolojik zaman çizelgesi olarak almak için:
 
-Transferin yaşam döngüsündeki tüm durum geçişleri kronolojik olarak burada bulunur.
+```http
+GET /api/v1/transfers/{id}/history
+```
+
+```json
+[
+  {
+    "occurred_at": "2026-05-03T12:00:00.123+03:00",
+    "action":      "Transfer oluşturuldu",
+    "source":      "user",
+    "actor":       "a1b2c3d4-...",
+    "details":     null,
+    "status_from": null,
+    "status_to":   "Onay Bekliyor"
+  },
+  {
+    "occurred_at": "2026-05-03T12:35:00.000+03:00",
+    "action":      "Durum: Tamamlandı",
+    "source":      "bank",
+    "actor":       null,
+    "details":     null,
+    "status_from": "İşleniyor",
+    "status_to":   "Tamamlandı"
+  }
+]
+```
 
 | Alan | Açıklama |
 |---|---|
-| `previous_status` / `new_status` | Durum geçişi |
-| `occurred_at` | Geçişin gerçekleştiği zaman |
-| `actor` | Geçişi tetikleyen — `operator-create/approve/send/reject` (kullanıcı eylemi) veya `bank-callback` (banka yanıtı) |
-| `bank_response_code`, `bank_response_message` | Banka tarafı yanıtı (yalnız `processing → completed/delivered/failed` geçişlerinde dolar) |
-| `provider_transaction_id` | Banka tarafındaki transfer kimliği |
+| `occurred_at` | Olayın zamanı (`+03:00`) |
+| `action` | Türkçe okunabilir eylem etiketi |
+| `source` | `user` (kullanıcı eylemi), `system` (sistem), `bank` (banka iletişimi) |
+| `actor` | Eylemi tetikleyen kimlik (varsa) |
+| `details` | Serbest açıklama (istek/yanıt özeti, değişen alanlar) |
+| `status_from` / `status_to` | Durum değiştiyse önceki / yeni durumun **Türkçe etiketi** (ekran gösterimi içindir; makine kararı için `status` alanını ve webhook'ları kullanın) |
 
-## Failed transferin sorgusu
+## Başarısız transferin sorgusu
 
-Başarısız transfer (`status: "failed"`) sorgulandığında yanıt **`200 OK`** döner; hata detayları response body'sindeki **data alanları** olarak taşınır:
+Başarısız transfer (`status: "failed"`) sorgulandığında yanıt **`200 OK`** döner; hata detayları alanlarda taşınır:
 
 ```json
 {
   "id":                  "8e3f5c12-...",
   "status":              "failed",
-  "error_code":          "insufficient_balance",
+  "error_code":          "PV_TRANSFER_DECLINED",
   "provider_error_code": "01",
-  "error_message":       "Kaynak hesapta yeterli bakiye yok",
-  "retry_count":         2,
-  "history": [
-    /* ... önceki başarılı geçişler ... */
-    {
-      "previous_status":       "processing",
-      "new_status":            "failed",
-      "occurred_at":           "2026-05-03T12:35:00.000+03:00",
-      "actor":                 "bank-callback",
-      "bank_response_code":    "01",
-      "bank_response_message": "Yetersiz bakiye"
-    }
-  ]
+  "message":             "Banka transferi reddetti.",
+  "retry_count":         0
 }
 ```
 
-Failed durumunda `history` array'i hata sebebini ve hangi adımda olduğunu gösterir — debug için kritik.
+`error_code` kararınızın dayanağı, `provider_error_code` bankanın ham kodudur (destek bunu arar).
+Kod listesi: [Hata Kodları](/para-transferi/errors/overview).
+
+## Metadata güncelleme
+
+Transferin `metadata` alanı durumdan bağımsız olarak güncellenebilir; tutar, alıcı ve duruma dokunmaz.
+Gönderilen anahtar yazılır, gönderilmeyen korunur, boş değerli anahtar silinir:
+
+```bash
+curl -X PATCH https://transfer.payven.com.tr/api/v1/transfers/8e3f5c12-... \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "metadata": { "muhasebe_kodu": "770.01", "payroll_run": "" } }'
+```
+
+Yanıt güncel transfer detayıdır. Sınırlar: en fazla 50 anahtar, anahtar 40, değer 500 karakter.
+**Yetki:** `CanCreateTransfers`.
 
 ## Tipik kullanım
 
 - **Webhook gelmemiş bir transfer** için son durumu öğrenmek
-- **Müşteri destek talebinde** geçmiş bir transferi incelemek (`history` ile zaman çizelgesi)
+- **Müşteri destek talebinde** geçmiş bir transferi incelemek (`history`)
 - **Audit / uyumluluk** raporlamasında durum geçişlerini ekstrakt etmek
-- **Banka tarafı sorununu** debug etmek (`bank_response_code` + `provider_error_code`)
+- **Banka tarafı sorununu** debug etmek (`error_code` + `provider_error_code`)
 
 <Warning>
 **Polling kullanmayın.** Yüksek hacimli senaryolarda her transfer için periyodik `GET` çağrısı yapmayın — bunun yerine [webhook](/para-transferi/webhooks/overview) entegre edin. Webhook gelmemişse İşyeri paneli › **Geliştirici › Webhook'lar** ekranından (ya da `POST /webhook-endpoints/deliveries/{id}/retry` ile) teslimi yeniden gönderebilir veya olayı `GET /events` ile çekebilirsiniz. Toplu yedek sorgu için transfer başına detay yerine `GET /transfers?request_id=` (paket) ya da `?external_id=` kullanın — bkz. [Önerilen Entegrasyon Akışı](/para-transferi/integration-guide).
@@ -158,14 +164,14 @@ Failed durumunda `history` array'i hata sebebini ve hangi adımda olduğunu gös
 <Note>
 `processing` durumundaki transfer **yeniden gönderilmemelidir** — banka yanıt vermediğinde transfer bu
 durumda kalır (`provider_error_code: "PV_CONNECTOR_NO_RESPONSE"`) ve sonucu banka sorgusu, banka
-bildirimi ya da operatör kesinleştirir.
+bildirimi ya da operatör kesinleştirir. Bkz. [Belirsiz Sonuç ve İade](/para-transferi/transfers/outcome-resolution).
 </Note>
 
 ## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `transfer_not_found` | Verilen `id` bulunamadı veya bu tenant'a ait değil |
+| `404` | `resource_not_found` | Verilen `id` bulunamadı veya bu bayi/organizasyona ait değil |
 | `403` | `forbidden` | Yetki yok |
 
 Hata yanıtı RFC 9457 problem+json formatındadır.
@@ -177,6 +183,6 @@ Hata yanıtı RFC 9457 problem+json formatındadır.
     Filtreleme ve sayfalama ile transferleri toplu görüntüleme.
   </Card>
   <Card title="Dekont indirme" icon="file-arrow-down" href="/para-transferi/transfers/receipt">
-    Tamamlanmış transferin makbuz PDF'i.
+    Transferin banka dekontu ve Payven makbuzu.
   </Card>
 </CardGroup>

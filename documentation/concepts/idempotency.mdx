@@ -7,7 +7,7 @@ Ağ kesintisi, timeout veya istemci tarafı hata durumlarında bir isteği iki k
 
 ## Nasıl çalışır?
 
-Yazma işlemi yapan tüm `POST` endpoint'leri `Idempotency-Key` header'ını kabul eder. Aynı anahtarla gönderilen ikinci istek, **ilk yanıtın birebir aynısını** döner — yeni bir işlem oluşmaz.
+`Idempotency-Key` header'ı taşıyan her `POST` isteği korunur. Aynı anahtarla gönderilen ikinci istek, **ilk yanıtın birebir aynısını** döner; yeni bir işlem oluşmaz. (`GET` doğası gereği idempotenttir, `PUT`/`PATCH`/`DELETE` için anahtar kullanılmaz.)
 
 ```http
 POST /api/v1/payments
@@ -26,16 +26,25 @@ Idempotent-Replayed: true
 
 | Kural | Değer |
 |---|---|
-| Format | **UUID v7** önerilir (RFC 9562, zaman-sıralı — debug ve audit'te kronolojiyi korur). UUID v4 veya başka herhangi bir string de kabul edilir. |
-| Maksimum uzunluk | 128 karakter |
-| Saklama süresi | Ödeme endpoint'lerinde (`POST /payments` ve alt-akışlar) **24 saat**; diğer yazma endpoint'lerinde **3 dakika**. Hassas işlemler (refund, void, capture, transfer) ödeme endpoint'leri kapsamındadır. |
-| Eşsiz olma kapsamı | Tenant + endpoint kombinasyonu içinde |
-| Body değişikliği | Aynı anahtarla **farklı** body → `409 idempotency_key_in_use` |
+| Format | Herhangi bir string. Genelde sipariş/işlem kimliğinden türetilen deterministik bir değer önerilir (`order-1001-payment`); rastgele UUID kullanırsanız aynı anahtarı retry'larda **yeniden kullanmayı** unutmayın. |
+| Saklama süresi | Sanal POS ve Para Transferi'nde varsayılan **24 saat**. Süre dolunca aynı anahtarla gelen istek **yeni** bir işlem oluşturur. |
+| Eşsizlik kapsamı | **Organizasyon + bayi + mod (test/canlı) + anahtar.** Uç yolu kapsama dahil değildir: aynı anahtarı iki farklı uçta farklı gövdeyle kullanırsanız `409` alırsınız. |
+| Gövde değişikliği | Aynı anahtarla **farklı** gövde → `409 idempotency_key_in_use` |
+| Test ve canlı | Test modundaki anahtarlar canlı anahtarlarla çakışmaz. |
 
 <Note>
-Anahtar tenant düzeyinde scope'lanır — farklı bir tenant aynı anahtarla başka bir
-işlem oluşturabilir, bu beklenen davranıştır.
+Anahtar bayi bazında kapsamlandığı için farklı bayiler aynı anahtarı birbirinden bağımsız kullanabilir. Aynı bayi içinde ise sipariş numarasına işlem türünü ekleyin: `order-1001-payment`, `order-1001-refund-1`.
 </Note>
+
+## Hangi yanıtlar saklanır?
+
+| Yanıt | Saklanır mı? |
+|---|---|
+| `2xx` | Evet: tekrar denemede aynı yanıt döner |
+| `4xx` (doğrulama, iş kuralı, çakışma) | Evet: aynı istek için kararlı sonuçtur, aynı hata döner |
+| `5xx`, `408`, `429` | **Hayır**: geçici hatadır, aynı anahtarla tekrar denediğinizde işlem yeniden değerlendirilir |
+
+Bu yüzden `5xx` ya da timeout sonrası **aynı anahtarla** güvenle tekrar deneyebilirsiniz. Bir `4xx` hatasını düzeltip yeniden gönderirken ise **yeni** anahtar kullanın (gövde değiştiği için eski anahtar `409 idempotency_key_in_use` verir).
 
 ## Senaryolar
 
@@ -49,34 +58,41 @@ işlem oluşturabilir, bu beklenen davranıştır.
 
   <Accordion title="Eşzamanlı tekrar istek">
     1. İki istek aynı anda atılır, ikisinde de `Idempotency-Key: ABC123`.
-    2. Birinci istek işlenmeye başlar — cache'e eklenir.
-    3. İkinci istek cache'e ulaştığında ilk yanıt henüz hazırsa onu döner; değilse (race) backend'in deduplication mantığı devreye girer.
+    2. İlk istek bir rezervasyon alır ve işlenmeye başlar.
+    3. İkinci istek ilk yanıtı bekler (en fazla yaklaşık 10 saniye) ve hazır olunca **onu** döner.
+    4. İlk istek bu sürede bitmezse ikinci istek `409 idempotency_request_in_progress` ve `Retry-After` alır; aynı anahtarla tekrar deneyin.
   </Accordion>
 
   <Accordion title="Aynı anahtar farklı payload ile">
     1. İstemci `Idempotency-Key: ABC123` ile `15000` kuruşluk ödeme atar.
     2. Aynı anahtarla `25000` kuruşluk ödeme atar.
-    3. Payven `409 Conflict` döner — anahtar farklı body için kullanılmış:
+    3. Payven `409 Conflict` döner:
 
     ```json
     {
-      "type":   "https://docs.payven.com.tr/errors/idempotency_key_in_use",
-      "title":  "Idempotency-Key çakışması",
-      "status": 409,
-      "code":   "idempotency_key_in_use",
-      "detail": "Bu Idempotency-Key daha önce farklı bir request body ile kullanıldı."
+      "type":     "https://docs.payven.com.tr/errors/idempotency_key_in_use",
+      "title":    "Conflict",
+      "status":   409,
+      "code":     "idempotency_key_in_use",
+      "detail":   "Bu Idempotency-Key daha önce farklı bir istek gövdesiyle kullanıldı. Yeni bir işlem için yeni bir anahtar üretin.",
+      "message":  "Bu Idempotency-Key daha önce farklı bir istek gövdesiyle kullanıldı. Yeni bir işlem için yeni bir anahtar üretin.",
+      "category": "idempotency_error"
     }
     ```
 
-    Çözüm: ya farklı bir anahtar kullanın, ya da bilinçli retry için aynı body'yi gönderin.
+    Çözüm: ya farklı bir anahtar kullanın, ya da bilinçli retry için aynı gövdeyi gönderin.
   </Accordion>
 
-  <Accordion title="TTL süresi sonrası">
-    1. Saklama süresi dolmuş bir anahtar (ödemeler için 24 saat, diğer endpoint'ler için 3 dakika).
-    2. Aynı anahtar tekrar kullanılırsa **yeni** bir işlem oluşur — cache temizlenmiş.
-    3. Bu nedenle uzun süreli retry mantığında her seferinde anahtar üretmek değil, üst seviye iş kimliğini (örn. `order_id`) anahtar olarak kullanmak daha güvenlidir.
+  <Accordion title="Saklama süresi sonrası">
+    1. Saklama süresi dolmuş bir anahtar (varsayılan 24 saat).
+    2. Aynı anahtar tekrar kullanılırsa **yeni** bir işlem oluşur.
+    3. Bu nedenle uzun süreli retry mantığında her seferinde yeni anahtar üretmek değil, üst seviye iş kimliğini (örn. `order_id`) anahtar olarak kullanmak daha güvenlidir.
   </Accordion>
 </AccordionGroup>
+
+## `external_id` ile ödeme tekrarı koruması
+
+Sanal POS'ta `POST /payments` ve `POST /payments/3d/init` için `external_id` **zorunludur** (yoksa `422 external_id_required`). Aynı bayide aynı `external_id` ile gelen ödeme isteği yeni ödeme açmaz, mevcut işlemi döner. Bu, `Idempotency-Key` saklama süresi dolduktan sonra bile sipariş bazında çift çekimi önleyen ikinci güvenlik katmanıdır. İkisini birlikte kullanın.
 
 ## Önerilen kullanım
 
@@ -138,28 +154,22 @@ await retry(lambda: client.post(
 
 | Kategori | Idempotency |
 |---|---|
-| `POST /api/v1/payments` (Non-3D ödeme) | Önerilir |
-| `POST /api/v1/payments/3d/init` (3DS init) | Önerilir |
-| `POST /api/v1/payments/{id}/refund` (iade) | **Şiddetle önerilir** — aynı tutarın iki kez iade edilmesini engeller |
+| `POST /api/v1/payments` (Non-3D ödeme) | **Şiddetle önerilir** |
+| `POST /api/v1/payments/3d/init` (3DS init) | **Şiddetle önerilir** |
+| `POST /api/v1/payments/{id}/refund` (iade) | **Şiddetle önerilir**: aynı tutarın iki kez iade edilmesini engeller |
 | `POST /api/v1/payments/{id}/void` (iptal) | **Şiddetle önerilir** |
-| `POST /api/v1/payments/{id}/capture` (ön provizyon çekimi) | **Şiddetle önerilir** |
-| `POST /api/v1/checkout/sessions` (hosted checkout) | Önerilir |
-| `POST /api/v1/transfers/...` (para transferi) | **Şiddetle önerilir** |
-| `POST /api/v1/webhook-endpoints` (İşyeri API'si) | Opsiyonel |
-| `GET` istekleri | İhtiyaç yok — `GET` doğası gereği idempotenttir |
+| `POST /api/v1/payments/{id}/capture` (ön provizyon kapama) | **Şiddetle önerilir** |
+| `POST /api/v1/checkout/sessions` (Hosted Checkout) | Önerilir |
+| `POST /api/v1/transfers` ve `POST /api/v1/bulk-transfers` (Para Transferi) | **Şiddetle önerilir**: para çıkışıdır, saklama süresi 24 saattir |
+| `POST /api/v1/webhook-endpoints` | Opsiyonel |
+| `GET` istekleri | İhtiyaç yok |
 
 ## Sınırlar ve dikkat
 
 <Warning>
-**`Idempotency-Key`'i mantıksız geniş ölçekte kullanmayın.** Saatler önceki bir
-işlemin yanıtını "replay" amacıyla almak için anahtar saklamak yerine, gerçek
-durumu **`GET /api/v1/payments/{id}`** ile sorgulayın. Idempotency-Key sadece
-**istemci taraflı tekrar gönderim** korumasıdır, kalıcı bir "transaction lookup"
-mekanizması değildir.
+**`Idempotency-Key`'i kalıcı bir sorgulama mekanizması gibi kullanmayın.** Saatler önceki bir işlemin sonucunu öğrenmek için anahtarı tekrar göndermek yerine gerçek durumu **`GET /api/v1/payments/{id}`** ile sorgulayın. Idempotency-Key yalnızca **istemci taraflı tekrar gönderim** korumasıdır.
 </Warning>
 
 <Tip>
-Refund ve void gibi hassas işlemleri **deterministik anahtar** ile gönderin
-(örn. `refund-{transaction_id}-{slot}`) — operatörün UI'da iki kez butona basması
-durumunda da sadece tek iade oluşur.
+İade ve iptal gibi hassas işlemleri **deterministik anahtar** ile gönderin (örn. `refund-{transaction_id}-{slot}`): operatörün arayüzde iki kez butona basması durumunda da yalnız tek iade oluşur.
 </Tip>

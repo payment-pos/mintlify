@@ -1,31 +1,95 @@
 ---
 title: "Hızlı Başlangıç"
-description: "Beş dakikada Payven üzerinden ilk test ödemesini başlatın."
+description: "Hesaptan canlıya geçişe kadar Payven entegrasyonunun uçtan uca yolu: işyeri, API anahtarı, test modu, ilk ödeme, webhook."
 ---
 
-Bu rehber, Payven Sanal POS API'sine yapılan **ilk başarılı test ödemesi** için gereken minimum adımları gösterir. Tüm örnekler sandbox ortamı içindir; gerçek para işlemi yapılmaz.
+Bu rehber, Payven'e entegre olacak bir geliştiricinin izleyeceği yolu sırayla gösterir. Tüm örnekler **test modunda** çalışır: gerçek kayıtlar yazılır, bankaya gidilmez, gerçek para hareketi olmaz.
+
+| Adım | Ne yapılır | Nerede |
+|---|---|---|
+| 1 | İşyeri (bayi) açılır | İşyeri paneli başvurusu ya da `POST /merchants` |
+| 2 | Test API anahtarı alınır | İşyeri paneli › Ayarlar › Entegrasyon |
+| 3 | Access token alınır | `POST /auth/{slug}/token` |
+| 4 | İlk ödeme yapılır | `POST /checkout/sessions` ya da `POST /payments` |
+| 5 | Webhook kurulur | `POST /webhook-endpoints` |
+| 6 | Hata, idempotency ve limitler ele alınır | [Hata Yönetimi](/documentation/concepts/errors) |
+| 7 | Canlıya geçiş talep edilir | [Canlıya geçiş](#7-canliya-gecis) |
 
 <Note>
-**Ön koşul:** [Konsol](https://dashboard.payven.com.tr) üzerinde bir tenant'ınız ve `client_id` / `client_secret` çiftiniz olmalıdır. Onboarding için satış ekibimize ulaşın.
+**Adresler.** Örneklerde `identity.payven.com.tr` ve `vpos.payven.com.tr` kullanılır; alan adı kurulumunuza göre değişir. İşyeri paneli › Ayarlar › Entegrasyon ekranı kendi **API adresinizi** ve **Identity adresinizi** gösterir. **Test ve canlı aynı adrestedir**: ortamı adres değil, kullandığınız API anahtarı belirler.
 </Note>
 
-## 1. Access token alın
+## 1. İşyeri (bayi) açın
 
-Payven Identity servisinden OAuth 2.0 `client_credentials` akışıyla token alın. URL'deki `payven` yerine onboarding sırasında size verilen **tenant slug'ı** kullanın:
+Her ödeme bir işyeri adına yapılır. İki yoldan biriyle işyeri açılır:
+
+<Tabs>
+  <Tab title="İşyeri paneli başvurusu">
+    İşyeri panelinin **Başvur** sayfasından başvuru yapılır; operatör onayından sonra işyeri **test modunda** açılır ve yetkiliye "parolanı belirle" bağlantısı gider. Başvuru formu İşyeri ve KYB belgelerini toplar; onay sürecini panel adım adım gösterir.
+  </Tab>
+  <Tab title="API ile (tenant yöneticisi)">
+    Organizasyon (tenant) yöneticisi işyerini doğrudan açabilir. **`environment` göndermezseniz işyeri canlı açılır**; test modunda açmak için `sandbox` verin:
+
+    ```bash
+    curl -X POST https://identity.payven.com.tr/api/v1/merchants \
+      -H "Authorization: Bearer $ADMIN_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name":        "Acme Online",
+        "legal_name":  "Acme Online Ticaret A.Ş.",
+        "tax_id":      "1234567890",
+        "external_id": "ACME-001",
+        "email":       "finans@acme.example",
+        "environment": "sandbox"
+      }'
+    ```
+
+    Yanıttaki `id` (UUID) ve sizin verdiğiniz `external_id` bayiyi tanımlar. Açılışta bayiye otomatik bir **"Test anahtarı"** oluşturulur.
+  </Tab>
+</Tabs>
+
+Hesap, işyeri ve anahtar ilişkisi için: [Hesap Yapısı](/documentation/account-model).
+
+## 2. Test API anahtarınızı alın
+
+İşyeri paneli › **Ayarlar › Entegrasyon** ekranında bayinin anahtarları listelenir. Test anahtarının `client_id` değeri `pvk-<kısa-ad>-test-<kod>` biçimindedir; gizli değeri (`client_secret`) test anahtarlarında **Göster** ile her zaman görülebilir. Yeni anahtarı işletme yöneticisi **Anahtar oluştur** ile üretir.
+
+API ile üretmek isterseniz (işletme yöneticisi, kapsam token'dan gelir):
+
+```bash
+curl -X POST https://identity.payven.com.tr/api/v1/merchants/me/api-keys \
+  -H "Authorization: Bearer $MERCHANT_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "display_name": "Sunucu - test",
+    "environment":  "test",
+    "features":     ["sanalpos", "merchant"]
+  }'
+```
+
+Yanıttaki `secret` alanı **yalnız bir kez** döner; `api_key.keycloak_client_id` ise `client_id` değeridir. Ortam (`test` / `live`) anahtar oluşturulurken seçilir ve sonradan değişmez. `features` anahtarın erişebileceği ürünleri belirler; seçilebilir değerler `GET /merchants/me/api-keys/assignable-scopes` ile listelenir.
+
+<Warning>
+`client_secret` yalnız sunucu tarafında tutulur; tarayıcıya, mobil uygulamaya ya da repoya girmez. Bkz. [API Anahtarı En İyi Uygulamaları](/documentation/security/api-key-best-practices).
+</Warning>
+
+## 3. Access token alın
+
+`client_id` + `client_secret` ile Identity'den OAuth 2.0 `client_credentials` token'ı alınır. URL'deki `payven`, **tenant kısa adınızdır** (onboarding sırasında verilir).
 
 <CodeGroup>
 ```bash cURL
-curl https://identity-sandbox.payven.com.tr/api/v1/auth/payven/token \
+curl https://identity.payven.com.tr/api/v1/auth/payven/token \
   -H "Content-Type: application/json" \
   -d '{
-    "client_id":     "pvk_test_xxxxxxxxxxxxxxxxxxxx",
+    "client_id":     "pvk-payven-test-a1b2c3d4",
     "client_secret": "YOUR_CLIENT_SECRET"
   }'
 ```
 
 ```javascript Node.js
 const tokenRes = await fetch(
-  "https://identity-sandbox.payven.com.tr/api/v1/auth/payven/token",
+  "https://identity.payven.com.tr/api/v1/auth/payven/token",
   {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -36,14 +100,14 @@ const tokenRes = await fetch(
   },
 );
 const { token } = await tokenRes.json(); // yanıt { token, challenge } zarfında
-const access_token = token.access_token;
+const accessToken = token.access_token;
 ```
 
 ```python Python
 import httpx, os
 
 token_res = httpx.post(
-    "https://identity-sandbox.payven.com.tr/api/v1/auth/payven/token",
+    "https://identity.payven.com.tr/api/v1/auth/payven/token",
     json={
         "client_id":     os.environ["PAYVEN_CLIENT_ID"],
         "client_secret": os.environ["PAYVEN_CLIENT_SECRET"],
@@ -69,129 +133,127 @@ Yanıt:
 }
 ```
 
-**Access token 5 dakika geçerlidir.** Production'da bunu cache'leyip auto-refresh ile yönetin — Node, Python, C#, Go ve PHP için hazır implementasyonlar: [Kimlik Doğrulama → Kod örnekleri](/documentation/concepts/authentication#kod-ornekleri-auto-refresh).
+**Access token 5 dakika geçerlidir.** Cache'leyin ve süresi dolmadan yenileyin; her istekte yeni token almayın. Hazır istemci kodu: [Kimlik Doğrulama](/documentation/concepts/authentication#kod-ornekleri-auto-refresh).
 
-<Warning>
-`client_secret` değerini hiçbir zaman istemci tarafı (tarayıcı, mobil uygulama, public repo) koduna gömmeyin. Tüm Payven API çağrıları yalnızca **sunucu tarafından** yapılmalıdır.
-</Warning>
+<Note>
+**Bayi bağlamı.** Bayiye bağlı bir anahtarla bayi kimliği token'dan çözülür; ek header gerekmez. Organizasyon geneli bir anahtarla ödeme gibi işlem yapan uçlarda `X-Merchant-Id` (UUID) ya da `X-External-Merchant-Id` header'ı **zorunludur**; yoksa `400 merchant_context_missing` döner.
+</Note>
 
-## 2. İlk ödemeyi gerçekleştirin
+## 4. İlk ödemeyi yapın
 
-Aşağıdaki örnek, sandbox'ta bir **Non-3D test ödemesi** başlatır. Tutar **kuruş** cinsindendir. `15000` değeri 150,00 ₺'dir.
+### Önerilen yol: Hosted Checkout
+
+Kart bilgisi Payven'in barındırdığı ödeme sayfasında girilir; kart verisi sunucunuza hiç uğramaz (PCI kapsamı en düşük). Tutar **kuruş** cinsindendir: `15000` = 150,00 ₺.
 
 <CodeGroup>
 ```bash cURL
-curl -X POST https://vpos-sandbox.payven.com.tr/api/v1/payments \
+curl -X POST https://vpos.payven.com.tr/api/v1/checkout/sessions \
   -H "Authorization: Bearer $TOKEN" \
-  -H "Idempotency-Key: order-1001-payment" \
+  -H "Idempotency-Key: ORDER-1001" \
   -H "Content-Type: application/json" \
   -d '{
-    "external_id":    "ORDER-1001",
+    "amount":      15000,
+    "currency":    "TRY",
+    "external_id": "ORDER-1001",
+    "description": "Sipariş ORDER-1001",
+    "success_url": "https://magazaniz.com/odeme/basarili",
+    "cancel_url":  "https://magazaniz.com/odeme/iptal"
+  }'
+```
+
+```javascript Node.js
+const res = await fetch("https://vpos.payven.com.tr/api/v1/checkout/sessions", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${accessToken}`,
+    "Idempotency-Key": "ORDER-1001",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    amount: 15000,
+    currency: "TRY",
+    external_id: "ORDER-1001",
+    description: "Sipariş ORDER-1001",
+    success_url: "https://magazaniz.com/odeme/basarili",
+    cancel_url: "https://magazaniz.com/odeme/iptal",
+  }),
+});
+const session = await res.json();
+// müşteriyi session.checkout_url adresine yönlendirin
+```
+
+```python Python
+res = httpx.post(
+    "https://vpos.payven.com.tr/api/v1/checkout/sessions",
+    headers={
+        "Authorization":   f"Bearer {access_token}",
+        "Idempotency-Key": "ORDER-1001",
+    },
+    json={
+        "amount":      15000,
+        "currency":    "TRY",
+        "external_id": "ORDER-1001",
+        "description": "Sipariş ORDER-1001",
+        "success_url": "https://magazaniz.com/odeme/basarili",
+        "cancel_url":  "https://magazaniz.com/odeme/iptal",
+    },
+)
+session = res.json()
+```
+</CodeGroup>
+
+Yanıt (`201 Created`):
+
+```json
+{
+  "session_id":         "9f3d2b8e4c1a4d7b8e3f5c129a7b4c8d",
+  "checkout_url":       "https://vpos.payven.com.tr/s/AbC123",
+  "checkout_page_url":  "https://vpos.payven.com.tr/checkout/...?session=9f3d2b8e4c1a4d7b8e3f5c129a7b4c8d",
+  "expires_at":         "2026-10-17T15:04:05+03:00",
+  "opened_ttl_minutes": 30
+}
+```
+
+Müşteriyi `checkout_url` adresine yönlendirin (`checkout_url` kısa adrestir, `checkout_page_url` doğrudan adrestir). Test modunda ödeme sayfasında **geçerli biçimde herhangi bir kart numarası** girin (örneğin `4111 1111 1111 1111`, ileri bir son kullanma tarihi, herhangi 3 haneli CVV); 3D Secure ekranında **herhangi 6 haneli kodu** yazın. Ödeme başarıyla tamamlanır ve ödemeler listesinde test işlemi olarak görünür. Belirli senaryolar (ret, yetersiz bakiye) için kayıtlı test kartları kullanılır: [Test Kartları](/sanal-pos/test/test-cards).
+
+### Doğrudan API (Non-3D)
+
+Kart bilgisini kendi sunucunuzdan alıyorsanız `POST /payments` kullanılır. `external_id` **zorunludur** (aynı sipariş için çift çekimi önleyen anahtardır).
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/payments \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Idempotency-Key: ORDER-1002" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "external_id":    "ORDER-1002",
     "amount":         { "amount": 15000, "currency": "TRY" },
     "installment":    1,
     "operation_type": "sale",
     "card": {
       "holder_name":  "Test Kullanici",
-      "number":       "4546711234567894",
+      "number":       "4111111111111111",
       "expire_month": "12",
       "expire_year":  "2030",
-      "cvv":          "000"
+      "cvv":          "123"
     }
   }'
 ```
 
-```javascript Node.js
-const res = await fetch(
-  "https://vpos-sandbox.payven.com.tr/api/v1/payments",
-  {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${access_token}`,
-      "Idempotency-Key": "order-1001-payment",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      external_id: "ORDER-1001",
-      amount: { amount: 15000, currency: "TRY" },
-      installment: 1,
-      operation_type: "sale",
-      card: {
-        holder_name:  "Test Kullanici",
-        number:       "4546711234567894",
-        expire_month: "12",
-        expire_year:  "2030",
-        cvv:          "000",
-      },
-    }),
-  },
-);
-const payment = await res.json();
-console.log(payment.transaction_id, payment.status);
-```
-
-```python Python
-res = httpx.post(
-    "https://vpos-sandbox.payven.com.tr/api/v1/payments",
-    headers={
-        "Authorization":   f"Bearer {access_token}",
-        "Idempotency-Key": "order-1001-payment",
-    },
-    json={
-        "external_id":    "ORDER-1001",
-        "amount":         {"amount": 15000, "currency": "TRY"},
-        "installment":    1,
-        "operation_type": "sale",
-        "card": {
-            "holder_name":  "Test Kullanici",
-            "number":       "4546711234567894",
-            "expire_month": "12",
-            "expire_year":  "2030",
-            "cvv":          "000",
-        },
-    },
-)
-payment = res.json()
-print(payment["transaction_id"], payment["status"])
-```
-
-```csharp C#
-var payload = new
-{
-    external_id    = "ORDER-1001",
-    amount         = new { amount = 15000L, currency = "TRY" },
-    installment    = 1,
-    operation_type = "sale",
-    card = new
-    {
-        holder_name  = "Test Kullanici",
-        number       = "4546711234567894",
-        expire_month = "12",
-        expire_year  = "2030",
-        cvv          = "000"
-    }
-};
-
-var request = new HttpRequestMessage(HttpMethod.Post,
-    "https://vpos-sandbox.payven.com.tr/api/v1/payments")
-{
-    Content = JsonContent.Create(payload)
-};
-request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-request.Headers.Add("Idempotency-Key", "order-1001-payment");
-
-var response = await http.SendAsync(request);
-var payment  = await response.Content.ReadFromJsonAsync<Payment>();
-```
-</CodeGroup>
-
-Başarılı yanıt (`HTTP 200`):
+Başarılı yanıt (`200 OK`, ilgili alanlar):
 
 ```json
 {
-  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":         "completed",
+  "transaction_id":        "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":                "completed",
+  "is_success":            true,
+  "amount":                15000,
+  "total_customer_amount": 15000,
+  "interest_amount":       0,
+  "currency":              "TRY",
   "extra_properties": {
-    "processed_at":            "2026-05-03T12:34:58.123+03:00",
+    "processed_at":            "2026-10-16T15:04:05.123+03:00",
+    "external_id":             "ORDER-1002",
     "auth_code":               "123456",
     "host_reference":          "PAYVEN-REF-789",
     "provider_transaction_id": "9f3d2b8e-..."
@@ -199,29 +261,27 @@ Başarılı yanıt (`HTTP 200`):
 }
 ```
 
-`HTTP 200` + `status: "completed"` → ödeme başarıyla tamamlandı. `transaction_id` değerini saklayın — sonraki adımlarda iade, sorgulama veya webhook eşleştirmesinde kullanacaksınız.
+`status: "completed"` ödemenin tamamlandığını gösterir. `transaction_id` değerini saklayın; sorgulama, iade ve webhook eşleştirmesinde kullanılır.
 
-Hata durumunda yanıt `application/problem+json` formatında döner (RFC 9457). Detaylar: [Hata Yönetimi](/documentation/concepts/errors).
+<Warning>
+**Non-3D izni bayi bazındadır.** Bayinin en az bir aktif banka profilinde Non-3D açık değilse istek `422 PV_NON_3D_NOT_ALLOWED` ile reddedilir. Tüketici akışlarında 3D Secure ya da Hosted Checkout kullanın: [3D Secure](/sanal-pos/payments/3d-secure), [Hosted Checkout](/sanal-pos/payments/hosted-checkout).
+</Warning>
 
-<Tip>
-**API Referansı'nda Deneme paneli** ile bu isteği tarayıcınızdan canlı olarak deneyebilirsiniz: [POST /payments](/api-reference/sanal-pos).
-</Tip>
-
-## 3. İşlemi sorgulayın
+Ödemeyi sorgulama:
 
 ```bash
-curl https://vpos-sandbox.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6 \
+curl https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Detaylı yanıt yapısı: [Payment Objesi](/sanal-pos/payment-object).
+Alanların tamamı: [Payment Objesi](/sanal-pos/payment-object).
 
-## 4. Webhook ile asenkron yakalayın
+## 5. Webhook kurun
 
-Tarayıcı tabanlı akışlarda (3DS, hosted checkout) müşteri tarayıcıyı kapatabilir — sonucu kaçırmamak için webhook kurun:
+Tarayıcı tabanlı akışlarda (3DS, Hosted Checkout) müşteri sayfayı kapatabilir; sonucu güvenilir biçimde sunucunuz webhook ile öğrenir. **Tek uç tüm ürünlerin olaylarını alır.**
 
 ```bash
-curl -X POST https://merchant-sandbox.payven.com.tr/api/v1/webhook-endpoints \
+curl -X POST https://identity.payven.com.tr/api/v1/webhook-endpoints \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -230,38 +290,57 @@ curl -X POST https://merchant-sandbox.payven.com.tr/api/v1/webhook-endpoints \
   }'
 ```
 
-Webhook uçları **İşyeri API'sinde** yönetilir ve tek uç tüm ürünlerin olaylarını alır; API
-anahtarınızın **İşyeri API'si (`merchant`)** kapsamı seçili olmalıdır. Yanıttaki `secret`
-(`whsec_...`) yalnız bir kez döner — saklayın. Test anahtarıyla oluşan olaylar `livemode: false`
-ile gelir. Ayrıntı: [Webhook'lar](/documentation/concepts/webhooks).
+Yanıttaki `secret` (`whsec_...`) **yalnız bir kez** döner; saklayın. İsteğin Payven'den geldiğini `X-Payven-Signature` ile doğrulayın (HMAC-SHA256, [İmza Doğrulama](/sanal-pos/webhooks/signature)). Test anahtarıyla oluşan olaylar `livemode: false` taşır ve gerçek imzayla, gerçekten teslim edilir. Uç yönetimi, yeniden deneme ve olay kodları: [Webhook'lar](/documentation/concepts/webhooks).
 
-Webhook isteklerini doğrularken HMAC-SHA256 imzasını kontrol edin — bkz. [İmza Doğrulama](/sanal-pos/webhooks/signature). Lokal geliştirmede [ngrok](https://ngrok.com) veya [Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/) ile localhost'unuzu internete açabilirsiniz.
+<Note>
+Uç yönetimi `CanManageWebhooks` yetkisi ister. İşyeri API'si kuruluysa aynı yol İşyeri API'si adresinde de çalışır; o adrese giden anahtarın **İşyeri API'si** kapsamı seçili olmalıdır (aksi halde `401 audience_invalid`).
+</Note>
 
-## Test kart numaraları
+## 6. Hata, idempotency ve limitleri ele alın
 
-Sandbox test kartları organizasyonunuzun aktif konnektör konfigürasyonuna göre değişir (mock konnektör vs banka test ortamı). Güncel listeye konsoldan erişebilirsiniz:
+- **Hata zarfı tektir** (`application/problem+json`): `code`, `message`, `category`, `param`, `correlation_id`. Kararı HTTP durum kodu ve `code` üzerinden verin: [Hata Yönetimi](/documentation/concepts/errors).
+- **`Idempotency-Key`** gönderin; ağ hatasında aynı anahtarla tekrar denemek ikinci işlem oluşturmaz: [Idempotency](/documentation/concepts/idempotency).
+- **429** alırsanız `Retry-After` kadar bekleyin: [Rate Limiting](/documentation/concepts/rate-limiting).
+- Tarihler her zaman `+03:00` ile döner; istek tarafında offset'i açıkça yazın: [Tarih ve Zaman](/documentation/concepts/timestamps).
 
-→ [Konsol → Test Kartları](https://dashboard.payven.com.tr/test-cards)
+## 7. Canlıya geçiş
 
-Detay: [Test Kartları](/sanal-pos/test/test-cards) ve [Sandbox Ortamı](/sanal-pos/test/sandbox#banka-cagri-modu).
+Test modundaki bayi canlıya kendiliğinden geçmez. Akış:
+
+<Steps>
+  <Step title="Entegrasyon kontrol listesini tamamlayın">
+    İşyeri paneli › **Ayarlar › Entegrasyon** (ya da `GET /settings/integration`) şu maddeleri **test modundaki gerçek kayıtlardan** türetir: başarılı test ödemesi, başarısız ödeme senaryosu, iade testi (üçü zorunlu) ve webhook doğrulaması (isteğe bağlı).
+  </Step>
+  <Step title="Canlı geçiş talebi açın">
+    Zorunlu maddeler tamamlanınca işletme yöneticisi **Canlıya geçiş talep et** der (`POST /settings/integration/live-requests`). Talep bayiyi canlıya almaz; operatör incelemesine düşer.
+  </Step>
+  <Step title="Operatör onayı">
+    Onay verildiğinde bayinin ortamı `live` olur. Onaydan sonra istekler canlıdır; test kayıtları canlı listelerde görünmez.
+  </Step>
+  <Step title="Canlı anahtar üretin">
+    `environment: "live"` ile yeni bir anahtar oluşturun ve secret'ı secret manager'a yazın (canlı anahtarın secret'ı yalnız oluşturulurken görünür). Test anahtarını koddan kaldırın.
+  </Step>
+</Steps>
+
+Canlıya çıkmadan önce [Production Geçiş Kontrol Listesi](/documentation/security/go-live-checklist)'ni tamamlayın. Test verisini temizlemek için İşyeri panelindeki **Tüm test verilerini sil** kullanılır; canlı veri silinmez.
+
+## Yardım
+
+Bir adımda takılırsanız yanıttaki `X-Correlation-Id` header'ını (hata gövdesinde `correlation_id`) [destek ekibine](/resources/support) iletin.
 
 ## Sonraki adımlar
 
 <CardGroup cols={2}>
-  <Card title="3D Secure ile chargeback'i azalt" icon="shield-check" href="/sanal-pos/payments/3d-secure">
+  <Card title="3D Secure" icon="shield-check" href="/sanal-pos/payments/3d-secure">
     Tüketici işlemlerinde sorumluluğu bankaya taşıyın.
   </Card>
-  <Card title="Hosted Checkout ile PCI yükünü düşür" icon="window-maximize" href="/sanal-pos/payments/hosted-checkout">
-    Kart girişini Payven sayfasında yapın; PCI-DSS denetim kapsamınız en küçük forma (SAQ A) iner.
+  <Card title="Hosted Checkout" icon="window-maximize" href="/sanal-pos/payments/hosted-checkout">
+    PCI-DSS kapsamınızı en küçük forma (SAQ A) indirin.
   </Card>
-  <Card title="Webhook entegrasyonu" icon="bell" href="/sanal-pos/webhooks/overview">
-    Asenkron sonuçları gerçek zamanlı yakalayın; idempotent handler yazın.
+  <Card title="Webhook'lar" icon="bell" href="/documentation/concepts/webhooks">
+    Uç yönetimi, imza, yeniden deneme ve olay sorgulama.
   </Card>
   <Card title="İade ve iptal" icon="rotate-left" href="/sanal-pos/payments/refund">
     Tam veya kısmi iade nasıl yapılır?
   </Card>
 </CardGroup>
-
-## Yardım
-
-Bir adımda takılırsanız: response header'ındaki `X-Correlation-Id` değerini (veya hata yanıtlarında response body'sindeki `correlation_id` alanını) [destek ekibine](/resources/support) iletin — log zincirini saniyeler içinde bulabiliriz.

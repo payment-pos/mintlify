@@ -1,0 +1,190 @@
+---
+title: "Tekrarlayan Ödeme (Abonelik)"
+description: "Kart bilgisi bir kez alınır; taksitler belirlenen periyotta otomatik tahsil edilir."
+---
+
+Tekrarlayan ödeme planı, bir kartın **belirli aralıklarla sabit tutarda** çekilmesini sağlar. Plan bir kez oluşturulur; her vade günü Payven taksiti tahsil eder, sonucu işleme ve webhook olayına yansıtır. Aboneliğin her taksiti normal bir [işlem](/sanal-pos/payment-object) olarak da kaydedilir.
+
+<Note>
+`sanalpos.recurring` alt özelliği şirket için açık olmalıdır, banka konfigürasyonu tekrarlayan ödemeyi desteklemelidir (desteklemiyorsa `422 PV_RECURRING_NOT_SUPPORTED`). Plan oluşturma bayi seçimi (`X-Merchant-Id`) gerektirir ve [bayi kapısına](/sanal-pos/errors/payven-codes) tabidir: pasif ya da onaysız bayi plan açamaz. Okuma `CanViewRecurring`, yönetim `CanManageRecurring` izni ister.
+</Note>
+
+## Uçlar
+
+```http
+POST   /api/v1/recurring                                        # Plan oluştur
+GET    /api/v1/recurring                                        # Liste (sayfalı)
+GET    /api/v1/recurring/{id}                                   # Plan + taksitler (?force_sync=true)
+POST   /api/v1/recurring/{id}/cancel                            # Planı iptal et
+POST   /api/v1/recurring/{id}/installments/{index}/cancel       # Tek taksiti iptal et
+POST   /api/v1/recurring/{id}/installments/{index}/update-amount  # Taksit tutarını değiştir
+POST   /api/v1/recurring/{id}/update-card-expiry                # Kart son kullanma tarihini güncelle
+GET    /api/v1/recurring/export                                 # CSV (scope=page|all)
+GET    /api/v1/recurring/export/schema                          # Kolon şeması
+```
+
+## Plan oluşturma
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/recurring \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Merchant-Id: $MERCHANT_ID" \
+  -H "Idempotency-Key: sub-1001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "external_id":       "SUB-1001",
+    "amount":            { "amount": 29900, "currency": "TRY" },
+    "card": {
+      "holder_name":  "AHMET YILMAZ",
+      "number":       "4546711234567894",
+      "expire_month": "12",
+      "expire_year":  "2030",
+      "cvv":          "123"
+    },
+    "buyer": { "name": "Ahmet", "surname": "Yılmaz", "email": "ahmet@example.com" },
+    "description":       "Aylık üyelik",
+    "period":            "monthly",
+    "interval":          1,
+    "installment_count": 12,
+    "start_date":        "2026-11-01T00:00:00+03:00",
+    "secure_type":       "non_three_ds"
+  }'
+```
+
+| Alan | Tip | Zorunluluk | Açıklama |
+|---|---|---|---|
+| `external_id` | string | Opsiyonel | Sizin abonelik referansınız |
+| `amount.amount` | long (kuruş) | Zorunlu | **Her taksitin** tutarı, `> 0` |
+| `amount.currency` | string | Opsiyonel | ISO-4217 büyük harf; boşsa `TRY` |
+| `card.number`, `card.expire_month`, `card.expire_year` | string | Zorunlu | Kart bilgisi |
+| `card.holder_name` | string | Opsiyonel | Kart sahibi adı |
+| `card.cvv` | string | Koşullu | Bayinin banka profili CVV'yi zorunlu kılıyorsa gerekir. CVV saklanmaz |
+| `buyer` | object | Opsiyonel | `id`, `name`, `surname`, `email`, `phone`, `ip_address`, `identity_number` |
+| `description` | string | Opsiyonel | Açıklama |
+| `connector_config_id` | UUID | Opsiyonel | [Taksit sorgusu](/sanal-pos/payments/installment) yanıtından gelen banka konfigürasyonu; verilirse yönlendirme devre dışı kalır ve plan boyunca aynı banka kullanılır |
+| `period` | enum | Opsiyonel | `daily`, `weekly`, `monthly` (varsayılan), `yearly` |
+| `interval` | int | Opsiyonel | Periyot çarpanı, 1–365 (varsayılan 1). `period: weekly`, `interval: 2` = iki haftada bir |
+| `installment_count` | int | Zorunlu | Toplam çekim sayısı, `> 0` |
+| `start_date` | datetime | Opsiyonel | İlk çekim tarihi (`+03:00`) |
+| `secure_type` | enum | Opsiyonel | `non_three_ds` (varsayılan) veya `three_ds` |
+| `return_url` | string | Opsiyonel | 3D Secure doğrulaması sonrası tarayıcının yönlendirileceği adres |
+| `extra_properties` | object | Opsiyonel | Serbest anahtar-değer |
+
+### Yanıt
+
+Başarılı oluşturma `200` döner; banka reddi ya da doğrulama hatasında `422` ve aynı gövde şeması (`is_success: false`, `error_code`, `message`):
+
+```json
+{
+  "is_success": true,
+  "requires_three_d_secure": false,
+  "html_content": null,
+  "redirect_token": null,
+  "message": null,
+  "error_code": null,
+  "plan": {
+    "id": "5c1a7d3e-92b4-4f08-a6c1-8e2d0f4b7a19",
+    "merchant_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "external_id": "SUB-1001",
+    "provider_recurring_id": "REC-77812",
+    "period": "monthly",
+    "interval": 1,
+    "installment_count": 12,
+    "amount": 29900,
+    "currency": "TRY",
+    "start_date": "2026-11-01T00:00:00.000+03:00",
+    "secure_type": "non_three_ds",
+    "status": "active",
+    "masked_card_number": "454671******7894",
+    "card_brand": "bonus",
+    "card_holder_name": "AHMET YILMAZ",
+    "description": "Aylık üyelik",
+    "payment_link_id": null,
+    "last_synced_at": null,
+    "last_error_code": null,
+    "last_error_message": null,
+    "created": "2026-10-16T12:00:00.000+03:00",
+    "last_modified": "2026-10-16T12:00:00.000+03:00"
+  }
+}
+```
+
+`secure_type: three_ds` ise `requires_three_d_secure: true` döner ve `html_content` banka doğrulama sayfasının **base64** kodlu HTML formunu taşır; çözüp müşterinin tarayıcısında render edin. Doğrulama banka tarafından plana bağlı geri dönüş adresine tamamlanır ve plan aktifleşir; sonucu `GET /recurring/{id}` ile ya da webhook ile doğrulayın.
+
+## Durumlar
+
+### Plan (`status`)
+
+| Değer | Anlam |
+|---|---|
+| `active` | Çekimler sürüyor |
+| `cancelled` | Plan iptal edildi |
+| `completed` | Tüm taksitler çekildi |
+| `failed` | Banka planı hata durumuna aldı (`last_error_code`, `last_error_message` sebebi taşır); `sanalpos.subscription.failed` yayınlanır |
+
+### Taksit (`payment_status`)
+
+| Değer | Anlam |
+|---|---|
+| `pending` | Vade gelmedi / tahsilat bekliyor |
+| `completed` | Çekildi |
+| `error` | Çekim başarısız (`result_code`, `result_message` sebebi taşır) |
+| `cancelled` | İptal edildi |
+
+## Plan detayı
+
+`GET /recurring/{id}` plan alanlarına ek olarak `installments[]` döner. Taksit durumu bankadan periyodik olarak eşitlenir; hemen güncel sonuç gerekirse `?force_sync=true` ekleyin.
+
+```json
+{
+  "id": "5c1a7d3e-92b4-4f08-a6c1-8e2d0f4b7a19",
+  "status": "active",
+  "installments": [
+    {
+      "id": "e4a1c2b3-0d5f-4a76-9b18-3c7e6f8d2a40",
+      "recurring_plan_id": "5c1a7d3e-92b4-4f08-a6c1-8e2d0f4b7a19",
+      "installment_index": 1,
+      "due_date": "2026-11-01T00:00:00.000+03:00",
+      "amount": 29900,
+      "try_count": 1,
+      "last_try_at": "2026-11-01T06:00:12.000+03:00",
+      "payment_status": "completed",
+      "provider_process_id": "PRC-99120",
+      "result_code": "00",
+      "proc_return_code": "00",
+      "result_message": null,
+      "updated_at": "2026-11-01T06:00:15.000+03:00"
+    }
+  ]
+}
+```
+
+Liste filtreleri: `status`, `period`, `start_date`, `end_date`, `search_term` (id, `external_id`, banka plan kimliği, maskeli kart, kart sahibi), `page`, `page_size`.
+
+## Plan ve taksit yönetimi
+
+| İşlem | Koşul | Hata |
+|---|---|---|
+| `POST /recurring/{id}/cancel` | Plan `active` | `409 PV_RECURRING_PLAN_NOT_ACTIVE` |
+| `POST .../installments/{index}/cancel` | Taksit `pending` | `409 PV_RECURRING_INSTALLMENT_NOT_PENDING` |
+| `POST .../installments/{index}/update-amount` gövde: `{ "amount": 35000 }` | Plan `active`, taksit `pending`, vadesi geçmemiş | `409 PV_RECURRING_INSTALLMENT_NOT_PENDING` / `PV_RECURRING_INSTALLMENT_DUE_PASSED` |
+| `POST /recurring/{id}/update-card-expiry` gövde: `{ "expire_month": "03", "expire_year": "2032" }` | Plan `active`; tarih geçerli ve geçmemiş | `422 PV_INVALID_CARD_EXPIRY` / `PV_CARD_EXPIRED` |
+
+Hepsi güncel plan detayını (`installments[]` dahil) döner. Olmayan plan ya da taksit `404 resource_not_found` döner. Banka işlemi reddederse `422` ve bankanın `provider_error_code` değeri taşınır.
+
+## Webhook olayları
+
+| Olay | Tetikleyici |
+|---|---|
+| `sanalpos.subscription.charged` | Bir taksit çekildi |
+| `sanalpos.subscription.failed` | Bir taksit çekilemedi (plan otomatik iptal olmaz) |
+| `sanalpos.subscription.cancelled` | Plan iptal edildi |
+| `sanalpos.subscription.completed` | Tüm taksitler tamamlandı |
+| `sanalpos.subscription_charge.reversed` | Çekilmiş taksit bankada geri çevrildi (ayrıca `sanalpos.void.completed`) |
+| `sanalpos.subscription_charge.failed` | Çekilmiş görünen taksit bankaca hata olarak raporlandı (ayrıca `sanalpos.payment.failed`) |
+
+Her çekim ayrıca bir işlem kaydı oluşturur ve `sanalpos.payment.*` olaylarını yayınlar; taksit işleminin `external_id`'si `{plan_external_id}-{installment_index}` biçimindedir (örn. `SUB-1001-2`). Alanlar: [Webhook Olay Kataloğu](/sanal-pos/webhooks/events#recurring-subscription-olayları).
+
+## Kayıtlı kart ilişkisi
+
+Plan oluşturulurken kart bayiye ait kayıtlı kart olarak tutulur (maskeli); `update-card-expiry` bu kaydı da günceller. Kart kayıtlarını [Kayıtlı Kartlar](/sanal-pos/payments/saved-cards) sayfasından yönetebilirsiniz.

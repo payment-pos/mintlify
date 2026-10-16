@@ -14,10 +14,9 @@ Bu tablo Payven entegrasyon modellerine göre rehber niteliğindedir; resmi onay
 
 | Entegrasyon modeli | Kart verisi sizin sunucudan geçiyor mu? | SAQ tipi | Yaklaşık soru sayısı | Kapsam |
 |---|---|---|---|---|
-| **Hosted Checkout** ([Mintlify Hosted Checkout](/sanal-pos/payments/hosted-checkout)) | Hayır — kart Payven sayfasında girilir | **SAQ A** | ~22 | En düşük kapsam — yalnız e-ticaret merchant + tamamen outsource |
-| **Payven JS Drop-in** (iframe / hosted fields) | Hayır — kart Payven iframe'inde, parent DOM erişemez | **SAQ A-EP** | ~191 | Site Payven'e yönlendiriyor ama kart sayfa içinde gözüküyor |
+| **Hosted Checkout** ([Hosted Checkout](/sanal-pos/payments/hosted-checkout)) | Hayır — kart Payven sayfasında girilir | **SAQ A** | ~22 | En düşük kapsam — yalnız e-ticaret merchant + tamamen outsource |
 | **Direct API (Non-3D)** — kart sunucunuzdan POST ediliyor | Evet | **SAQ D-Merchant** | ~329 | Tam PCI-DSS denetimi |
-| **Direct API + tokenization (saved card)** — ilk kez kart bizden geçer, sonraki çağrılar token | Evet (ilk işlem) | **SAQ D-Merchant** | ~329 | İlk işlem için kapsam — sonraki MIT'lerde daralabilir |
+| **Direct API + tekrarlayan plan / kayıtlı kart** — kart planı oluştururken sunucunuzdan geçer | Evet (kartı siz topluyorsanız) | **SAQ D-Merchant** | ~329 | Kartı kendi formunuzdan alıyorsanız kapsam değişmez |
 | **Pay-by-link** ([Hosted](/sanal-pos/payments/pay-by-link)) | Hayır — link → Payven sayfası | **SAQ A** | ~22 | En düşük kapsam |
 
 ## Önerilen seçim
@@ -26,9 +25,7 @@ Bu tablo Payven entegrasyon modellerine göre rehber niteliğindedir; resmi onay
   <Card title="Hosted Checkout (SAQ A)" icon="shield-check">
     Tüketici e-ticareti, ekstra entegrasyon yükü kabul edilebilir. **En düşük PCI yükü.**
   </Card>
-  <Card title="Drop-in iframe (SAQ A-EP)" icon="window-maximize">
-    Marka tutarlılığı önemli, kart formunu kendi sayfanızda göstermek istiyorsunuz ama kart verisini sunucularınızdan tutmak istemiyorsunuz.
-  </Card>
+
   <Card title="Direct API (SAQ D)" icon="server">
     Mobil uygulama gibi yüksek kontrol gereken senaryolar; ITSP / lisanslı ödeme kuruluşu olarak zaten SAQ D kapsamındaysanız ek yük yok.
   </Card>
@@ -40,14 +37,9 @@ Bu tablo Payven entegrasyon modellerine göre rehber niteliğindedir; resmi onay
 ## SAQ tipi başına gereksinimler (özet)
 
 ### SAQ A
-- Kart girişi 100% Payven'de (iframe + redirect)
+- Kart girişi tamamen Payven sayfasında (yönlendirme)
 - Sizden istenen: **TLS 1.2+, SSL Cert geçerli, PCI-uyumlu üçüncü taraf sağlayıcı listesi (Payven dahil), yıllık SAQ A imzalama**
 - Kart verisi sunucularınızda **hiçbir zaman** olmamalı (log'da bile)
-
-### SAQ A-EP
-- iframe / drop-in modeli — kart verisi sayfanızda görünür ama Payven JS'sinden çıkmaz
-- Ek olarak: **CSP (Content Security Policy), iframe origin kısıtlamaları, sayfa güvenlik kontrolleri**
-- Sayfanızı barındıran sunucularda kart verisi log'lanmamalı
 
 ### SAQ D-Merchant
 - Direct API

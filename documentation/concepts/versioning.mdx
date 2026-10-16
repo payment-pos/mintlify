@@ -3,7 +3,7 @@ title: "Versiyonlama"
 description: "API versiyon politikası ve geriye dönük uyumluluk."
 ---
 
-Payven API'leri **URL tabanlı versiyonlama** kullanır. Şu an aktif tek versiyon `v1`'dir.
+Payven API'leri **URL tabanlı versiyonlama** kullanır. Şu an aktif tek versiyon `v1`'dir; yol önekinde bulunur ve verilmezse `v1` varsayılır.
 
 ## URL formatı
 
@@ -12,6 +12,8 @@ https://vpos.payven.com.tr/api/v1/payments
                                 ^^^
                             versiyon segmenti
 ```
+
+URL'ler küçük harftir ve yol segmentleri ile query parametreleri snake_case'dir.
 
 ## Geriye dönük uyumluluk
 
@@ -23,13 +25,14 @@ Bir versiyon içinde aşağıdaki değişiklikler **breaking change** kabul edil
 - Yeni hata kodu eklenmesi
 - Yeni webhook olayı eklenmesi
 - Yanıt alanlarının sıralamasının değişmesi
-- Hata yanıtındaki `title` ve `detail` metinlerinde dil/ifade değişiklikleri (kod (`code`) sabit kalır)
+- Hata yanıtındaki `title`, `detail` ve `message` metinlerinde dil/ifade değişiklikleri (`code` sabit kalır)
 
 İstemcinizi bu tip değişikliklere **toleranslı** yazın:
 
 <Check>Bilmediğiniz alanları yok sayın.</Check>
-<Check>Bilmediğiniz hata kodlarında HTTP durum kodu kategorisine (4xx / 5xx) göre fallback davranış tanımlayın.</Check>
+<Check>Bilmediğiniz hata kodlarında `category` alanına ve HTTP durum kodu kategorisine (4xx / 5xx) göre fallback davranış tanımlayın.</Check>
 <Check>Webhook payload'unda bilmediğiniz `type` değerlerini yok sayın, hata fırlatmayın.</Check>
+<Check>Enum alanlarında bilmediğiniz değerler için varsayılan bir dal bulundurun.</Check>
 
 ## Breaking change'ler
 
@@ -41,38 +44,12 @@ Aşağıdaki değişiklikler **breaking change** kabul edilir ve **yalnızca yen
 - Mevcut zorunlu alanın eklenmesi
 - Yanıt yapısının yeniden organize edilmesi
 
-## Versiyon yaşam döngüsü
+Hata `code` değerleri ve webhook olay kodları (`{ürün}.{kaynak}.{eylem}`) canlı sözleşmedir; bir kod yeniden adlandırılmaz.
 
-| Aşama | Süre | Açıklama |
-|---|---|---|
-| Aktif | Süresiz | Yeni özellikler eklenir, üretimde tam destekle çalışır |
-| Deprecation | En az 12 ay | Yeni versiyon yayınlandıktan sonra uyarı süresi |
-| Sunset | — | Tamamen kapatılır (en az 12 aylık geçişten sonra) |
+## Webhook zarf sürümü
 
-Deprecation döneminde ilgili endpoint'ler `Deprecation` ve `Sunset` HTTP başlıkları döner:
+Webhook olay zarfı kendi sürümünü `api_version` alanında taşır (tarih biçimli, örn. `2026-09-24`). Zarfın yapısında kırıcı bir değişiklik yeni bir tarih alır; bu tarih URL versiyonundan bağımsızdır. Bkz. [Webhook'lar](/documentation/concepts/webhooks).
 
-```http
-Deprecation: Sun, 01 Jan 2027 00:00:00 GMT
-Sunset:      Sun, 01 Jan 2028 00:00:00 GMT
-```
+## Değişiklikleri izleme
 
-## Yeni versiyon nasıl duyurulur?
-
-<Steps>
-  <Step title="Beta yayını">
-    Yeni versiyon `v2-beta` olarak duyurulur, yorum/feedback toplanır.
-  </Step>
-  <Step title="Stabil versiyon yayını">
-    Geri bildirim sonrası `v2` stabil sürüm olarak yayına alınır (GA — Generally Available). `v1` aktif kalmaya devam eder.
-  </Step>
-  <Step title="Migration rehberi">
-    Tüm breaking change'lerin listesi ve geçiş adımları yayınlanır. [Changelog](/resources/changelog) takip edilir.
-  </Step>
-  <Step title="Deprecation süreci">
-    `v1` deprecation süresine alınır (minimum 12 ay).
-  </Step>
-</Steps>
-
-<Tip>
-[Changelog](/resources/changelog) sayfasını izleyin ve [destek ekibinize](/resources/support) güncel iletişim kanalı (e-posta, webhook bildirim listesi) bildirin — kritik değişikliklerde önceden uyarılırsınız.
-</Tip>
+[Changelog](/resources/changelog) sayfasını izleyin ve kritik değişikliklerde bilgilendirilmek için [destek ekibinize](/resources/support) güncel iletişim kanalınızı (e-posta) bildirin.

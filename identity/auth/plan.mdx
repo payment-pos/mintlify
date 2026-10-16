@@ -1,9 +1,9 @@
 ---
 title: "Plan (/me/plan)"
-description: "Organizasyonunuzun atanmış planı ve plan'a dahil feature'lar."
+description: "Tenant'ınıza atanmış plan, limitleri ve plana dahil feature'lar."
 ---
 
-`/me/plan` endpoint'i; aktif tenant'ınızın atanmış planını ve plana dahil feature'ları döner. Sadece okunabilir (read-only); plan değişikliği konsoldan veya satış ekibinden talep edilir.
+`GET /me/plan`; aktif tenant'ın atanmış planını, plan limitlerini ve plana dahil feature'ları döner. Salt okunurdur; plan değişikliği Payven yönetiminden (satış ekibi) yapılır.
 
 ## Endpoint
 
@@ -13,8 +13,6 @@ GET /api/v1/me/plan
 
 Bearer access token gerektirir.
 
-## İstek
-
 ```bash
 curl https://identity.payven.com.tr/api/v1/me/plan \
   -H "Authorization: Bearer $PAYVEN_TOKEN"
@@ -22,33 +20,34 @@ curl https://identity.payven.com.tr/api/v1/me/plan \
 
 ## Yanıt
 
-`200 OK` — `MyPlanDto`:
+`200 OK`:
 
 ```json
 {
   "plan": {
-    "id":            "abc-...",
-    "code":          "standard",
-    "name":          "Standart Plan",
-    "description":   "Sanal POS + Para Transferi modülleri",
-    "price":         999900,
-    "currency":      "TRY",
-    "billing_cycle": "monthly",
+    "id":                        "abc-...",
+    "code":                      "standard",
+    "name":                      "Standart Plan",
+    "description":               "Sanal POS + Para Transferi",
+    "daily_transaction_limit":   100000,
+    "monthly_transaction_limit": 3000000,
+    "rate_limit_per_second":     200,
+    "is_active":                 true,
+    "is_default":                false,
+    "sort_order":                20,
+    "created":                   "2026-01-15T10:00:00.000+03:00",
+    "last_modified":             "2026-03-02T09:30:00.000+03:00",
     "features": [
       {
-        "code":     "sanalpos",
-        "name":     "Sanal POS",
-        "category": "module"
-      },
-      {
-        "code":     "para-transferi",
-        "name":     "Para Transferi",
-        "category": "module"
-      },
-      {
-        "code":     "fraud",
-        "name":     "Fraud Yönetimi",
-        "category": "addon"
+        "id":          "11111111-...",
+        "code":        "sanalpos",
+        "name":        "Sanal POS",
+        "description": "Kart tahsilatı, 3D Secure, iade / iptal",
+        "category":    "module",
+        "is_active":   true,
+        "installed":   true,
+        "created":     "2026-01-01T00:00:00.000+03:00",
+        "last_modified": "2026-01-01T00:00:00.000+03:00"
       }
     ]
   }
@@ -57,23 +56,16 @@ curl https://identity.payven.com.tr/api/v1/me/plan \
 
 | Alan | Açıklama |
 |---|---|
-| `plan.id` | Plan kimliği |
-| `plan.code` | Plan kodu (`free`, `standard`, `enterprise`, vb.) |
-| `plan.name`, `description` | İnsan-okur ad |
-| `plan.price` | Kuruş cinsinden (varsayılan TRY) |
-| `plan.billing_cycle` | `monthly`, `yearly` |
-| `plan.features[]` | Plana dahil feature'lar — `category: "module"` aktif modül, `addon` ek paket |
+| `plan.code`, `name`, `description` | Plan kimliği ve adı |
+| `daily_transaction_limit`, `monthly_transaction_limit` | Plan düzeyinde günlük / aylık işlem limiti. Anahtar bazında [override](/identity/api-keys/create) edilebilir; anahtarın nihai değeri `effective_*` alanlarındadır |
+| `rate_limit_per_second` | Saniyedeki istek limiti. Aşım `429` döner ([Rate Limiting](/documentation/concepts/rate-limiting)) |
+| `is_default` | Planı olmayan tenant'ların düştüğü varsayılan plan |
+| `features[]` | Plana dahil feature'lar. `category`: ürün modülleri `module`; alt özellikler (ör. `fraud.sanalpos`) ayrı kategorilerdedir. Bu ortamda kurulu olmayan ürünler listelenmez |
 
-Tenant planı henüz atanmamışsa yanıt `null` döner.
+Planda **fiyat, para birimi veya faturalama dönemi alanı yoktur**; ticari koşullar bu uçtan okunamaz.
+
+Tenant'a plan atanmamış ve varsayılan plan da yoksa yanıt gövdesiz döner.
 
 ## Aktif feature'ları öğrenmek
 
-Plan'a dahil feature'ların **bu kullanıcı için aktif olup olmadığını** öğrenmek için [`GET /me`](/identity/auth/me) endpoint'ini kullanın — orada `features[].is_active` alanı kullanıcı + tenant + plan üçlüsünden filtrelenmiş halde döner.
-
-## Yol haritası
-
-- **Kullanım sayaçları** — bu plan kapsamında aylık transaction sayısı, RPS limiti, aktif merchant sayısı (henüz public response'da değil; backend hazırlıkta)
-- **Plan yükseltme webhook'ları** — `plan.usage.warning`, `plan.usage.exceeded` (planda)
-- **Self-service plan yükseltme** — şu an konsoldan veya satış kanalı üzerinden
-
-Güncellemeler için: [Changelog](/resources/changelog).
+Plana dahil olan feature'ın **sizin kullanıcınız için etkin ve izinli olup olmadığını** öğrenmek için [`GET /me`](/identity/auth/me) kullanın: `features[].is_active`, `permissions` ve `enabled_feature_codes` alanları tenant + plan + rol üçlüsünden süzülmüş halde gelir.

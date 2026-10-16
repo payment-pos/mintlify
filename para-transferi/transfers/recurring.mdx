@@ -3,129 +3,150 @@ title: "Tekrarlayan Transferler"
 description: "Maaş, kira, abonelik gibi periyodik transferleri otomatik tetikleyin."
 ---
 
-Tekrarlayan transferler (recurring transfers), belirli bir takvim üzerinde **otomatik olarak transfer üreten** kayıtlardır. Maaş ödemesi, kira, abonelik veya tedarikçi düzenli ödemesi senaryolarında uygulanır.
+Tekrarlayan transferler (recurring transfers), belirli bir takvim üzerinde **otomatik olarak transfer üreten** talimatlardır. Maaş ödemesi, kira, abonelik veya tedarikçi düzenli ödemesi senaryolarında kullanılır.
 
 ## Akış
 
 ```mermaid
 flowchart LR
-    A[POST /recurringtransfers<br/>schedule + alıcı + tutar] --> B[is_active: true]
-    B -->|Cron tetikleyici| C[Yeni transfer<br/>oluşturulur]
-    C --> D[Standart 4-eyes<br/>akışı]
-    D --> E[para-transferi.transfer.completed<br/>veya .failed webhook]
+    A[POST /recurring-transfers<br/>takvim + alıcı + tutar] --> B[approval_status: pending_approval]
+    B -->|POST /{id}/approve<br/>farklı kimlik| C[approval_status: approved]
+    C -->|Günlük zamanlayıcı| D[Çekilim: transfer oluşturulur,<br/>onaylanır, gönderilir]
+    D --> E[recurring_execution.succeeded<br/>veya .failed webhook]
 ```
 
-Her takvim tetiklemesinde Payven, sizin adınıza yeni bir transfer **otomatik oluşturur** (`POST /transfers/bulk/create` muadili). Transferin **onay ve gönderim** adımları (4-eyes) operatör eylemiyle veya konsol otomasyonuyla yapılır.
+- Talimat **onaylanana kadar çalışmaz.** Kuran kimlik onaylayamaz (4-göz; tenant/bayi ayarıyla kapatılabilir): `403 PV_RECURRING_TRANSFER_SELF_APPROVAL`.
+- Onaydan sonra her çekilim **onaysız** ilerler: Payven her takvim gününde transferi kendisi oluşturur, onaylar ve bankaya gönderir. Çekilimin transferi `RT-` önekli bir `external_id` taşır.
+- Tutar ya da zamanlama değişirse (PUT) talimat yeniden onaya düşer. Ad, açıklama ve bildirim ayarları onayı düşürmez.
+- Zamanlayıcı her gün Türkiye saatiyle sabit bir saatte çalışır (varsayılan 10:30, gönderim 10:35); günü gelen çekilimler bu turda üretilip gönderilir. Kaçırılan gün sonraki turda yakalanır.
 
 ## Endpoint'ler
 
 ```http
-POST   /api/v1/recurringtransfers              # Yeni
-GET    /api/v1/recurringtransfers              # Liste
-GET    /api/v1/recurringtransfers/{id}         # Tek detay
-PUT    /api/v1/recurringtransfers/{id}         # Güncelle
-DELETE /api/v1/recurringtransfers/{id}         # Sil
-POST   /api/v1/recurringtransfers/{id}/pause   # Geçici durdur
-POST   /api/v1/recurringtransfers/{id}/resume  # Yeniden başlat
+POST   /api/v1/recurring-transfers                   # Yeni talimat (onaya düşer)
+GET    /api/v1/recurring-transfers                   # Liste
+GET    /api/v1/recurring-transfers/{id}              # Tek detay
+GET    /api/v1/recurring-transfers/{id}/executions   # Çekilim geçmişi (sayfalı)
+GET    /api/v1/recurring-transfers/stats             # Özet sayılar
+PUT    /api/v1/recurring-transfers/{id}              # Güncelle (gövdede id ve status zorunlu)
+POST   /api/v1/recurring-transfers/{id}/approve      # Onayla
+POST   /api/v1/recurring-transfers/{id}/reject       # Reddet
+POST   /api/v1/recurring-transfers/{id}/pause        # Geçici durdur
+POST   /api/v1/recurring-transfers/{id}/resume       # Yeniden başlat / askıdan çıkar
+POST   /api/v1/recurring-transfers/{id}/run-now      # Hemen bir çekilim dene
+DELETE /api/v1/recurring-transfers/{id}              # Sil (iptal)
+GET    /api/v1/recurring-transfers/export            # CSV (scope=page|all)
 ```
 
-**Yetki:** `transfer-admin` rolü.
+**Yetki:** okuma `CanViewRecurringTransfers`; kurma / güncelleme / durdurma / silme / `run-now` `CanManageRecurringTransfers`; `approve` ve `reject` `CanApproveTransfers`. Kurma, `resume` ve `run-now` bayi seçimi ister ve pasif/onaysız bayiye kapalıdır.
 
 ## Oluşturma
 
 ```bash
-curl -X POST https://transfer.payven.com.tr/api/v1/recurringtransfers \
+curl -X POST https://transfer.payven.com.tr/api/v1/recurring-transfers \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "X-Merchant-Id: $MERCHANT_ID" \
   -H "Idempotency-Key: salary-team-yazilim-2026" \
   -H "Content-Type: application/json" \
   -d '{
-    "name":              "Yazılım ekibi maaşı",
-    "external_id":       "SALARY-TEAM-DEV",
-    "source_account_id": "550e8400-e29b-41d4-a716-446655440000",
-    "recipient_id":      "abc-12345-...",
-    "amount":            { "value": 5000000, "currency_code": "TRY" },
-    "transfer_type":     "fast",
-    "description":       "Aylık maaş",
-    "schedule": {
-      "frequency":   "monthly",
-      "day_of_month": 1,
-      "hour":         "09:00",
-      "timezone":     "Europe/Istanbul"
-    },
-    "starts_at":         "2026-06-01T09:00:00+03:00",
-    "ends_at":           null
+    "plan_name":          "Yazılım ekibi maaşı",
+    "connector_account_id": "550e8400-e29b-41d4-a716-446655440000",
+    "recipient_id":       "abc12345-0000-0000-0000-000000000000",
+    "amount":             5000000,
+    "currency":           "TRY",
+    "transfer_type":      "fast",
+    "description":        "Aylık maaş",
+    "repeat_type":        "monthly",
+    "month_day":          1,
+    "start_date":         "2026-06-01T00:00:00+03:00",
+    "end_type":           "indefinite",
+    "is_indefinite":      true,
+    "holiday_handling":   "next",
+    "reminder_days":      0,
+    "notify_on_success":  false,
+    "notify_on_error":    true
   }'
 ```
 
+Yanıt `201 Created`, gövde yeni planın kimliğidir (UUID string).
+
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `name` | string | Zorunlu | İnsan-okur ad (raporlama için) |
-| `external_id` | string | Önerilir | Sizin sisteminizdeki kayıt kimliği |
-| `source_account_id` | UUID | Zorunlu | Hangi hesaptan çekilecek |
-| `recipient_id` | UUID | Zorunlu | Saklı alıcı kimliği (tek kullanımlık IBAN desteklenmez) |
-| `amount.value` | long (kuruş) | Zorunlu | Sabit tutar |
+| `plan_name` | string | Zorunlu | İnsan-okur ad (en fazla 200 karakter) |
+| `connector_account_id` | UUID | Opsiyonel | Gönderici hesap. Bayi yalnız **kendi** hesabını verebilir. Boş bırakılırsa her çekilim bir **talep** açar ve organizasyon onaylar |
+| `recipient_id` | UUID | Zorunlu | Kayıtlı alıcı ([Alıcılar](/para-transferi/recipients/overview)); alıcı kaydında IBAN bulunmalıdır. Tek kullanımlık IBAN desteklenmez |
+| `amount` | long (kuruş) | Zorunlu | Sabit tutar, sıfırdan büyük |
+| `currency` | enum | Opsiyonel | Varsayılan `TRY` |
 | `transfer_type` | enum | Zorunlu | `fast`, `eft`, `remittance` |
-| `schedule` | object | Zorunlu | Takvim — bkz. aşağıda |
-| `starts_at` | datetime | Zorunlu | İlk üretim zamanı |
-| `ends_at` | datetime | Opsiyonel | Son tarih (boş = sınırsız) |
+| `description` | string | Opsiyonel | Her çekilimin açıklaması |
+| `repeat_type` | enum | Zorunlu | `daily`, `weekly`, `monthly`, `yearly` |
+| `start_date` | datetime | Zorunlu | İlk çekilim günü; Türkiye takvimine göre bugün ya da gelecek olmalı (`+03:00` ile gönderin) |
+| `end_type` | enum | Zorunlu | `indefinite` (sınırsız), `count` (`repeat_count` kez), `date` (`end_date`'e kadar) |
+| `end_date` | datetime | `end_type=date` iken | `start_date`'ten sonra olmalı |
+| `repeat_count` | int | `end_type=count` iken | 0'dan büyük |
+| `is_indefinite` | bool | Opsiyonel | `end_type=indefinite` ile tutarlı gönderin |
+| `month_day` | int | `monthly` iken | 1–31 ya da ayın son günü için `-1` |
+| `week_days` | int[] | `weekly` iken | 1 (Pazartesi) – 7 (Pazar) |
+| `holiday_handling` | enum | Opsiyonel | Sonraki çekilim tarihi hafta sonuna denk gelirse: `next` (Pazartesi'ye kaydır, varsayılan), `previous` (Cuma'ya çek), `skip` (kaydırma yok, olduğu gün çalışır). Resmî tatiller ayrıca hesaba katılmaz |
+| `reminder_days` | int | Opsiyonel | Çekilimden kaç gün önce hatırlatma (0–30) |
+| `notify_on_success`, `notify_on_error` | bool | Opsiyonel | Sonuç bildirimleri (varsayılan: yalnız hata) |
 
-### Schedule yapısı
+## Plan objesi
 
-| `frequency` | Açıklama | Ek alanlar |
-|---|---|---|
-| `daily` | Her gün | `hour` |
-| `weekly` | Her hafta | `day_of_week` (`monday`–`sunday`), `hour` |
-| `monthly` | Her ay | `day_of_month` (1–28; ay sonu için `last`), `hour` |
-| `cron` | İleri seviye | `cron_expression` (örn. `"0 9 1 * *"`) |
+`GET /recurring-transfers/{id}` şu alanları döner:
 
-`timezone` IANA formatındadır (örn. `Europe/Istanbul`); takvim hesaplamaları bu zona göre yapılır, gönderim anında UTC'ye normalize edilir.
+| Alan | Açıklama |
+|---|---|
+| `id`, `plan_name`, `status` | `status`: `active`, `paused`, `completed`, `cancelled`, `suspended` |
+| `approval_status` | `pending_approval`, `approved`, `rejected`. Yalnız `approved` plan çalışır |
+| `submitted_by`, `approved_by`, `approved_at`, `approval_note` | Onay izi |
+| `connector_account_id`, `recipient_id`, `connector_account`, `recipient` | Hesap ve alıcı |
+| `amount`, `currency`, `transfer_type`, `description` | Çekilim parametreleri |
+| `repeat_type`, `start_date`, `end_type`, `end_date`, `repeat_count`, `is_indefinite`, `month_day`, `week_days`, `holiday_handling` | Takvim |
+| `next_payment_date`, `execution_count`, `last_executed_at`, `last_execution_status` | Çalışma bilgisi |
+| `completed_count`, `failed_count`, `pending_count`, `total_completed_amount` | Çekilim özeti (yalnız detay yanıtında) |
 
-## Yanıt
+Çekilim geçmişi (`/executions`): `scheduled_date`, `executed_at`, `status` (transfer durumu), `amount`, `transfer_request_id` (üretilen transfer), `error_message`, `bank_reference`, `receipt_no`.
 
-```json
-{
-  "id":             "rec-8e3f5c12-...",
-  "name":           "Yazılım ekibi maaşı",
-  "is_active":      true,
-  "next_run_at":    "2026-06-01T09:00:00.000+03:00",
-  "last_run_at":    null,
-  "total_runs":     0,
-  "created":        "2026-05-07T10:00:00.123+03:00"
-}
+## Onay
+
+```bash
+curl -X POST https://transfer.payven.com.tr/api/v1/recurring-transfers/$ID/approve \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "note": "Finans onayı" }'
 ```
+
+`reject` aynı gövdeyi alır; reddedilen talimat çalışmaz ve güncellenince yeniden onaya düşer. Organizasyon hesabına bağlı talimatı yalnız `tenant-*` kullanıcıları onaylar.
+
+## Güncelleme
+
+`PUT`, planın ad, tutar, açıklama, takvim ve bildirim alanlarını `status` ile birlikte tam olarak değiştirir (gövdede `id` URL ile aynı olmalı); hesap, alıcı ve transfer tipi değişmez — bunlar için yeni plan kurun.
 
 ## Pause / Resume
 
-Tekrarlayan transferi geçici olarak durdurmak için:
+`pause` talimatı geçici durdurur (`status: paused`), sonraki çekilimler atlanır. `resume` `paused` ya da `suspended` talimatı yeniden başlatır; `suspended` ise ardışık hata sayacı sıfırlanır.
 
-```bash
-curl -X POST https://transfer.payven.com.tr/api/v1/recurringtransfers/rec-8e3f5c12-.../pause \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID"
-```
+## Hata ve askıya alma
 
-Pause sonrası `is_active: false` olur, sonraki tetiklemeler atlanır. Aktif etmek için `/resume`:
-
-```bash
-curl -X POST https://transfer.payven.com.tr/api/v1/recurringtransfers/rec-8e3f5c12-.../resume \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID"
-```
-
-## Yetersiz bakiye senaryosu
-
-Tetikleme anında kaynak hesapta yeterli bakiye yoksa transfer **`failed`** statüsünde oluşur (`error_code: "insufficient_balance"`). Tekrarlayan kayıt **devam eder** — sonraki periyodda yeniden denenir. Operasyonel olarak `para-transferi.transfer.failed` webhook'una abone olmanız önerilir.
+- Çekilim anında transfer başarısız olursa (ör. banka reddi) çekilim `failed` kaydedilir ve plan **devam eder**; sonraki takvim gününde yeniden denenir. Bakiye kontrolü kurulum anında yapılmaz.
+- **Ardışık 3 başarısız çekilimden sonra** plan otomatik `suspended` olur ve `para-transferi.recurring_transfer.suspended` webhook'u gelir. Sebebi giderip `resume` çağırın.
+- `run-now` zamanlayıcıyı beklemeden bir çekilim dener; sonuç senkron döner: `execution_id`, `transfer_request_id`, `success`, `message`.
 
 ## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `403` | `forbidden` | `transfer-admin` rolü yok |
-| `404` | `recipient_not_found` | `recipient_id` bulunamadı veya pasif |
-| `404` | `source_account_not_found` | `source_account_id` bulunamadı |
-| `422` | `invalid_schedule` | Takvim parametreleri uyumsuz (örn. `weekly` ama `day_of_week` yok) |
-| `422` | `invalid_state_transition` | Pasif kaydı pause veya aktif kaydı resume etme denemesi |
+| `400` | `PV_ID_MISMATCH` | PUT'ta URL'deki `id` ile gövdedeki `id` farklı |
+| `403` | `forbidden` | Yetki yok |
+| `403` | `PV_RECURRING_TRANSFER_SELF_APPROVAL` | 4-göz: kendi gönderdiğiniz talimatı onaylayamazsınız |
+| `403` | `PV_RECURRING_TENANT_FUNDED_REQUIRES_TENANT_ROLE` | Organizasyon hesabına bağlı talimatın tutarını değiştirme / yeniden etkinleştirme / hemen çalıştırma yalnız organizasyon kullanıcılarına açık |
+| `404` | `PV_RECIPIENT_NOT_FOUND` · `PV_CONNECTOR_ACCOUNT_NOT_FOUND` · `PV_RECURRING_TRANSFER_NOT_FOUND` | Alıcı / hesap / plan bulunamadı |
+| `409` | `PV_RECURRING_TRANSFER_NOT_PENDING_APPROVAL` | Talimat onay beklemiyor |
+| `409` | `PV_RECURRING_TRANSFER_NOT_APPROVED` | Talimat onaylanmadan çalıştırılamaz |
+| `422` | `validation_failed` | Takvim / tutar parametreleri geçersiz |
+| `422` | `PV_RECURRING_TRANSFER_CREATE_FAILED` · `…_UPDATE_FAILED` · `…_PAUSE_FAILED` · `…_RESUME_FAILED` · `…_RUN_FAILED` · `…_DELETE_FAILED` | İşlem yapılamadı — `message` nedeni taşır |
+| `422` | `PV_SENDER_ACCOUNT_NOT_OWNED` | Gönderici hesap bu bayiye ait değil |
 
 ## Webhook olayları
 
@@ -137,4 +158,4 @@ Tekrarlayan kayıt her günlük çekilimin sonucu için kendi olaylarını yayı
 | `para-transferi.recurring_execution.failed` | Günlük çekilim başarısız oldu; plan hâlâ aktif (`error_message`, `consecutive_failure_count`) |
 | `para-transferi.recurring_transfer.suspended` | Plan ardışık hatalar nedeniyle otomatik askıya alındı — `resume` ile manuel devam ettirmeniz gerekir |
 
-Ayrıca ürettiği her transfer terminal sonuca ulaştığında standart `para-transferi.transfer.completed` / `.delivered` / `.failed` olayları yayınlanır. Olaylar `recurring_transfer_id` ve `execution_id` taşır; üretilen transfer `transfer_request_id` alanındadır. Payload ayrıntısı: [Olay Kataloğu](/para-transferi/webhooks/events).
+Ayrıca ürettiği her transfer terminal sonuca ulaştığında standart `para-transferi.transfer.completed` / `.delivered` / `.failed` olayları yayınlanır. Payload ayrıntısı: [Olay Kataloğu](/para-transferi/webhooks/events).

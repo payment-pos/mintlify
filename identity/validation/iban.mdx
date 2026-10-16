@@ -1,9 +1,9 @@
 ---
 title: "IBAN Doğrulama"
-description: "IBAN formatını doğrulayın ve banka bilgilerini çözümleyin."
+description: "IBAN formatını ve mod-97 sağlamasını doğrulayın, bankayı çözümleyin."
 ---
 
-IBAN (International Bank Account Number) formatı **mod-97** algoritmasıyla doğrulanır. TR IBAN'larında 5-9. karakterler banka kodu ile eşleşir → banka bilgisi de aynı yanıtta döner.
+IBAN, ülke uzunluğu kontrolü ve **mod-97** sağlamasıyla doğrulanır. TR IBAN'larında 5-9. karakterler TCMB banka kodudur; banka bilgisi aynı yanıtta döner. Durumsuzdur: IBAN kaydedilmez. Hesabın var olup olmadığını veya hesap sahibini **söylemez**.
 
 ## Endpoint
 
@@ -13,22 +13,21 @@ POST /api/v1/validation/iban
 
 Bearer access token gerektirir.
 
-## İstek
-
 ```bash
 curl -X POST https://identity.payven.com.tr/api/v1/validation/iban \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{ "iban": "TR320010009999901234567890" }'
+  -d '{ "iban": "TR32 0001 0009 9999 9012 3456 78", "resolve": true }'
 ```
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `iban` | string | Zorunlu | Boşluklu veya boşluksuz IBAN — Payven normalize eder |
+| `iban` | string | Zorunlu | Boşluklu veya boşluksuz, büyük / küçük harf; Payven normalize eder |
+| `resolve` | bool | Opsiyonel | Varsayılan `true`. `false` ise banka çözümlenmez |
 
 ## Yanıt
 
-`200 OK` — `IbanValidationResultDto`:
+`200 OK`:
 
 ```json
 {
@@ -38,81 +37,64 @@ curl -X POST https://identity.payven.com.tr/api/v1/validation/iban \
   "country_code":   "TR",
   "check_digits":   "32",
   "bank_code":      "00010",
-  "formatted_iban": "TR32 0010 0099 9990 1234 5678 90",
-  "masked_iban":    "TR32 **** **** **** **** **78 90",
+  "formatted_iban": "TR32 0001 0009 9999 9012 3456 78",
+  "masked_iban":    "TR32 **** **** **** **** **56 78",
   "bank": {
-    "id":            "8e3f5c12-...",
-    "code":          "ZIRAAT",
-    "name":          "T.C. Ziraat Bankası",
-    "bkm_member_id": "10"
+    "id": "8e3f5c12-...", "code": "00010", "name": "T.C. Ziraat Bankası",
+    "swift_code": "TCZBTR2A", "logo_url": null, "is_active": true
   },
-  "error_message": null
+  "error_message":  null
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `is_valid` | Genel geçerlilik (`format_valid && checksum_valid`) |
-| `checksum_valid` | mod-97 doğrulaması |
-| `format_valid` | Uzunluk + karakter formatı (TR için 26 hane) |
-| `country_code` | İlk 2 karakter (`TR`) |
-| `check_digits` | 3-4. hane (mod-97 sonucu) |
-| `bank_code` | TR IBAN için 5-9. hane (5 haneli banka kodu) |
-| `formatted_iban` | İnsan-okur format (4'lü gruplar) |
-| `masked_iban` | Görüntüleme için maskeli format |
-| `bank` | TR IBAN'larında banka kodundan çözümlenmiş banka (yabancı IBAN'larda `null`) |
+| `is_valid` | Genel geçerlilik (uzunluk ve mod-97 sağlaması geçti) |
+| `format_valid` | Ülke için uzunluk doğru (TR: 26 karakter) |
+| `checksum_valid` | mod-97 sağlaması |
+| `country_code`, `check_digits` | İlk 2 karakter / 3-4. karakter |
+| `bank_code` | TR IBAN'ında 5 haneli TCMB kodu (`"00010"`); sağlama geçmediyse `null` |
+| `formatted_iban`, `masked_iban` | 4'lü gruplu biçim / maskeli biçim (gösterim ve log için) |
+| `bank` | `bank_code` ile eşleşen banka (`resolve: true` ve katalogda varsa); yabancı IBAN'da `null` |
+| `error_message` | `is_valid: false` ise sebep |
 
 ## Geçersiz örnek
 
 ```json
 {
-  "is_valid":       false,
-  "checksum_valid": false,
-  "format_valid":   true,
-  "country_code":   "TR",
-  "check_digits":   "33",
-  "bank_code":      null,
-  "formatted_iban": "TR33 0010 0099 9990 1234 5678 90",
-  "masked_iban":    "TR33 **** **** **** **** **78 90",
-  "bank":           null,
-  "error_message":  "IBAN mod-97 checksum'ı geçmiyor."
+  "is_valid": false, "checksum_valid": false, "format_valid": true,
+  "country_code": "TR", "check_digits": "33", "bank_code": null,
+  "formatted_iban": "TR33 0001 0009 9999 9012 3456 78", "masked_iban": "TR33 **** **** **** **** **56 78",
+  "bank": null, "error_message": "IBAN checksum (mod-97) geçersiz"
 }
 ```
+
+Geçersiz IBAN **`200 OK`** ile döner; sebep `error_message`'dadır (uzunluk hatası: `"TR için IBAN uzunluğu hatalı"`, boş girdi: `"IBAN boş olamaz"`).
 
 ## Tipik kullanım: alıcı hesabı kaydı
 
-Para Transferi entegrasyonunda alıcı hesabı kaydederken IBAN'ı doğrularsınız:
+Para Transferi entegrasyonunda alıcı hesabını kaydetmeden önce:
 
 ```javascript
-async function onIbanBlur(iban) {
-  const cleaned = iban.replace(/\s/g, "").toUpperCase();
-
-  const res = await fetch("/api/validation/iban", {
+async function checkIban(iban) {
+  const res = await fetch("/api/validation/iban", {   // kendi backend'iniz
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ iban: cleaned }),
+    body: JSON.stringify({ iban }),
   });
-  const result = await res.json();
-
-  if (!result.is_valid) {
-    showError(result.error_message);
-    return;
-  }
-
-  setRecipientBank(result.bank?.name);
-  setIbanFormatted(result.formatted_iban);
+  const r = await res.json();
+  if (!r.is_valid) return { error: r.error_message };
+  return { bank: r.bank?.name, bankCode: r.bank_code, display: r.formatted_iban };
 }
 ```
 
-## Hata response'ları (HTTP)
+## Yabancı IBAN
 
-`is_valid: false` durumu `200 OK` ile döner — `error_message` alanı sebebi içerir. Aşağıdaki HTTP hataları yalnızca istek formatı hatalı olduğunda döner:
+Uzunluk ve mod-97 kontrolü ISO 13616 kapsamındaki ülkeler için çalışır; banka çözümleme yalnızca **TR IBAN** içindir (diğerlerinde `bank: null`).
 
-| HTTP | `code` | Anlam |
-|---|---|---|
-| `400` | `validation_failed` | `iban` alanı eksik veya boş |
-| `400` | `bad_request` | Request body geçersiz JSON |
+## Hata yanıtları (HTTP)
 
-## Yabancı IBAN desteği
-
-Format ve checksum doğrulaması ISO 13616 kapsamındaki **tüm ülkeler** için çalışır. Banka çözümlemesi şu an yalnızca **TR IBAN** için aktiftir — diğer ülkelerde `bank: null` döner. Yabancı banka çözümlemesi yol haritasındadır.
+| HTTP | Anlam |
+|---|---|
+| `400` | İstek gövdesi geçersiz JSON veya `iban` alanı hiç gönderilmedi |
+| `401` | Token yok / geçersiz |

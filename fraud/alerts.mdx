@@ -1,0 +1,122 @@
+---
+title: "Uyarılar, Loglar ve Dashboard"
+description: "Review kararıyla açılan uyarıları inceleyin; her fraud kontrolünün kaydını ve özetini sorgulayın."
+---
+
+Her fraud değerlendirmesi bir **log** kaydı bırakır. Karar `review` ise ek olarak manuel inceleme için bir **uyarı (alert)** açılır. İşlem bu aşamada durmaz; inceleme sonradan yapılır ([Fraud Yönetimi](/fraud/overview)).
+
+Base URL: `https://fraud.payven.com.tr/api/v1`.
+
+## Uyarılar
+
+`Fraud.CanViewAlerts` (okuma), `Fraud.CanManageAlerts` (karar) izni; alt-feature `fraud.alerts.review`.
+
+```bash
+curl "https://fraud.payven.com.tr/api/v1/fraud/alerts?status=open&process=sanal_pos&from=2026-10-01T00:00:00%2B03:00" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+| Query | Açıklama |
+|---|---|
+| `status` | `open`, `approved`, `rejected`, `expired` |
+| `process` | `sanal_pos`, `para_transferi`, `fatura_odeme` |
+| `assigned_to` | Atanan inceleyici |
+| `from`, `to` | Oluşma zamanı aralığı (`+03:00` ofsetiyle) |
+| `page`, `page_size` | Sayfalama |
+
+```json
+{
+  "items": [
+    {
+      "id":                "c2f1...",
+      "fraud_check_log_id": "77aa...",
+      "tenant_id":         "1a2b3c4d-...",
+      "merchant_id":       "3fa85f64-...",
+      "process":           "sanal_pos",
+      "external_txn_id":   "8c3a1f0e-...",
+      "amount_minor":      1500000,
+      "currency":          "TRY",
+      "score":             700,
+      "reason_codes":      "R-VELOCITY-CARD-5IN60S",
+      "status":            "open",
+      "assigned_to":       null,
+      "reviewed_by":       null,
+      "reviewed_at":       null,
+      "notes":             null,
+      "expires_at":        "2026-11-15T14:05:12.451+03:00",
+      "created":           "2026-10-16T14:05:12.451+03:00"
+    }
+  ],
+  "page": 1, "total_pages": 1, "total_count": 1,
+  "has_previous_page": false, "has_next_page": false
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `external_txn_id` | İşlemin kimliği: Sanal POS'ta işlem Guid'i, Para Transferi'nde transferin `external_id`'si, Fatura Ödeme'de fatura kimliği. Ödeme akışında işlem oluştuktan sonra Fraud kaydına bağlanır; bağlanana kadar geçici bir kimlik taşıyabilir |
+| `amount_minor` | Tutar, **kuruş** |
+| `score`, `reason_codes` | Risk puanı ve tetiklenen kural kodları (virgülle ayrılmış: `R-VELOCITY-CARD-5IN60S`, `R-AMOUNT-{KURAL_KODU}`, `R-BLACKLIST-IP`, `R-GEO-BIN-{ÜLKE}`) |
+| `status` | `open` karar bekler; `expires_at` (oluşmasından **30 gün** sonra) geçince arka plan işi `expired` yapar |
+
+### Karar verme
+
+```bash
+curl -X POST https://fraud.payven.com.tr/api/v1/fraud/alerts/c2f1.../approve \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: alert-c2f1-approve" \
+  -H "Content-Type: application/json" \
+  -d '{ "notes": "Müşteri telefonla doğrulandı" }'
+```
+
+`POST /fraud/alerts/{id}/approve` ve `/reject`; gövde isteğe bağlıdır (`notes`). Yanıt güncel uyarı nesnesidir (`status: approved | rejected`, `reviewed_by`, `reviewed_at`, `notes`).
+
+<Warning>
+Onay veya red **kaynak işlemi değiştirmez**: yalnız uyarı kaydı kapanır. Şüpheli bir işlemi durdurmak için işlemi ilgili ürünün API'sinden iptal / iade edin; benzer işlemleri gelecekte engellemek için `block` kuralı ya da [kara liste kaydı](/fraud/blacklist) ekleyin.
+</Warning>
+
+Açık olmayan (karara bağlanmış ya da süresi dolmuş) uyarıya karar vermek `409 fraud_alert_not_open` döner. Başka bayinin uyarısı `404`.
+
+Dışa aktarma: `GET /fraud/alerts/export?scope=page|all` ve `GET /fraud/alerts/export/schema`.
+
+## Kontrol logları
+
+`GET /fraud/logs` (`Fraud.CanViewLogs`). Her değerlendirme, kararı ne olursa olsun bir satırdır.
+
+| Query | Açıklama |
+|---|---|
+| `process` | `sanal_pos`, `para_transferi`, `fatura_odeme` |
+| `decision` | `approve`, `challenge`, `review`, `block` |
+| `from`, `to` | Kontrol zamanı aralığı |
+| `min_score`, `max_score` | Puan aralığı |
+| `page`, `page_size` | Sayfalama |
+
+```json
+{
+  "id": "77aa...", "tenant_id": "1a2b3c4d-...", "merchant_id": "3fa85f64-...",
+  "process": "sanal_pos", "external_txn_id": "8c3a1f0e-...",
+  "amount_minor": 1500000, "currency": "TRY",
+  "score": 700, "decision": "review",
+  "reason_codes": "R-VELOCITY-CARD-5IN60S",
+  "matched_rule_ids": "6f1a...",
+  "latency_ms": 18, "provider_used": "internal",
+  "outcome": "success",
+  "checked_at": "2026-10-16T14:05:12.451+03:00"
+}
+```
+
+`outcome` işlem sonucunu taşır (`success`, `failed`, `cancelled`, `charged_back`); işlem Fraud kaydına bağlandığında yazılır, bağlanmamış kayıtta `null`'dır. Özel `reason_codes`: `R-MERCHANT-OPT-OUT` (bayi politikası fraud'u kapatmış, `provider_used: "skipped"`), `R-FRAUD-UNAVAILABLE-FAIL-CLOSED` (Fraud erişilemedi ve `FailClosed` işlemi reddetti).
+
+Dışa aktarma: `GET /fraud/logs/export` ve `/export/schema`.
+
+## Dashboard özeti
+
+`GET /fraud/dashboard/stats?period=today|last7days|last30days&process=sanal_pos` (`Fraud.CanViewDashboard`). Yanıt: `total`, karar sayıları (`approve`, `challenge`, `review`, `block`), `avg_score`, `avg_latency`, `block_rate`, `open_alerts_count`, `trend_buckets`, `decision_distribution`, `process_breakdown` ve `recent_high_risk`.
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `403` | `forbidden` | İzin yok veya alt-feature (`fraud.alerts.review`) kapalı |
+| `404` | `resource_not_found` | Uyarı yok veya kapsam dışı |
+| `409` | `fraud_alert_not_open` | Uyarı karara kapalı |

@@ -41,7 +41,8 @@ Her kalemde:
 - **`external_id`** — sisteminizdeki tekil referans (ör. ödeme emri no). Aynı bayide ikinci kez
   kullanılamaz: tekrar gelirse **istek bütünüyle** `409 PV_TRANSFER_EXTERNAL_ID_DUPLICATE` ile
   reddedilir, hiçbir transfer oluşmaz. Aynı istek içinde tekrar eden `external_id` de aynı hatayı verir.
-- **`source_account_id`** — paranın çıkacağı gönderici hesap (kalem başına).
+- **`source_account_id`** — paranın çıkacağı gönderici hesap (kalem başına; `GET /connector-accounts`). Boş bırakırsanız transfer hesap seçilmemiş bir **talep** olarak açılır ve hesabı onaylayan seçer.
+- **`recipient.iban`** — alıcı IBAN'ı her kalemde istekle verilir.
 
 ```bash
 curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/create \
@@ -66,6 +67,10 @@ curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/create \
   }'
 ```
 
+<Warning>
+Geçersiz bir kalem (tutar ≤ 0, alıcı adı boş, kaynak hesap bulunamadı, IBAN çözümlenemedi) **sessizce atlanır**, geçerli kalemler oluşur. Yanıtı isteğinizle karşılaştırın: yanıtta olmayan `external_id` için transfer oluşmamıştır. Hiçbir kalem geçerli değilse `422 PV_NO_VALID_TRANSFER` döner.
+</Warning>
+
 <Tip>
 `external_id` çakışması (`409 PV_TRANSFER_EXTERNAL_ID_DUPLICATE`) çoğu zaman **önceki denemenizin
 başarılı olduğu** anlamına gelir. Yeni referansla tekrar oluşturmak yerine
@@ -85,7 +90,7 @@ curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/approve \
 ```
 
 Organizasyonunuzda 4-göz (ayrı onaylayıcı) açıksa onayı, transferi oluşturan kullanıcıdan / API
-anahtarından **farklı** bir kimlik vermelidir.
+anahtarından **farklı** bir kimlik vermelidir; onaylanamayan kalem `results[]` içinde `is_success: false` döner. Banka oturumu alınamazsa transfer `approved`'da bekler ve 2 saat boyunca otomatik denenir; sizin bir şey yapmanız gerekmez.
 
 ## 3. Sonucu webhook ile dinleyin
 
@@ -131,9 +136,9 @@ Sorgu yedeğini seyrek tutun (ör. bekleyen paketler için birkaç dakikada bir)
 
 | Durum | Yeniden gönderilebilir mi? |
 |---|---|
-| `processing` | **Hayır.** Banka transferi işlemiş olabilir. Sonuç otomatik kesinleşir (banka sorgusu / banka bildirimi) ya da operatör banka kaydına bakarak sonuçlandırır; `completed` veya `failed` olayı gelir. |
+| `processing` | **Hayır.** Banka transferi işlemiş olabilir. Sonuç otomatik kesinleşir (banka sorgusu / banka bildirimi) ya da operatör banka kaydına bakarak sonuçlandırır; `completed` veya `failed` olayı gelir. İsterseniz `POST /transfers/{id}/sync` ile bankaya hemen sordurabilirsiniz — bkz. [Belirsiz Sonuç ve İade](/para-transferi/transfers/outcome-resolution). |
 | `delivered` | **Hayır.** Banka aldı; kesin sonucu bekleyin. |
-| `failed` | **Evet, yalnız sizin açık kararınızla:** `POST /transfers/bulk/send`. `failed` bankanın kesin reddi ya da transferin bankaya hiç gidemediği (ör. banka oturumu alınamadı) anlamına gelir. |
+| `failed` | **Evet, yalnız sizin açık kararınızla:** `POST /transfers/bulk/send`. `failed` bankanın kesin reddi ya da 2 saatlik otomatik deneme süresinde bankaya gönderilememe anlamına gelir. |
 | `rejected` | Gönderilemez; yeniden onaylanabilir (`bulk/approve`) ya da yeni transfer oluşturulur. |
 
 `bulk/send` yanıtındaki bir kalemde `error_code: "PV_TRANSFER_OUTCOME_UNKNOWN"` görürseniz banka yanıt
@@ -144,6 +149,10 @@ Kendi tarafınızda "zaman aşımı → yeni `external_id` ile yeniden oluştur"
 bankanın ilk isteği işlediği durumda aynı alıcıya ikinci kez para gönderir. Belirsizlikte
 `external_id` ile sorgulayın ve sonucu bekleyin.
 </Warning>
+
+## Test
+
+Akışınızı canlıya almadan [Test Modu ve Test Alıcıları](/para-transferi/sandbox) ile deneyin: başarı, ret, yetersiz bakiye, zaman aşımı ve `delivered` senaryoları bankaya gitmeden üretilir.
 
 ## Kontrol listesi
 

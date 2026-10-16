@@ -1,0 +1,125 @@
+---
+title: "Ürünler"
+description: "Ödeme linkinde ve hosted checkout'ta satılan ürün kataloğunu API ile yönetin."
+---
+
+Ürün kataloğu; bayinin satışa sunduğu kalemleri (fiyat, KDV, stok, seçenek/varyant, görsel) tutar. Ürünler bir [ödeme linkine](/sanal-pos/payments/pay-by-link) eklendiğinde tutar ürünlerden hesaplanır (`amount_mode: line_items`), müşteri ödeme sayfasında seçim yapar, ödeme sonrası stok düşer ve satış tamamlanınca e-fatura, bildirim ve kargo gibi sonraki adımlar tetiklenir.
+
+<Note>
+`sanalpos.products` alt özelliği şirket için açık olmalıdır; kapalıyken ürün gerektiren işlemler `403 feature_not_available` döner. Okuma `CanViewProducts`, yazma `CanManageProducts` izni ister (varsayılan olarak `tenant-admin`, `tenant-user` ve `merchant-admin`). Katalog bayiye aittir: `X-Merchant-Id` / `X-External-Merchant-Id` başlığı ile bayi seçilir.
+</Note>
+
+## Uçlar
+
+```http
+GET    /api/v1/products                                   # Liste (sayfalı)
+GET    /api/v1/products/summary                           # Katalog özeti
+GET    /api/v1/products/{product_id}                      # Detay
+POST   /api/v1/products                                   # Oluştur — 201
+PUT    /api/v1/products/{product_id}                      # Güncelle (tam gövde)
+DELETE /api/v1/products/{product_id}                      # Sil — 204
+PUT    /api/v1/products/{product_id}/variants             # Seçenek ve varyantları kaydet
+POST   /api/v1/products/{product_id}/images               # Görsel yükle (multipart)
+DELETE /api/v1/products/{product_id}/images/{image_id}   # Görsel sil
+GET    /api/v1/products/{product_id}/images/{image_id}   # Görseli indir (kimlik doğrulamasız)
+```
+
+## Ürün oluşturma
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/products \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Merchant-Id: $MERCHANT_ID" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name":              "Pamuklu Tişört",
+    "code":              "TS-001",
+    "category":          "Giyim",
+    "description":       "Yumuşak pamuklu, regular kesim.",
+    "price":             34900,
+    "compare_at_price":  44900,
+    "unit":              "C62",
+    "vat_rate":          20,
+    "installment_mode":  "inherit",
+    "stock_tracked":     true,
+    "stock":             120,
+    "low_stock_threshold": 10,
+    "attributes":        [ { "key": "Kumaş", "value": "%100 pamuk" } ],
+    "is_active":         true
+  }'
+```
+
+| Alan | Tip | Zorunluluk | Açıklama |
+|---|---|---|---|
+| `name` | string | Zorunlu | En çok 200 karakter |
+| `code` | string | Opsiyonel | Stok kodu, en çok 64 |
+| `category` | string | Opsiyonel | En çok 100 |
+| `description` | string | Opsiyonel | En çok 2000 |
+| `price` | long (kuruş) | Zorunlu | `>= 0` (0 geçerli: hediye/kampanya kalemi). |
+| `compare_at_price` | long (kuruş) | Opsiyonel | Kampanya öncesi fiyat; verilirse `price`'tan büyük olmalı |
+| `unit` | string | Opsiyonel | GİB birim kodu, en çok 10 karakter; varsayılan `C62` (adet), ör. `KGM`, `MTR` |
+| `vat_rate` | int | Opsiyonel | 0–100 |
+| `installment_mode` | enum | Opsiyonel | `inherit` (link/bayi kuralları), `single_only` (yalnız tek çekim), `fixed` (hep `fixed_installment` taksit) |
+| `fixed_installment` | int | `fixed` için zorunlu | 2–36 |
+| `accommodation_tax` | bool | Opsiyonel | Konaklama vergisi uygulanır |
+| `stock_tracked` | bool | Opsiyonel | Stok takibi |
+| `stock` | int | Opsiyonel | Takip açıksa `>= 0` |
+| `low_stock_threshold` | int | Opsiyonel | Altına inince `sanalpos.product.low_stock` olayı |
+| `attributes[]` | array | Opsiyonel | `{ key (≤60), value (≤200) }` özellik listesi |
+| `suppressed_capabilities[]` | array | Opsiyonel | Bu ürünün satışında kapatılacak yetenekler: `e-fatura`, `sms-notification`, `email-notification`, `shipping` |
+| `is_active` | bool | Opsiyonel | Varsayılan `true`; pasif ürün satılmaz |
+
+Yanıt (`201`) ürün nesnesidir: yukarıdaki alanlara ek olarak `id`, `is_out_of_stock`, `options[]`, `variants[]`, `images[]`, `created`.
+
+`PUT /products/{id}` aynı gövdeyle güncelleme yapar; ürünün tüm alanlarını gövdede gönderin. `DELETE` ürünü ve görsellerini siler.
+
+## Liste ve özet
+
+Liste varsayılan olarak yalnız aktif ürünleri döner. Filtreler: `search_term` (ad, kod, kategori), `category`, `include_inactive` (pasifleri de dahil et), `is_active` (`true` yalnız satıştakiler, `false` yalnız pasifler), `ids` (tekrarlı anahtar: `?ids=...&ids=...`; bu modda aktiflik filtresi uygulanmaz), `page`, `page_size`.
+
+`GET /products/summary` toplam/aktif/pasif ürün sayısı, aktif ürünlerin ortalama fiyatı ve stoğu biten ürün sayısı gibi katalog sayaçlarını döner.
+
+## Seçenek ve varyantlar
+
+Beden/renk gibi seçenekli ürünlerde seçenek eksenleri ve kombinasyonlar tek çağrıyla kaydedilir; çağrı mevcut varyant listesinin yerine geçer. `options` ve `variants` ikisi de boş gönderilirse ürün varyantsız hale gelir.
+
+```bash
+curl -X PUT https://vpos.payven.com.tr/api/v1/products/$PRODUCT_ID/variants \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Merchant-Id: $MERCHANT_ID" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "options": [
+      { "name": "Beden", "values": ["S", "M", "L"] },
+      { "name": "Renk",  "values": ["Siyah", "Beyaz"] }
+    ],
+    "variants": [
+      { "option_values": { "Beden": "S", "Renk": "Siyah" }, "sku": "TS-001-S-S", "stock": 20 },
+      { "option_values": { "Beden": "M", "Renk": "Siyah" }, "sku": "TS-001-M-S", "price": 36900, "stock": 35 }
+    ]
+  }'
+```
+
+- `price` ve `compare_at_price` boşsa varyant ürün fiyatını kullanır; yanıttaki `effective_price` / `effective_compare_at_price` geçerli değeri verir.
+- Varyant `option_values` anahtarları `options[].name` ile aynı olmalı, değerler `options[].values` içinde bulunmalı ve kombinasyon tekrar etmemeli; aksi halde `422 PV_INVALID_PRODUCT_VARIANTS`.
+- Varyantlı üründe stok varyant bazında tutulur; `is_out_of_stock` tüm varyantların stoğu bittiğinde `true` olur.
+
+## Görseller
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/products/$PRODUCT_ID/images \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Merchant-Id: $MERCHANT_ID" \
+  -F "file=@tisort.jpg" \
+  -F "variant_id=$VARIANT_ID"
+```
+
+`file` zorunludur; `variant_id` verilirse görsel o varyanta bağlanır. Yalnız **PNG, JPG ve WebP**, dosya başına en çok **512 KB**, üründe en çok **5** görsel; aksi halde `422 PV_INVALID_PRODUCT_IMAGE`. Yanıt güncel ürün nesnesidir; her görselin `url` alanı kimlik doğrulamasız indirilebilir (`GET .../images/{image_id}`, uzun süreli önbellek başlıklı).
+
+## Satış ve olaylar
+
+- Ürünler ödeme linkine `items[] { product_id, max_quantity, quantity_adjustable }` ile eklenir ([Ödeme Linki](/sanal-pos/payments/pay-by-link)).
+- Ödeme tamamlanınca stok düşer. Stok yetmeden tamamlanan satış kaybedilmez; `sanalpos.product.oversold` ile bildirilir.
+- Stok eşiğin altına indiğinde bir kez `sanalpos.product.low_stock` yayınlanır.
+
+Olay alanları: [Webhook Olay Kataloğu](/sanal-pos/webhooks/events#ürün-ve-ödeme-linki-olayları).

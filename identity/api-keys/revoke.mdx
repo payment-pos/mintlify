@@ -1,20 +1,22 @@
 ---
-title: "Anahtar Revoke / Silme"
-description: "Bir anahtarı pasife alma veya kalıcı silme."
+title: "Anahtar Pasife Alma / Silme"
+description: "Bir anahtarı geçici olarak devre dışı bırakma veya kalıcı silme."
 ---
 
-Bir anahtarı geçici (**pasif**) veya kalıcı olarak (**sil**) iptal edebilirsiniz. Her iki durumda da o anahtarla yeni token alınamaz, mevcut token süresi dolduğunda da yenilenemez.
+Bir anahtarı geçici (**pasif**) veya kalıcı olarak (**sil**) iptal edebilirsiniz. İkisinde de o anahtarla yeni token alınamaz.
 
 ## Endpoint'ler
 
 | İşlem | Endpoint | Geri alınabilir mi? |
 |---|---|---|
-| Pasife al | `PUT /api/v1/tenants/me/api-keys/{id}` (`is_active: false`) | Evet — yeniden aktive edilebilir |
+| Pasife al / aktive et | `PUT /api/v1/tenants/me/api-keys/{id}` (`is_active`) | Evet |
 | Kalıcı sil | `DELETE /api/v1/tenants/me/api-keys/{id}` | Hayır — OAuth client kaydı da silinir |
 
-Bearer access token + `tenant-admin` rolü gerektirir.
+Bayi yüzeyinde aynı uçlar `/api/v1/merchants/me/api-keys/{id}` altındadır (`merchant-admin`, yalnız kendi bayisinin anahtarı). Tenant yüzeyi `tenant-admin` rolü ister.
 
 ## Pasife alma
+
+`PUT` **tam değiştirme** semantiğindedir: gönderilmeyen alan sıfırlanır. Mevcut kaydı `GET` ile alıp yalnız `is_active` alanını değiştirerek tamamını geri gönderin.
 
 ```bash
 curl -X PUT https://identity.payven.com.tr/api/v1/tenants/me/api-keys/8e3f5c12-... \
@@ -23,29 +25,20 @@ curl -X PUT https://identity.payven.com.tr/api/v1/tenants/me/api-keys/8e3f5c12-.
   -d '{
     "display_name":  "Production — Ödeme Servisi",
     "contact_email": "ops@example.com",
+    "merchant_id":   "M-IST-001",
+    "features":      ["sanalpos", "para-transferi"],
+    "allowed_ips":   "52.18.42.10,52.18.42.0/24",
+    "expires_at":    null,
+    "plan_id":       "abc-...",
     "is_active":     false
   }'
 ```
 
-Pasife alma **anında etkilidir** — yeni token üretimi durur. Mevcut token'lar süre sonuna kadar (5dk) çalışır, sonra refresh edilemez.
+<Warning>
+Alanları eksik göndermenin sonuçları sessizdir: `is_active` verilmezse `false` sayılır (anahtar kapanır); `features` verilmezse API kapsamı **boşalır** ve entegrasyon `401 audience_invalid` almaya başlar; `merchant_id` / `allowed_ips` / `expires_at` / limit override'ları verilmezse temizlenir. `environment` ve `kind` değiştirilemez; göndermek isterseniz mevcut değerle aynı olmalıdır. `access_level` gönderilmezse mevcut düzey korunur.
+</Warning>
 
-Geri aktive etmek için `is_active: true` ile aynı endpoint:
-
-```bash
-curl -X PUT https://identity.payven.com.tr/api/v1/tenants/me/api-keys/8e3f5c12-... \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "display_name":  "Production — Ödeme Servisi",
-    "contact_email": "ops@example.com",
-    "is_active":     true
-  }'
-```
-
-<Note>
-PUT, PATCH değildir — tüm güncellenebilir alanları göndermeniz gerekir. Sadece `is_active` field'ını
-göndermek diğer alanları sıfırlar. Anlık aktive/pasif için aynı objeyi alıp tek alanı değiştirin.
-</Note>
+Pasife alma **anında etkilidir**: yeni token üretimi durur. Daha önce alınmış access token'lar süreleri (5 dk) dolana kadar geçerlidir. Geri açmak için aynı gövdeyle `"is_active": true` gönderin.
 
 ## Kalıcı silme
 
@@ -54,39 +47,28 @@ curl -X DELETE https://identity.payven.com.tr/api/v1/tenants/me/api-keys/8e3f5c1
   -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-`204 No Content` — gövde yok.
+`204 No Content` — gövde yok. Silmeden önce anahtarın açık oturumları da düşürülür.
 
 <Warning>
-Silme **geri alınamaz**. Identity kaydı ve OAuth client kaydı birlikte silinir. `client_id` değeri tekrar üretilmez — yeni bir anahtar oluşturmanız gerekir.
+Silme **geri alınamaz**. `client_id` yeniden üretilmez; yeni bir anahtar oluşturmanız gerekir.
 </Warning>
 
 ## Ne zaman pasife alın, ne zaman silin?
 
 | Durum | Önerilen aksiyon |
 |---|---|
-| Anahtarın kullanılmadığını doğrulamak istiyorsunuz | **Pasife al** — birkaç hafta izleyip sonra silin |
-| Sızıntı şüphesi var | **Pasife al** (anlık etki) → soruşturma → **sil** |
+| Anahtarın kullanılmadığını doğrulamak istiyorsunuz | **Pasife al** — birkaç hafta izleyip silin |
+| Sızıntı şüphesi | **Pasife al** (anlık etki) → [rotasyon](/identity/api-keys/rotate) veya silme |
 | Geçici servis kapatılıyor | **Pasife al** |
-| Eski entegrasyon kalıcı kaldırıldı | **Sil** |
-| Otomatik temizlik (CI/CD ile) | **Sil** — pasifleri bekletmeyin, audit kirletir |
+| Entegrasyon kalıcı kaldırıldı | **Sil** |
 
-## Hata response'ları
+Bunların dışında, anahtara **son kullanma tarihi** (`expires_at`) vererek otomatik kapanmasını da sağlayabilirsiniz; süresi dolan anahtar `401 api_key_expired` döner.
+
+## Hata yanıtları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `api_key_not_found` | Anahtar bulunamadı |
-| `403` | `forbidden` | `tenant-admin` rolü yok |
-| `409` | `api_key_in_use` | Sistem kritik anahtarı (örn. last-active) silmeyi engelliyor — önce yeni anahtar yarat |
-
-## Audit log
-
-Tüm anahtar yaşam döngüsü olayları konsoldaki **API Kayıtları → Audit** ekranında loglanır:
-
-- Oluşturma (`api_key.created`)
-- Güncelleme (`api_key.updated`)
-- Rotasyon (`api_key.secret_rotated`)
-- Pasife alma / aktif etme (`api_key.deactivated` / `api_key.activated`)
-- Silme (`api_key.deleted`)
-- Kullanım — her token üretimi (`api_key.used`)
-
-Bu kayıtlar PCI-DSS, ISO 27001 ve KVKK denetimlerinde audit trail olarak kullanılabilir.
+| `404` | `resource_not_found` | Anahtar bulunamadı, başka tenant / bayiye ait ya da sistem client'ı (sistem client'ları silinemez / düzenlenemez) |
+| `403` | `forbidden` | Rol yetersiz |
+| `422` | `api_key_environment_immutable` | `PUT`'ta `environment` mevcut değerden farklı gönderildi |
+| `422` | `api_key_kind_immutable` | `PUT`'ta `kind` mevcut değerden farklı gönderildi |

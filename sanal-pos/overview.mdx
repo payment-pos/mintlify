@@ -9,22 +9,40 @@ Payven Sanal POS, ödeme kuruluşları ve büyük platformlar için **çoklu ban
 
 <CardGroup cols={2}>
   <Card title="Çoklu Banka" icon="building-columns">
-    Türkiye'nin önde gelen bankalarıyla tek API üzerinden entegrasyon. Yeni konnektör eklemek anlaşma değil, konfigürasyon meselesidir.
+    Tek API üzerinden birden fazla bankaya bağlanın. Banka entegratörleri ihtiyacınıza göre özel olarak geliştirilir; entegratör yapılandırmalarını (kimlik bilgileri, bayi profilleri, öncelik) kendiniz yönetirsiniz. Yeni entegratör anlaşma değil, konfigürasyon meselesidir.
   </Card>
-  <Card title="Akıllı Yönlendirme" icon="route">
+  <Card title="Akıllı Yönlendirme" icon="route" href="/sanal-pos/routing/overview">
     BIN, tutar, taksit, kart birliği ve banka sağlığını dikkate alan bileşik skor motoru ile dinamik yönlendirme.
   </Card>
-  <Card title="3D Secure 2.x" icon="shield-check">
-    Tüm bankalar için tek tip 3DS akışı. Frictionless ve challenge mode ayrımı otomatiktir.
+  <Card title="3D Secure" icon="shield-check" href="/sanal-pos/payments/3d-secure">
+    Tüm bankalar için tek tip 3DS akışı. Frictionless ve challenge ayrımı bankaya göre otomatik işlenir.
   </Card>
-  <Card title="Smart Retry" icon="arrows-rotate">
+  <Card title="Smart Retry" icon="arrows-rotate" href="/sanal-pos/routing/smart-retry">
     Geçici banka hatasında işlem alternatif konnektöre yönlendirilir; kullanıcı yeniden ödeme yapmaz.
   </Card>
-  <Card title="Hosted Checkout" icon="window-maximize">
+  <Card title="Hosted Checkout" icon="window-maximize" href="/sanal-pos/payments/hosted-checkout">
     Kart girişi Payven'in barındırdığı sayfada yapılır; siz sadece yönlendirme URL'si alırsınız. PCI-DSS yükünü minimize eder.
   </Card>
-  <Card title="Tek Mutabakat" icon="scale-balanced">
-    Tüm bankaların gün sonu hareketleri tek bir mutabakat akışında konsolide edilir.
+  <Card title="Tek Mutabakat" icon="scale-balanced" href="/sanal-pos/reconciliation/overview">
+    Banka hareketleri ile Payven kayıtları tek bir mutabakat akışında karşılaştırılır.
+  </Card>
+  <Card title="Tekrarlayan Ödeme" icon="repeat" href="/sanal-pos/payments/recurring">
+    Plan oluşturun; taksitler vadesinde otomatik tahsil edilir.
+  </Card>
+  <Card title="Kayıtlı Kart" icon="credit-card" href="/sanal-pos/payments/saved-cards">
+    Kartı bir kez kaydedin, sonraki ödemelerde kart bilgisini yeniden almayın.
+  </Card>
+  <Card title="İade ve İptal Talepleri" icon="user-check" href="/sanal-pos/payments/refund-requests">
+    Talebi açan ile onaylayanın ayrı olduğu (4 göz) iade ve iptal akışı.
+  </Card>
+  <Card title="Ürünler ve Ödeme Linki" icon="box" href="/sanal-pos/payments/products">
+    Ürün kataloğu, indirim kodu ve ürünlü ödeme bağlantısı.
+  </Card>
+  <Card title="Pazaryeri (Split)" icon="diagram-project" href="/sanal-pos/payments/marketplace-splits">
+    Tek ödemeyi alt bayiler arasında paylaştırın.
+  </Card>
+  <Card title="Makbuz" icon="receipt" href="/sanal-pos/payments/receipts">
+    İşlem makbuzunu JSON veya HTML olarak alın, müşteriye gönderin.
   </Card>
 </CardGroup>
 
@@ -32,28 +50,29 @@ Payven Sanal POS, ödeme kuruluşları ve büyük platformlar için **çoklu ban
 
 | Ortam | URL |
 |---|---|
-| Sandbox | `https://vpos-sandbox.payven.com.tr` |
 | Production | `https://vpos.payven.com.tr` |
+
+Test modu URL'den değil **kimlikten** gelir: test API anahtarıyla veya test modundaki bayiyle yapılan her istek simüle edilir — bkz. [Sandbox](/sanal-pos/test/sandbox).
 
 ## Hangi entegrasyonu seçmeliyim?
 
 <Tabs>
   <Tab title="Hosted Checkout (önerilir)">
     **Sizin akış:**
-    1. Sunucunuz `POST /checkout/sessions` ile bir oturum oluşturur.
-    2. Müşteriyi dönen URL'ye yönlendirirsiniz.
+    1. Sunucunuz `POST /api/v1/checkout/sessions` ile bir oturum oluşturur.
+    2. Müşteriyi dönen `checkout_url`'e yönlendirirsiniz.
     3. Müşteri kart bilgilerini Payven sayfasında girer.
     4. Sonuç webhook ile size iletilir.
 
-    **Avantajlar:** En düşük PCI-DSS yükü (SAQ-A), banka sayfası gibi görünür, 3DS otomatik.
+    **Avantajlar:** En düşük PCI-DSS yükü (SAQ-A), 3DS otomatik, taksit seçimi sayfada.
 
     **Uygunsa:** Çoğu B2C entegrasyonu için tercih bu olmalı.
 
-    [Detay →](/sanal-pos/payments/hosted-checkout)
+    [Detay →](/sanal-pos/payments/hosted-checkout) · [Checkout oturumu referansı →](/sanal-pos/payments/checkout-sessions)
   </Tab>
   <Tab title="Pay-by-Link">
     **Sizin akış:**
-    1. Sunucunuz `POST /payments/order-link` ile link üretir.
+    1. Sunucunuz `POST /api/v1/payments/order-link` ile banka barındırmalı ödeme linki üretir (kalıcı, ürünlü bağlantılar için `POST /api/v1/payment-links`).
     2. SMS, e-posta veya WhatsApp ile müşteriye gönderirsiniz.
     3. Müşteri linkten ödemeyi yapar.
 
@@ -64,9 +83,9 @@ Payven Sanal POS, ödeme kuruluşları ve büyük platformlar için **çoklu ban
   <Tab title="Direct API">
     **Sizin akış:**
     1. Kart bilgilerini kendi formunuzdan toplarsınız.
-    2. `POST /payments` ile Payven'e iletirsiniz.
-    3. 3DS gerekiyorsa müşteriyi yönlendirme URL'sine yönlendirirsiniz.
-    4. Callback ile dönüş alırsınız.
+    2. Non-3D için `POST /api/v1/payments`, 3D Secure için `POST /api/v1/payments/3d/init` çağırırsınız.
+    3. 3DS gerekiyorsa müşteriyi yanıttaki yönlendirmeye gönderirsiniz.
+    4. Banka dönüşü Payven'e gelir, sonuç webhook ile size iletilir.
 
     **Avantajlar:** UI üzerinde tam kontrol.
 
@@ -76,85 +95,82 @@ Payven Sanal POS, ödeme kuruluşları ve büyük platformlar için **çoklu ban
   </Tab>
 </Tabs>
 
+Her yazma isteğinde `external_id` (sipariş kimliği) zorunludur ve çift çekimi önleyen anahtar olarak çalışır; ayrıca `Idempotency-Key` başlığı gönderin — bkz. [Kimlik Doğrulama](/sanal-pos/authentication#idempotency-key).
+
 ## Endpoint kategorileri
 
-Tüm path'ler `/api/v1/` ön ekiyle başlar. Tam liste için: [API Referansı](/api-reference/sanal-pos).
+Tüm path'ler `/api/v1/` ön ekiyle başlar. Tam liste için: [API Referansı](/api-reference/sanal-pos). Tüm uçlar Bearer token ister.
 
-| Kategori | Endpoint örnekleri | Auth |
+| Kategori | Endpoint örnekleri | Sayfa |
 |---|---|---|
-| Ödeme oluşturma | `POST /payments`, `POST /payments/3d/init`, `POST /payments/order-link`, `POST /checkout/sessions` | Bearer |
-| Ödeme aksiyonları | `POST /payments/{id}/refund`, `/void`, `/capture`, `/3d/complete`, `/dcc/confirm`, `/point-inquiry` | Bearer |
-| Sorgulama | `GET /payments/{id}`, `GET /payments/{id}/query`, `GET /payments/{id}/history`, `GET /transactions`, `GET /transactions/export` | Bearer |
-| Tekrarlayan ödeme | `POST /recurring`, `GET /recurring`, `POST /recurring/{id}/cancel`, `POST /recurring/{id}/installments/{idx}/cancel` | Bearer |
-| İade listesi | `GET /refunds`, `GET /refunds/{id}` | Bearer |
-| Settlement | `GET /settlements`, `POST /settlements`, `GET /settlements/export`, `GET /settlements/{id}/carry-items` | Bearer |
-| Parçalı hakediş | `GET /split-settlements`, `GET /split-settlements/{id}`, `GET /split-settlements/{id}/carry-items` | Bearer |
-| Chargeback | `GET /chargebacks`, `POST /chargebacks`, `PUT /chargebacks/{id}/status` | Bearer |
-| Mutabakat | `POST /reconciliations/start`, `POST /reconciliations/{id}/finalize` | Bearer |
-| Saved Cards | `GET /cards`, `DELETE /cards/{id}` | Bearer |
-| BIN sorgu | `POST /bins/check`, `GET /bins/{bin}` | Bearer |
-| Yönlendirme kuralları | `GET/POST/PUT /routing-rules`, `POST /routing-rules/resolve` | Bearer |
-| Konnektör | `GET/POST /connectors`, `GET /connector-configurations`, `GET /connectors/{id}/health` | Bearer |
-| Webhook yönetimi | Sanal POS API'sinde değil **İşyeri API'sinde**: `POST /webhook-endpoints`, `POST /webhook-endpoints/{id}/rotate-secret`, `GET /webhook-endpoints/{id}/deliveries` — bkz. [Webhook'lar](/documentation/concepts/webhooks) | Bearer |
-| İptal Talepleri | `/cancellation-requests` (4-eyes void onayı) | Bearer |
+| Ödeme oluşturma | `POST /payments`, `POST /payments/3d/init`, `POST /payments/order-link`, `POST /checkout/sessions`, `POST /payment-links` | [Non-3D](/sanal-pos/payments/non-3d), [3DS](/sanal-pos/payments/3d-secure), [Checkout](/sanal-pos/payments/checkout-sessions) |
+| Ödeme aksiyonları | `POST /payments/{id}/capture`, `/refund`, `/void`, `/reconcile`, `/point-inquiry`, `/dcc/confirm`; `POST /payments/3d/complete` | [Pre-Auth](/sanal-pos/payments/pre-auth-capture), [İade](/sanal-pos/payments/refund), [İptal](/sanal-pos/payments/void) |
+| Sorgulama | `GET /payments/{id}`, `GET /payments/{id}/query`, `GET /payments/{id}/history`, `GET /transactions`, `GET /transactions/{id}`, `GET /transactions/export` | [Sorgulama](/sanal-pos/inquiries/payment-detail) |
+| Taksit ve BIN | `POST /installments/quote`, `POST /bins/check`, `GET /bins/{bin}` | [Taksit](/sanal-pos/payments/installment) |
+| Tekrarlayan ödeme | `POST /recurring`, `GET /recurring`, `POST /recurring/{id}/cancel`, `.../installments/{index}/cancel`, `.../installments/{index}/update-amount`, `POST /recurring/{id}/update-card-expiry` | [Recurring](/sanal-pos/payments/recurring) |
+| Kayıtlı kart | `GET /cards`, `GET /cards/{id}`, `DELETE /cards/{id}` | [Kayıtlı Kart](/sanal-pos/payments/saved-cards) |
+| İade listesi | `GET /refunds`, `GET /refunds/{id}` | [İade](/sanal-pos/payments/refund) |
+| İade / iptal talepleri | `POST /refund-requests`, `POST /refund-requests/{id}/approve\|reject`; `POST /cancellation-requests`, `.../approve\|reject` | [İade Talepleri](/sanal-pos/payments/refund-requests), [İptal Talepleri](/sanal-pos/payments/cancellation-requests) |
+| Ürün ve indirim | `/products`, `/discount-codes` | [Ürünler](/sanal-pos/payments/products) |
+| Pazaryeri | `GET /marketplace/splits`, `POST /marketplace/splits/{id}/approve\|hold\|release\|refund` | [Split](/sanal-pos/payments/marketplace-splits) |
+| Makbuz | `GET /receipts/{source}/{id}`, `.../html`, `.../send` | [Makbuz](/sanal-pos/payments/receipts) |
+| Ters ibraz | `GET /chargebacks`, `POST /chargebacks`, `PUT /chargebacks/{id}/status` | [Chargeback](/sanal-pos/reporting/chargebacks) |
+| Mutabakat | `POST /reconciliations/start`, `POST /reconciliations/{id}/finalize`, `POST /reconciliations/{id}/cancel` | [Mutabakat](/sanal-pos/reconciliation/overview) |
+| Belirsiz banka işlemleri | `GET /unresolved-bank-operations`, `POST /unresolved-bank-operations/{id}/resolve` | [Mutabakat yaşam döngüsü](/sanal-pos/reconciliation/lifecycle) |
+| Yönlendirme kuralları | `/routing-rules`, `POST /routing-rules/resolve`, `/simple-routing-rules` | [Routing](/sanal-pos/routing/overview) |
+| Konnektör | `GET /connectors`, `GET /connectors/{id}/health`, `GET /connectors/types/{code}/schema` | [Routing](/sanal-pos/routing/circuit-breaker) |
+| Test kartları | `GET /test-cards`, `POST /test-cards`, `POST /test-cards/generate` | [Test Kartları](/sanal-pos/test/test-cards) |
+| Webhook yönetimi | Sanal POS API'sinde değil **İşyeri API'sinde**: `POST /webhook-endpoints`, `POST /webhook-endpoints/{id}/rotate-secret`, `GET /webhook-endpoints/{id}/deliveries` | [Webhook'lar](/sanal-pos/webhooks/overview) |
+
+Gün sonu hakediş ve çekim (payout) uçları Cüzdan servisindedir; bkz. [Raporlama](/sanal-pos/reporting/settlements).
 
 ## İşlem yaşam döngüsü
 
+İşlem durumu `status` alanında, `TransactionStatus` değerlerinin snake_case karşılığı olarak döner. Kısmi iade, üst işlemin durumunu değiştirmez (`completed` kalır); iade ayrı iade kaydı olarak yazılır.
+
 ```mermaid
 stateDiagram-v2
-    [*] --> Created: POST /payments
-    Created --> Pending3D: 3DS init
-    Pending3D --> Authenticated: 3DS başarılı
-    Pending3D --> Failed: 3DS başarısız
-    Created --> Authorized: Non-3D ya da Pre-Auth
-    Authenticated --> Authorized: Banka onayı
-    Authorized --> Captured: capture
-    Authorized --> Voided: void
-    Captured --> Refunded: tam iade
-    Captured --> PartiallyRefunded: kısmi iade
-    PartiallyRefunded --> Refunded: tüm tutar iade
-    Authorized --> Settled: gün sonu
-    Captured --> Settled: gün sonu
-    Failed --> [*]
-    Voided --> [*]
-    Refunded --> [*]
-    Settled --> [*]
+    [*] --> created: POST /payments
+    created --> processing: bankaya gönderildi
+    created --> three_d_secure_init_processing: 3DS başlatıldı
+    three_d_secure_init_processing --> three_d_secure_auth_processing: banka dönüşü geldi
+    three_d_secure_init_processing --> failed: 3DS reddi
+    three_d_secure_init_processing --> not_completed: müşteri terk etti
+    three_d_secure_auth_processing --> authorized: Pre-Auth onayı
+    three_d_secure_auth_processing --> completed: Sale onayı
+    three_d_secure_auth_processing --> failed: banka reddi
+    processing --> authorized: Pre-Auth onayı
+    processing --> completed: Sale onayı
+    processing --> failed: banka reddi
+    authorized --> capture_processing: capture
+    capture_processing --> completed
+    authorized --> canceled_processing: void
+    completed --> canceled_processing: void
+    canceled_processing --> canceled
+    completed --> refund_processing: refund
+    refund_processing --> refunded: tam iade
+    refund_processing --> completed: kısmi iade
+    failed --> [*]
+    not_completed --> [*]
+    canceled --> [*]
+    refunded --> [*]
 ```
 
-<Note>
-Yukarıdaki diyagram **konsumer-friendly** semantik durumları gösterir. Wire üzerinde
-(API yanıtları, webhook payload'ları) `status` alanı `TransactionStatus` enum'unun
-snake_case değerleridir. Eşleştirme:
-
-| Diyagramdaki durum | Wire `status` |
-|---|---|
-| Created | `created` |
-| Pending3D | `three_d_secure_init_processing` |
-| Authenticated | `three_d_secure_auth_processing` |
-| Authorized | `authorized` |
-| Captured / Settled | `completed` (settlement durumu ayrı `Settlement` kaynağında izlenir) |
-| Refunded | `refunded` |
-| PartiallyRefunded | Üst Transaction `completed` kalır; iade alt-kaydı `refunded` (geçici: `refund_processing`) |
-| Voided | `canceled` (geçici: `canceled_processing`) |
-| Failed | `failed` |
-| (Geçici işlem) | `processing`, `capture_processing` |
-
-Tam enum tablosu: [Payment Objesi → Status](/sanal-pos/payment-object#status).
-</Note>
+Tam durum tablosu ve anlamları: [Payment Objesi → Status](/sanal-pos/payment-object#status-degerleri). Her durum geçişinde oluşan webhook olayları: [Webhook Olayları](/sanal-pos/webhooks/events).
 
 ## Sıradaki adım
 
 <CardGroup cols={2}>
   <Card title="Kimlik Doğrulama" icon="key" href="/sanal-pos/authentication">
-    Sanal POS'a özgü header'lar ve kurallar.
+    Token, bayi başlıkları, Idempotency-Key ve limitler.
   </Card>
   <Card title="Payment Objesi" icon="cube" href="/sanal-pos/payment-object">
     Tüm ödeme yanıtlarında dönen alanların referansı.
   </Card>
+  <Card title="Sandbox" icon="flask" href="/sanal-pos/test/sandbox">
+    Gerçek para ve banka olmadan test modu.
+  </Card>
   <Card title="İlk Non-3D Ödeme" icon="credit-card" href="/sanal-pos/payments/non-3d">
     En basit ödeme akışıyla başlayın.
-  </Card>
-  <Card title="3D Secure" icon="shield-check" href="/sanal-pos/payments/3d-secure">
-    Müşteri doğrulama akışının tam detayı.
   </Card>
 </CardGroup>

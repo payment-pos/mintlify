@@ -1,0 +1,82 @@
+---
+title: "Kayıtlı Kartlar"
+description: "Ödemelerle kaydedilen maskeli kart kayıtlarını listeleyin ve pasifleştirin."
+---
+
+Her kartlı ödeme ve abonelik kurulumunda kart, alıcıya (`buyer`) bağlı **maskeli bir kayıt** olarak tutulur. Kayıt PAN ve CVV içermez: yalnızca BIN, son 4 hane, son kullanma tarihi, marka ve tek yönlü bir **kart token'ı** saklanır. Aynı alıcıya ait kartları listelemek ve artık kullanılmasını istemediğiniz kaydı pasifleştirmek için bu uçlar kullanılır.
+
+<Note>
+Kart token'ı bir ödeme aracı **değildir**: token ile ödeme alınmaz, ödeme isteği her seferinde kart bilgisini ister. Token, aynı fiziksel kartı bayi bazında tanımanız (gruplama, tekrarlı hata analizi) içindir. `sanalpos.saved-cards` alt özelliği kapalıysa uçlar `403` döner.
+</Note>
+
+## Uçlar
+
+```http
+GET    /api/v1/cards            # Liste (sayfalı)
+GET    /api/v1/cards/{id}       # Detay
+DELETE /api/v1/cards/{id}       # Pasifleştir (204)
+```
+
+Okuma `CanViewCards`, silme `CanManageCards` izni ister. Kayıtlar test ve canlı modda ayrı tutulur: test anahtarı yalnız test kartlarını görür.
+
+## Liste
+
+Filtreler: `buyer_id` (Payven alıcı kimliği), `external_buyer_id` (ödeme isteğindeki `buyer.id`), `card_token`, `page`, `page_size`.
+
+```bash
+curl "https://vpos.payven.com.tr/api/v1/cards?external_buyer_id=CUST-8841" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Merchant-Id: $MERCHANT_ID"
+```
+
+```json
+{
+  "items": [
+    {
+      "id": "b7c2e1a0-4d63-4f9e-8a15-0c9d7e3f2b64",
+      "buyer_id": "1f0a9c44-6e2b-4d37-b8a1-5e7c3d9f0a22",
+      "external_buyer_id": "CUST-8841",
+      "last4": "7894",
+      "bin_number": 454671,
+      "masked_number": "454671******7894",
+      "card_token": "9d1e0c...",
+      "schema": "visa",
+      "brand": "bonus",
+      "type": "credit",
+      "expiry_month": 12,
+      "expiry_year": 2030,
+      "holder_name": "AHMET YILMAZ",
+      "is_default": false,
+      "is_active": true,
+      "created": "2026-10-15T14:02:11.000+03:00"
+    }
+  ],
+  "page": 1,
+  "total_pages": 1,
+  "total_count": 1,
+  "has_previous_page": false,
+  "has_next_page": false
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `card_token` | Bayi + alıcı + PAN + son kullanma tarihinden üretilen tek yönlü özet; PAN'a geri dönüştürülemez |
+| `schema`, `brand`, `type` | Kart şeması, kart programı ve tipi (`credit` / `debit` / `prepaid`) |
+| `is_default` | Alıcının varsayılan kartı |
+| `is_active` | Pasifleştirilmiş kayıt `false` döner |
+
+## Pasifleştirme
+
+`DELETE /cards/{id}` kaydı yumuşak siler (`is_active: false`); işlem ve abonelik geçmişi korunur. İşlem **idempotenttir**: zaten pasif kart `204` döner, olmayan kart `404`.
+
+## İlgili sayfalar
+
+<CardGroup cols={2}>
+  <Card title="Tekrarlayan Ödeme" icon="repeat" href="/sanal-pos/payments/recurring">
+    Abonelik kurulumunda kart kaydı ve son kullanma tarihi güncelleme.
+  </Card>
+  <Card title="Non-3D Ödeme" icon="credit-card" href="/sanal-pos/payments/non-3d">
+    `buyer.id` alanıyla kartı alıcıya bağlama.
+  </Card>
+</CardGroup>

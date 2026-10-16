@@ -15,13 +15,13 @@ durumdaki bir transferi sizin açık kararınızla yeniden göndermek için kull
 POST /api/v1/transfers/bulk/send
 ```
 
-**Yetki:** transfer gönderme izni (`transfer-admin`).
+**Yetki:** `CanSendTransfers`.
 
 ## Hangi durumlar gönderilebilir?
 
 | Durum | Gönderilebilir mi? |
 |---|---|
-| `failed` | **Evet** — bankanın kesin reddi ya da transferin bankaya hiç gidemediği (ör. banka oturumu alınamadı) durum. Yeniden göndermeden önce `error_code` / `provider_error_code`'u inceleyin |
+| `failed` | **Evet** — bankanın kesin reddi ya da 2 saatlik otomatik deneme süresinde bankaya gidemeyen transfer. Yeniden göndermeden önce `error_code` / `provider_error_code`'u inceleyin. Organizasyon hesabından çıkan transferi yalnız `tenant-*` kullanıcıları yeniden gönderebilir (`403 PV_TENANT_FUNDED_SEND_REQUIRES_TENANT_ROLE`) |
 | `approved` | Evet, ancak gerekmez — kuyruk zaten gönderir |
 | `processing` | **Hayır.** Banka transferi işlemiş olabilir; sonuç otomatik ya da operatörce kesinleşir |
 | `delivered`, `completed`, `refunded` | Hayır |
@@ -50,7 +50,7 @@ curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/send \
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `transfers[]` | array | Zorunlu | Gönderilecek transferler |
+| `transfers[]` | array | Zorunlu | Gönderilecek transferler (en fazla 100) |
 | `transfers[].transfer_id` | UUID | Zorunlu | Transfer kimliği |
 | `transfers[].notes` | string | Opsiyonel | Denetim notu |
 
@@ -65,8 +65,9 @@ Content-Type: application/json
 {
   "total_requested":   3,
   "successfully_sent": 1,
-  "failed":            1,
+  "failed":            0,
   "outcome_unknown":   1,
+  "deferred":           1,
   "results": [
     {
       "transfer_id":         "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
@@ -78,8 +79,8 @@ Content-Type: application/json
     {
       "transfer_id":         "9f3d2b8e-...",
       "is_success":          false,
-      "message":             "Banka oturumu alınamadı; transfer bankaya gönderilmedi.",
-      "error_code":          "PV_CONNECTOR_TOKEN_UNAVAILABLE",
+      "message":             "Banka oturumu alınamadı; transfer bankaya gönderilmedi, otomatik olarak yeniden denenecek.",
+      "error_code":          null,
       "provider_error_code": "PV_CONNECTOR_TOKEN_UNAVAILABLE"
     },
     {
@@ -99,6 +100,7 @@ Content-Type: application/json
 | `successfully_sent` | Bankaya iletilip olumlu yanıt alınan kalem sayısı |
 | `failed` | Gönderilemeyen ya da bankanın reddettiği kalem sayısı |
 | `outcome_unknown` | Bankaya gönderilen ama **yanıt alınamayan** kalem sayısı — bu transferler `processing`'te kalır |
+| `deferred` | Banka oturumu alınamadığı için bankaya **gidilmeyen** kalem sayısı — transfer `approved`'a döner, onaydan itibaren 2 saat otomatik yeniden denenir (`provider_error_code: PV_CONNECTOR_TOKEN_UNAVAILABLE`); `failed` yazılmaz ve yeniden göndermeniz gerekmez |
 | `results[]` | Kalem başına sonuç: `is_success`, `message`, `error_code` (Payven kodu — kararınızı buna dayandırın), `provider_error_code` (bankanın ham kodu — destek talebinde paylaşın) |
 
 ### `PV_TRANSFER_OUTCOME_UNKNOWN`

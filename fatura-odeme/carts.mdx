@@ -1,0 +1,72 @@
+---
+title: "Sepet ve Tahsilat"
+description: "Kalıcı müşteri sepeti, toplu fatura ödemesi ve kartla tahsilat."
+---
+
+## Sepet
+
+Sepet; bir müşterinin tekrar eden abonelik listesidir. Tüm abonelikler tek çağrıyla sorgulanır ve seçilen faturalar tek oturumda ödenir.
+
+| Uç | Politika | Açıklama |
+|---|---|---|
+| `POST /carts` | `CanManageCarts` | Sepet oluştur |
+| `GET /carts`, `GET /carts/{id}`, `GET /carts/lookup` | `CanViewCarts` | Liste, detay, TCKN/telefon ile arama |
+| `PUT /carts/{id}`, `DELETE /carts/{id}` | `CanManageCarts` | Güncelle / sil |
+| `POST /carts/{id}/subscriptions`, `DELETE /carts/{id}/subscriptions/{subscription_id}` | `CanManageCarts` | Abonelik ekle / çıkar |
+| `POST /carts/{id}/inquire` | `CanManageCarts` | Tüm abonelikleri sorgula |
+| `POST /carts/{id}/pay` | `CanManageCarts` | Seçili faturaları öde |
+| `GET /carts/payments/{payment_id}` | `CanViewCarts` | Sepet ödemesi durumu |
+
+```json
+{
+  "customer_name": "Ayşe Demir",
+  "customer_tckn": "12345678901",
+  "customer_phone": "+905551112233",
+  "customer_code": "MUSTERI-77",
+  "subscriptions": [
+    { "provider_code": "pv_ornek_kurum", "subscriber_number": "1234567890", "alias": "Ev" }
+  ]
+}
+```
+
+`customer_tckn` (10-11 hane) bayi kapsamında benzersizdir; aynı TCKN ile ikinci sepet `422 validation_failed` alır. Aynı TCKN test ve canlı modda iki bağımsız sepettir.
+
+## Sepet ödemesi
+
+```json
+{
+  "collection_source": "credit_card",
+  "invoice_ids": ["8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6", "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"],
+  "customer_email": "ayse@example.com",
+  "return_url": "https://magaza.example/odeme/donus"
+}
+```
+
+| `collection_source` | Davranış |
+|---|---|
+| `balance`, `external_pos` | Senkron: her fatura sırayla ödenir. Yanıtta `invoice_results[]` ve `summary` (kaç fatura ödendi / hata aldı) bulunur. |
+| `credit_card` | Sanal POS hosted checkout oturumu açılır; yanıtta `checkout_url` döner, müşteriyi oraya yönlendirin. |
+
+<Note>
+Kart ödemesinde sonucu **dönüş URL'inden değil**, webhook'tan ya da `GET /carts/payments/{payment_id}` ile alın.
+Sepet ödemesinin durumunu yalnız Sanal POS'un sonuç olayı kapatır; tarayıcı kapansa bile işlem tamamlanır.
+Bir kısmı ödenip bir kısmı ödenemezse durum `partially_completed` olur; ödenen faturalar `paid` kalır.
+</Note>
+
+## Tahsilat (tek fatura ödemesi)
+
+`POST /api/v1/invoice-payments/{payment_id}/collections` · `GET` aynı yolda tahsilat listesi.
+
+| Alan | Açıklama |
+|---|---|
+| `source` | `balance`, `credit_card`, `external_pos` |
+| `amount` | Kuruş; kısmi tahsilat olabilir |
+| `card`, `buyer`, `installment` | Doğrudan kart çekimi (`credit_card`); `card` yoksa hosted checkout kullanılır |
+| `return_url`, `customer_email` | Hosted / 3D akışı için |
+| `external_receipt_ref` | `external_pos` için slip referansı |
+
+Yanıt: `is_success`, `error_code`, `error_message`, `collection`, `checkout_url` (3D gerekiyorsa). Her tahsilat ayrı bir `fatura-odeme.invoice.paid` olayı üretir.
+
+<Warning>
+Kart verisini kendi sunucunuzdan geçirmek PCI kapsamınızı büyütür. Mümkün olduğunda `card` göndermeyin; hosted checkout kullanın.
+</Warning>

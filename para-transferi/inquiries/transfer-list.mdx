@@ -3,7 +3,7 @@ title: "Transfer Listesi"
 description: "Filtreleme ve sayfalama ile transferleri toplu olarak listeleyin."
 ---
 
-Transferlerinizi tarih, durum, tip, hesap, alıcı gibi kriterlere göre filtreleyip sayfalı şekilde listeleyin. Bu endpoint **özet** kayıtlar döner — tek bir transferin tam detayı için [Transfer Detayı](/para-transferi/inquiries/transfer-detail) endpoint'ini kullanın.
+Transferlerinizi tarih, durum, tip, hesap, alıcı gibi kriterlere göre filtreleyip sayfalı şekilde listeleyin. Liste ve detay aynı [Transfer Objesi](/para-transferi/transfer-object) şemasını döner; detaya özgü alanlar (`events`, `webhook_deliveries`, `channel_suggestions`) listede boş gelir.
 
 ## Endpoint
 
@@ -11,27 +11,30 @@ Transferlerinizi tarih, durum, tip, hesap, alıcı gibi kriterlere göre filtrel
 GET /api/v1/transfers
 ```
 
-**Yetki:** `transfer-admin`, `transfer-operator` veya `transfer-viewer` rolü.
+**Yetki:** `CanViewTransfers`. Bayi kapsamlı kimlikler yalnız kendi bayilerinin transferlerini görür; `tenant-*` rolleri bayi başlığıyla daraltabilir.
 
 ## Sorgu parametreleri
 
-Tüm parametreler **snake_case**'dir.
+Tüm parametreler **snake_case**'dir (camelCase `400` ile reddedilir).
 
 | Parametre | Tip | Açıklama |
 |---|---|---|
 | `page` | int | Sayfa numarası (varsayılan `1`) |
-| `page_size` | int | Sayfa başı kayıt (1–100, varsayılan `10`) |
+| `page_size` | int | Sayfa başı kayıt (varsayılan `10`; `0` = tümü, en fazla 5.000 kayıt) |
 | `external_id` | string | Sizin referansınızla **birebir** eşleşme (oluştururken verdiğiniz `external_id`) |
 | `request_id` | string | Oluşturma isteğinde gönderdiğiniz `X-Request-Id` (paket numaranız) ile **birebir** eşleşme — paketin tüm transferlerini döner |
-| `bulk_transfer_batch_id` | UUID | Toplu transfer paketi (Excel) kimliği |
+| `bulk_transfer_batch_id` | UUID | Toplu transfer paketi kimliği |
 | `unsettled` | bool | `true`: bankaya gönderilmiş ama **30 dakikadan uzun süredir** sonucu kesinleşmemiş (`processing` / `delivered`) transferler |
+| `unresolved` | bool | `true`: otomatik takibin kesinleştiremediği transferler — 30 dakikayı aşmış `processing` ve 3 günü aşmış `delivered` |
 | `status` | enum | `pending`, `awaiting_funds`, `approved`, `rejected`, `processing`, `delivered`, `completed`, `failed`, `refunded` |
 | `transfer_type` | enum | `fast`, `eft`, `remittance`, `credit_card` (talep edilen tip) |
 | `from_date`, `to_date` | datetime | Tarih aralığı (ISO 8601, `+03:00` ile gönderin) — `scheduled_date` üzerinde filtreler |
 | `min_amount`, `max_amount` | long (kuruş) | Tutar aralığı |
-| `connector_account_id` | UUID | Gönderici hesap filtresi |
+| `connector_account_id` | UUID | Gönderici hesap filtresi (talep edilen ya da gerçekleşen) |
 | `receiver_account_id` | UUID | Alıcı hesap filtresi |
 | `search_term` | string | `external_id`, `request_id`, açıklama ve alıcı adı üzerinde "içerir" araması (en fazla 100 karakter) |
+| `group_splits` | bool | `true`: parçalı ödemenin parçaları tek satıra indirgenir ve satır `split_group` taşır (varsayılan `false`: parça parça listelenir) |
+| `include_inactive` | bool | Pasif kayıtları da getirir |
 
 <Note>
 `external_id` / `request_id` **birebir** eşleşir ve indekslidir — kendi kaydınızı bulmak için bunları
@@ -43,8 +46,7 @@ bağlamayın.
 
 ```bash
 curl "https://transfer.payven.com.tr/api/v1/transfers?from_date=2026-05-01T00:00:00%2B03:00&to_date=2026-05-31T23:59:59%2B03:00&status=completed&transfer_type=fast&page_size=50" \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID"
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
 ## Yanıt
@@ -55,33 +57,36 @@ Standart sayfalı liste yapısı:
 {
   "items": [
     {
-      "id":                       "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-      "merchant_id":              "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-      "external_id":              "PAYROLL-001",
-      "description":              "Mayıs maaş ödemesi",
-      "receipt_no":               "TRF-20260503-0001",
+      "id":                        "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "merchant_id":               "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "external_id":               "PAYROLL-001",
+      "request_id":                "PAYROLL-2026-05",
+      "description":               "Mayıs maaş ödemesi",
+      "receipt_no":                "TRF-20260503-0001",
 
-      "source_account_id":        "550e8400-e29b-41d4-a716-446655440000",
-      "source_account_iban":      "TR860006400000000000000123",
-      "source_account_bank":      "Garanti BBVA",
+      "receiver_account_id":       "11111111-2222-3333-4444-555555555555",
+      "receiver_account": {
+        "holder_name": "Ahmet Yılmaz",
+        "iban":        "TR330006100519786457841326",
+        "bank_name":   "Akbank",
+        "bank_code":   "00046"
+      },
+      "request_sender_account_id": "66666666-7777-8888-9999-aaaaaaaaaaaa",
+      "success_sender_account_id": "66666666-7777-8888-9999-aaaaaaaaaaaa",
 
-      "recipient_id":             "abc-12345-...",
-      "recipient_name":           "Ahmet Yılmaz",
-      "recipient_iban":           "TR330006100519786457841326",
-      "recipient_bank":           "Akbank",
+      "amount":                    1500000,
+      "currency":                  "try",
+      "fee_amount":                350,
 
-      "amount":                   1500000,
-      "currency":                 "TRY",
-      "fee_amount":               350,
+      "request_transfer_type":     "fast",
+      "success_transfer_type":     "fast",
 
-      "request_transfer_type":    "fast",
-      "success_transfer_type":    "fast",
-
-      "status":                   "completed",
-      "scheduled_date":           "2026-05-03T12:00:00.000+03:00",
-      "sent_date":                "2026-05-03T12:34:58.000+03:00",
-      "processed_date":           "2026-05-03T12:35:00.000+03:00",
-      "created":                  "2026-05-03T12:00:00.123+03:00"
+      "status":                    "completed",
+      "receipt_available":         true,
+      "scheduled_date":            "2026-05-03T12:00:00.000+03:00",
+      "sent_date":                 "2026-05-03T12:34:58.000+03:00",
+      "processed_date":            "2026-05-03T12:35:00.000+03:00",
+      "metadata":                  {}
     }
   ],
   "page":              1,
@@ -108,7 +113,7 @@ GET /api/v1/transfers?external_id=PAYROLL-001
 GET /api/v1/transfers?request_id=PAYROLL-2026-05&page_size=100
 ```
 
-**Excel paketinin kalemleri:**
+**Toplu transfer paketinin kalemleri:**
 
 ```http
 GET /api/v1/transfers?bulk_transfer_batch_id=4b6f2c1e-...&page_size=100
@@ -121,6 +126,7 @@ GET /api/v1/transfers?unsettled=true
 ```
 
 Bu listedeki transferler **yeniden gönderilmemelidir**; sonuç otomatik ya da operatörce kesinleşir.
+Kesinleştirme yolları: [Belirsiz Sonuç ve İade](/para-transferi/transfers/outcome-resolution).
 
 **Bugün başarılı tamamlanan tüm FAST transferleri:**
 
@@ -134,20 +140,26 @@ GET /api/v1/transfers?from_date=2026-05-03T00:00:00%2B03:00&to_date=2026-05-03T2
 GET /api/v1/transfers?status=failed&min_amount=10000000
 ```
 
-## Tek bir transferin detayı
+## Özet sayılar
 
-Listedeki bir kaydın `id` değerini kullanarak detay endpoint'ine gidin: [Transfer Detayı](/para-transferi/inquiries/transfer-detail).
+```http
+GET /api/v1/transfers/stats?from_date=2026-05-01T00:00:00%2B03:00&to_date=2026-05-31T23:59:59%2B03:00
+```
+
+Tüm filtreye uyan kayıtlar için durum kovalarına göre `count` ve `total_amount` döner
+(`pending`, `approved`, `processing`, `error`, `completed` (= `completed` + `delivered`), `refunded`,
+`today_completed`) ve genel `total` / `total_amount` içerir. Sayfa bazlı toplama yerine bunu kullanın.
 
 ## Export
 
 `GET /api/v1/transfers/export` aynı filtrelerle CSV (UTF-8 BOM, Excel uyumlu) döner: `scope=page`
-istekteki sayfayı, `scope=all` (varsayılan) tüm filtreli kayıtları indirir. Konsolda **Transferler**
-ekranından CSV/XLSX indirme de mümkündür.
+istekteki sayfayı, `scope=all` (varsayılan) tüm filtreli kayıtları indirir. Kolon şeması
+`GET /api/v1/transfers/export/schema` ile alınır.
 
 ## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `400` | `validation_failed` | Parametre formatı geçersiz (örn. tarih, IBAN) |
-| `403` | `forbidden` | Yetki yok |
-| `422` | `invalid_filter` | Tutar aralığı hatalı (`min_amount > max_amount`) |
+| `400` | `invalid_query_parameter` | Sorgu parametre adı snake_case değil (ör. `pageSize`) |
+| `403` | `forbidden` | `CanViewTransfers` izni yok |
+| `422` | `validation_failed` | Değer doğrulaması başarısız (ör. `search_term` > 100 karakter) |

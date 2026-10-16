@@ -1,0 +1,40 @@
+---
+title: "Webhook'lar"
+description: "e-Fatura belge ve gelen fatura olayları."
+---
+
+Webhook ucu tüm ürünler için tek yerden tanımlanır: [Webhook'lar](/documentation/concepts/webhooks). Geçerli liste daima `GET /api/v1/webhook-endpoints/event-types` yanıtıdır. İmza doğrulama: [İmza Doğrulama](/sanal-pos/webhooks/signature).
+
+| Olay | Tetikleyici |
+|---|---|
+| `e-fatura.invoice.issued` | Belge entegratöre iletildi; numara ve ETTN alındı |
+| `e-fatura.invoice.accepted` | GİB / alıcı belgeyi kabul etti |
+| `e-fatura.invoice.rejected` | GİB / alıcı belgeyi reddetti |
+| `e-fatura.invoice.cancelled` | Belge iptal edildi |
+| `e-fatura.invoice.failed` | Gönderim teknik hatayla bitti |
+| `e-fatura.incoming_invoice.accepted` | Gelen fatura kabul edildi |
+| `e-fatura.incoming_invoice.rejected` | Gelen fatura reddedildi |
+
+## Belge olayları (`invoice.*`) — ortak alanlar
+
+| Alan | Açıklama |
+|---|---|
+| `tenant_id`, `merchant_id` | Kapsam |
+| `invoice_id` | Payven belge kimliği |
+| `invoice_number`, `ettn` | Belge numarası ve ETTN |
+| `document_kind` | `e_fatura` / `e_arsiv` |
+| `status` | Olay anındaki durum |
+| `buyer_tax_number`, `buyer_title` | Alıcı |
+| `currency`, `payable_amount` | Ödenecek toplam (kuruş) |
+| `external_id` | Sizin belge numaranız |
+| `issue_date`, `occurred_at` | `+03:00` |
+
+Ek alanlar: `accepted` → `provider_status_code`; `rejected` → `provider_status_code`, `provider_status_description`; `cancelled` → `cancel_reason`.
+
+## Gelen fatura olayları — alanlar
+
+`tenant_id`, `merchant_id`, `incoming_invoice_id`, `document_id`, `connector_code`, `invoice_number`, `supplier_tax_number`, `supplier_name`, `currency`, `amount` (kuruş), `decision_reason`, `decided_at`, `occurred_at`.
+
+<Note>
+Belge durumları GİB'den en geç 5 dakikalık aralıkla eşitlenir; `accepted`/`rejected` olayı bu eşitlemeyle gelir. Aynı olay birden çok kez teslim edilebilir; `X-Payven-Event-Id` ile tekilleştirin.
+</Note>

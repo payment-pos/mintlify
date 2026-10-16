@@ -82,7 +82,7 @@ Gövde varsayılan olarak **olay zarfıdır** (`payload_format: event`); Sanal P
       "masked_card_number":      "454671******7894",
       "card_brand":              "bonus",
       "connector_config_id":     "5b2e7c10-...",
-      "bank_code":               "akbank",
+      "bank_code":               "00099",
       "payment_method_category": "card",
       "installment_count":       1,
       "occurred_at":             "2026-05-03T15:34:58.123+03:00",
@@ -172,7 +172,8 @@ Her teslim ve denemesi İşyeri API'sinden okunur (panelde **Geliştirici › We
 - `GET /webhook-endpoints/{id}/deliveries` — teslimler (`state`: `pending` / `succeeded` / `failed`, son HTTP kodu, sonraki deneme zamanı)
 - `GET /webhook-endpoints/deliveries/{delivery_id}/attempts` — her denemenin HTTP kodu, süresi ve yanıt gövdesi
 - `POST /webhook-endpoints/deliveries/{delivery_id}/retry` — teslimi hemen yeniden gönder
-- `GET /events` — saklanan olaylar; webhook kaçırıldıysa buradan çekin
+- `POST /webhook-endpoints/{id}/test` — uca imzalı deneme olayı gönderir ve yanıtınızı döner (olay listesinde görünmez)
+- `GET /events` — saklanan olaylar (`type`, `resource_id`, `created_gte`, `created_lte` filtreleri; `type=sanalpos.payment.*` gibi önek desteklenir); webhook kaçırıldıysa buradan çekin
 
 ## Lokal geliştirme
 

@@ -1,12 +1,13 @@
 ---
 title: "Payven Hata Kodları"
-description: "Sanal POS domain hata kodlarının tam listesi — hata yanıtının code alanında döner."
+description: "Sanal POS hata kodlarının tam listesi — hata yanıtının code alanında döner."
 ---
 
-Bu sayfa Sanal POS'un kendi domain hata kodlarını listeler. Kodlar hata yanıtının `code`
-alanında **katalogdaki haliyle** (büyük harf, `PV_` veya operasyon prefix'li) döner; HTTP
-durum kodu tabloda belirtilmiştir. Banka tarafından gelen ham yanıt kodu ayrıca
-`provider_error_code` alanında taşınır — detay: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
+Bu sayfa Sanal POS'un `code` değerlerini ve HTTP durumlarını listeler. Kodlar hata yanıtında **katalogdaki haliyle** döner (`PV_` önekli, öneksiz operasyon kodu veya snake_case). HTTP durumu koda göre sabittir: aynı durum her uçta aynı `code` ve statüyle döner. Banka tarafından gelen ham kod ayrıca `provider_error_code` alanında taşınır — bkz. [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes). Zarf yapısı için: [Genel Bakış](/sanal-pos/errors/overview).
+
+<Note>
+Tablolardaki HTTP durumu katalogdaki **varsayılandır**. Bankanın yanıtından üretilen kodlarda (red, sistem hatası, zaman aşımı) durum, ilgili banka kodunun kayıtlı önerisinden gelir: çoğu ret `402`, kart verisi hataları `400`, güvenlik retleri `403`, geçici banka hataları `503`/`504` olabilir. İstek doğrulama ve iş kuralı hataları tablodaki durumla döner. Karar için daima `code` alanını kullanın.
+</Note>
 
 ## Genel ödeme akışı
 
@@ -16,8 +17,9 @@ durum kodu tabloda belirtilmiştir. Banka tarafından gelen ham yanıt kodu ayr�
 | `PV_CARD_EXPIRED` | 422 | Kartın son kullanma tarihi geçmiş |
 | `PV_INVALID_CARD` | 422 | Geçersiz kart |
 | `PV_INVALID_CVV` | 422 | Geçersiz CVV |
-| `PV_CVV_REQUIRED` | 422 | CVV zorunlu (bayi banka profili `RequireCvv` açık) |
+| `PV_CVV_REQUIRED` | 422 | CVV zorunlu (tenant ödeme politikası CVV istiyor) |
 | `PV_INVALID_CARD_NUMBER` | 422 | Geçersiz kart numarası (uzunluk / Luhn). Bu doğrulama kapatılabilir — bkz. aşağıdaki not. |
+| `PV_MASKED_CARD_NUMBER` | 422 | Kart numarası maskeli (`411111****1111`) gönderilmiş; tam numara gerekir |
 | `PV_INVALID_CARD_EXPIRY` | 422 | Kart son kullanma tarihi geçersiz |
 | `PV_INVALID_CARD_HOLDER` | 422 | Geçersiz kart sahibi bilgisi |
 | `PV_CARD_DATA_MISSING` | 422 | Kart verisi eksik |
@@ -25,32 +27,58 @@ durum kodu tabloda belirtilmiştir. Banka tarafından gelen ham yanıt kodu ayr�
 | `PV_INVALID_CURRENCY` | 422 | Geçersiz para birimi |
 | `PV_BANK_DECLINED` | 422 | Banka işlemi reddetti — `provider_error_code` daha spesifik bilgi taşır |
 | `PV_DO_NOT_HONOR` | 422 | Banka işleme izin vermedi (do not honor, banka kodu 05) |
-| `PV_LIMIT_EXCEEDED` | 422 | İşlem limiti aşıldı |
+| `PV_LIMIT_EXCEEDED` | 422 | Kartın / bankanın işlem limiti aşıldı |
 | `PV_FRAUD_SUSPECTED` | 422 | İşlem güvenlik nedeniyle reddedildi |
 | `PV_BIN_RESTRICTED` | 422 | Kart (BIN) bu işlem için kısıtlı |
-| `PV_DUPLICATE_ORDER` | 409 | Bu sipariş (`external_id`) zaten işlenmiş |
-| `PV_ORDER_AMOUNT_MISMATCH` | 422 | Bu sipariş numarası farklı bir tutarla zaten kullanılmış |
+| `PV_MERCHANT_INACTIVE` | 422 | **Bankadaki** üye işyeri veya terminal pasif (bizim bayi kaydınızın pasifliği `merchant_inactive`'tir) |
+| `PV_MERCHANT_BANK_PROFILE_MISSING` | 422 | Seçilen banka için bayi banka profili (ödeme tanımı) yok; istek bankaya gönderilmedi |
+| `PV_DUPLICATE_ORDER` | 409 | Aynı `external_id` ile işlem hâlâ sürüyor; yanıttaki `transaction_id` ile durumu sorgulayın |
+| `PV_ORDER_AMOUNT_MISMATCH` | 422 | Bu `external_id` farklı bir tutar / para birimiyle zaten kullanılmış |
 | `PV_PAYMENT_FAILED` | 422 | Ödeme işlemi başarısız (genel) |
 | `PV_PAYMENT_EXCEPTION` | 422 | Ödeme sırasında beklenmeyen hata |
-| `PV_NON_3D_NOT_ALLOWED` | 422 | Non-3D ödeme bu bayi için kapalı |
+| `PV_NON_3D_NOT_ALLOWED` | 422 | Non-3D ödeme tenant ödeme politikasında kapalı; 3D Secure kullanın |
 | `PV_TIMEOUT` | 504 | İşlem zaman aşımına uğradı |
-| `PV_SYSTEM_ERROR` | 500 | Sistem hatası |
-| `PV_CONFIG_ERROR` | 500 | Yapılandırma hatası (konnektör konfigürasyonu hatalı/eksik) |
+| `PV_SYSTEM_ERROR` | 422 | Sistem hatası (bankadan gelen sistem hatasının kanonik karşılığı) |
+| `PV_CONFIG_ERROR` | 422 | Yapılandırma hatası (konnektör / terminal konfigürasyonu hatalı veya eksik) |
 | `PV_UNSUPPORTED_OPERATION` | 422 | Desteklenmeyen işlem |
-| `PV_UNKNOWN` | 422 | Eşlenmemiş hata — destek talebine açın |
-
+| `PV_UNKNOWN` | 422 | Eşlenmemiş hata — `correlation_id` ile destek talebi açın |
 
 <Note>
-**Kart numarası doğrulaması kapatılabilir.** Varsayılan olarak Payven, kartı bankaya göndermeden
-önce numara uzunluğunu ve Luhn kontrolünü doğrular; geçersizse `PV_INVALID_CARD_NUMBER` döner.
-Kart kontrolünü kendi tarafında yapan bayiler için bu doğrulama kapatılabilir — bu durumda kart
-olduğu gibi bankaya gider ve kararı banka verir (yanıtta Payven kodu yerine bankanın kendi kodu
-görünür). Ayar bayi veya tenant bazında yönetilir; talep için müşteri başarısı ekibine ulaşın.
+**Kart numarası doğrulaması kapatılabilir.** Varsayılan olarak Payven, kartı bankaya göndermeden önce numara uzunluğunu ve Luhn kontrolünü doğrular; geçersizse `PV_INVALID_CARD_NUMBER` döner. Kart kontrolünü kendi tarafında yapan bayiler için bu doğrulama kapatılabilir — bu durumda kart olduğu gibi bankaya gider ve kararı banka verir (yanıtta Payven kodu yerine bankanın kendi kodu görünür). Ayar bayi veya tenant bazında yönetilir; talep için müşteri başarısı ekibine ulaşın.
 
-Kapalıyken de reddedilenler: **boş** kart numarası ve **maskeli** kart numarası
-(`PV_MASKED_CARD_NUMBER` — `411111****1111` gibi girdiler bir entegrasyon hatasıdır). Son
-kullanma tarihi ve CVV kontrolleri bu ayardan etkilenmez.
+Kapalıyken de reddedilenler: **boş** ve **maskeli** kart numarası. Son kullanma tarihi ve CVV kontrolleri bu ayardan etkilenmez.
 </Note>
+
+## İstek zarfı ve doğrulama
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `invalid_request_body` | 400 | Geçersiz istek gövdesi — JSON parse edilemedi |
+| `validation_failed` | 422 | Doğrulama kuralı ihlali; `param` ve `errors` alanı hatalı alanları söyler |
+| `external_id_required` | 422 | `external_id` zorunlu — aynı sipariş için tekrar gönderimde çift çekimi önleyen anahtardır |
+| `PV_INVALID_BILLING_CITY` | 422 | Fatura adresi şehir kodu geçersiz |
+| `PV_INVALID_SHIPPING_CITY` | 422 | Teslimat adresi şehir kodu geçersiz |
+| `PV_INVALID_CALLBACK_URL` | 422 | `success_url` / `fail_url` geçersiz (absolute http/https değil) |
+| `PV_EMPTY_CALLBACK_DATA` | 400 | Banka dönüşü boş veya okunamadı |
+| `PV_MISSING_TRANSACTION_ID` | 400 | Banka dönüşünde işlem kimliği yok |
+| `PV_TRANSACTION_NOT_FOUND` | 404 | Verilen `transaction_id` bulunamadı |
+| `resource_not_found` | 404 | Genel kaynak bulunamadı |
+| `PV_CONNECTOR_NOT_FOUND` | 422 | Bu işlem için uygun banka bağlantısı yok |
+| `PV_ROUTING_RULE_NOT_FOUND` | 422 | Uygun yönlendirme kuralı bulunamadı |
+
+## Bayi ve erişim
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `merchant_context_missing` | 400 | Hiçbir bayi bilgisi gelmedi (`X-Merchant-Id` / `X-External-Merchant-Id`) |
+| `merchant_context_mismatch` | 403 | Başlıktaki bayi anahtarın bayisiyle uyuşmuyor |
+| `merchant_not_found` | 422 | Bildirilen bayi bulunamadı |
+| `merchant_inactive` | 422 | Bayi pasif; işlem başlatılamaz |
+| `merchant_not_approved` | 422 | Bayinin onayı tamamlanmamış veya reddedilmiş |
+| `merchant_limit_exceeded` | 422 | Bayinin günlük / haftalık / aylık hacim limiti veya tek işlem tavanı aşılıyor (bankanın kart reddi olan `PV_LIMIT_EXCEEDED`'dan farklıdır) |
+| `feature_not_available` | 403 | İlgili alt modül (örn. ürün kataloğu) tenant'ta kapalı |
+
+Kimlik hataları (`unauthorized`, `forbidden`, `credential_read_only`, `api_key_*`) için: [Kimlik Doğrulama](/sanal-pos/authentication#kimlik-ve-erisim-hatalari).
 
 ## Taksit kodları
 
@@ -62,36 +90,21 @@ kullanma tarihi ve CVV kontrolleri bu ayardan etkilenmez.
 | `PV_FOREIGN_CARD_INSTALLMENT_NOT_ALLOWED` | 422 | Yabancı kart ile taksit yapılamaz |
 | `PV_INSTALLMENT_RATE_NOT_CONFIGURED` | 422 | İstenen taksit için vade farkı oranı tanımlı değil |
 
-## Akış kontrol kodları
-
-| Kod | HTTP | Anlam |
-|---|---|---|
-| `PV_TRANSACTION_NOT_FOUND` | 404 | Verilen `transaction_id` bulunamadı |
-| `PV_CONNECTOR_NOT_FOUND` | 422 | Bu işlem için uygun konnektör yok |
-| `PV_ROUTING_RULE_NOT_FOUND` | 422 | Uygun yönlendirme kuralı bulunamadı |
-| `PV_INVALID_MERCHANT_ID` | 422 | `X-Merchant-Id` veya `X-External-Merchant-Id` geçersiz |
-| `PV_MERCHANT_NOT_FOUND` | 404 | Bayi kaydı bulunamadı |
-| `PV_MERCHANT_INACTIVE` | 422 | Bayi aktif değil |
-| `PV_INVALID_BILLING_CITY` | 422 | Fatura adresi şehir kodu geçersiz |
-| `PV_INVALID_SHIPPING_CITY` | 422 | Gönderim adresi şehir kodu geçersiz |
-| `PV_INVALID_CALLBACK_URL` | 422 | `success_url` / `fail_url` geçersiz (absolute http/https değil) |
-| `PV_EMPTY_CALLBACK_DATA` | 400 | Banka callback'i boş veya parse edilemedi |
-| `PV_MISSING_TRANSACTION_ID` | 400 | Callback'te işlem kimliği yok |
-
 ## 3D Secure kodları
 
 | Kod | HTTP | Anlam |
 |---|---|---|
 | `PV_3DS_FAILED` | 422 | 3DS doğrulaması başarısız (genel) |
 | `PV_3DS_INIT_EXCEPTION` | 422 | 3DS başlatılırken beklenmeyen hata |
-| `THREEDS_NOT_SUPPORTED` | 422 | Konnektör 3DS desteklemiyor |
+| `THREEDS_NOT_SUPPORTED` | 422 | Banka bağlantısı 3DS desteklemiyor |
 | `THREEDS_INIT_NOT_ALLOWED` | 422 | İşlem mevcut durumunda 3DS init yapılamaz |
-| `THREEDS_VERIFY_FAILED` | 422 | 3DS doğrulama başarısız (CAVV/ECI mismatch) |
+| `THREEDS_VERIFY_FAILED` | 422 | 3DS doğrulama başarısız (banka kararı) |
+| `THREEDS_VERIFY_UNAVAILABLE` | 504 | 3DS sonucu bankadan teyit edilemedi; sonuç **bilinmiyor**, işlem doğrulanıyor — yeniden ödeme başlatmadan önce durumu sorgulayın |
 | `THREEDS_COMPLETE_NOT_ALLOWED` | 409 | 3DS tamamlama bu işlem için uygun değil |
 | `THREEDS_COMPLETE_FAILED` | 422 | 3DS tamamlama başarısız (banka reddi) |
 | `THREEDS_COMPLETE_EXCEPTION` | 422 | 3DS tamamlanırken beklenmeyen hata |
 | `THREEDS_CARD_DATA_MISSING` | 422 | 3DS için kart verisi eksik |
-| `THREEDS_MODULE_NOT_FOUND` | 422 | 3DS modülü konnektörde implemente değil |
+| `THREEDS_MODULE_NOT_FOUND` | 422 | Bu banka bağlantısı için 3DS modülü yok |
 | `THREEDS_TIMEOUT` | 504 | 3DS zaman aşımına uğradı |
 | `CARD_MISMATCH` | 422 | Kart bilgisi eşleşmiyor |
 
@@ -99,18 +112,18 @@ kullanma tarihi ve CVV kontrolleri bu ayardan etkilenmez.
 
 | Kod | HTTP | Anlam |
 |---|---|---|
-| `VOID_NOT_SUPPORTED` | 422 | Konnektör void operasyonu desteklemiyor |
-| `VOID_NOT_ALLOWED` | 409 | İşlem mevcut durumunda iptal edilemez |
-| `VOID_FAILED` | 422 | Banka void talebini reddetti |
-| `VOID_EXCEPTION` | 422 | Void sırasında beklenmeyen hata |
+| `VOID_NOT_SUPPORTED` | 422 | Banka bağlantısı iptali desteklemiyor |
+| `VOID_NOT_ALLOWED` | 409 | İptal bu işlem için uygun değil |
+| `VOID_FAILED` | 422 | Banka iptal talebini reddetti |
+| `VOID_EXCEPTION` | 422 | İptal sırasında beklenmeyen hata |
 | `PV_ALREADY_VOIDED` | 409 | İşlem zaten iptal edilmiş |
-| `PV_CANNOT_VOID` | 409 | İşlem mevcut durumunda iptal edilemez — mutabakat sonrası `/refund` kullanın |
+| `PV_CANNOT_VOID` | 409 | İşlem mevcut durumunda iptal edilemez — gün sonu sonrası `/refund` kullanın |
 
 ## Refund / İade kodları
 
 | Kod | HTTP | Anlam |
 |---|---|---|
-| `REFUND_NOT_SUPPORTED` | 422 | Konnektör refund operasyonu desteklemiyor |
+| `REFUND_NOT_SUPPORTED` | 422 | Banka bağlantısı iadeyi desteklemiyor |
 | `REFUND_NOT_ALLOWED` | 409 | İade bu işlem için uygun değil |
 | `REFUND_FAILED` | 422 | Banka iade talebini reddetti |
 | `REFUND_EXCEPTION` | 422 | İade sırasında beklenmeyen hata |
@@ -119,12 +132,14 @@ kullanma tarihi ve CVV kontrolleri bu ayardan etkilenmez.
 | `REFUND_AMOUNT_EXCEEDS_REMAINING` | 422 | İade tutarı kalan iade edilebilir tutarı aşıyor |
 | `REFUND_CURRENCY_MISMATCH` | 422 | İade para birimi orijinal işlemden farklı |
 | `PV_CANNOT_REFUND` | 409 | İşlem mevcut durumunda iade edilemez |
+| `PV_REFUND_AWAITING_FUNDS` | 422 | İade, bayinin cüzdan bakiyesi doğrulanana kadar bekletildi; bankaya gidilmedi |
+| `PV_REFUND_ALREADY_QUEUED` | 409 | Bu işlem için bakiye bekleyen bir iade zaten var |
 
 ## Capture / Çekim kodları (Pre-Auth)
 
 | Kod | HTTP | Anlam |
 |---|---|---|
-| `CAPTURE_NOT_SUPPORTED` | 422 | Konnektör capture operasyonu desteklemiyor |
+| `CAPTURE_NOT_SUPPORTED` | 422 | Banka bağlantısı capture desteklemiyor |
 | `CAPTURE_NOT_ALLOWED` | 409 | Capture bu işlem için uygun değil (Pre-Auth değil / süre doldu) |
 | `CAPTURE_FAILED` | 422 | Banka capture talebini reddetti |
 | `CAPTURE_EXCEPTION` | 422 | Capture sırasında beklenmeyen hata |
@@ -132,12 +147,29 @@ kullanma tarihi ve CVV kontrolleri bu ayardan etkilenmez.
 | `NO_REMAINING_AMOUNT` | 422 | Capture edilecek kalan tutar yok |
 | `CAPTURE_STATE_UPDATE_FAILED` | 422 | Capture sonrası kayıt güncellemesi başarısız |
 
+## Belirsiz banka sonucu
+
+İade, iptal veya capture bankaya gitti ama banka karar bildirmediğinde işlem kilitlenir; sonuç banka teyidiyle veya operatör kararıyla kesinleşir.
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `PV_BANK_RESULT_UNKNOWN` | 504 | Banka işlemin sonucunu bildirmedi; işlem doğrulanıyor. **Tekrar denemeyin** (ilk istek bankada gerçekleşmiş olabilir, çift iade riski) |
+| `PV_BANK_RESULT_PENDING` | 409 | Bu işlemde sonucu doğrulanmayı bekleyen bir banka işlemi var; kesinleşmeden yeni işlem yapılamaz |
+| `PV_UNRESOLVED_BANK_OPERATION_NOT_FOUND` | 404 | Sonucu belirsiz banka işlemi bulunamadı |
+| `PV_UNRESOLVED_BANK_OPERATION_ALREADY_RESOLVED` | 409 | Bu banka işleminin sonucu zaten kesinleşmiş |
+
+## Ters ibraz (chargeback)
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `PV_CHARGEBACK_ALREADY_RESOLVED` | 409 | Ters ibraz zaten sonuçlandırılmış; sonuç değiştirilemez |
+
 ## Recurring kodları
 
 | Kod | HTTP | Anlam |
 |---|---|---|
 | `PV_RECURRING_EXCEPTION` | 422 | Tekrarlayan ödeme işleminde beklenmeyen hata |
-| `PV_RECURRING_NOT_SUPPORTED` | 422 | Konnektör tekrarlayan ödemeyi desteklemiyor |
+| `PV_RECURRING_NOT_SUPPORTED` | 422 | Banka bağlantısı tekrarlayan ödemeyi desteklemiyor |
 | `PV_RECURRING_PLAN_NOT_FOUND` | 404 | Tekrarlayan plan bulunamadı |
 | `PV_RECURRING_PLAN_NOT_ACTIVE` | 409 | Tekrarlayan plan aktif değil |
 | `PV_RECURRING_INSTALLMENT_NOT_FOUND` | 404 | Tekrarlayan taksit bulunamadı |
@@ -153,7 +185,7 @@ kullanma tarihi ve CVV kontrolleri bu ayardan etkilenmez.
 
 | Kod | HTTP | Anlam |
 |---|---|---|
-| `POINT_INQUIRY_NOT_SUPPORTED` | 422 | Konnektör puan sorgulama desteklemiyor |
+| `POINT_INQUIRY_NOT_SUPPORTED` | 422 | Banka bağlantısı puan sorgulama desteklemiyor |
 | `POINT_INQUIRY_FAILED` | 422 | Puan sorgulama başarısız |
 | `POINT_INQUIRY_EXCEPTION` | 422 | Puan sorgulamada beklenmeyen hata |
 | `QUERY_FAILED` | 422 | Sorgulama başarısız |
@@ -164,38 +196,85 @@ kullanma tarihi ve CVV kontrolleri bu ayardan etkilenmez.
 | `ORDER_LINK_EXCEPTION` | 422 | Sipariş bağlantısında beklenmeyen hata |
 | `PAYMENT_RECONCILIATION_FAILED` | 422 | Ödeme mutabakatı başarısız |
 
-## Checkout Session kodları
+## Checkout oturumu ve ödeme linki
 
 | Kod | HTTP | Anlam |
 |---|---|---|
 | `PV_CHECKOUT_SESSION_NOT_FOUND` | 404 | Ödeme oturumu bulunamadı |
-| `PV_CHECKOUT_SESSION_CLOSED` | 409 | Ödeme oturumu kapanmış (completed/failed) |
+| `PV_CHECKOUT_SESSION_CLOSED` | 409 | Ödeme oturumu kapanmış (tamamlanmış / başarısız) |
 | `PV_CHECKOUT_SESSION_EXPIRED` | 409 | Ödeme oturumunun süresi dolmuş |
 | `PV_CHECKOUT_SESSION_AMOUNT_MISMATCH` | 422 | İstekteki tutar oturumdaki ile uyuşmuyor |
 | `PV_CHECKOUT_SESSION_INSTALLMENT_NOT_ALLOWED` | 422 | Bu oturumda taksit kullanılamaz |
 | `PV_CHECKOUT_PAYMENT_MODE_NOT_ALLOWED` | 422 | Bu ödeme yöntemi oturumda kapalı |
 | `PV_CHECKOUT_PREAUTH_NOT_ALLOWED` | 422 | Bu oturumda ön provizyon kapalı |
-| `PV_CHECKOUT_MAX_ATTEMPTS_EXCEEDED` | 409 | Ödeme oturumu için maksimum deneme aşıldı |
+| `PV_CHECKOUT_MAX_ATTEMPTS_EXCEEDED` | 409 | Oturum için maksimum deneme aşıldı |
+| `PV_CHECKOUT_PAYMENT_LINK_UNAVAILABLE` | 409 | Bu ödeme linki artık ödeme kabul etmiyor |
+| `PV_CHECKOUT_OUT_OF_STOCK` | 409 | Sepetteki ürünlerden biri tükendi |
+| `PV_PAYMENT_LINK_RECURRING_NOT_ALLOWED` | 422 | Abonelik yalnız sabit tutarlı, ürünsüz ve pazaryeri dağılımı olmayan bağlantıda kurulabilir |
+| `PV_PAYMENT_LINK_COMMISSION_REQUIRES_PRODUCTS` | 422 | Kart komisyonu yalnız ürün satışı yapılan bağlantıda kullanılabilir |
+| `PV_PAYMENT_LINK_STOREFRONT_MANAGED` | 409 | Mağaza bağlantısı bu uçtan düzenlenmez; mağaza ayarlarını kullanın |
+| `PV_STOREFRONT_SLUG_TAKEN` | 409 | Bu mağaza adresi kullanılıyor |
+| `PV_STOREFRONT_NOT_FOUND` | 404 | Mağaza listesi bulunamadı |
+| `PV_STOREFRONT_LIMIT_REACHED` | 422 | Bir işletme en fazla 20 mağaza listesi açabilir |
 
-## Generic / HTTP kodları
+## Ürün ve indirim kodu
 
-Aşağıdaki kodlar Payven ortak HTTP altyapısı tarafından üretilir; spesifik bir domain kodu
-yoksa fallback olarak kullanılır. Bu kodlar **lowercase snake_case** formatındadır.
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `PV_PRODUCT_NOT_FOUND` | 404 | Ürün bulunamadı |
+| `PV_INVALID_PRODUCT_VARIANTS` | 422 | Varyant tanımı ürünün seçenek eksenleriyle uyumsuz veya kombinasyon tekrar ediyor |
+| `PV_INVALID_PRODUCT_IMAGE` | 422 | Görsel türü/boyutu kabul edilmedi veya görsel sınırı doldu |
+| `PV_INVALID_DISCOUNT_CODE` | 422 | İndirim kodu geçerli değil (bulunamadı, süresi/kotası doldu veya sepete uygun değil) |
+| `PV_DUPLICATE_DISCOUNT_CODE` | 409 | Bu indirim kodu zaten tanımlı |
+| `feature_not_available` | 403 | Ürün kataloğu tenant için kapalı |
+
+## Pazaryeri (split)
+
+`splits[]` içeren ödemelerde split'ler işlem başlamadan önce doğrulanır; hata durumunda kart çekilmez.
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `marketplace_disabled` | 503 | Pazaryeri özelliği bu kurulumda kapalı; `splits[]` kabul edilmez |
+| `split_total_exceeds_amount` | 422 | Split toplamı işlem tutarını aşıyor |
+| `invalid_split` | 422 | Split bilgisi geçersiz (`sub_merchant_id` boş, tutar pozitif değil) |
+| `invalid_split_commission` | 422 | `commission_rate_pct` ve `commission_fixed` birlikte verilemez; oran 0-100, sabit tutar negatif olamaz |
+| `sub_merchant_not_found` | 422 | Alt bayi bulunamadı |
+| `not_a_sub_merchant` | 422 | Bayi pazaryeri alt bayisi değil |
+| `parent_mismatch` | 422 | Alt bayi bu ana bayiye ait değil |
+| `sub_merchant_inactive` | 422 | Alt bayi aktif değil |
+| `sub_merchant_not_approved` | 422 | Alt bayi henüz onaylanmadı |
+| `sub_merchant_profile_missing` | 422 | Alt bayi için pazaryeri profili tanımlı değil |
+| `splits_already_exist` | 409 | Bu işlem için split kayıtları zaten var |
+
+## Test modu
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `sandbox_operation_not_supported` | 422 | Bu işlem test modunda henüz desteklenmiyor; istek bankaya gönderilmedi |
+| `test_cards_disabled_in_production` | 422 | Test kartı oluşturma canlı ortamda kapalı |
+
+## Genel / HTTP kodları
+
+Aşağıdaki kodlar ortak HTTP altyapısı tarafından üretilir; spesifik bir kod yoksa durum koduna göre kullanılır. Bu kodlar **snake_case** formatındadır.
 
 | HTTP | `code` | Anlam |
 |---|---|---|
 | `400` | `bad_request` | Genel istek hatası |
-| `401` | `unauthorized` | Token eksik / geçersiz |
+| `401` | `unauthorized` | Token eksik / geçersiz / süresi dolmuş |
 | `403` | `forbidden` | Yetki yok |
-| `404` | `resource_not_found` | Generic kaynak bulunamadı |
-| `409` | `conflict` | Generic çakışma |
+| `404` | `resource_not_found` | Kaynak bulunamadı |
+| `405` | `method_not_allowed` | Bu path için HTTP metodu desteklenmiyor |
+| `409` | `conflict` | Genel çakışma |
 | `409` | `invalid_state` | Kaynak bu işlem için uygun durumda değil |
-| `422` | `validation_failed` | Validasyon kuralı ihlali (`errors` alanında alan-bazlı detay) |
+| `409` | `idempotency_key_in_use` | `Idempotency-Key` daha önce farklı gövdeyle kullanılmış |
+| `409` | `idempotency_request_in_progress` | Aynı anahtarlı ilk istek hâlâ işleniyor; `Retry-After` sonrası tekrar edin |
+| `415` | `unsupported_media_type` | `Content-Type` desteklenmiyor |
+| `422` | `validation_failed` | Doğrulama kuralı ihlali (`errors` alanında alan bazlı detay) |
 | `429` | `rate_limit_exceeded` | İstek limiti aşıldı |
 | `500` | `internal_server_error` | Sunucu hatası |
+| `503` | `service_unavailable` | Servis geçici olarak kullanılamıyor |
+| `504` | `gateway_timeout` | Alt servis zaman aşımı |
 
 ## Bilinmeyen kod
 
-`PV_UNKNOWN` — konnektörden gelen kod Payven eşleme tablosunda yok. Bu durumlarda ham banka
-kodu `provider_error_code`, ham mesaj `detail` alanında bulunur. Lütfen `correlation_id` ile
-birlikte [destek ekibimize](/resources/support) yazın — eşleme tablosunu güncelleyebiliriz.
+`PV_UNKNOWN` — bankadan gelen kod Payven eşleme tablosunda yok. Bu durumlarda ham banka kodu `provider_error_code` alanında bulunur. Lütfen `correlation_id` ile birlikte [destek ekibimize](/resources/support) yazın — eşleme tablosunu güncelleyebiliriz.

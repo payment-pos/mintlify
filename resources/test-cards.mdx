@@ -1,8 +1,10 @@
 ---
 title: "Test Kartları"
-description: "Tüm test kart numaraları tek bir referansta."
+description: "Test modunda kullanılabilen kart ve test verisi referansları."
 ---
 
-Sandbox ortamında kullanılabilen test kartlarının tam listesi: [Sanal POS → Test Kartları](/sanal-pos/test/test-cards).
+Test modunda (test API anahtarı ya da test modundaki işyeri) ödemeler bankaya gitmez; Payven'in kendi simülatörü yanıt verir. Geçerli biçimde herhangi bir kart numarası başarılı sonuç üretir (örneğin `4111 1111 1111 1111`, ileri bir son kullanma tarihi, herhangi 3 haneli CVV); 3D Secure ekranında herhangi 6 haneli kod kabul edilir.
 
-Bu sayfa, ileride eklenecek diğer ürünlerin test kart referanslarını da kapsayacaktır.
+Belirli senaryoları (banka reddi, yetersiz bakiye, 3D hatası ...) denemek için **kayıtlı test kartları** kullanılır. Kartların güncel listesi İşyeri paneli › Ayarlar › Entegrasyon ekranında ve Sanal POS test kartları sayfasındadır: [Sanal POS → Test Kartları](/sanal-pos/test/test-cards).
+
+Para Transferi için test alıcı hesapları: [Para Transferi → Test Modu ve Test Alıcıları](/para-transferi/sandbox).

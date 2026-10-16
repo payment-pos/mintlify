@@ -1,43 +1,48 @@
 ---
 title: "Konsol"
-description: "Payven Dashboard — işlem izleme, raporlama, yönetim."
+description: "Payven Konsolu ve İşyeri Paneli: işlem izleme, raporlama, anahtar ve webhook yönetimi."
 ---
 
-Payven Konsolu (Dashboard), tüm Payven ürünlerini tek bir arayüzden yönetebileceğiniz web uygulamasıdır.
+Payven iki web paneli sunar:
+
+| Panel | Kim kullanır | Ne için |
+|---|---|---|
+| **Konsol** (Backoffice) | Organizasyon (tenant) yöneticileri ve operatörleri | Tüm bayilerin işlemleri, konfigürasyon, kullanıcı ve plan yönetimi |
+| **İşyeri Paneli** | Bayi (işletme) yöneticisi ve çalışanları | Kendi işletmesinin ödemeleri, ödeme linkleri, hakedişi, entegrasyon bilgileri |
 
 [**Konsola Git →**](https://dashboard.payven.com.tr)
 
-## Konsol kullanımı
+## Konsol
 
 | Kategori | Ekranlar |
 |---|---|
-| **İşlemler** | İşlem listesi, detay, timeline, iade, iptal, export |
-| **Bayiler** | Merchant CRUD, alt bayi yönetimi, vergi/iletişim bilgileri |
-| **Konnektörler** | Banka tipi katalogu, yetenek matrisi |
-| **Konfigürasyonlar** | Banka credential yönetimi, bağlantı testi |
-| **Akıllı Yönlendirme** | Kural CRUD, simülasyon, sıralama |
-| **Mutabakat** | Gün sonu mutabakatı, tutarsızlık çözümü |
-| **API Anahtarları** | Anahtar oluşturma, IP whitelist, rotasyon |
-| **Webhook'lar** | Abonelik yönetimi, teslim kayıtları, manuel yeniden gönderme |
-| **Hata Kodları** | Tüm Payven ve banka kodları |
-| **Sistem Sağlığı** | Servis durumu, banka sağlık paneli, gerçek zamanlı metrikler |
-| **Kullanıcılar** | Kullanıcı + rol yönetimi |
-| **Plan ve Kullanım** | Aktif plan, kotalar, faturalama |
+| **İşlemler** | İşlem listesi, detay ve zaman çizgisi, iade/iptal talepleri, dışa aktarma |
+| **Bayiler** | Bayi listesi, alt bayiler, başvurular, toplu bayi yükleme, canlıya geçiş talepleri |
+| **Konnektörler** | Banka katalogu ve konfigürasyonları (kimlik bilgisi, bayi profilleri), hata kodu eşlemeleri |
+| **Akıllı Yönlendirme** | Basit ve gelişmiş yönlendirme kuralları |
+| **Mutabakat** | Mutabakat oturumları, tutarsızlık çözümü |
+| **API Anahtarları** | Anahtar oluşturma (test/canlı), izinli IP, rotasyon |
+| **Fraud** | Kural, kara liste ve uyarılar |
+| **İzleme** | API istek kayıtları, işlem izi, banka sağlık paneli |
+| **Kullanıcılar ve roller** | Kullanıcı, rol ve izin yönetimi |
+| **Plan ve Kullanım** | Aktif plan ve kotalar |
+
+Kullanılabilen ekranlar kurulu ürünlere ve rolünüzün izinlerine göre değişir; izniniz olmayan ekran menüde görünmez.
+
+## İşyeri Paneli
+
+| Kategori | Ekranlar |
+|---|---|
+| **Ödemeler** | Ödemeler, iadeler, itirazlar, abonelikler, ödeme linkleri, yeni ödeme |
+| **Mağaza** | Ürünler, indirim kodları, ödeme sayfası ayarları |
+| **Hakediş** | Bakiye, hareketler, ekstreler, hesaba aktarım |
+| **Payven Kart** | Kart başvurusu, hareketler, nakde dönüştürme |
+| **Faturalar** | e-Fatura kesimi, gelen belgeler, otomasyon |
+| **Ayarlar › Entegrasyon** | Test/canlı durumu, API anahtarları, entegrasyon bilgileri (API ve Identity adresleri), webhook adresleri, test modu, canlıya geçiş talebi, test verisini silme |
+| **Ayarlar** | İşletme profili, ekip, bildirimler, tarife, güvenlik |
+
+Panel, **Test modu** göstergesiyle işletmenin test mi canlı mı çalıştığını gösterir; test modundaki işletmede yapılan işlemler bankaya gitmez.
 
 ## Mobil uyumluluk
 
-Konsol mobil cihazlarda kullanılabilir — sidebar gizlenir, tablo sütunları otomatik daraltılır.
-
-## Tarayıcı desteği
-
-| Tarayıcı | Durum |
-|---|---|
-| Chrome (son 2 versiyon) |  |
-| Edge (son 2 versiyon) |  |
-| Firefox (son 2 versiyon) |  |
-| Safari (son 2 versiyon) |  |
-| Internet Explorer | Desteklenmiyor |
-
-## SSO (Single Sign-On)
-
-Kurumsal SSO entegrasyonu (Azure AD, Google Workspace, Okta) talep üzerine yapılır. [Destek ekibine](/resources/support) yazın.
+Paneller mobil cihazlarda kullanılabilir: kenar menü gizlenir, tablo sütunları daraltılır.

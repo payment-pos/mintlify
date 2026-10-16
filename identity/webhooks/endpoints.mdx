@@ -1,0 +1,156 @@
+---
+title: "Webhook Uçları"
+description: "Tek webhook ucu tanımlayın; tüm ürünlerin olaylarını imzalı olarak alın, teslimleri izleyin ve yeniden deneyin."
+---
+
+Bir **webhook ucu** (endpoint), Payven'in olayları HTTP POST ile ilettiği adrestir. Ürün başına ayrı abonelik yoktur: Sanal POS, Para Transferi, Fatura Ödeme, Cüzdan, e-Fatura vb. tüm olaylar tek uca gelir. Uçlar Identity'de yönetilir; İşyeri API'si (`merchant`) aynı yolları iletir.
+
+Teslim garantileri, istek başlıkları, imza doğrulama ve deneme takvimi için [Webhook'lar](/documentation/concepts/webhooks) sayfasına bakın. Bu sayfa **uç yönetimi API'sini** anlatır.
+
+## Erişim
+
+| Konu | Kural |
+|---|---|
+| Base path | `/api/v1/webhook-endpoints` (Identity, `https://identity.payven.com.tr`) |
+| Okuma | `CanViewWebhooks` izni: bayi ve tenant rollerinin dördünde varsayılan olarak vardır |
+| Yazma (oluştur, güncelle, sil, aç / kapat, sır yenile, test, yeniden dene) | `CanManageWebhooks` izni: tenant kapsamlı roller ve `merchant-admin` |
+| API anahtarıyla çağrı | Identity'ye doğrudan çağrıda ek kapsam gerekmez (`identity-api` her anahtarda vardır). İşyeri API'si üzerinden çağıracaksanız anahtarda `merchant` kapsamı seçili olmalı; aksi halde `401 audience_invalid` |
+| Kapsam | Bayi kapsamlı çağıran (bayiye bağlı anahtar dahil) yalnız **kendi bayisinin** uçlarını görür; açtığı uç kendi bayisine yazılır. Bayi seçmeyen tenant yöneticisinin açtığı uç **tenant geneli**dir ve tüm bayilerin olaylarını alır |
+| Bayi kapsamlı rol, bayi bağlamı yok | `400 merchant_context_missing` |
+| Başka bayinin kaydı | `404` |
+
+<Note>
+Ürün API'lerindeki eski `/api/v1/webhook-subscriptions` uçları yazma kabul etmez: `410 webhook_subscriptions_moved`. Yeni entegrasyon `webhook-endpoints` kullanır.
+</Note>
+
+## Uç oluşturma
+
+```bash
+curl -X POST https://identity.payven.com.tr/api/v1/webhook-endpoints \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url":            "https://example.com/webhooks/payven",
+    "enabled_events": ["sanalpos.payment.completed", "sanalpos.payment.failed"],
+    "description":    "Canlı sipariş akışı",
+    "metadata":       { "team": "odeme" },
+    "payload_format": "event"
+  }'
+```
+
+| Alan | Açıklama |
+|---|---|
+| `url` | Public HTTPS adresi. Geçersiz / HTTP / özel ağ adresi `422 validation_failed` (`errors.url`) |
+| `enabled_events` | Abone olunan olay kodları. Boş / eksik ya da `["*"]` = **tüm olaylar**. Katalogda olmayan kod `422 webhook_event_type_unknown` |
+| `description` | Serbest açıklama |
+| `metadata` | Serbest anahtar-değer ([Metadata kuralları](/documentation/concepts/webhooks)). Anahtarlar olduğu gibi saklanır |
+| `payload_format` | `event` (zarflı; varsayılan, önerilen) veya `flat` (zarfsız gövde; hazır e-ticaret eklentileri) |
+
+`201 Created`:
+
+```json
+{
+  "id":             "5d1c0e8a-7b2f-4c11-9a3e-2f6d8c4b1a90",
+  "object":         "webhook_endpoint",
+  "url":            "https://example.com/webhooks/payven",
+  "enabled_events": ["sanalpos.payment.completed", "sanalpos.payment.failed"],
+  "description":    "Canlı sipariş akışı",
+  "metadata":       { "team": "odeme" },
+  "payload_format": "event",
+  "status":         "enabled",
+  "disabled_reason": null,
+  "disabled_at":    null,
+  "failing_since":  null,
+  "merchant_id":    "3fa85f64-...",
+  "created":        "2026-10-16T14:05:12.451+03:00",
+  "secret":         "whsec_3f9a..."
+}
+```
+
+<Warning>
+**`secret` yalnızca oluşturma ve `rotate-secret` yanıtında döner.** Liste ve detayda yoktur. Güvenli bir yere kaydedin; kaybederseniz sırrı yenileyin.
+</Warning>
+
+`merchant_id` (Guid) bayi kapsamlı uçta bayiyi, tenant geneli uçta `null` gösterir.
+
+## Uç yönetimi
+
+| Uç | İş |
+|---|---|
+| `GET /webhook-endpoints` | Sayfalı liste (`page`, `page_size`); sır dönmez |
+| `GET /webhook-endpoints/{id}` | Tekil uç |
+| `PUT /webhook-endpoints/{id}` | Güncelle. `url` zorunlu; `enabled_events`, `description`, `payload_format` **tam değiştirilir** (gönderilmeyen `enabled_events` = tüm olaylar); `metadata` **birleştirilir** (gönderilmeyen anahtar korunur, boş değer anahtarı siler) |
+| `DELETE /webhook-endpoints/{id}` | Sil (`204`) |
+| `POST /webhook-endpoints/{id}/enable` | Ucu aç; ardışık başarısızlık sayacı sıfırlanır |
+| `POST /webhook-endpoints/{id}/disable` | Ucu kapat (`disabled_reason: "manual"`) |
+| `POST /webhook-endpoints/{id}/rotate-secret` | Yeni sır üret (aşağıdaki bölüm) |
+| `POST /webhook-endpoints/{id}/test` | İmzalı deneme olayı gönder |
+| `GET /webhook-endpoints/{id}/deliveries` | Teslim listesi |
+| `GET /webhook-endpoints/deliveries/{delivery_id}/attempts` | Bir teslimin denemeleri |
+| `POST /webhook-endpoints/deliveries/{delivery_id}/retry` | Teslimi hemen yeniden dene |
+| `POST /webhook-endpoints/attempts/{attempt_id}/retry` | Deneme kimliğiyle yeniden dene |
+| `GET /webhook-endpoints/event-types` | Abone olunabilecek olay kodları |
+
+### Sır yenileme
+
+```bash
+curl -X POST https://identity.payven.com.tr/api/v1/webhook-endpoints/{id}/rotate-secret \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "expire_current_in_hours": 24 }'
+```
+
+Yanıt uç nesnesidir ve yeni `secret`'ı taşır. Eski sır `expire_current_in_hours` (0-168, varsayılan 24) saat boyunca ikinci imza olarak gönderilmeye devam eder: `X-Payven-Signature: sha256=<yeni>,sha256=<eski>`. Alıcınız imzalardan **biri** eşleşirse kabul etmelidir; böylece teslim kesilmeden yeni sırrı dağıtırsınız. `0` = eski sır hemen geçersiz. Aralık dışı değer `422 webhook_secret_rotation_window_invalid`.
+
+### Test olayı
+
+`POST /webhook-endpoints/{id}/test`, ucunuza gerçek teslimle aynı imza ve başlıklara sahip `merchant.webhook_endpoint.test` olayını gönderir; olay saklanmaz ve `GET /events` listesinde görünmez. Yanıt alıcının cevabıdır:
+
+```json
+{ "succeeded": true, "http_status": 200, "duration_ms": 142, "response_body": "ok", "error": null }
+```
+
+### Olay tipleri
+
+`GET /webhook-endpoints/event-types` tüm ürünlerin duyurduğu kataloğu, ekran bilgisiyle (ürün, başlık, Türkçe ad, açıklama) ve ekran sırasıyla döner. Uç oluştururken `enabled_events` bu listedeki kodlardan seçilir.
+
+## Teslimler ve denemeler
+
+`GET /webhook-endpoints/{id}/deliveries?state=failed&event_id=evt_...&page=1&page_size=50`
+
+```json
+{
+  "items": [
+    {
+      "id": "9f1c8e76-...", "endpoint_id": "5d1c0e8a-...",
+      "event_id": "evt_8e3f5c129a7b4c8dbc4e2c963f66afa6", "event_type": "sanalpos.payment.completed",
+      "state": "failed", "attempt_count": 10,
+      "next_attempt_at": null, "last_http_status": 503, "last_error": null,
+      "last_attempt_at": "2026-10-19T09:12:00.000+03:00", "created": "2026-10-16T14:05:13.000+03:00"
+    }
+  ],
+  "page": 1, "total_pages": 1, "total_count": 1, "has_previous_page": false, "has_next_page": false
+}
+```
+
+`state`: `pending` (deneme sürüyor / bekliyor), `succeeded`, `failed` (denemeler tükendi ya da uç kapatıldı; otomatik denenmez, elle yeniden gönderilebilir).
+
+Denemeler: `GET /webhook-endpoints/deliveries/{delivery_id}/attempts` → her deneme için `attempt_number`, `attempted_at`, `http_status`, `duration_ms`, `succeeded`, `response_body`, `error`.
+
+**Yeniden deneme** (`POST .../retry`) teslimi anında kuyruğa alır ve `202 Accepted` ile teslim nesnesini döner; başarılı bir teslimi de yeniden gönderebilirsiniz (alıcı kaydı kaybettiyse). Yalnız bu teslimin ucuna gider; olayı alan diğer uçlar yeniden almaz. Uç kapalıysa `409 webhook_endpoint_disabled` döner: önce ucu açın.
+
+## Otomatik kapatma
+
+Bir uç **3 gün** boyunca hiç başarılı teslim yapamazsa kapatılır (`status: "disabled"`, `disabled_reason: "consecutive_failures"`, `disabled_at`) ve `merchant.webhook_endpoint.disabled` olayı yayınlanır. `failing_since` ilk ardışık başarısızlığın zamanını gösterir. Ucu `enable` ile açın; kapalıyken biriken `failed` teslimleri elle yeniden deneyin. Deneme takvimi: [Webhook'lar](/documentation/concepts/webhooks).
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `400` | `merchant_context_missing` | Bayi kapsamlı rol, bayi bilgisi yok |
+| `403` | `forbidden` | `CanManageWebhooks` yok |
+| `404` | `resource_not_found` | Uç / teslim yok veya başka bayiye ait |
+| `409` | `webhook_endpoint_disabled` | Kapalı uca yeniden deneme |
+| `410` | `webhook_subscriptions_moved` | Eski `/webhook-subscriptions` yazma ucu |
+| `422` | `webhook_event_type_unknown` | `enabled_events` içinde katalogda olmayan kod |
+| `422` | `webhook_secret_rotation_window_invalid` | `expire_current_in_hours` 0-168 dışında |
+| `422` | `validation_failed` | `url` geçersiz (HTTPS değil, özel ağ vb.) |

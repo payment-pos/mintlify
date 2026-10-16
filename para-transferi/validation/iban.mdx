@@ -3,93 +3,57 @@ title: "IBAN Doğrulama"
 description: "Transfer oluşturmadan önce IBAN'ın geçerliliğini ve banka bilgisini doğrulayın."
 ---
 
-IBAN doğrulama, kullanıcı UI'da girilen IBAN'ı **transfer oluşturmadan önce** kontrol etmek için kullanılır. Geçersiz IBAN, hangi bankaya ait olduğu, beklenen alıcı bilgileri gibi sorulara cevap verir. Transfer akışında **opsiyonel** bir adımdır; transfer oluştururken zaten otomatik doğrulama yapılır, ancak proaktif kullanıcı geri bildirimi için bu endpoint UX'i iyileştirir.
+IBAN doğrulama, kullanıcının girdiği IBAN'ı **transfer oluşturmadan önce** kontrol etmek içindir. Transfer akışında **opsiyonel** bir adımdır; transfer oluştururken ve alıcı hesabı kaydederken IBAN zaten otomatik doğrulanır, ancak proaktif kullanıcı geri bildirimi için bu uç UX'i iyileştirir.
 
 ## Endpoint
 
+IBAN doğrulama **Identity API'sinin** bir ucudur (Para Transferi API'sinde değildir):
+
 ```http
-POST /api/v1/validation/iban
+POST https://identity.payven.com.tr/api/v1/validation/iban
 ```
 
-**Yetki:** `transfer-admin`, `transfer-operator` veya `transfer-viewer` rolü.
-
-## İstek
+Bearer access token gerektirir; ayrı bir transfer izni aranmaz. İstek ve yanıt ayrıntıları: [Identity › IBAN Doğrulama](/identity/validation/iban).
 
 ```bash
-curl -X POST https://transfer.payven.com.tr/api/v1/validation/iban \
+curl -X POST https://identity.payven.com.tr/api/v1/validation/iban \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID" \
   -H "Content-Type: application/json" \
-  -d '{
-    "iban": "TR330006100519786457841326"
-  }'
+  -d '{ "iban": "TR33 0006 1005 1978 6457 8413 26", "resolve": true }'
 ```
 
-| Alan | Tip | Zorunluluk | Açıklama |
-|---|---|---|---|
-| `iban` | string | Zorunlu | Boşluksuz veya boşluklu IBAN — Payven normalize eder |
-
-## Başarılı response
+Yanıt `200 OK`; geçersiz IBAN da `200` ile gelir, sonucu `is_valid` belirler:
 
 ```json
 {
-  "is_valid":         true,
-  "iban":             "TR330006100519786457841326",
-  "iban_formatted":   "TR33 0006 1005 1978 6457 8413 26",
-  "iban_masked":      "TR33 **** **** **** **** 1326",
-
-  "country_code":     "TR",
-  "bank_id":          "bank-garanti-uuid",
-  "bank_code":        "GARANTI",
-  "bank_name":        "Garanti BBVA",
-  "bank_swift":       "TGBATRIS",
-
-  "branch_code":      "00006",
-  "account_number":   "1978645784",
-
-  "supported_transfer_types": ["fast", "eft", "remittance"]
+  "is_valid":       true,
+  "format_valid":   true,
+  "checksum_valid": true,
+  "country_code":   "TR",
+  "check_digits":   "33",
+  "bank_code":      "00061",
+  "formatted_iban": "TR33 0006 1005 1978 6457 8413 26",
+  "masked_iban":    "TR33 **** **** **** **** 1326",
+  "bank":           { "id": "5e0b0f2a-...", "code": "00061", "name": "..." },
+  "error_message":  null
 }
 ```
 
-| Alan | Açıklama |
-|---|---|
-| `is_valid` | IBAN checksum'ı geçti mi? |
-| `iban_formatted` | 4'lü gruplama ile gösterilebilir hâl (UI için) |
-| `iban_masked` | İlk 4 + son 4 hane görünen, ortası maskeli (loglar için) |
-| `country_code` | ISO ülke kodu — `TR` dışındaki IBAN'larda Payven kabul etmeyebilir |
-| `bank_id`, `bank_code`, `bank_name`, `bank_swift` | IBAN'ın 5-6. hanelerinden çözülen banka bilgisi |
-| `branch_code`, `account_number` | Banka ve hesap kısımları (raporlama için) |
-| `supported_transfer_types` | Bu IBAN'a hangi transfer tipleriyle gönderim yapılabileceği |
+`bank_code` TR IBAN'ının banka kısmıdır (5 haneli TCMB kodu); `resolve: true` iken `bank` alanı banka kataloğundan çözülür.
 
-## Geçersiz IBAN
+## Transfer sırasındaki doğrulama
 
-Yanıt yine `200 OK` döner; `is_valid: false` ile birlikte sebep:
+| Nerede | Ne kontrol edilir | Sonuç |
+|---|---|---|
+| `POST /transfers/bulk/create` | IBAN uzunluğu + mod-97 + banka kodunun kataloğa çözülmesi (`TR` öneki yoksa eklenir) | Geçersiz IBAN'lı kalem **atlanır**; hiçbir kalem geçerli değilse `422 PV_NO_VALID_TRANSFER`. Bkz. [Geçersiz kalemler](/para-transferi/transfers/bulk-create#geçersiz-kalemler) |
+| `POST /bulk-transfers/preview` ve `POST /bulk-transfers` | Satır başına uzunluk (26), mod-97, banka çözümleme | Satır `invalid` olur ve `errors[]`'te nedeni görünür |
+| `POST /receiver-accounts`, `PUT /receiver-accounts/{id}` | Uzunluk + mod-97 | `422 validation_failed` |
 
-```json
-{
-  "is_valid":      false,
-  "iban":          "TR330006100519786457841327",
-  "error_code":    "checksum_failed",
-  "error_message": "IBAN checksum'ı geçmiyor — son hane(ler) hatalı olabilir."
-}
-```
-
-Olası `error_code` değerleri:
-
-| Kod | Anlam |
-|---|---|
-| `invalid_format` | Format hatası (uzunluk, karakter) |
-| `unsupported_country` | TR dışı IBAN, Payven kabul etmiyor |
-| `checksum_failed` | Mod-97 checksum doğrulaması başarısız |
-| `bank_not_found` | IBAN sentaks doğru ama banka kataloğunda yok (nadir) |
-
-<Note>
-Endpoint **`200 OK`** ile döner; `is_valid` alanını kontrol edin. Bu, "doğrulama başarısız" durumunu ayrı bir HTTP hata kodu olarak göstermez — UX akışında "kullanıcı yanlış girdi" sıradan bir durumdur, hata değildir.
-</Note>
+Transfer oluşturmadaki IBAN doğrulaması organizasyon / bayi ayarıyla kapatılabilir; kapalıyken IBAN olduğu gibi bankaya iletilir ve ret kararını banka verir.
 
 ## UI entegrasyonu — debounce
 
-IBAN alanına yazılırken her karakter için doğrulama atmayın; debounce uygulayın (örn. 500ms beklemeli, IBAN tam yazıldıktan sonra):
+IBAN alanına yazılırken her karakter için doğrulama atmayın; debounce uygulayın (örn. 500 ms, IBAN tam yazıldıktan sonra):
 
 ```javascript
 let debounceTimer;
@@ -101,13 +65,13 @@ ibanInput.addEventListener("input", (e) => {
     return;
   }
   debounceTimer = setTimeout(async () => {
-    const res = await fetch("/api/payven/validate-iban", {
+    const res = await fetch("/api/payven/validate-iban", {   // sunucunuz Identity'ye iletir
       method: "POST",
       body: JSON.stringify({ iban }),
     });
     const result = await res.json();
     if (result.is_valid) {
-      setBankBadge(result.bank_name, result.bank_logo_url);
+      setBankBadge(result.bank?.name);
     } else {
       setError(result.error_message);
     }
@@ -115,12 +79,4 @@ ibanInput.addEventListener("input", (e) => {
 });
 ```
 
-## Hata response'ları
-
-Burada listelenen `4xx` hataları **endpoint kullanımı** ile ilgilidir; IBAN doğrulama mantıksal sonucu için yukarıdaki `is_valid` alanına bakın.
-
-| HTTP | `code` | Anlam |
-|---|---|---|
-| `400` | `validation_failed` | `iban` alanı eksik |
-| `403` | `forbidden` | Yetki yok |
-| `429` | `rate_limit_exceeded` | Çok fazla doğrulama isteği — debounce uygulayın |
+Token'ı tarayıcıya koymayın; doğrulamayı kendi sunucunuz üzerinden çağırın.

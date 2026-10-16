@@ -1,15 +1,15 @@
 ---
 title: "Production Geçiş Kontrol Listesi"
-description: "Sandbox'tan production'a geçmeden önce tamamlanması gereken adımlar."
+description: "Test modundan canlıya geçmeden önce tamamlanması gereken adımlar."
 ---
 
-Bu sayfa, **canlıya geçmeden önce** entegrasyonunuzda kontrol etmeniz gereken her şeyi tek bir yerde toplar. Tüm maddeleri işaretledikten sonra production geçişi için [destek ekibine](/resources/support) bildirin.
+Bu sayfa, **canlıya geçmeden önce** entegrasyonunuzda kontrol etmeniz gereken her şeyi tek bir yerde toplar. Tüm maddeleri işaretledikten sonra İşyeri panelinden **canlıya geçiş talebi** açarsınız; geçiş operatör onayıyla gerçekleşir (bkz. [aşağıda](#productiona-gecis)).
 
 ## Geçiş yolculuğu
 
 ```mermaid
 flowchart LR
-    Start([Sandbox<br/>geliştirme]) --> P1
+    Start([Test modu<br/>geliştirme]) --> P1
     P1[**1. Hazırlık**<br/>Hesap, plan,<br/>konfigürasyon]:::phase --> P2
     P2[**2. Güvenlik**<br/>API anahtarı,<br/>loglama, PCI]:::phase --> P3
     P3[**3. Doğrulama**<br/>Hata, webhook,<br/>ödeme akışları]:::phase --> P4
@@ -45,9 +45,10 @@ Her faz aşağıda ayrı bir bölümde detaylandırılır.
 
 <Checkbox> Production konsoluna giriş yapabilen en az **iki yetkili kullanıcı** vardır. </Checkbox>
 <Checkbox> Organizasyonunuzun **plan ve kotaları** beklenen işlem hacmini karşılıyor. </Checkbox>
-<Checkbox> Production merchant tanımları (vergi bilgileri, iletişim, banka profilleri) eksiksiz girilmiştir. </Checkbox>
-<Checkbox> Banka konfigürasyonları (credential, endpoint, store key) production değerleriyle güncellenmiştir. </Checkbox>
-<Checkbox> Akıllı yönlendirme kurallarınız production'da test edilmiştir. </Checkbox>
+<Checkbox> Canlı işyeri tanımı (vergi bilgileri, iletişim, banka profilleri) eksiksizdir; bayi **aktif** ve **onaylı**dır (pasif ya da onaysız bayi işlem yapamaz). </Checkbox>
+<Checkbox> Banka konfigürasyonları (credential, endpoint, store key) canlı değerleriyle girilmiştir. </Checkbox>
+<Checkbox> Akıllı yönlendirme kurallarınız canlı konfigürasyonlarla gözden geçirilmiştir. </Checkbox>
+<Checkbox> Non-3D kullanacaksanız bayinin banka profilinde Non-3D izni açıktır (aksi halde `422 PV_NON_3D_NOT_ALLOWED`). </Checkbox>
 
 ---
 
@@ -56,10 +57,10 @@ Her faz aşağıda ayrı bir bölümde detaylandırılır.
 ### 🔑 API anahtarı güvenliği
 
 <Checkbox> Production API anahtarı **secret manager'da** saklanır, kaynak kodda **yoktur**. </Checkbox>
-<Checkbox> **IP whitelist** tanımlanmıştır — yalnızca production sunucularınızdan istek atılabilir. </Checkbox>
+<Checkbox> **İzinli IP listesi** tanımlanmıştır: yalnızca canlı sunucularınızdan istek atılabilir. </Checkbox>
 <Checkbox> Geliştiriciler production anahtarına **doğrudan erişemez** — sadece servis hesabı kullanılır. </Checkbox>
-<Checkbox> Sandbox ve production anahtarları **ayrı secret store'larda** saklanır. </Checkbox>
-<Checkbox> Anahtar rotasyon prosedürü dokümante edilmiş, sorumlular belirlenmiştir. </Checkbox>
+<Checkbox> Test ve canlı anahtarlar **ayrı secret store'larda** saklanır; canlı anahtarın ortamı `live`'dır. </Checkbox>
+<Checkbox> Anahtar rotasyon prosedürü ([kesintisiz rotasyon](/documentation/security/api-key-best-practices#rotasyon-proseduru)) dokümante edilmiş, sorumlular belirlenmiştir. </Checkbox>
 
 ### 📋 Loglama ve gözlem
 
@@ -93,13 +94,13 @@ Her faz aşağıda ayrı bir bölümde detaylandırılır.
 <Checkbox> İmza doğrulaması (`X-Payven-Signature`) uygulanıyor. </Checkbox>
 <Checkbox> Endpoint **15 saniyelik delivery timeout'undan çok önce** (hedef: 5sn altı) yanıt veriyor; ağır iş kuyruğa atılıyor. </Checkbox>
 <Checkbox> Aynı `X-Payven-Event-Id` ile gelen olaylar **idempotent** işleniyor (aynı olay tekrar teslim edilebilir). </Checkbox>
-<Checkbox> Webhook teslim hataları izleniyor; production konsoldaki **Webhook Teslim Kayıtları** düzenli kontrol ediliyor. </Checkbox>
-<Checkbox> Payven webhook IP havuzları kendi güvenlik duvarınızda whitelist'lenmiştir. </Checkbox>
+<Checkbox> Webhook teslim hataları izleniyor; `GET /webhook-endpoints/{id}/deliveries` ile teslim kayıtları düzenli kontrol ediliyor. </Checkbox>
+<Checkbox> Webhook ucu 3 gün boyunca hiç başarılı teslim alamazsa Payven tarafından kapatılır; `merchant.webhook_endpoint.disabled` bildirimi izleniyor ve ucun durumu (`GET /webhook-endpoints`) periyodik kontrol ediliyor. </Checkbox>
 
 ### 💳 Ödeme akışları
 
-<Checkbox> **Non-3D ödeme** akışı production benzeri kart ile sandbox'ta test edilmiştir. </Checkbox>
-<Checkbox> **3D Secure** akışında callback ve hata senaryoları test edilmiştir. </Checkbox>
+<Checkbox> Kullandığınız ödeme akışı (**Hosted Checkout**, **3D Secure** ya da Non-3D) test modunda başarılı ve başarısız senaryolarla denenmiştir. </Checkbox>
+<Checkbox> **3D Secure** akışında dönüş (`success_url` / `cancel_url`) ve hata senaryoları test edilmiştir. </Checkbox>
 <Checkbox> **İade** ve **iptal** akışları test edilmiştir. </Checkbox>
 <Checkbox> **Taksit** seçenekleri için BIN bazlı doğrulama yapılmaktadır. </Checkbox>
 <Checkbox> **Hosted Checkout** kullanıyorsanız, `success_url` ve `cancel_url` HTTPS'tir. </Checkbox>
@@ -107,7 +108,7 @@ Her faz aşağıda ayrı bir bölümde detaylandırılır.
 
 ### 📊 Mutabakat ve raporlama
 
-<Checkbox> **Mutabakat** akışı sandbox'ta test edilmiş, sonuçlar muhasebe sürecine entegre edilmiştir. </Checkbox>
+<Checkbox> **Mutabakat** akışı test edilmiş, sonuçlar muhasebe sürecine entegre edilmiştir. </Checkbox>
 <Checkbox> Gün sonu / dönem sonu raporları otomatik üretiliyor. </Checkbox>
 <Checkbox> Eksik/hatalı kayıt durumlarında **uyarı mekanizması** vardır. </Checkbox>
 
@@ -133,38 +134,43 @@ Her faz aşağıda ayrı bir bölümde detaylandırılır.
 
 ## Production'a geçiş
 
-Tüm maddeler tamamlandıysa, aşağıdaki adımları sırayla uygulayın:
+Test modundaki bayi canlıya kendiliğinden geçmez; geçiş talep ve onayla ilerler:
 
 ```mermaid
 flowchart LR
-    A[Destek bildirimi] --> B[Production anahtar]
-    B --> C[%10 trafik]
-    C --> D[%50 trafik]
-    D --> E[%100 trafik]
-    E --> F[İlk 48 saat<br/>yakın izleme]
+    A[Kontrol listesi<br/>tamam] --> B[Canlı geçiş talebi]
+    B --> C[Operatör onayı<br/>ortam: live]
+    C --> D[Canlı anahtar]
+    D --> E[%10 trafik]
+    E --> F[%50 trafik]
+    F --> G[%100 trafik]
+    G --> H[İlk 48 saat<br/>yakın izleme]
 
     style A fill:#fff8e1
-    style F fill:#d4edda,stroke:#28a745,stroke-width:2px
+    style H fill:#d4edda,stroke:#28a745,stroke-width:2px
 ```
 
 <Steps>
-  <Step title="Destek ekibine bildirim yapın">
-    "Production'a geçişe hazırız" konusu ile [destek talebi](/resources/support) açın. Test sonuçlarınızı, üye işyeri listesini ve beklenen ilk gün hacmi paylaşın.
+  <Step title="Entegrasyon kontrol listesini tamamlayın">
+    İşyeri paneli › **Ayarlar › Entegrasyon** (`GET /settings/integration`) test modundaki gerçek kayıtlardan türetilir. Zorunlu maddeler: başarılı test ödemesi, başarısız ödeme senaryosu ve iade testi. Webhook doğrulaması isteğe bağlıdır ama önerilir.
   </Step>
-  <Step title="Production anahtarı oluşturun">
-    Onay alındığında konsoldan production anahtarı üretin ve secret manager'a yazın.
+  <Step title="Canlıya geçiş talep edin">
+    İşletme yöneticisi **Canlıya geçiş talep et** der (`POST /settings/integration/live-requests`). Zorunlu maddeler tamamlanmadan talep açılamaz. Talep bayiyi canlıya almaz; operatör incelemesine düşer.
   </Step>
-  <Step title="Gradual rollout başlatın">
-    İlk birkaç saat trafiğin küçük bir bölümünü (örn. %10) production'a yönlendirin; metrik ve hata oranlarını izleyin.
+  <Step title="Operatör onayı">
+    Onayda bayinin ortamı `live` olur. Organizasyonun kuruluş (lisanslı kurum) onayı politikası varsa, bayinin kuruluş onayından geçmiş olması ya da operatörün gerekçeli muafiyet vermesi gerekir. Bu adımdan sonra istekler canlıdır; test kayıtları canlı listelerde görünmez.
   </Step>
-  <Step title="Trafiği artırın">
-    Hata oranı kabul edilebilir seviyedeyse %50, sonra %100'e çıkın.
+  <Step title="Canlı anahtar oluşturun">
+    `environment: "live"` anahtarı oluşturup secret'ı secret manager'a yazın; izinli IP listesini tanımlayın. Test anahtarını canlı ortamdan kaldırın.
+  </Step>
+  <Step title="Gradual rollout">
+    İlk saatlerde trafiğin küçük bir bölümünü (örn. %10) canlıya yönlendirin; hata oranı, başarı oranı ve webhook teslimini izleyin. Sorun yoksa %50, sonra %100.
   </Step>
   <Step title="İlk 48 saat yakın izleme">
-    Dashboard'da hata oranı, başarı oranı, latency ve webhook teslim metriklerini sürekli takip edin. Bir anomali görürseniz rollback planınızı uygulayın.
+    Hata oranı, başarı oranı, gecikme ve webhook teslim metriklerini sürekli takip edin. Anomali görürseniz rollback planınızı uygulayın.
   </Step>
 </Steps>
 
 <Tip>
-İlk production işleminizi gerçek bir kart ile düşük tutarlı (örn. 1,00 ₺) bir test ödemesi olarak yapın ve hemen iade edin. End-to-end akışın çalıştığını teyit eder.
+İlk canlı işleminizi gerçek bir kartla düşük tutarlı (örn. 1,00 ₺) bir ödeme olarak yapıp hemen iade edin. Uçtan uca akışın çalıştığını teyit eder. Test modunda ürettiğiniz verileri İşyeri panelindeki **Tüm test verilerini sil** ile temizleyebilirsiniz; canlı veri silinmez.
 </Tip>

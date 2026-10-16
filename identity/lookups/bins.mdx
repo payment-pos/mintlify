@@ -1,120 +1,84 @@
 ---
 title: "BIN Sorgulama"
-description: "Kart numarasının ilk 6 hanesinden banka, kart birliği ve tipi öğrenin."
+description: "Kart numarasının başından banka, kart birliği, kart tipi ve marka bilgisini öğrenin."
 ---
 
-**BIN** (Bank Identification Number), kart numarasının ilk 6 hanesidir. Bu sayılar bankayı, kart birliğini (Visa, Mastercard, Troy) ve kart tipini (kredi / banka / prepaid) tanımlar.
+**BIN** (Bank Identification Number), kart numarasının ilk hanelerinden oluşan aralıktır. Bu aralıklar bankayı, kart birliğini (Visa, Mastercard, Troy ...), kart tipini (kredi / banka / ön ödemeli) ve kart markasını (Bonus, Axess, World ...) tanımlar. Ödeme formunda banka logosu ve taksit seçeneklerini dinamik göstermek için kullanılır.
 
-Identity servisi tüm Türk bankalarının BIN aralıklarını içerir. Checkout sırasında müşteriye dinamik olarak banka logosu, taksit seçenekleri ve kart kampanyaları göstermek için kullanılır.
-
-## Endpoint'ler
+## Endpoint
 
 ```http
-GET    /api/v1/lookups/bank-bins                 # Liste (sayfalı)
-GET    /api/v1/lookups/bank-bins/{id}            # Tek BIN aralığı
-POST   /api/v1/lookups/bank-bins                 # Yeni BIN aralığı (admin)
-PUT    /api/v1/lookups/bank-bins/{id}            # Güncelleme (admin)
-DELETE /api/v1/lookups/bank-bins/{id}            # Silme (admin)
-POST   /api/v1/lookups/bank-bins/import          # Toplu import (admin)
+GET /api/v1/lookups/bank-bins
 ```
 
-Bearer access token gerektirir. CRUD operasyonları `tenant-admin` veya `platform-admin` rolü gerektirir.
-
-## Liste / arama
+Bearer access token gerektirir.
 
 ```bash
-curl "https://identity.payven.com.tr/api/v1/lookups/bank-bins?bin_prefix=454671&page=1&page_size=20" \
+curl "https://identity.payven.com.tr/api/v1/lookups/bank-bins?bin=454671" \
   -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-| Query parametresi | Açıklama |
-|---|---|
-| `bin_prefix` | İlk 1-6 hane — bu prefix ile başlayan BIN aralıklarını döner |
-| `bank_id` | Belirli bir bankanın tüm BIN'lerini listele |
-| `card_scheme` | `visa`, `mastercard`, `troy`, `amex` |
-| `card_type` | `credit`, `debit`, `prepaid` |
-| `page`, `page_size` | Sayfalama (default `1`, `50`; max `200`) |
+| Query parametresi | Tip | Açıklama |
+|---|---|---|
+| `bin` | string | Kart numarasının başı (6-8 hane önerilir). Bu değeri kapsayan BIN aralıklarını döner |
+| `bank_code` | string | Bankanın tüm aralıkları; kısa kod (`62`) 5 haneye tamamlanır |
+| `card_brand` | enum | `bonus`, `axess`, `world`, `maximum`, `cardfinans`, `paraf`, `advantage`, `bankkart`, `other`, `unknown` |
+| `card_type` | enum | `credit`, `debit`, `prepaid`, `unknown` |
+| `schema_type` | enum | `visa`, `master_card`, `troy`, `amex`, `union_pay`, `proprietary`, `unknown` |
+| `include_inactive` | bool | Pasif aralıkları da getir |
+
+Liste **sayfalı değildir**; eşleşen tüm aralıklar düz dizi olarak döner (`bank_code`, ardından `bin_start` sırasıyla).
 
 ## Yanıt
 
 ```json
-{
-  "items": [
-    {
-      "id":           "abc-...",
-      "bin_start":    "454671",
-      "bin_end":      "454671",
-      "bank_id":      "8e3f5c12-...",
-      "bank_code":    "GARANTI",
-      "bank_name":    "Garanti BBVA",
-      "card_scheme":  "visa",
-      "card_type":    "credit",
-      "card_program": "bonus",
-      "country":      "TR",
-      "is_commercial": false,
-      "is_active":    true
-    }
-  ],
-  "page":              1,
-  "total_pages":       1,
-  "total_count":       1,
-  "has_previous_page": false,
-  "has_next_page":     false
-}
-```
-
-## Tipik kullanım: dinamik checkout
-
-Müşteri kart numarası alanına yazarken, ilk 6 hane tamamlandığında tetikleyin:
-
-```javascript
-// Frontend
-async function onCardNumberChange(value) {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length < 6) return;
-  const prefix = digits.slice(0, 6);
-
-  // Kendi backend'iniz üzerinden çağırın — frontend'den Identity'e direkt token taşımayın
-  const response = await fetch(`/api/bin/${prefix}`);
-  const card = await response.json();
-  if (card) {
-    showBankLogo(card.bank_code);
-    loadInstallmentOptions(prefix, currentAmount);
+[
+  {
+    "id":          "abc-...",
+    "bank_code":   "00062",
+    "bank_name":   "Türkiye Garanti Bankası",
+    "bin_start":   "45467100",
+    "bin_end":     "45467199",
+    "schema_type": "visa",
+    "card_type":   "credit",
+    "card_brand":  "bonus",
+    "card_length": 16,
+    "is_active":   true
   }
-}
+]
 ```
 
-Backend (BFF):
+`bin_start` / `bin_end` **8 haneli** kanonik aralıktır (6 haneli BIN sağdan sıfır / dokuz ile tamamlanır). `card_length` bu aralıktaki kart uzunluğudur.
+
+## Tipik kullanım: dinamik ödeme formu
+
+Kart numarası yazılırken ilk 6 hane tamamlandığında **kendi sunucunuz üzerinden** sorgulayın (token'ı tarayıcıya vermeyin):
 
 ```javascript
 app.get("/api/bin/:bin", authenticate, async (req, res) => {
-  const lookup = await fetch(
-    `${IDENTITY_BASE}/api/v1/lookups/bank-bins?bin_prefix=${req.params.bin}&page_size=1`,
+  const r = await fetch(
+    `${IDENTITY_BASE}/api/v1/lookups/bank-bins?bin=${req.params.bin}`,
     { headers: { Authorization: `Bearer ${await getServiceToken()}` } },
   );
-  const data = await lookup.json();
-  res.json(data.items[0] ?? null);
+  const items = await r.json();
+  res.json(items[0] ?? null);
 });
 ```
 
-## Toplu import (admin)
+Tam kart numarasını doğrulayıp banka bilgisini de aynı çağrıda almak için [Kart Doğrulama](/identity/validation/card) ucunu kullanın.
 
-Organizasyon yöneticisi yeni BIN aralıklarını toplu olarak yükleyebilir:
+## Kart destek matrisi
 
-```bash
-curl -X POST https://identity.payven.com.tr/api/v1/lookups/bank-bins/import \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "entries": [
-      { "bin_start": "454671", "bin_end": "454671", "bank_code": "GARANTI", "card_scheme": "visa", "card_type": "credit", "card_program": "bonus" },
-      { "bin_start": "540063", "bin_end": "540063", "bank_code": "AKBANK",  "card_scheme": "mastercard", "card_type": "credit", "card_program": "axess" }
-    ]
-  }'
+```http
+GET /api/v1/lookups/bank-card-support?bank_code=00062
 ```
 
-Yanıtta her satır için durum (`inserted`, `updated`, `skipped_duplicate`, `error`) raporlanır.
+BIN tablosundan türetilen salt okunur özet: banka başına desteklenen kart birlikleri, kart tipleri, markalar ve BIN sayısı (`bank_code`, `bank_name`, `supported_schemes`, `supported_card_types`, `supported_brands`, `bin_count`). `bank_code` verilmezse tüm bankalar döner.
 
-## Caching
+## BIN aralığı yönetimi
 
-BIN tablosu nadiren değişir — istemcinizde **24 saatlik** cache önerilir.
+BIN tablosu platform geneli referans veridir. Yazma uçları (`POST /lookups/bank-bins`, `PUT` ve `DELETE /lookups/bank-bins/{id}`, `POST /lookups/bank-bins/import`) `tenant-admin` / `tenant-user` rolü ister ve yönetim araçlarına aittir; `DELETE` kaydı silmez, pasife alır. Entegrasyonlar tabloyu yalnız okur.
+
+## Önbellek
+
+BIN tablosu nadiren değişir; istemcinizde 24 saatlik önbellek önerilir.

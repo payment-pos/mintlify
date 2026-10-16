@@ -6,14 +6,13 @@ description: "Para Transferi API'sine Bearer access token ile erişim."
 Para Transferi API'si Payven'in standart OAuth 2.0 Client Credentials akışını kullanır. Identity'den alınan access token, `Authorization: Bearer <access_token>` header'ı ile tüm transfer endpoint'lerine gönderilir.
 
 <Note>
-**Genel akış, kod örnekleri ve token süreleri** için kanonik [Kimlik Doğrulama](/documentation/concepts/authentication) sayfasına bakın. Bu sayfa Para Transferi'ne özgü endpoint URL'lerini, zorunlu header'ları ve örnekleri içerir.
+**Genel akış, kod örnekleri ve token süreleri** için kanonik [Kimlik Doğrulama](/documentation/concepts/authentication) sayfasına bakın. Bu sayfa Para Transferi'ne özgü endpoint URL'lerini, header'ları ve yetkileri içerir.
 </Note>
 
 ## Endpoint URL'leri
 
 | Ortam | Identity (token alma) | Para Transferi API |
 |---|---|---|
-| **Sandbox** | `https://identity-sandbox.payven.com.tr` | `https://transfer-sandbox.payven.com.tr` |
 | **Production** | `https://identity.payven.com.tr` | `https://transfer.payven.com.tr` |
 
 ## Hızlı başlangıç
@@ -22,42 +21,35 @@ Para Transferi API'si Payven'in standart OAuth 2.0 Client Credentials akışın�
 
 ```bash
 curl https://transfer.payven.com.tr/api/v1/transfers \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "X-Tenant-Id: $TENANT_ID"
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-Para Transferi'ne özgü olan tek fark: **`X-Tenant-Id` header'ı zorunlu** (aşağıda).
+Organizasyon (tenant) kimliği token'daki `tenant_id` claim'inden okunur; ayrıca bir tenant başlığı göndermezsiniz. Token'da bu claim yoksa istek `401 tenant_required` ile reddedilir.
 
-## Zorunlu header'lar
-
-Tüm Para Transferi istekleri aşağıdaki header'ları içermelidir:
+## Header'lar
 
 | Header | Tip | Açıklama |
 |---|---|---|
 | `Authorization` | `Bearer <token>` | Identity'den alınan access token |
-| `X-Tenant-Id` | UUID | Organizasyonunuzun tenant kimliği. Multi-tenant izolasyon için zorunludur. |
-| `X-Request-Id` | UUID (opsiyonel) | İstek korelasyon kimliği. Vermezseniz Payven üretir; response header'ı `X-Correlation-Id` ile karşılığı döner. |
-| `Idempotency-Key` | string | **POST istekleri için zorunlu önerilir.** Aynı isteğin iki kez işlenmesini engeller. Bkz. [Idempotency](/documentation/concepts/idempotency). |
+| `X-Merchant-Id` | UUID | Bayi (işyeri) kimliği. Bayi kapsamlı kimliklerde token'dan gelir; organizasyon düzeyi kimliklerde bayi adına işlem yaparken gönderilir |
+| `X-External-Merchant-Id` | string | Bayinin sizin sisteminizdeki kimliği. İki başlık birlikte gelirse `X-Merchant-Id` öncelikli olur |
+| `X-Request-Id` | string (en fazla 200 karakter) | **Yalnız `POST /transfers/bulk/create`'te anlamlıdır:** sizin paket numaranızdır, transferlere `request_id` olarak yazılır ve tekil olmalıdır. Başka uçlarda yok sayılır |
+| `Idempotency-Key` | string | Para hareketi başlatan her `POST` için gönderin; aynı anahtar + aynı gövde ilk yanıtı döndürür. Transfer uçlarında saklama süresi 24 saattir. Bkz. [Idempotency](/documentation/concepts/idempotency) |
+| `Accept-Language` | `tr` / `en` | Hata `message` alanının dili (varsayılan `tr`) |
+
+Detay: [Hesap Yapısı](/documentation/account-model#merchant-kimligi-iki-form).
 
 <Warning>
-**`X-Tenant-Id` zorunludur.** Para Transferi servisi, tenant izolasyonu için bu header'a güvenir. Eksik isteklere `400 Bad Request` döner.
+Bayi kapsamlı bir kimlikle başka bayinin `X-Merchant-Id` değerini göndermek `403` ile reddedilir.
+Bayi seçimi zorunlu olan uçlarda başlık hiç gelmezse `400 merchant_context_missing`, bayi
+çözülemezse `422 merchant_not_found` döner.
 </Warning>
-
-## Merchant kimliği
-
-Access token içinde `tenant_id` ve varsa `merchant_id` claim olarak taşınır. Çoklu merchant senaryolarında override için:
-
-```http
-X-Merchant-Id:          3fa85f64-5717-4562-b3fc-2c963f66afa6
-X-External-Merchant-Id: M-IST-001
-```
-
-İki header birden gönderilirse `X-Merchant-Id` öncelikli olur. Detay: [Hesap Yapısı](/documentation/account-model#merchant-kimligi-iki-form).
 
 ## Response header'ları
 
 ```http
 X-Correlation-Id:       9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
+X-Payven-Mode:          live
 X-RateLimit-Limit:      200
 X-RateLimit-Remaining:  187
 X-RateLimit-Reset:      1746450896
@@ -66,43 +58,56 @@ X-RateLimit-Reset:      1746450896
 | Header | Açıklama |
 |---|---|
 | `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Destek talebi açarken paylaşın. |
+| `X-Payven-Mode` | İsteğin çalıştığı mod: `live` ya da `test`. Bkz. [Test Modu](/para-transferi/sandbox) |
 | `X-RateLimit-*` | Mevcut kota durumu. [Detay](/documentation/concepts/rate-limiting). |
-| `Retry-After` | Yalnız `429` yanıtında — kaç saniye sonra tekrar denemeniz gerektiği. |
-| `Idempotent-Replayed` | Yalnız idempotent replay'lerde — yanıt cache'den döndüyse `true`. |
+| `Retry-After` | `429` ve `409 idempotency_request_in_progress` yanıtlarında — kaç saniye sonra tekrar denemeniz gerektiği. |
+| `Idempotent-Replayed` | Yalnız idempotent replay'lerde — yanıt kayıttan döndüyse `true`. |
 
-## Yetkilendirme rolleri
+## Yetkilendirme
 
-Para Transferi endpoint'leri **rol-bazlı yetkilendirme** gerektirir. 4-eyes principle gereği farklı adımlar farklı rolleri zorunlu kılar:
+Her uç bir **izin** (policy) ister; izinler rollere Payven konsolunda atanır (**Ayarlar → Roller**).
+Rol kapsamı rol adının önekinden gelir: `tenant-*` roller tüm bayileri görür, diğer roller seçili
+bayi ile sınırlıdır. Varsayılan dağılım:
 
-| Rol | Yetki |
-|---|---|
-| `transfer-admin` | Tüm para transferi operasyonları (oluşturma + onay + gönderim + yönetim) |
-| `transfer-operator` | Transfer oluşturma + sorgulama (onay yetkisi yok) |
-| `transfer-viewer` | Salt okunur erişim |
-| `transfer-merchant-admin` | Bayi tarafı tam yetki |
-| `transfer-merchant-user` | Bayi tarafı operatör |
+| İzin | Açtığı uçlar | Varsayılan roller |
+|---|---|---|
+| `CanViewTransfers` | `GET /transfers*`, dekont, makbuz | tenant-admin, tenant-user, merchant-admin, merchant-user |
+| `CanCreateTransfers` | `POST /transfers/bulk/create`, `PATCH /transfers/{id}` | dört rol |
+| `CanApproveTransfers` | `bulk/approve`, `bulk/reject`, tekrarlayan talimat onay/red | tenant-admin, tenant-user, merchant-admin |
+| `CanSendTransfers` | `bulk/send`, `{id}/sync`, `{id}/refund` | tenant-admin, tenant-user, merchant-admin |
+| `CanManageReconciliations` | `POST /transfers/{id}/resolve` | tenant-admin, merchant-admin |
+| `CanViewBulkTransfers` / `CanCreateBulkTransfers` | `/bulk-transfers` okuma / önizleme + oluşturma + kalem düzenleme | okuma: dört rol; oluşturma: tenant-admin, tenant-user, merchant-admin |
+| `CanApproveBulkTransfers` / `CanCancelBulkTransfers` | paket onay-red / iptal | onay: tenant-admin, merchant-admin; iptal: tenant-admin, tenant-user, merchant-admin |
+| `CanViewRecurringTransfers` / `CanManageRecurringTransfers` | `/recurring-transfers` | okuma: dört rol; yönetim: tenant-admin, tenant-user, merchant-admin |
+| `CanViewRecipients` / `CanManageRecipients` | `/recipients`, `/receiver-accounts` | okuma: dört rol; yönetim: tenant-admin, tenant-user, merchant-admin |
+| `CanViewConnectors` | `GET /connector-accounts`, `GET /accounts*` | dört rol |
+| `CanViewTestReceiverAccounts` / `CanManageTestReceiverAccounts` | `/test-receiver-accounts` | okuma: dört rol; yönetim: tenant-admin, tenant-user, merchant-admin |
 
-`tenant-admin` rolü, transfer rollerini de kapsar (composite). Detay: organizasyonunuzun rol matrisini konsoldan **Ayarlar → Kullanıcılar** ekranından inceleyebilirsiniz.
+`tenant-admin` tüm izinlere sahiptir. Müşteri API anahtarları (`pvk-*`) `merchant-admin` ya da
+`tenant-admin` yetkisi taşır. Pasif ya da onaysız bayi para hareketi başlatan uçlarda
+(`bulk/create`, `/bulk-transfers` oluşturma, tekrarlayan transfer kurma/devam/hemen çalıştırma)
+`422 merchant_inactive` / `422 merchant_not_approved` alır; okuma uçları açık kalır.
 
 ## Hata response'ları
 
 | HTTP | `code` | Anlam | Çözüm |
 |---|---|---|---|
-| `400` | `tenant_id_required` | `X-Tenant-Id` header'ı eksik | Header'ı ekleyin |
-| `401` | `invalid_token` | `Authorization` header eksik / geçersiz | Token alın veya refresh edin |
-| `401` | `token_expired` | Access token süresi doldu | Refresh akışı |
-| `403` | `forbidden` | Bu rol bu kaynağı göremez | Kullanıcı rolünü kontrol edin |
-| `403` | `merchant_inactive` | Belirtilen merchant pasif statüde | Konsol → Merchants |
-| `403` | `product_not_licensed` | Para Transferi modülü planınızda etkin değil | Plan yükseltme |
+| `400` | `merchant_context_missing` | Bayi seçimi gereken uçta bayi bildirilmedi | `X-Merchant-Id` / `X-External-Merchant-Id` ekleyin |
+| `401` | `unauthorized` | `Authorization` header eksik / token geçersiz ya da süresi dolmuş | Token alın veya yenileyin |
+| `401` | `tenant_required` | Token `tenant_id` claim'i taşımıyor | Doğru client ile token alın |
+| `403` | `forbidden` | Bu kimlik bu uç için gerekli izne sahip değil / başka bayinin kapsamı | Rol-izin atamasını kontrol edin |
+| `403` | `feature_not_available` | Para Transferi (ya da alt modül) organizasyonunuzda etkin değil | Plan / modül ayarı |
+| `422` | `merchant_not_found` · `merchant_inactive` · `merchant_not_approved` | Bayi çözülemedi / pasif / onaysız | Bayi durumunu konsoldan kontrol edin |
+| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı gövde için kullanılmış | Yeni anahtar üretin |
+| `409` | `idempotency_request_in_progress` | Aynı anahtarlı istek hâlâ işleniyor | `Retry-After` kadar bekleyip aynı isteği tekrarlayın |
 | `429` | `rate_limit_exceeded` | Limit aşıldı | `Retry-After` header'ına uyun |
 
-Tam hata kataloğu: [Hata Yönetimi](/documentation/concepts/errors).
+Tam hata kataloğu: [Hata Kodları](/para-transferi/errors/overview), genel prensip: [Hata Yönetimi](/documentation/concepts/errors).
 
 ## Güvenlik kuralları
 
 <Check>**Token cache** — Her API çağrısında token alıp Identity'yi yormayın. Bellek-içi cache + 60sn margin ile auto-refresh kullanın.</Check>
 <Check>**Sadece sunucu tarafı** — `client_secret`'ı frontend, mobil veya public repo'ya **asla** koymayın.</Check>
 <Check>**HTTPS zorunlu** — HTTP istekleri reddedilir.</Check>
-<Check>**Production = ayrı client** — Production ve sandbox için ayrı `client_id`/`client_secret` kullanın.</Check>
-<Check>**IP whitelist** — Production client'ları için zorunlu kabul edin (Identity tarafında enforce edilir).</Check>
+<Check>**Production = ayrı client** — Test ve canlı ortam için ayrı `client_id`/`client_secret` kullanın.</Check>
 <Check>**Loglarda maskele** — `access_token`, `client_secret`, hesap numaraları ve IBAN değerlerini log'lara yazmayın.</Check>

@@ -1,0 +1,185 @@
+---
+title: "Toplu Transfer Paketi"
+description: "Excel/CSV benzeri satır listesinden önizlenen, paket olarak onaylanan binlerce transfer."
+---
+
+`bulk/create` birkaç on transferlik, hemen işlenecek istekler içindir. **Toplu transfer paketi** (`/bulk-transfers`) ise bordro / tedarikçi ödemesi gibi **tek satır listesini** (en fazla 5.000 satır) önce **önizleyip**, sonra **tek paket olarak onaylamak** içindir: paket bir kez onaylanır, kalemleri onayla birlikte gönderim kuyruğuna girer.
+
+```mermaid
+flowchart LR
+    A[POST /bulk-transfers/preview<br/>doğrula, DB'ye yazma] --> B[POST /bulk-transfers<br/>paket + kalemler: pending]
+    B --> C{Paket onayı}
+    C -->|POST /{id}/approve| D[Kalemler approved<br/>otomatik gönderim]
+    C -->|POST /{id}/reject| E[rejected]
+    B -->|POST /{id}/cancel| F[cancelled]
+    D --> G[para-transferi.bulk_transfer.completed]
+```
+
+Paket kalemleri tek tek onaylanamaz (`bulk/approve` bu kalemlerde `PV_BULK_ITEM_REQUIRES_BATCH_APPROVAL` döner); paket kendi uçlarıyla yönetilir. Toplu pakette yalnız `fast`, `eft` ve `remittance` kullanılır — kart transferi yoktur.
+
+## Yetkiler
+
+| İşlem | İzin |
+|---|---|
+| Listeleme, detay, export | `CanViewBulkTransfers` |
+| Önizleme, oluşturma, kalem düzenleme / silme | `CanCreateBulkTransfers` |
+| Paket onayı / reddi | `CanApproveBulkTransfers` |
+| Paket iptali | `CanCancelBulkTransfers` |
+
+Paketi **oluşturan ya da kalemini düzenleyen** kimlik onaylayamaz (`403 PV_BULK_TRANSFER_SELF_APPROVAL`); kural organizasyon / bayi onay politikası ayarıyla yönetilir. Oluşturma pasif / onaysız bayide `422` döner.
+
+## 1. Önizleme — `POST /bulk-transfers/preview`
+
+Satırları doğrular ve bölme / kanal önerilerini üretir; **veritabanına yazmaz.**
+
+```bash
+curl -X POST https://transfer.payven.com.tr/api/v1/bulk-transfers/preview \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Merchant-Id: $MERCHANT_ID" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "default_transfer_type": "fast",
+    "append_split_suffix":   true,
+    "sender_connector_account_id": "550e8400-e29b-41d4-a716-446655440000",
+    "rows": [
+      { "row_index": 1, "external_id": "PAYROLL-001", "holder_name": "Ahmet Yılmaz",
+        "iban": "TR330006100519786457841326", "amount": 15000.00, "description": "Mayıs maaşı" },
+      { "row_index": 2, "holder_name": "Ayşe Demir",
+        "iban": "TR640001500158007294327198", "amount": 250000.00, "split_count": 2, "transfer_type": "eft" }
+    ]
+  }'
+```
+
+<Warning>
+**Paket satırlarında `amount` TL cinsindendir (ondalık sayı, ör. `15000.00`)** — platformun diğer tüm uçlarındaki kuruş (`long`) kuralının tek istisnasıdır. Yanıtlar kuruş döner (`amount_kurus`). Sunucu TL değerini kuruşa çevirir.
+</Warning>
+
+| Alan | Tip | Açıklama |
+|---|---|---|
+| `rows[]` | array | 1–5.000 satır |
+| `rows[].row_index` | int | Dosyadaki satır numarası (1 tabanlı, başlık hariç) |
+| `rows[].external_id` | string | Sizin referansınız (en fazla 240 karakter, `payout:` ile başlayamaz). Boşsa önizlemede otomatik atanır; yanıttaki değeri oluşturma isteğinde geri gönderin |
+| `rows[].holder_name` | string | Alıcı adı (zorunlu, en fazla 250) |
+| `rows[].iban` / `rows[].account_number` | string | IBAN (26 karakter, mod-97 doğrulanır) veya hesap numarası; biri zorunlu |
+| `rows[].amount` | decimal (TL) | Sıfırdan büyük, en fazla 1.000.000.000 TL |
+| `rows[].split_count` | int | Boş / 1 = tek transfer; 2–100 = N parçaya böl (kalan kuruşlar ilk parçalara) |
+| `rows[].description` | string | Açıklama; 60 karakteri aşarsa uyarı (banka kırpabilir) |
+| `rows[].transfer_type` | enum | Satıra özel kanal; boşsa `default_transfer_type` |
+| `default_transfer_type` | enum | `fast` (varsayılan), `eft`, `remittance` |
+| `append_split_suffix` | bool | Bölünen satırların `external_id`'sine `-{n}` ekle (varsayılan `true`) |
+| `sender_connector_account_id` | UUID | Kanal önerisi bu hesaba göre üretilir (opsiyonel) |
+
+Yanıt:
+
+```json
+{
+  "total_rows_in_excel":    2,
+  "expanded_transfer_count": 3,
+  "valid_count":            2,
+  "warning_count":          1,
+  "invalid_count":          0,
+  "total_amount_kurus":     26500000,
+  "valid_amount_kurus":     26500000,
+  "rows": [
+    { "row_index": 1, "external_id": "PAYROLL-001", "status": "valid", "errors": [], "warnings": [],
+      "holder_name": "Ahmet Yılmaz", "iban": "TR330006100519786457841326", "bank_name": "Akbank",
+      "amount_kurus": 1500000, "transfer_type": "fast", "channel_suggestions": [] }
+  ]
+}
+```
+
+Satır `status`: `valid`, `warning` (gönderilebilir ama dikkat: ör. FAST limitini aşan tutar, havale için farklı banka, uzun açıklama), `invalid` (pakete alınmaz; `errors[]` nedeni söyler: boş ad, geçersiz IBAN / sağlama toplamı, banka bulunamadı, tutar ≤ 0, bölme sayısı > 100, daha önce kullanılmış ya da dosyada tekrar eden referans). FAST limitini aşan satırda `channel_suggestions[]` (bölme / EFT / havale önerisi) döner; bir öneriyi uygulamak için satırın `transfer_type` / `split_count` değerini güncelleyip yeniden önizleyin.
+
+## 2. Oluşturma — `POST /bulk-transfers`
+
+Önizlediğiniz satırlarla paketi ve kalem transferlerini oluşturur (`pending`, paket `pending_approval`).
+
+```bash
+curl -X POST https://transfer.payven.com.tr/api/v1/bulk-transfers \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "X-Merchant-Id: $MERCHANT_ID" \
+  -H "Idempotency-Key: payroll-2026-10-batch" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title":                       "Ekim maaşları",
+    "description":                 "Yazılım ekibi",
+    "sender_connector_account_id": "550e8400-e29b-41d4-a716-446655440000",
+    "default_transfer_type":       "fast",
+    "source_file_name":            "ekim-maas.xlsx",
+    "skip_invalid_rows":           true,
+    "rows": [ /* önizleme satırları */ ]
+  }'
+```
+
+| Alan | Açıklama |
+|---|---|
+| `title` | Zorunlu, en fazla 200 karakter |
+| `description` | En fazla 1000 karakter |
+| `sender_connector_account_id` | Opsiyonel. Verilmezse paket bir **talep** olur ve hesabı onaylayan seçer (bayi kendi, organizasyon organizasyon hesabıyla) |
+| `skip_invalid_rows` | `true` (varsayılan): hatalı satırlar atlanır, geçerlilerden paket kurulur. `false`: herhangi bir hatalı satır varsa paket **oluşturulmaz** |
+| `source_file_name`, `source_file_hash` | Kaynak dosya izi (opsiyonel) |
+
+Yanıt: `batch_id`, `created_transfer_count`, `skipped_row_count`, `total_amount_kurus`, `invalid_rows[]`.
+
+Önizleme ile oluşturma arasında bir referans başka istekte kullanılırsa oluşturma `409 PV_TRANSFER_EXTERNAL_ID_DUPLICATE` döner; önizlemeyi yenileyin.
+
+## 3. Onay / red / iptal
+
+```http
+POST /api/v1/bulk-transfers/{id}/approve   # { "approval_note": "...", "sender_connector_account_id": "..." }
+POST /api/v1/bulk-transfers/{id}/reject    # { "rejection_reason": "..." }
+POST /api/v1/bulk-transfers/{id}/cancel    # { "reason": "..." }   (draft / pending_approval)
+```
+
+- **approve:** hesapsız (talep) pakette `sender_connector_account_id` zorunludur; hesap tüm kalemlere birlikte bağlanır. Yanıt: `batch_id`, `approved_count`, `skipped_count`. Kalemler `approved` olur ve otomatik gönderilir; organizasyon hesabıyla onaylanan bayi talebi önce bayinin hakedişinden karşılanır (`awaiting_funds`).
+- **reject:** onay bekleyen paketi reddeder; yanıt `true`.
+- **cancel:** `draft` / `pending_approval` paketi iptal eder, bekleyen kalemler `rejected` olur; yanıt `true`. Onaylanmış paket iptal edilemez (`409 PV_BULK_TRANSFER_INVALID_STATE`).
+
+## Kalem düzenleme
+
+Yalnız `draft` / `pending_approval` pakette ve `pending` kalemde:
+
+```http
+PATCH  /api/v1/bulk-transfers/{id}/items/{transfer_id}   # { "new_amount_kurus": 1600000, "new_description": "..." }
+DELETE /api/v1/bulk-transfers/{id}/items/{transfer_id}   # kalemi paketten çıkar
+```
+
+Gönderici hesap kalem bazında değiştirilemez. Kalem düzenleyen kimlik paketi onaylayamaz.
+
+## Sorgulama
+
+```http
+GET /api/v1/bulk-transfers              # status, date_from, date_to, created_by, search_term, page, page_size
+GET /api/v1/bulk-transfers/{id}         # paket + items[]
+GET /api/v1/bulk-transfers/export       # CSV (scope=page|all)
+GET /api/v1/transfers?bulk_transfer_batch_id={id}   # kalemlerin tam transfer nesneleri
+```
+
+Paket alanları: `id`, `title`, `description`, `status`, `total_count`, `total_amount`, `success_count`, `failed_count`, `pending_count`, `success_amount`, `sender_connector_account_id`, `funding_source`, `source_file_name`, `created_by`, `approved_by`, `created`, `submitted_at`, `approved_at`, `started_at`, `completed_at`, `approval_note`, `rejection_reason`, `cancellation_reason`. Detayda `items[]`: `transfer_id`, `source_row_index`, `split_index`, `split_total`, `external_id`, `holder_name`, `iban`, `bank_name`, `amount` (kuruş), `status`, `message`, `error_code`, `provider_error_code`, `processed_date`.
+
+### Paket durumları
+
+| `status` | Anlam |
+|---|---|
+| `draft` | Taslak |
+| `pending_approval` | Onay bekliyor |
+| `approved` | Onaylandı, kalemler gönderim kuyruğunda |
+| `processing` | Gönderim sürüyor |
+| `completed` | Tüm kalemler başarılı |
+| `partially_completed` | Bir kısmı başarılı, bir kısmı başarısız |
+| `failed` | Hiçbir kalem başarılı değil |
+| `rejected` | Paket reddedildi |
+| `cancelled` | Paket iptal edildi |
+
+Paketin tüm kalemleri sonuçlanınca `para-transferi.bulk_transfer.completed` webhook'u **bir kez** yayınlanır; kalemlerin kendi `para-transferi.transfer.*` olayları ayrıca gelir. Başarısız kalemi yeniden göndermek tek transferdeki kural gibidir: yalnız `failed` kalem ve yalnız açık kararınızla (`POST /transfers/bulk/send`).
+
+## Hata response'ları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `resource_not_found` | Paket ya da kalem bulunamadı |
+| `409` | `PV_BULK_TRANSFER_INVALID_STATE` | Paket bu durumda bu işleme uygun değil |
+| `409` | `PV_TRANSFER_INVALID_STATE` | Kalem `pending` değil |
+| `409` | `PV_TRANSFER_EXTERNAL_ID_DUPLICATE` | Önizleme sonrası referans başka istekte kullanıldı |
+| `403` | `PV_BULK_TRANSFER_SELF_APPROVAL` | 4-göz: oluşturduğunuz / düzenlediğiniz paketi onaylayamazsınız |
+| `422` | `validation_failed` | Boş başlık, 5.000'den fazla satır, kart transferi tipi vb. |

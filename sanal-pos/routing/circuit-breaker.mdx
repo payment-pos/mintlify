@@ -1,100 +1,55 @@
 ---
-title: "Circuit Breaker"
-description: "Sağlıksız bankanın yönlendirme havuzundan otomatik çıkarılması."
+title: "Banka Sağlığı ve Circuit Breaker"
+description: "Banka sağlık durumunun izlenmesi ve arızalı bankaya yapılan çağrıların hızlı kesilmesi."
 ---
 
-Circuit Breaker, bir bankanın **istikrarsız** olduğunu tespit ettiğinde o bankayı **geçici olarak** yönlendirme havuzundan çıkarır. Banka düzelene kadar işlemler diğer konnektörlere yönlendirilir.
+Payven iki ayrı mekanizmayla arızalı bankanın ödemeleri yavaşlatmasını önler: **sağlık takibi** (yönlendirme sırası) ve **devre kesici** (bağlantı katmanı).
 
-## Neden gerekli?
+## Sağlık takibi
 
-Akıllı Yönlendirme her isteği gerçek zamanlı değerlendirir. Ama bir banka **sürekli** hata veriyorsa her seferinde yeniden denemek:
+Her banka konfigürasyonu için işlem türüne göre son sonuçlar (varsayılan **son 10 işlem**) tutulur ve başarı yüzdesinden bir durum türetilir:
 
-- Müşteri için gecikme yaratır (5 sn timeout sonrası fallback)
-- Toplam başarı oranını düşürür
-- Hatalı bankayı meşgul eder
-
-Circuit Breaker bu döngüyü kırar — hatalı banka belirli bir süre **devre dışı bırakılır**.
-
-## Üç hal
-
-```mermaid
-stateDiagram-v2
-    [*] --> Closed: Banka sağlıklı
-    Closed --> Open: Hata eşiği aşıldı
-    Open --> HalfOpen: Bekleme süresi doldu
-    HalfOpen --> Closed: Test isteği başarılı
-    HalfOpen --> Open: Test isteği başarısız
-```
-
-| Hal | Davranış |
+| `status` | Anlam (varsayılan eşikler) |
 |---|---|
-| **Closed** | Banka sağlıklı, normal yönlendirme |
-| **Open** | Banka devre dışı, hiçbir istek atılmaz |
-| **HalfOpen** | Bekleme süresi sonunda küçük bir test trafiği gönderilir |
+| `healthy` | Başarı oranı %80 ve üzeri |
+| `degraded` | %50 ile %80 arası |
+| `unhealthy` | %50'nin altı |
+| `unknown` | Henüz yeterli örnek yok |
 
-## Konfigürasyon
+`unhealthy` banka yönlendirme planından **çıkarılmaz**; kural dışı yedek adaylar arasında sona itilir. Kural içinde sizin tanımladığınız sıra değişmez. Eşikler Identity Ayarlar'da `connector_health:sample_size`, `healthy_threshold`, `unhealthy_threshold` anahtarlarıyla değişir.
 
-Circuit Breaker, konnektör HTTP istemcisi üzerinde **Polly** kütüphanesi ile uygulanmıştır (`Infrastructure/Http/PollyPolicies.cs`). Mevcut varsayılanlar (`AdvancedCircuitBreakerAsync`, sampling window tabanlı):
-
-| Parametre | Varsayılan | Açıklama |
-|---|---|---|
-| `failureThreshold` | 0.5 | Sampling window içindeki hata oranı eşiği (%50) |
-| `minimumThroughput` | 10 | Bu sayıdan az çağrıda CB değerlendirme yapılmaz |
-| `samplingDuration` | 30 sn | Rolling pencere uzunluğu |
-| `durationOfBreak` | 15 sn | Open kalma süresi (sonra HalfOpen'a geçer) |
-| HalfOpen test trafiği | 1 istek | Tek başarılı istek → Closed; başarısız → Open |
-| Retry policy (ayrı, INNER) | 3 deneme | Exponential backoff (`2^attempt` saniye) |
-| Timeout | 30 sn | İstek başına |
-
-<Note>
-Pipeline sırası **CB OUTER, Retry INNER**. Aksi sıralamada bir kullanıcı çağrısının 3 retry denemesi CB'ye 3 ayrı hata yazar ve birkaç geçici hatada CB açılır. Şu anki sırada **1 kullanıcı çağrısı = CB için 1 sample**.
-</Note>
-
-Konnektör başına özelleştirme için: **Konsol → Konnektörler → [Konfigürasyon]** ekranı veya `PUT /api/v1/connector-configurations/{id}` endpoint'i.
-
-## Açılma kriteri
-
-Bir konnektör HTTP istemcisi son **30 sn**'deki en az **10 çağrıdan** **%50'si** geçici hata (5xx, timeout, network) verdiğinde Open'a geçer. **15 saniye** boyunca o konnektöre çağrı yapılmaz; süre sonunda HalfOpen'a geçilir ve tek bir test isteği denenir.
-
-## Yarı-açık hal (HalfOpen)
-
-Bekleme süresi dolunca breaker "HalfOpen" haline geçer. Sonraki birkaç istek **test trafiği** olarak banka ile yeniden denenir:
-
-- Test başarılı → Closed haline döner, normal çalışmaya devam eder.
-- Test başarısız → tekrar Open haline döner.
-
-## İstek üzerindeki etkisi
-
-Banka Open haldeyken o bankaya yönlendirilecek istekler:
-
-- Routing kuralında **`fallback_connector_config_id`** tanımlanmışsa → doğrudan fallback konnektöre gider, birinci konnektör hiç denenmez (timeout süresi kaybedilmez)
-- Fallback yoksa → işlem `connector_unavailable` koduyla reddedilir
-- Karşılayan başka kural varsa engine onu değerlendirmeye devam eder
-
-## Sağlık endpoint'i
-
-Konnektörün anlık sağlık durumunu API üzerinden kontrol edebilirsiniz:
+### Sağlık ucu
 
 ```bash
 curl https://vpos.payven.com.tr/api/v1/connector-configurations/{id}/health \
   -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-Yanıt; mevcut hali (`closed`/`open`/`half_open`), son rolling penceredeki başarı/hata oranını, ortalama yanıt süresini ve son durum değişiklik zamanını döner.
+`CanViewConnectors` izni ister.
 
-## İzleme
+```json
+{
+  "connector_configuration_id": "5b2e7c10-4f11-4b7a-9d3e-0a8c1f6d2e44",
+  "status": "healthy",
+  "success_rate": 90,
+  "sample_size": 10,
+  "success_count": 9,
+  "failure_count": 1,
+  "last_transaction_at": "2026-10-16T11:42:10.512+03:00",
+  "last_calculated_at": "2026-10-16T11:42:12.004+03:00",
+  "sparkline": [100, 100, 0, 100, 100, 100, 100, 100, 100, 100],
+  "last_error": {
+    "code": "PV_PAYMENT_FAILED",
+    "message": "Banka işlemi reddetti.",
+    "at": "2026-10-16T11:38:03.221+03:00"
+  }
+}
+```
 
-Breaker durumunu konsoldaki **Konnektör Sağlık Paneli** ekranından takip edebilirsiniz:
+`sparkline` her işlem için `100` (başarılı) ya da `0` (başarısız) değeri taşır.
 
-- Mevcut hali (Closed / Open / HalfOpen)
-- Son rolling window'daki başarı/hata oranı
-- Ortalama yanıt süresi
-- Hangi tarihte Open'a düştüğü
-- Spark-line trend grafikleri
+## Devre kesici
 
-## Yol haritası
+Banka HTTP çağrıları bir devre kesiciden geçer: bir banka konfigürasyonuna giden çağrılarda **art arda 10 geçici hata** (5xx, zaman aşımı, bağlantı hatası) olursa devre **açılır** ve **30 saniye** boyunca o bankaya istek atılmaz; süre dolunca test isteği geçirilir, başarılıysa devre kapanır, başarısızsa yeniden açılır.
 
-- **Connector health webhook olayları** (devre açıldı / kapandı) — şu an webhook olay kataloğunda yok, planlamada
-- **Konnektör başına özel circuit breaker konfig UI'ı** (varsayılan ayarlar yerine merchant-spesifik)
-- **Manuel devreden çıkarma** — bakım pencereleri için konnektörü manuel Open'a alma
-- **Bağlantı testleri** — konfigürasyon sırasında **Test Et** ile sağlık doğrulama
+Devre açıkken o bankaya giden işlem hızlıca başarısız olur ve [Smart Retry](/sanal-pos/routing/smart-retry) sıradaki adaya geçer; yedek yoksa işlem `failed` olur. Devre kesici ve sağlık durumu entegrasyon tarafında ayar gerektirmez.

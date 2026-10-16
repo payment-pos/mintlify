@@ -1,0 +1,70 @@
+---
+title: "Kurulum ve Ayarlar"
+description: "Eklenti ayar alanları, API anahtarı hazırlığı, test ve canlıya geçiş."
+---
+
+Tüm platformlarda **aynı yedi alan** sorulur. Alan adları platformdan platforma değişir, anlamları aynıdır. Kullanıcı adı/parola, kart bilgisi veya banka kimlik bilgisi gerekmez.
+
+## 1. Payven hesabında hazırlık
+
+1. **Portal → API Anahtarları → Yeni Anahtar**. Anahtarda **Sanal POS** ve **İşyeri API** (`merchant`) yetkileri seçili olmalı; ikincisi olmadan webhook ucu kurulamaz (`401 audience_invalid`).
+2. Anahtar tek bir bayiye aitse o bayiyi seçin; birden çok bayiniz varsa ödemelerin gideceği bayinin **External Id**'sini ayrıca belirtirsiniz.
+3. `client_id` ve `client_secret` değerlerini kaydedin; **secret yalnız oluşturma anında bir kez gösterilir**.
+4. Tenant slug'ınızı ve servis adreslerini Payven bildirir ([API Anahtarı Yönetimi](/identity/api-keys/overview)).
+
+## 2. Eklenti ayarları
+
+| # | Alan | Zorunlu | Açıklama |
+|---|---|:-:|---|
+| 1 | Tenant Slug | Evet | Hesabınızın kısa adı; token adresi `/api/v1/auth/{slug}/token` bundan kurulur |
+| 2 | API Client Id | Evet | Portal'dan alınan `client_id` |
+| 3 | API Client Secret | Evet | Parola alanı olarak saklanır, loglara yazılmaz |
+| 4 | Bayi / External Merchant Id | Hayır | Anahtar tek bayiye bağlıysa **boş bırakın**; aksi halde `X-External-Merchant-Id` olarak gönderilir |
+| 5 | Identity URL | Evet | Örn. `https://identity.payven.com.tr` |
+| 6 | Sanal POS API URL | Evet | Örn. `https://vpos.payven.com.tr` |
+| 7 | İşyeri API URL | Evet | Webhook ucunun kurulduğu adres, örn. `https://merchant.payven.com.tr` |
+
+Webhook Secret, webhook ucu kimliği ve webhook adresi **otomatik** dolar; elle değiştirmeyin. Kendi alan adıyla hizmet veren (beyaz etiket) kurulumlarda 5-7. alanlara kendi adreslerinizi girin; eklentilerde sabit Payven adresi yoktur.
+
+Mağaza davranış ayarları (etkin, başlık/açıklama, test modu, başarılı/başarısız sipariş durumu, sıralama, debug log) Payven'den değer gerektirmez.
+
+## 3. Platforma göre ayar yeri
+
+| Platform | Yer |
+|---|---|
+| WooCommerce | WooCommerce → Ayarlar → Ödemeler → Payven |
+| OpenCart 3 / 4 | Eklentiler → Ödemeler → Payven → Düzenle |
+| PrestaShop | Modüller → Payven → Yapılandır |
+| Magento 2 | Stores → Configuration → Sales → Payment Methods → Payven |
+| nopCommerce | Configuration → Payment Methods → Payven → Configure |
+| Shopify | Sunucu `.env` dosyası (`PAYVEN_*` değişkenleri); webhook ucu **otomatik kurulmaz**, İşyeri panelinden elle açılıp sırrı `PAYVEN_WEBHOOK_SECRET`'a yazılır |
+
+## 4. Test ve canlıya geçiş
+
+1. Eklentide **Test Modu**'nu açın: Payven checkout sayfası test kartlarını gösterir ([Test Kartları](/sanal-pos/test/test-cards)). Test API anahtarı ile işlemler bankaya gitmez ([Sandbox](/sanal-pos/test/sandbox)).
+2. Bir sepet oluşturup Payven ile ödeyin; siparişin **ödendi** durumuna geçtiğini ve siparişte Payven notunu doğrulayın.
+3. Canlıya geçerken kontrol edin:
+
+- [ ] Adresler canlı (production) adresleri
+- [ ] Site herkese açık **HTTPS** (localhost webhook alamaz)
+- [ ] Canlı API anahtarı girildi
+- [ ] Kaydet sonrası webhook ucu hatasız kuruldu
+- [ ] Test Modu kapalı, Etkin açık
+- [ ] Küçük tutarlı gerçek ödeme ve iade denendi
+
+## Sorun giderme
+
+| Belirti | Çözüm |
+|---|---|
+| "Webhook ucu oluşturulamadı" | Client Id/Secret, slug ve adresleri kontrol edin; `401 audience_invalid` ise anahtarda İşyeri API yetkisi eksik |
+| Ödeme oldu, sipariş beklemede | Webhook siteye ulaşmıyor: HTTPS, WAF/güvenlik eklentisi, Webhook Secret dolu mu? Teslim loglarına Portal'dan bakın |
+| İade "işlem kimliği bulunamadı" | Sipariş henüz başarıyla ödenmemiş (webhook gelmemiş) |
+| İade "bakiye bekliyor" | Bayi bakiyesi yetersiz; iade kuyruğa alındı, bakiye oluşunca otomatik işlenir. Mağazada iade kaydı bu sırada açılmaz |
+| Yerel (localhost) testte sonuç gelmiyor | Beklenen; tünel (ngrok vb.) veya gerçek alan adı gerekir |
+
+## Güvenlik
+
+- Kart verisi mağazaya hiç gelmez (hosted redirect, SAQ-A).
+- Webhook'lar HMAC-SHA256 ile imzalanır; imzası geçersiz ya da zaman aşımına uğramış istek `401` ile reddedilir.
+- Token kısa ömürlüdür (yaklaşık 5 dakika).
+- Secret'lar yalnız yönetici ayarlarında saklanır.

@@ -11,7 +11,7 @@ Bir işlemin oluşturulmasından final durumuna kadar gerçekleşen **tüm durum
 GET /api/v1/transactions/{id}/histories
 ```
 
-`id` parametresi UUID formatındadır — `transaction_id` ile aynıdır.
+`id` parametresi UUID formatındadır — `transaction_id` ile aynıdır. Gerekli yetki `CanViewTransactions`.
 
 ## İstek
 
@@ -30,7 +30,7 @@ curl https://vpos.payven.com.tr/api/v1/transactions/8e3f5c12-9a7b-4c8d-bc4e-2c96
     "id":                          "h1-...",
     "transaction_id":              "8e3f5c12-...",
     "connector_configuration_id":  "abc123-...",
-    "connector_configuration_name":"Garanti VPOS Production",
+    "connector_configuration_name":"Örnek VPOS Production",
     "previous_status":             null,
     "new_status":                  "created",
     "message":                     "Ödeme oluşturuldu",
@@ -64,7 +64,7 @@ curl https://vpos.payven.com.tr/api/v1/transactions/8e3f5c12-9a7b-4c8d-bc4e-2c96
     "message":                     "3DS başarılı, otorizasyon onaylandı",
     "auth_code":                   "123456",
     "host_reference":              "PAYVEN-REF-789",
-    "md_status":                   "y",
+    "md_status":                   "1",
     "cavv":                        "AAAB...",
     "eci":                         "05",
     "provider_raw_response":       "<xml>...</xml>",
@@ -82,7 +82,19 @@ curl https://vpos.payven.com.tr/api/v1/transactions/8e3f5c12-9a7b-4c8d-bc4e-2c96
 | `md_status`, `cavv`, `eci`, `xid`, `md`, `three_ds_server_trans_id` | 3DS verifikasyon detayları |
 | `provider_raw_response` | Bankadan dönen ham yanıt (XML/JSON) — debug için kritik |
 | `operation_amount` | Bu adımda işlenen tutar (kuruş) |
-| `created` | Adımın gerçekleştiği zaman (UTC) |
+| `created` | Adımın gerçekleştiği zaman (`+03:00`) |
+
+Durum değerleri `previous_status` / `new_status` alanlarında [Payment Objesi](/sanal-pos/payment-object) sayfasındaki `status` listesiyle aynıdır (ör. `three_d_secure_init_processing`, `capture_processing`, `canceled_processing`).
+
+## Banka sipariş geçmişi
+
+Bankanın kendi kayıtlarındaki sipariş hareketlerini görmek için:
+
+```http
+GET /api/v1/payments/{transaction_id}/history
+```
+
+Yanıt iki liste taşır: `internal_history` (Payven kayıtları) ve `external_history` (bankadan gelen hareketler; banka desteklemiyorsa `provider_history_available: false` ve liste boş). Üst düzey `original_amount`, `net_amount`, `currency`, `status` işlemin güncel özetidir. Test modundaki işlemde banka sorgulanmaz. Banka sorgusu başarısızsa `422 ORDER_HISTORY_FAILED` döner.
 
 ## Tipik kullanım
 
@@ -92,13 +104,10 @@ curl https://vpos.payven.com.tr/api/v1/transactions/8e3f5c12-9a7b-4c8d-bc4e-2c96
 
 Tüm bu bilgiler konsoldaki **İşlem Detayı → Timeline** sekmesinde görsel olarak da gösterilir.
 
-## Veri saklama
-
-İşlem geçmişi kayıtları işlemin saklama süresi boyunca tutulur (varsayılan: 36 ay). Bu süreden sonra otomatik arşivlenir; arşivden talep için [destek ekibinize](/resources/support) ulaşın.
-
 ## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `payment_not_found` | İşlem bulunamadı |
-| `403` | `forbidden` | Yetki yok |
+| `404` | — | İşlem bulunamadı ya da bu işletmeye ait değil |
+| `403` | `forbidden` | `CanViewTransactions` yetkisi yok |
+| `422` | `ORDER_HISTORY_FAILED` | Banka sipariş geçmişi alınamadı (`/payments/{id}/history`) |

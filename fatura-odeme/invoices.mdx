@@ -1,0 +1,82 @@
+---
+title: "Fatura Uçları"
+description: "Fatura sorgu, ödeme, iptal ve listeleme uçları; alan referansı."
+---
+
+Tüm tutarlar **kuruş** (`long`), tarihler `+03:00`, enum değerleri snake_case'tir. Liste uçları `page` ve `page_size` ile sayfalanır ve `items`, `page`, `total_pages`, `total_count` alanlarını döner.
+
+## Sorgu
+
+`POST /api/v1/invoices/query` · politika `CanViewInvoices`
+
+| Alan | Zorunlu | Açıklama |
+|---|---|---|
+| `provider_code` | Evet | Kurum kodu (`pv_ornek_kurum`) |
+| `subscriber_no` | Evet | Abone numarası |
+| `tckn` | Hayır | Kurumun istediği durumlarda TCKN/VKN |
+
+```json
+{
+  "is_success": true,
+  "error_code": null,
+  "error_message": null,
+  "invoices": [
+    {
+      "id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "provider_code": "pv_ornek_kurum",
+      "provider_name": "Örnek Kurum",
+      "subscriber_no": "1234567890",
+      "invoice_number": "2026-0000451",
+      "amount": 15000,
+      "platform_commission_amount": 0,
+      "merchant_commission_amount": 250,
+      "total_amount": 15250,
+      "due_date": "2026-10-25T00:00:00+03:00",
+      "status": "pending",
+      "payment_count": 0
+    }
+  ]
+}
+```
+
+`amount` kuruma ödenecek net bedeldir; `total_amount` müşteriye yansıyan toplamdır (`amount` + komisyonlar). `status`: `pending`, `paid`, `cancelled`, `overdue`, `error`.
+
+## Ödeme
+
+`POST /api/v1/invoices/{id}/pay` · `CanManageInvoices` · pasif/onaysız bayi için kapalı
+
+| Alan | Açıklama |
+|---|---|
+| `comment` | İsteğe bağlı not |
+
+Yanıt: `is_success`, `error_code` (kanonik Payven kodu), `provider_error_code` (kurumun ham kodu), `error_message` (`Accept-Language`'e göre TR/EN), `provider_transaction_id`, `payment`.
+
+`payment` alanları: `id`, `invoice_id`, `amount`, `customer_total_amount`, `collected_amount`, `amount_receivable`, `is_settled`, `payment_date`, `status` (`pending`, `success`, `failed`, `cancelled`, `refunded`), `provider_transaction_id`, `error_message`.
+
+<Warning>
+Aynı faturaya paralel iki ödeme isteği sunucuda serileştirilir; yine de her istekte `Idempotency-Key` gönderin.
+Ağ zaman aşımında yeniden ödemeden önce `GET /invoices/payments` ile ödemenin oluşup oluşmadığını kontrol edin.
+</Warning>
+
+## İptal
+
+`POST /api/v1/invoices/{id}/cancel` · `CanManageInvoices` — buradaki `{id}` **fatura ödemesinin** (`payment.id`) kimliğidir.
+
+```json
+{ "comment": "Müşteri vazgeçti" }
+```
+
+Yanıt: `is_success`, `error_code`, `error_message`, `payment`. Başarılı tahsilatlar varsa bakiye kaynaklı olanlar için defterde ters kayıt yazılır; sonuç `fatura-odeme.invoice.cancelled` olayı ile bildirilir.
+
+## Listeleme
+
+| Uç | Filtreler |
+|---|---|
+| `GET /invoices` | `provider_code`, `status`, `subscriber_no`, `from`, `to` |
+| `GET /invoices/{id}` | Detay + `payments[]` |
+| `GET /invoices/payments` | `from`, `to`, `status`, `provider_code`, `subscriber_no`, `invoice_number`, `min_amount`, `max_amount`, `provider_transaction_id` |
+| `GET /invoices/payments/{id}` | Ödeme + `history[]` (her kurum denemesi: `connector_code`, `status`, `error_code`, `duration`) |
+| `GET /invoices/payments/{id}/history` | Yalnız deneme geçmişi |
+| `GET /invoices/payments/export?scope=all` veya `scope=page` | CSV dışa aktarma (liste filtreleriyle aynı) |
+
+`from`/`to` değerlerinde `+03:00` ofseti gönderin (`2026-10-01T00:00:00+03:00`); ofsetsiz değer UTC sayılır.

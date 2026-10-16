@@ -1,212 +1,111 @@
 ---
-title: "Hakediş (Settlement) Kayıtları"
-description: "Gün sonu hakediş kayıtları, devreden iade/iptal kalemleri ve orantılı komisyon iadesi."
+title: "Hakediş Kayıtları"
+description: "Sanal POS tahsilatlarının bayiye ne zaman ve ne kadar geçeceği: günlük hakediş kayıtları."
 ---
 
-Settlement, Payven'in her bayi için tuttuğu **gün sonu hakediş** kaydıdır. Dönem (Türkiye saatiyle bir tam gün) içindeki tahsilatlar, iadeler ve komisyonlar tek satırda özetlenir; bayinin hesabına geçecek net tutar bu kayıttan okunur.
-
-## Endpoint'ler
-
-```http
-GET    /api/v1/settlements                    # Liste (sayfalı)
-GET    /api/v1/settlements/{id}               # Tek settlement detayı
-GET    /api/v1/settlements/{id}/carry-items   # Satıra devreden iade/iptal kalemleri
-GET    /api/v1/settlements/stats              # Status bazlı özet sayaçlar (KPI)
-GET    /api/v1/settlements/export             # CSV export
-POST   /api/v1/settlements                    # Manuel settlement oluştur (operasyonel)
-PUT    /api/v1/settlements/{id}/status        # Durum güncelle
-POST   /api/v1/settlements/{id}/cancel        # Settlement iptali
-POST   /api/v1/settlements/{id}/resubmit      # Failed settlement'ı yeniden kuyruğa al
-POST   /api/v1/settlements/regenerate         # Dönemi yeniden üret (operasyonel)
-```
-
-Bearer access token gerektirir (OAuth 2.0 Client Credentials).
-
-## Liste
-
-Filtreler: `merchant_id`, `source_code` (banka kodu), `currency`, `status`, `start_date`, `end_date` (ISO 8601 + `+03:00` Türkiye offset'i — URL'de `%2B03%3A00` olarak encode edin).
-
-```bash
-curl "https://vpos.payven.com.tr/api/v1/settlements?page=1&page_size=20&start_date=2026-06-01T00%3A00%3A00%2B03%3A00&end_date=2026-06-11T23%3A59%3A59%2B03%3A00" \
-  -H "Authorization: Bearer $PAYVEN_TOKEN"
-```
-
-Yanıt — sayfalı liste:
-
-```json
-{
-  "items": [
-    {
-      "id":                            "8e3f5c12-...",
-      "source_feature":                "sanalpos",
-      "merchant_id":                   "3fa85f64-...",
-      "merchant_name":                 "Örnek Ticaret A.Ş.",
-      "period_start":                  "2026-06-10T00:00:00+03:00",
-      "period_end":                    "2026-06-10T23:59:59.9999999+03:00",
-      "source_code":                   "GARANTI",
-      "currency":                      "TRY",
-      "gross_amount":                  187435000,
-      "refund_amount":                 2350000,
-      "bank_commission":               6747260,
-      "platform_commission":           1872500,
-      "parent_commission_paid":        0,
-      "net_amount":                    176465240,
-      "marketplace_commission_income": 0,
-      "sub_payout_obligations":        0,
-      "real_net_earning":              176465240,
-      "transaction_count":             1247,
-      "refund_count":                  18,
-      "status":                        "Settled",
-      "settled_at":                    "2026-06-11T09:00:00.000+03:00",
-      "bank_reference":                "STL-2026-06-10-789",
-      "notes":                         null,
-      "created":                       "2026-06-11T00:30:11.000+03:00"
-    }
-  ],
-  "page":              1,
-  "total_pages":       3,
-  "total_count":       62,
-  "has_previous_page": false,
-  "has_next_page":     true
-}
-```
-
-| Alan | Açıklama |
-|---|---|
-| `source_feature` | Kaydı üreten modül (`sanalpos`) |
-| `source_code` | Banka/sağlayıcı kodu (örn. `GARANTI`, `HALKBANK`) |
-| `period_start`, `period_end` | Dönem sınırları — Türkiye saatiyle tam gün (ISO 8601 + `+03:00`) |
-| `gross_amount` | Brüt tahsilat (kuruş) |
-| `refund_amount` | Dönem içi iadeler **+ devreden iade/iptal kalemleri** toplamı |
-| `bank_commission` | Banka komisyonu — elde tutulan kısma orantılı (aşağıya bakın) |
-| `platform_commission` | Payven platform komisyonu — elde tutulan kısma orantılı |
-| `parent_commission_paid` | Alt-bayinin üst bayiye ödediği split komisyonu (marketplace dışında 0) |
-| `net_amount` | `gross - refund - bank_commission - platform_commission - parent_commission_paid` |
-| `marketplace_commission_income` | Marketplace parent'ın alt-bayilerden komisyon geliri (gross'a dahildir, bilgi amaçlı ayrıca gösterilir) |
-| `sub_payout_obligations` | Marketplace parent'ın alt-bayilere ödeme yükümlülüğü |
-| `real_net_earning` | Gerçek hakediş = `net_amount - sub_payout_obligations` |
-| `transaction_count`, `refund_count` | Dönemdeki işlem ve iade adedi (devreden kalemler `refund_count`'a dahil) |
-| `settled_at` | Bankanın transferi yaptığı an (status `Settled` olunca dolar) |
-| `bank_reference` | Bankanın referans numarası |
-| `status` | `Pending`, `Processing`, `Settled`, `Failed`, `Cancelled` |
+Sanal POS Hakediş (settlement) kayıtları **Cüzdan modülünde** tutulur ve oradaki `/settlements` uçlarından okunur; Sanal POS API'sinin kendi `/settlements` ucu yoktur. Hakediş, bayinin "param ne zaman, ne kadar, neden bu kadar" sorusunun cevabıdır: bir işlem gününün tahsilatları, iadeleri ve kesintileri **ödeme günü** (valör) bazında tek satırda toplanır.
 
 <Note>
-Settlement `status` alanı işlem (transaction) durumlarından farklı olarak **PascalCase** string taşır
-(`"Pending"`, `"Settled"`, ...). Liste filtresinde `status` parametresi toleranslıdır.
+Bu uçlar Cüzdan modülü kurulu olan ortamlarda bulunur ve `CanViewBalance` izni ister. Bayi kapsamı `X-Merchant-Id` / `X-External-Merchant-Id` başlığından gelir; şirket kullanıcısı `merchant_id` filtresini kullanabilir.
 </Note>
 
-## Orantılı komisyon iadesi
+## Uçlar
 
-Komisyonlar **elde tutulan tutara orantılı** hesaplanır: bir işlem kısmen iade edildiğinde o işlemin
-platform ve banka komisyonu yalnızca iade edilmeyen (retained) kısım üzerinden settlement'a yansır;
-iade edilen paya düşen komisyon size geri verilir. Tam iadede işlemin komisyonu tamamen sıfırlanır.
-
-## Devreden kalemler (carry-forward)
-
-Hesaplanmış bir hakediş satırı **asla geriye dönük değiştirilmez**. Dönemin satırı üretildikten
-sonra gelen bir iade/iptal, **devreden kalem** olarak yazılır ve bir **sonraki** hakediş hesabında
-tüketilir: kesinti yeni satırın `refund_amount`'una eklenir, iade edilen paya düşen orantılı
-komisyon geri verimi `platform_commission` ve `bank_commission`'dan düşülür.
-
-Bir satıra hangi kesintilerin devrettiğini detayda görebilirsiniz:
-
-```bash
-curl https://vpos.payven.com.tr/api/v1/settlements/8e3f5c12.../carry-items \
-  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```http
+GET    /api/v1/settlements                        # Liste (ödeme gününe göre, yeniden eskiye)
+GET    /api/v1/settlements/{id}                   # Tek hakediş
+GET    /api/v1/settlements/{id}/transactions      # Hakedişi oluşturan hareketler (sayfalı)
+GET    /api/v1/settlements/stats                  # Özet şerit
+GET    /api/v1/settlements/export                 # CSV (scope=page|all)
+GET    /api/v1/settlements/export/schema          # Dışa aktarma kolon şeması
 ```
 
-```json
-[
-  {
-    "id":                  "c1a2b3d4-...",
-    "kind":                "refund",
-    "amount":              150000,
-    "currency":            "TRY",
-    "source_code":         "GARANTI",
-    "transaction_id":      "7d2e9f01-...",
-    "transaction_created": "2026-06-09T14:22:05.000+03:00",
-    "occurred_at":         "2026-06-10T11:05:42.000+03:00"
-  }
-]
-```
+Liste filtreleri: `merchant_id`, `status`, `currency`, `start_date`, `end_date` (`+03:00`), `page`, `page_size`.
 
-| Alan | Açıklama |
-|---|---|
-| `kind` | `refund` (iade) veya `void` (iptal) |
-| `amount` | Kesinti tutarı (kuruş, pozitif) — satırın `refund_amount`'una eklendi |
-| `transaction_created` | Orijinal işlemin tarihi (hangi dönemin işlemiydi) |
-| `occurred_at` | İade/iptalin gerçekleştiği an |
-
-## Özet sayaçlar (stats)
-
-Liste filtresiyle aynı parametreleri alır; sayfalama yok, filtreye uyan **tüm** kayıtların
-status dağılımını döner:
+## Hakediş nesnesi
 
 ```json
 {
-  "total":            62,
-  "total_net_amount": 1083921400,
-  "pending":          3,
-  "processing":       1,
-  "settled":          56,
-  "failed":           1,
-  "cancelled":        1
+  "id":                      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "payout_date":             "2026-10-16T00:00:00.000+03:00",
+  "period_date":             "2026-10-15T00:00:00.000+03:00",
+  "status":                  "confirmed",
+  "currency":                "TRY",
+  "gross_amount":            18743500,
+  "refund_amount":           235000,
+  "credit_card_commission":  520000,
+  "debit_card_commission":   80000,
+  "other_commission":        0,
+  "installment_fee":         120000,
+  "chargeback_deduction":    0,
+  "subscription_fee":        0,
+  "net_amount":              17788500,
+  "paid_amount":             0,
+  "unpaid_amount":           17788500,
+  "paid_at":                 null,
+  "transaction_count":       1247,
+  "refund_count":            18,
+  "target_type":             "iban",
+  "target_label":            "TR12 **** 3456",
+  "bank_reference":          null,
+  "sent_at":                 null,
+  "deposited_at":            null,
+  "hold_reason":             null
 }
 ```
 
-## Status değişikliği
+Tutarlar kuruştur. `net_amount = gross_amount − refund_amount − tüm kesintiler`.
 
-Bir settlement durumunu güncellemek için:
+| Alan | Açıklama |
+|---|---|
+| `period_date` | Kapsanan işlem günü |
+| `payout_date` | Hesaba geçeceği gün (valör) |
+| `credit_card_commission`, `debit_card_commission`, `other_commission` | Kart türüne göre komisyonlar |
+| `installment_fee` | Taksit farkı kesintisi |
+| `chargeback_deduction` | Ters ibraz kesintisi |
+| `subscription_fee` | Paket ücreti |
+| `paid_amount`, `unpaid_amount` | Bir çekim talebine bağlanmış / henüz ödenmemiş kısım |
+| `target_type`, `target_label` | Ödemenin gideceği hedef (kart ya da IBAN) |
+| `bank_reference`, `sent_at`, `deposited_at` | Gönderim ve hesaba geçiş bilgisi |
+| `hold_reason` | `on_hold` durumunda bekletme gerekçesi |
+
+## `status`
+
+| Değer | Anlam |
+|---|---|
+| `estimated` | Valör dolmadı; tutar hâlâ iade/iptale açık, kesinleşmiş sayılmaz |
+| `confirmed` | Valör doldu, tutar kesinleşti; gönderim bekliyor |
+| `sent` | Karta/bankaya gönderildi; hesaba geçişi teyit edilmedi |
+| `deposited` | Bayinin hesabına geçti (terminal) |
+| `on_hold` | Operatör bekletti (mutabakat farkı, inceleme); `hold_reason` zorunlu |
+
+Gönderilen hakediş **dondurulur**: sonradan gelen iade eski hakedişi değiştirmez, kendi gününün hakedişine düşer.
+
+## Özet şerit
 
 ```bash
-curl -X PUT https://vpos.payven.com.tr/api/v1/settlements/8e3f5c12.../status \
+curl "https://<cuzdan-adresi>/api/v1/settlements/stats?currency=TRY" \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "status": "Failed",
-    "notes":  "Tutar bankadan eksik geldi — destek talebi açıldı"
-  }'
+  -H "X-Merchant-Id: $MERCHANT_ID"
 ```
 
-Status geçişleri webhook yayınlar (`sanalpos.settlement.processing` / `.completed` / `.failed`) —
-bkz. [Webhook Olay Kataloğu](/sanal-pos/webhooks/events#settlement-olaylari).
-
-`POST /settlements/{id}/cancel` settlement'ı iptal eder (`sanalpos.settlement.cancelled`),
-`POST /settlements/{id}/resubmit` `Failed` durumdaki kaydı yeniden kuyruğa alır (geçersiz durumda
-`409` döner).
-
-## Manuel settlement oluşturma
-
-Banka API entegrasyonu olmayan konnektörler için manuel settlement girişi:
-
-```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/settlements \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Idempotency-Key: stl-garanti-2026-06-10" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "merchant_id":         "3fa85f64-...",
-    "period_start":        "2026-06-10T00:00:00+03:00",
-    "period_end":          "2026-06-10T23:59:59+03:00",
-    "source_code":         "GARANTI",
-    "currency":            "TRY",
-    "gross_amount":        187435000,
-    "refund_amount":       2350000,
-    "bank_commission":     6747260,
-    "platform_commission": 1872500,
-    "transaction_count":   1247,
-    "refund_count":        18,
-    "bank_reference":      "STL-2026-06-10-789"
-  }'
+```json
+{
+  "currency":        "TRY",
+  "paid_total":      150000000,
+  "confirmed_total": 17788500,
+  "estimated_total": 22000000,
+  "on_hold_total":   0,
+  "next_payout":     { "date": "2026-10-16T00:00:00.000+03:00", "amount": 17788500, "status": "confirmed" }
+}
 ```
 
-## Parçalı hakediş ile ilişki
+Durum toplamları **ayrı** tutulur; tahmini tutarı kesinleşmiş tutarla toplamayın.
 
-Gün sonu settlement'a ek olarak, bayi bazında N-saatlik pencerelerle üretilen
-[Parçalı Hakediş](/sanal-pos/reporting/split-settlements) kayıtları ayrı bir kaynak olarak sunulur.
-İki zincir bağımsızdır; devreden kalemler her zincirde kendi akışını izler.
+## Hareketler
 
-## Mutabakat ile ilişki
+`GET /settlements/{id}/transactions` hakedişe giren kredi hareketlerini (satışlar) sayfalı döner; "bu ödeme hangi satışlardan geldi" sorusunun cevabıdır.
 
-Bir settlement, mutabakat tamamlandıktan sonra ilgili işlemlerin `settlement_date` alanına yazılır.
-Detaylı akış: [Mutabakat Yaşam Döngüsü](/sanal-pos/reconciliation/lifecycle).
+## Mutabakatla ilişki
+
+Hakediş, Payven ile **bayi** arasındaki hesaptır. Payven ile **banka** arasındaki gün sonu karşılaştırma için [Mutabakat](/sanal-pos/reconciliation/overview) kullanılır.

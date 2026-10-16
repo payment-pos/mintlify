@@ -1,15 +1,29 @@
 ---
 title: "İptal (Void)"
-description: "Mutabakat öncesi yapılmış bir ödemeyi tam tutarda iptal edin."
+description: "Aynı gün içinde yapılmış bir ödemeyi tam tutarda iptal edin."
 ---
 
-Void, mutabakat öncesinde **tam tutarlı** ödeme iptalidir. İade'den (refund) farkı: void işlemi banka tarafında **muhasebe hareketi yaratmaz**, ödeme hiç olmamış gibi kayıttan düşer. Müşterinin kart ekstresinde işlem **görünmez**.
+Void, ödemenin **tam tutarlı** iptalidir. İade'den (refund) farkı: iptal edilen işlem müşterinin kart ekstresinde hareket olarak kalmaz, ödeme hiç olmamış gibi kayıttan düşer.
+
+<Note>
+Bu uç **doğrudan iptal** yetkisi (`CanVoidDirectly`) ister; varsayılan olarak yalnızca `tenant-admin` rolünde açıktır. Onay akışıyla iptal için [İptal Talepleri](/sanal-pos/payments/cancellation-requests) kullanılır: talep açılır, ikinci bir kullanıcı onaylayınca iptal otomatik yürütülür.
+</Note>
 
 ## Endpoint
 
 ```http
 POST /api/v1/payments/{transaction_id}/void
 ```
+
+## Ne zaman iptal edilebilir?
+
+Aşağıdaki koşulların **tümü** sağlanmalıdır; aksi halde `409 VOID_NOT_ALLOWED` döner:
+
+- İşlem `completed` (satış) veya `authorized` (ön provizyon) durumunda,
+- İşlem **oluşturulduğu Türkiye takvim günü** içinde (gün dönümünden sonra iptal edilemez),
+- İşlemden daha önce başarılı bir **iade yapılmamış** (kalan tutar için [iade](/sanal-pos/payments/refund) kullanın).
+
+İşlem `three_d_secure_*`, `processing` gibi devam eden bir durumdaysa iptal edilemez; önce sonucu kesinleşmesini bekleyin. Zaten `canceled` olan işlem için tekrar gelen istek **başarılı** döner (idempotent).
 
 ## İstek
 
@@ -25,72 +39,59 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `reason` | string | Opsiyonel | İptal sebebi (raporlama için) |
-| `extra_properties` | object | Opsiyonel | Konnektör-spesifik özel alanlar |
+| `reason` | string | Opsiyonel | İptal sebebi (en fazla 500 karakter) |
+| `extra_properties` | object | Opsiyonel | Bankaya özgü ek alanlar |
 
-Request body tamamen opsiyoneldir — sadece header'lar yeterlidir.
+Gövde bir JSON nesnesi olmalıdır (`{}` yeterli); gövdesiz ya da bozuk JSON `400 invalid_request_body` döner.
 
-## Başarılı response
+## Başarılı yanıt
 
 ```json
 {
   "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
   "status":         "canceled",
+  "is_success":     true,
   "extra_properties": {
     "processed_at":            "2026-05-03T16:00:01.234+03:00",
-    "host_reference":          "VOID-REF-789",
     "provider_transaction_id": "VOID-9f3d2b8e",
-    "receipt_id":              "RCPT-4471"
+    "receipt_id":              "RCPT-4471",
+    "host_reference":          "VOID-REF-789"
   }
 }
 ```
 
 <Note>
-İptalin ayrı bir kaydı yoktur — iptal, ödemenin **kendi** kaydını `canceled` durumuna çeker. Bu yüzden yanıttaki `transaction_id` hem ödemenin hem de iptalin Payven tarafındaki kimliğidir; iade akışındaki `extra_properties.refund_id` gibi ayrı bir alan gerekmez.
+İptalin ayrı bir kaydı yoktur — iptal, ödemenin **kendi** kaydını `canceled` durumuna çeker. Yanıttaki `transaction_id` hem ödemenin hem de iptalin kimliğidir; ayrı bir `refund_id` benzeri alan yoktur. Bankaya yapılan çağrı sürerken işlem kısa süre `canceled_processing` durumunda görünebilir; hata olursa önceki durumuna geri döner.
 </Note>
-
-<Note>
-İşlem durumunun wire değeri **`canceled`** (önceki ad "voided" değiştirildi, eski isimlendirme tüm enum genelinde temizlendi). Asenkron void senaryosunda geçici olarak `canceled_processing` durumu görülebilir; final durum webhook (`sanalpos.void.completed`) ile gelir.
-</Note>
-
 
 ## Void mu, refund mu?
 
 | Kriter | Void | Refund |
 |---|---|---|
 | Tutar | Yalnız tam tutar | Tam veya kısmi |
-| Mutabakat | Öncesinde — gün içi | Öncesi veya sonrası |
-| Banka komisyonu | Yansımaz | Mutabakat sonrasında çoğunlukla yansır |
+| Zaman | İşlemin oluştuğu gün içinde | Gün sonrası da yapılabilir |
+| Ön önkoşul | Daha önce iade yapılmamış | `completed` ve kalan tutar > 0 |
 | Müşteri ekstresinde | Hareket görünmez | "İade" satırı olarak görünür |
-| Süre | Genelde gün sonuna kadar (banka bağımlı) | 180 güne kadar |
+| Ön provizyon | `authorized` işlem iptal edilebilir | Uygulanmaz |
 
-**Pratik kural:** Aynı gün içinde, **tam tutar** iade edilecekse → **void**. Diğer durumlarda → [refund](/sanal-pos/payments/refund).
-
-<Note>
-**Pratikte tek endpoint yeterli:** Hangi yöntemin uygun olduğunu Payven banka durumuna göre otomatik karar verir. `/refund` çağırdığınızda mutabakat öncesi ise void, sonrası ise refund satırı oluşur. Yine de "kesin void" istiyorsanız bu endpoint'i kullanın.
-</Note>
+**Pratik kural:** Aynı gün, **tam tutar** → **void**. Diğer durumlarda → [refund](/sanal-pos/payments/refund). Payven iki uç arasında otomatik geçiş yapmaz; hangisini çağıracağınıza siz karar verirsiniz.
 
 ## Pre-Auth iptali
 
-Henüz capture edilmemiş bir Pre-Auth (ön provizyon) bu endpoint ile iptal edilebilir — rezervasyon serbest bırakılır:
+Henüz capture edilmemiş bir ön provizyon (`authorized`) aynı uçla iptal edilerek rezervasyon serbest bırakılır. Detay: [Pre-Auth ve Capture](/sanal-pos/payments/pre-auth-capture).
 
-```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-.../void \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Idempotency-Key: hotel-1001-void"
-```
-
-Detay: [Pre-Auth ve Capture](/sanal-pos/payments/pre-auth-capture).
-
-## Hata response'ları
+## Hata yanıtları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `payment_not_found` | İşlem bulunamadı |
-| `422` | `void_not_allowed_after_settlement` | Mutabakat sonrası void yapılamaz — `/refund` kullanın |
-| `422` | `payment_already_voided` | İşlem zaten iptal edilmiş |
-| `422` | `payment_not_voidable` | Bu durumdaki işlem iptal edilemez (örn. başarısız, iade edilmiş) |
-| `422` | `bank_declined` | Banka iptal isteğini reddetti — yanıttaki `provider_error_code`'a bakın |
+| `404` | `PV_TRANSACTION_NOT_FOUND` | İşlem bulunamadı |
+| `400` | `invalid_request_body` | Gövde okunamadı |
+| `403` | `forbidden` | `CanVoidDirectly` yetkisi yok — iptal talebi açın |
+| `409` | `VOID_NOT_ALLOWED` | Durum, gün sınırı ya da önceki iade nedeniyle iptal edilemez — `/refund` kullanın |
+| `409` | `PV_BANK_RESULT_PENDING` | İşlemde sonucu doğrulanmayı bekleyen başka bir banka işlemi var |
+| `422` | `VOID_NOT_SUPPORTED` | İşlemin geçtiği banka iptali desteklemiyor |
+| `422` | `VOID_FAILED` / `VOID_EXCEPTION` | Banka iptali reddetti (`provider_error_code` bankanın ham kodu) |
+| `504` | `PV_BANK_RESULT_UNKNOWN` | Banka sonucu bildirmedi; işlem doğrulanıyor — yeniden denemeyin, sonuç kesinleşince bildirilir |
 
 Hata yanıtı RFC 9457 problem+json formatındadır. Detay: [Hata Yönetimi](/documentation/concepts/errors).
 
@@ -98,7 +99,11 @@ Hata yanıtı RFC 9457 problem+json formatındadır. Detay: [Hata Yönetimi](/do
 
 | Olay | Açıklama |
 |---|---|
-| `sanalpos.void.completed` | İptal başarıyla tamamlandı (`data.status: "canceled"`) |
-| `sanalpos.void.failed` | İptal banka tarafından reddedildi |
+| `sanalpos.void.completed` | İptal tamamlandı (işlem `canceled`) |
+| `sanalpos.void.failed` | İptal bankaca reddedildi / hata |
 
 Detay: [Webhook Olayları](/sanal-pos/webhooks/events).
+
+## Test ortamı
+
+Test modundaki (ya da test kartıyla yapılmış) işlemin iptali bankaya gitmeden simüle edilir; durum geçişi ve webhook canlıdaki gibi çalışır. Gün sınırı ve önceki iade kuralları aynen geçerlidir.

@@ -1,0 +1,79 @@
+---
+title: "İptal Talepleri (4 göz)"
+description: "Talep aç, ikinci kişi onaylasın: iptali (void) onay akışıyla yürütün."
+---
+
+Doğrudan iptal yetkisi (`CanVoidDirectly`) varsayılan olarak yalnızca `tenant-admin` rolündedir. Diğer roller **iptal talebi** açar; farklı bir kullanıcı onaylayınca Payven [iptali](/sanal-pos/payments/void) otomatik yürütür.
+
+## Durumlar
+
+| `status` | Anlam |
+|---|---|
+| `pending` | Onay bekliyor |
+| `approved` | Onaylandı, iptal bankada tamamlandı |
+| `rejected` | Reddedildi (red notu zorunlu) |
+| `failed` | Onaylandı ama banka iptali reddetti; `void_error_code` / `void_error_message` dolar |
+
+`pending` → `approved` / `rejected` / `failed`. Onay anında iptal yürütülür; `failed` HTTP hatası değil `200` ile döner, `status` alanına bakın.
+
+## 4 göz kuralı
+
+Talebi açan kullanıcı kendi talebini onaylayamaz (`422 validation_failed`). Kural `RequireSeparateApprover` ayarına bağlıdır (varsayılan açık, bayi seviyesinde kapatılabilir); servis hesabı muaftır.
+
+## Yetkiler
+
+| Uç | Politika | Varsayılan roller |
+|---|---|---|
+| Talep aç / listele | `CanRequestCancellation` | `tenant-admin`, `tenant-user`, `merchant-admin`, `merchant-user` |
+| Onayla / reddet | `CanApproveCancellation` | aynı roller |
+
+Bayi kapsamı `X-Merchant-Id` / `X-External-Merchant-Id` başlığından gelir.
+
+## Talep aç
+
+```http
+POST /api/v1/cancellation-requests
+```
+
+```json
+{
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "reason": "Müşteri siparişten vazgeçti"
+}
+```
+
+| Alan | Tip | Zorunluluk | Açıklama |
+|---|---|---|---|
+| `transaction_id` | uuid | **Zorunlu** | `authorized` veya `completed` durumdaki işlem |
+| `reason` | string | **Zorunlu** | En fazla 500 karakter |
+
+Yanıt `201 Created`, gövde talebin `id` değeridir. İşlemde aynı anda yalnızca bir `pending` talep olabilir.
+
+## Onayla / reddet
+
+```http
+POST /api/v1/cancellation-requests/{id}/approve    { "note": "..." }   // note opsiyonel
+POST /api/v1/cancellation-requests/{id}/reject     { "note": "..." }   // note zorunlu, en fazla 500
+```
+
+`approve` güncel talebi, `reject` talep `id`'sini döner. Yalnız `pending` talepler işlenir; diğerleri `409 invalid_state`, olmayan talep `404 resource_not_found` alır.
+
+## Liste
+
+```http
+GET /api/v1/cancellation-requests?status=pending&transaction_id=...&from_date=...&to_date=...&page=1&page_size=20
+```
+
+Talep nesnesi: `id`, `transaction_id`, `merchant_id`, `requested_by`, `requested_at`, `reason`, `status`, `reviewed_by`, `reviewed_at`, `review_note`, `void_error_code`, `void_error_message` ve `transaction` özeti (`id`, `amount`, `currency`, `status`, `created`, `masked_card_number`, `connector_name`). `/export` ve `/export/schema` ile dışa aktarılır.
+
+## Hatalar
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `404` | `resource_not_found` | İşlem veya talep bulunamadı |
+| `409` | `invalid_state` | İşlem iptal edilebilir durumda değil, açık talep var veya talep zaten işlenmiş |
+| `422` | `validation_failed` | Zorunlu alan eksik; 4 göz kuralı ihlali |
+
+## Webhook olayları
+
+İptal bankada tamamlanınca `sanalpos.void.completed`, reddedilirse `sanalpos.void.failed` gelir. Bkz. [Webhook Olayları](/sanal-pos/webhooks/events).

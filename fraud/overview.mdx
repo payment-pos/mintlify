@@ -1,80 +1,91 @@
 ---
 title: "Fraud Yönetimi"
-description: "Sanal POS işlemlerini gerçek zamanlı kural motoru ile değerlendirin: blacklist, hız kontrolü, manuel inceleme kuyruğu."
+description: "Ödeme, transfer ve fatura ödemesi akışlarına gömülü kural motoru: yalnız Block kararı işlemi keser."
 ---
 
-Payven Fraud modülü, Sanal POS akışlarına gömülü olarak çalışan **gerçek zamanlı bir kural motorudur**. Her ödeme isteği banka çağrısından önce kural setinden geçer; bir kural tetiklenirse işlem `fraud_blocked` veya `fraud_review_required` ile yanıtlanır.
+Payven Fraud modülü, işlem akışlarına gömülü çalışan **kural motorudur**. Sanal POS tahsilatı, Para Transferi ve Fatura Ödeme isteği işleme alınmadan önce ilgili ürün Fraud'a değerlendirme isteği atar; Fraud tenant / bayi kurallarını, kara listeyi ve bayi politikasını çalıştırıp bir karar döner.
 
 <Note>
-Fraud modülü Sanal POS akışı içinde **otomatik** çalışır — ayrı bir API çağrısı yapmanıza gerek yoktur. Ödeme isteği sırasında karar verilir, hata yanıtında neden döndürülür.
+Fraud, entegrasyonunuz için **ayrı bir API çağrısı gerektirmez**: değerlendirme, ödeme / transfer isteğinizin içinde otomatik yapılır. Kural, uyarı ve kara liste yönetimi için ayrı bir yönetim API'si vardır (aşağıda).
 </Note>
 
-## Bileşenler
+## Karar tipleri ve işleme etkisi
 
-<CardGroup cols={2}>
-  <Card title="Blacklist" icon="ban" href="/api-reference/fraud/tenantfraudblacklist">
-    Kart, e-posta, IP veya cihaz parmak izi tabanlı engelleme listesi.
-  </Card>
-  <Card title="Fraud Kuralları" icon="shield-halved" href="/api-reference/fraud/tenantfraudrules">
-    Hız kontrolü, tutar eşiği, IBAN ülke uyuşmazlığı gibi kural tipleri.
-  </Card>
-  <Card title="Bayi Politikaları" icon="building-shield" href="/api-reference/fraud/tenantfraudmerchantpolicies">
-    Tenant geneli kuralların yanında bayi-bazlı override'lar.
-  </Card>
-  <Card title="Fraud Uyarıları" icon="bell-on" href="/api-reference/fraud/tenantfraudalerts">
-    Manuel inceleme kuyruğunda bekleyen işlemler — onaylama / reddetme akışı.
-  </Card>
-</CardGroup>
+Kurallar bir işlem için dört karardan birini üretir. Birden çok kural eşleşirse **en sıkı karar** geçerlidir: Block > Review > Challenge > Approve.
 
-## Kural tipleri
+| Karar (`action`) | İşleme etkisi |
+|---|---|
+| `approve` | İşlem normal akışla devam eder |
+| `challenge` | İşlem **devam eder**; kayıt Fraud loguna yazılır. Ek doğrulama (3DS zorlama gibi) bu karardan otomatik uygulanmaz |
+| `review` | İşlem **devam eder**; Fraud loguna kayıt ve manuel inceleme için **uyarı (alert)** açılır |
+| `block` | İşlem **reddedilir**: `422 fraud_declined`; işlem oluşmaz, banka / kuruma gidilmez |
 
-| Tip (`rule_type`) | Açıklama | Örnek konfigürasyon |
-|---|---|---|
-| `velocity_count` | Belirli bir süre içinde aynı kart / IP / e-posta'dan kaç işlem geçebileceğini kısıtlar | "5 dakikada aynı karttan max 3 işlem" |
-| `amount_threshold` | İşlem tutarı eşiğini (kuruş) aşan işlemleri engeller veya inceleme kuyruğuna düşürür | "10.000 ₺ (1.000.000 kuruş) üzeri işlem manuel inceleme" |
-| `blacklist_match` | Blacklist eşleşmesi (kart/IBAN/e-posta/IP hash'i) | "Kart numarası blacklist'te → engelle" |
-| `iban_country_mismatch` | IBAN ülkesi ile bayi ülkesi uyuşmazlığını yakalar | "TR-dışı IBAN → inceleme" |
-| `custom_script` | Yönetici tarafından girilen özel C# ifadesi ile değerlendirme | Özel koşullar |
+**Yalnız `block` işlemi keser.** `review` ve `challenge` işlemi durdurmaz; inceleme sonradan yapılır (işlemi iptal / iade etmek ya da o durumu yakalayan bir Block kuralı tanımlamak). Uyarıyı onaylamak veya reddetmek **kaynak işlemi değiştirmez**; yalnızca uyarı kaydını kapatır.
 
-<Note>
-3D Secure zorunluluğu Fraud kural tipi değildir — tenant ödeme politikası
-(`PreferredThreeDFlow`, `AllowNon3D`) ve bayi banka profili üzerinden Identity'de yönetilir.
-Yüksek tutarda 3DS zorlamak gibi senaryolar baseline seed'te `amount_threshold` kuralı ile
-modellenir.
-</Note>
+### Entegratörün gördüğü hata
 
-## Karar tipleri
+Block kararında çağırdığınız ürün API'si (Sanal POS, Para Transferi, Fatura Ödeme) şu zarfı döner:
 
-Bir ödeme fraud motoru tarafından üç farklı karar alabilir:
-
-| Karar | API yanıtı | Sonraki adım |
-|---|---|---|
-| `allow` | İşlem normal akışla bankaya gider | — |
-| `review` | `422 fraud_review_required` ile döner; işlem `pending_review` durumunda kalır | Konsoldan veya `POST /fraud/alerts/{id}/approve` ile onayla / reddet |
-| `block` | `422 fraud_blocked` ile döner; işlem oluşmaz | Müşteriye genel hata mesajı göster — sebep paylaşma |
-
-## Manuel inceleme akışı
-
-```mermaid
-sequenceDiagram
-    participant App as Sunucunuz
-    participant Payven
-    participant Op as Operasyon (Konsol)
-
-    App->>Payven: POST /payments
-    Payven->>Payven: Fraud motoru: review
-    Payven-->>App: 422 fraud_review_required<br/>{ alert_id }
-    Note over App: payment status: pending_review
-    Op->>Payven: POST /fraud/alerts/{id}/approve<br/>(veya /reject)
-    Payven->>Payven: Approve → bankaya gönder
-    Payven-)App: webhook sanalpos.payment.completed (veya sanalpos.payment.failed)
+```json
+{
+  "status":   422,
+  "code":     "fraud_declined",
+  "message":  "İşlem fraud kontrolünde reddedildi. Skor: 980",
+  "category": "invalid_request_error",
+  "correlation_id": "..."
+}
 ```
 
-## Daha fazlası
+| HTTP | `code` | Anlamı | Ne yapmalı |
+|---|---|---|---|
+| `422` | `fraud_declined` | Fraud kuralı işlemi engelledi | Aynı isteği tekrarlamayın. Müşteriye genel bir "işlem tamamlanamadı" mesajı gösterin; **red nedenini (kural, skor) müşteriyle paylaşmayın** |
 
-- API referansı için [Fraud OpenAPI](/api-reference/fraud) bölümüne bakın
-- Kural tasarımı, eşik belirleme ve A/B test yaklaşımı için [destek ekibimizle](/resources/support) iletişime geçin
+Yanıt hangi kuralın tetiklendiğini söylemez; ayrıntı yalnızca [Fraud logunda](/fraud/alerts) bulunur. `fraud_blocked`, `fraud_review_required` veya `pending_review` gibi bir kod / durum yoktur.
 
-<Note>
-Bu modül için ayrıntılı narrative dokümantasyon (kural reçeteleri, performans tuning, ML skor entegrasyonu) önümüzdeki sürümde genişletilecek — bkz. [Changelog](/resources/changelog).
-</Note>
+### Fraud erişilemezse
+
+Fraud servisine ulaşılamaz ya da zaman aşımı olursa ürünün **hata politikası** devreye girer. Varsayılan `FailOpen`'dır: işlem Fraud kontrolü olmadan geçer (bu durumda Fraud logunda satır oluşmaz). `FailClosed` yapılandırılmış bir ortamda aynı durum `fraud_declined` ile reddedilir. Hangi politikanın açık olduğunu Payven ekibinden öğrenin.
+
+## Kapsam: süreç, tenant ve bayi
+
+| Boyut | Davranış |
+|---|---|
+| Süreç (`process`) | `sanal_pos`, `para_transferi`, `fatura_odeme`. Her kural tek sürece aittir; ortak kontroller (kara liste, hız) her süreç için ayrı tanımlanır |
+| Tenant kuralı | `merchant_id: null` — tenant'ın **tüm bayilerine** uygulanır |
+| Bayiye özel kural | `merchant_id` dolu — yalnız o bayiye |
+| Değerlendirme | Bir işlemde tenant kuralları **ve** işlemi yapan bayinin özel kuralları birlikte çalışır; başka bayinin kuralı girmez |
+| Bayi politikası | Bayi + süreç için fraud'u **kapatma**: kapalı bayinin işlemi atlanır (logda `R-MERCHANT-OPT-OUT`) |
+| Modül | Süreç bazında `fraud.sanalpos`, `fraud.paratransferi`, `fraud.faturaodeme` alt-feature'ı tenant'ta açık olmalı; kapalıysa kontrol atlanır |
+
+Yeni tenant'a Türkiye için temel bir kural seti (kara liste engeli, kart / IP hız limiti, yüksek tutar incelemesi, yabancı kart vb.) otomatik yüklenir; bu kurallar tenant'a aittir, düzenlenebilir ve silinebilir.
+
+## Yönetim API'si
+
+Base URL: `https://fraud.payven.com.tr/api/v1`. API anahtarınızda **`fraud`** kapsamı seçili olmalı ([API kapsamı](/identity/api-keys/create)); aksi halde `401 audience_invalid`.
+
+| Konu | Uç | Sayfa |
+|---|---|---|
+| Kurallar | `GET/POST /fraud/rules`, `PATCH/DELETE /fraud/rules/{id}` | [Kurallar](/fraud/rules) |
+| Uyarılar (inceleme kuyruğu) | `GET /fraud/alerts`, `POST /fraud/alerts/{id}/approve` · `/reject` | [Uyarılar ve Loglar](/fraud/alerts) |
+| Kontrol logları | `GET /fraud/logs` | [Uyarılar ve Loglar](/fraud/alerts) |
+| Dashboard özeti | `GET /fraud/dashboard/stats` | [Uyarılar ve Loglar](/fraud/alerts) |
+| Kara liste | `GET/POST /fraud/blacklist`, `DELETE /fraud/blacklist/{id}` | [Kara Liste ve Bayi Politikası](/fraud/blacklist) |
+| Bayi politikası | `GET/PATCH /fraud/merchants/{merchant_id}/policy` | [Kara Liste ve Bayi Politikası](/fraud/blacklist) |
+
+Yetkiler izin tabanlıdır (`Fraud.CanViewRules`, `Fraud.CanManageRules`, `Fraud.CanViewAlerts`, `Fraud.CanManageAlerts`, `Fraud.CanViewBlacklist`, `Fraud.CanManageBlacklist`, `Fraud.CanViewLogs`, `Fraud.CanViewMerchantPolicies`, `Fraud.CanManageMerchantPolicies`, `Fraud.CanViewDashboard`). Görüntüleme izinleri dört rolde (tenant-admin, tenant-user, merchant-admin, merchant-user), yönetim izinleri `tenant-admin` ve `merchant-admin`'de varsayılan olarak vardır. Uyarı ve kural uçları ayrıca `fraud.alerts.review` ve `fraud.rules.custom` alt-feature'larına bağlıdır; tenant'ta kapalıysa izin düşer ve `403` döner.
+
+Bayi kapsamlı çağıran (bayiye bağlı anahtar) yalnız kendi bayisinin kayıtlarını görür ve yalnız kendi bayisine yazar; tenant yöneticisi bayi başlığı (`X-Merchant-Id`) ile bir bayiye daralabilir, başlık yoksa **tüm bayiler** (tenant geneli) kapsamında çalışır ve oluşturduğu kural tenant geneli olur. Listeler sayfalıdır (`page`, `page_size`) ve `+03:00` tarih döner. Hata gövdesi `PayvenProblemDetails` zarfıdır.
+
+Dış kaynak API referansı: [Fraud OpenAPI](/api-reference/fraud).
+
+## Fraud'a bağlı hata kodları
+
+| HTTP | `code` | Nerede | Anlam |
+|---|---|---|---|
+| `422` | `fraud_declined` | Ödeme / transfer / fatura isteği | Block kararı |
+| `422` | `fraud_rule_type_not_supported` | Kural oluşturma | `custom` kural tipi desteklenmiyor |
+| `422` | `fraud_rule_expression_invalid` | Kural oluşturma / güncelleme | `expression_json` geçersiz; mesaj sebebi söyler |
+| `409` | `fraud_rule_code_duplicate` | Kural oluşturma | Aynı bayi + süreçte bu `code` var |
+| `409` | `fraud_blacklist_entry_duplicate` | Kara liste ekleme | Değer zaten listede |
+| `409` | `fraud_alert_not_open` | Uyarı onay / red | Uyarı açık değil (karara bağlanmış ya da süresi dolmuş) |
+| `400` | `tenant_header_required` | Yazma uçları | Tenant bağlamı çözülemedi |

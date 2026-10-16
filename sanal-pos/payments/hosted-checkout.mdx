@@ -10,7 +10,7 @@ Hosted Checkout, müşterinin kart bilgilerini **Payven'in barındırdığı say
 <Check>**Hızlı entegrasyon** — kart formu, BIN lookup, taksit seçenekleri, Luhn kontrolü, 3DS yönlendirme, sonuç sayfası — hepsi Payven'de</Check>
 <Check>**Düşük PCI yükü** — kart verisi sunucularınıza dokunmaz</Check>
 <Check>**Mobil uyumlu** — Payven sayfası hazır responsive</Check>
-<Check>**Tenant-default 3DS modu** — `ThreeDSecure`, `ThreeDPay`, `ThreeDPayHosting` modlarından platform politikasına uygun olanı otomatik seçer</Check>
+<Check>**Tenant-default 3DS modu** — `payment_mode` verilmezse tenant politikasındaki `preferred_three_d_flow` (`standard` / `pay` / `hosted`) kullanılır</Check>
 
 Aksi durumda [Direct API (Non-3D)](/sanal-pos/payments/non-3d) veya [Pay-by-Link](/sanal-pos/payments/pay-by-link) kullanın.
 
@@ -29,11 +29,9 @@ sequenceDiagram
     Browser->>Payven: Hosted checkout sayfası
     Browser->>Payven: Kart bilgileri girilir
     Payven->>Payven: 3DS + otorizasyon
-    Payven-->>Browser: success_url'e yönlendir
-    Browser->>App: success_url
-    App->>Payven: GET /checkout/sessions/{session_id}
-    Payven-->>App: Session durumu
-    Payven-)App: webhook (asenkron — sanalpos.payment.completed)
+    Payven-)App: webhook (sanalpos.payment.completed / failed)
+    Payven-->>Browser: success_url / cancel_url'e yönlendir
+    App->>Payven: GET /payments/{transaction_id} (doğrulama)
 ```
 
 ## 1. Oturum oluşturun
@@ -48,19 +46,18 @@ curl -X POST https://vpos.payven.com.tr/api/v1/checkout/sessions \
   -H "Idempotency-Key: order-1001-checkout" \
   -H "Content-Type: application/json" \
   -d '{
-    "merchant_name":         "Acme Mağaza",
-    "amount":                { "amount": 15000, "currency": "TRY" },
-    "allowed_installments":  [1, 2, 3, 6, 9],
-    "description":           "Sipariş ödemesi",
-    "external_id":           "ORDER-1001",
-    "basket_id":             "BASKET-2026-001",
-    "customer_email":        "musteri@example.com",
-    "customer_phone":        "+905551234567",
-    "payment_mode":          "three_d_secure",
-    "allow_pre_auth":        false,
-    "is_test_session":       false,
-    "success_url":           "https://example.com/odeme/sonuc",
-    "cancel_url":            "https://example.com/odeme/iptal",
+    "merchant_name":  "Acme Mağaza",
+    "amount":         15000,
+    "currency":       "TRY",
+    "description":    "Sipariş ödemesi",
+    "external_id":    "ORDER-1001",
+    "basket_id":      "BASKET-2026-001",
+    "customer_email": "musteri@example.com",
+    "customer_phone": "+905551234567",
+    "payment_mode":   "three_d_secure",
+    "allow_pre_auth": false,
+    "success_url":    "https://example.com/odeme/sonuc?order=ORDER-1001",
+    "cancel_url":     "https://example.com/odeme/iptal?order=ORDER-1001",
     "metadata": {
       "campaign_id": "summer-2026"
     }
@@ -69,48 +66,42 @@ curl -X POST https://vpos.payven.com.tr/api/v1/checkout/sessions \
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `amount.amount` | long (kuruş) | Zorunlu | Toplam tutar |
-| `amount.currency` | enum | Zorunlu | Şu an yalnız `"TRY"` kabul edilir |
-| `merchant_name` | string | Opsiyonel | Sayfa başlığında gösterilen isim |
-| `allowed_installments` | int[] | Opsiyonel | İzin verilen taksit seçenekleri. Boş → `[1, 2, 3, 6, 9, 12]` varsayılanı |
-| `external_id`, `basket_id`, `description` | string | Opsiyonel | Sipariş referansları |
-| `customer_email`, `customer_phone` | string | Opsiyonel | Müşteri bilgileri (önerilir — fraud için) |
-| `payment_mode` | enum | Opsiyonel | `non_3d` / `three_d_secure` / `three_d_pay` / `three_d_pay_hosting`. Boş → tenant'ın `preferred_three_d_flow` ayarından türetilir. |
-| `allow_pre_auth` | bool | Opsiyonel | Checkout sayfasında "Ön provizyon" seçeneği gösterilsin mi (default `false`) |
-| `is_test_session` | bool | Opsiyonel | Test araçları (Void/Refund/Capture butonları) gösterilsin mi |
-| `success_url` | url | Opsiyonel | Başarılı ödeme sonrası yönlendirme |
-| `cancel_url` | url | Opsiyonel | Başarısız / iptal sonrası yönlendirme |
-| `metadata` | object | Opsiyonel | Anahtar-değer çiftleri (raporlama) |
+| `amount` | int (kuruş) | **Zorunlu** | Toplam tutar, `0`'dan büyük. Düz sayıdır |
+| `currency` | string | Opsiyonel | ISO-4217, boşsa `TRY` |
+| `merchant_name` | string | Opsiyonel | Sayfada gösterilen isim; boşsa bayi kaydındaki ad |
+| `external_id`, `basket_id`, `description` | string | Opsiyonel | Sipariş referansları. `external_id` webhook payload'ında geri gelir |
+| `customer_email`, `customer_phone` | string | Opsiyonel | Müşteri bilgileri |
+| `payment_mode` | enum | Opsiyonel | `non_3d` / `three_d_secure` / `three_d_pay` / `three_d_pay_hosting`. Boşsa tenant politikasından, o da yoksa `three_d_secure` |
+| `allow_pre_auth` | bool | Opsiyonel | Sayfada "Ön provizyon" seçeneği gösterilsin mi (varsayılan `false`) |
+| `installment`, `installment_amount` | int / int (kuruş) | Opsiyonel | Sabit taksit planı; verilirse sayfa taksit seçtirmez |
+| `success_url`, `cancel_url` | url | Opsiyonel | Ödeme sonrası yönlendirme adresleri |
+| `metadata` | object | Opsiyonel | Anahtar-değer çiftleri |
+
+Pazaryeri payları (`splits`), fatura bilgisi (`invoice_details`) ve diğer alanlar için [Ödeme Oturumu](/sanal-pos/payments/checkout-sessions) sayfasına bakın.
 
 <Note>
-**Tenant policy uyumu:** `payment_mode: "non_3d"` istenirse ancak tenant policy'sinde
-`allow_non_3d` kapalıysa istek `400 Bad Request` ile reddedilir. Production tenant'larda
-non-3D varsayılan olarak kapalıdır — fraud riski nedeniyle.
+`payment_mode: "non_3d"` istenirse ve bayide Non-3D kapalıysa hata oturum açılırken değil, müşterinin ödeme adımında `422 PV_NON_3D_NOT_ALLOWED` olarak döner. Üretim bayilerinde Non-3D varsayılan olarak kapalıdır.
 </Note>
 
-### Yanıt
+### Yanıt (`201 Created`)
 
 ```json
 {
-  "session_id":        "8e3f5c129a7b4c8dbc4e2c963f66afa6",
-  "checkout_url":      "https://vpos.payven.com.tr/s/Ab3kX9qZmn",
-  "checkout_page_url": "https://vpos.payven.com.tr/checkout/classic/?session=8e3f5c129a7b4c8dbc4e2c963f66afa6",
-  "expires_at":        "2026-05-03T13:30:00.000+03:00"
+  "session_id":         "8e3f5c129a7b4c8dbc4e2c963f66afa6",
+  "checkout_url":       "https://vpos.payven.com.tr/s/Ab3kX9qZmn",
+  "checkout_page_url":  "https://vpos.payven.com.tr/checkout/classic/?session=8e3f5c129a7b4c8dbc4e2c963f66afa6",
+  "expires_at":         "2026-05-04T13:00:00.000+03:00",
+  "opened_ttl_minutes": 30
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `session_id` | 128-bit random session kimliği. URL parametresi olarak Payven sayfasına gider. |
-| `checkout_url` | Müşteriyi yönlendireceğiniz **kısa** URL. SMS/e-posta/QR ile paylaşmaya uygundur; açıldığında ödeme sayfasına 302 ile yönlenir. Kısa link üretilemezse `checkout_page_url` ile aynı değeri taşır. |
-| `checkout_page_url` | Ödeme sayfasının doğrudan (uzun) adresi. Yalnız kısa link istemeyen entegrasyonlar için. |
-| `expires_at` | Session geçerlilik süresi (oluşturulduktan **30 dakika** sonra) |
-
-<Note>
-Kısa link yalnızca müşteriye gönderdiğiniz adres için geçerlidir. 3D Secure callback'i,
-`success_url`/`fail_url` yönlendirmeleri ve webhook'lar değişmez; bunlar işlem kimliği
-(`transaction_id`) ile çalışmaya devam eder.
-</Note>
+| `session_id` | 128-bit rastgele oturum kimliği |
+| `checkout_url` | Müşteriyi yönlendireceğiniz **kısa** URL; SMS/e-posta/QR ile paylaşmaya uygundur, açıldığında ödeme sayfasına 302 ile yönlenir. Kısa link üretilemezse `checkout_page_url` ile aynı değeri taşır |
+| `checkout_page_url` | Ödeme sayfasının doğrudan (uzun) adresi |
+| `expires_at` | Oturumun açılabileceği son an (varsayılan oluşturmadan **24 saat** sonra) |
+| `opened_ttl_minutes` | Müşteri sayfayı açtıktan sonra ödemeyi tamamlama süresi (varsayılan 30 dk) |
 
 ## 2. Müşteriyi yönlendirin
 
@@ -126,63 +117,26 @@ window.location.href = response.checkout_url;
 
 ## 3. Müşteri Payven sayfasında ödeme yapar
 
-Bu adım Payven sayfasında yürür:
-
 - Kart numarası, son kullanma, CVV, isim girilir
 - Otomatik BIN lookup → banka logosu, taksit seçenekleri
-- Kart birliği validasyonu, Luhn checksum kontrolü
+- Luhn kontrolü, kart markası doğrulaması
 - Seçilen `payment_mode` üzerinden 3DS akışı
-- Maksimum **3 başarısız deneme** sonrasında session `status: "failed"` olur
+- Oturum başına en fazla **3 ödeme denemesi**; hak dolunca oturum `failed` olur
+
+Test modundaki bayide ödeme bankaya gitmez, Payven simülatörüne düşer ([Sandbox](/sanal-pos/test/sandbox)).
 
 ## 4. `success_url` veya `cancel_url` üzerinden geri dönüş
 
-Ödeme tamamlandığında Payven, müşteriyi config'lediğiniz URL'e yönlendirir. Query parametresi olarak `session_id` ve `status` eklenir:
-
-```
-https://example.com/odeme/sonuc?session_id=8e3f5c12...&status=completed
-```
+Sonuç ekranında müşteriye "satıcıya dön" düğmesi gösterilir ve birkaç saniye içinde `success_url` (başarılı) ya da `cancel_url` (başarısız) adresine yönlendirilir. Yönlendirme adresi **olduğu gibi** kullanılır; Payven ek parametre eklemez. Siparişi eşleştirmek için kendi referansınızı adresin içine yazın (örn. `?order=ORDER-1001`).
 
 <Warning>
-URL parametreleri **güvenilmez** — kullanıcı tarafından manipüle edilebilir.
-Final durumu mutlaka sunucu tarafında doğrulayın.
+Yönlendirme tarayıcıdan gelir ve **güvenilmez**: kullanıcı adresi elle açabilir. Siparişi yalnızca webhook ve sunucu tarafı sorgu ile onaylayın.
 </Warning>
 
-## 5. Session durumunu sorgulayın
+## 5. Sonucu doğrulayın
 
-```http
-GET /api/v1/checkout/sessions/{session_id}
-```
-
-```bash
-curl https://vpos.payven.com.tr/api/v1/checkout/sessions/8e3f5c129a7b4c8dbc4e2c963f66afa6 \
-  -H "Authorization: Bearer $PAYVEN_TOKEN"
-```
-
-```json
-{
-  "session_id":     "8e3f5c129a7b4c8dbc4e2c963f66afa6",
-  "status":         "completed",
-  "amount":         15000,
-  "currency":       "TRY",
-  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "attempt_count":  1,
-  "created_at":     "2026-05-03T13:00:00.000+03:00",
-  "expires_at":     "2026-05-03T13:30:00.000+03:00"
-}
-```
-
-| Session `status` | Anlam |
-|---|---|
-| `open` | Müşteri henüz ödemedi |
-| `processing` | Ödeme işleniyor (3DS callback bekleniyor) |
-| `completed` | Ödeme başarıyla tamamlandı — `transaction_id` ile [Payment objesini](/sanal-pos/payment-object) sorgulayın |
-| `failed` | Tüm denemeler başarısız (`max_attempts` aşıldı) |
-| `expired` | 30 dakikalık geçerlilik süresi doldu |
-| `cancelled` | Müşteri iptal etti |
-
-## İşlem sonu durumu
-
-`session.status: "completed"` olduğunda detay için:
+1. **Webhook (önerilen):** `sanalpos.payment.completed` veya `sanalpos.payment.failed`. Payload'da `transaction_id`, `external_id`, `basket_id`, `amount` bulunur. Bkz. [Webhook Olayları](/sanal-pos/webhooks/events).
+2. **İşlem sorgusu:** webhook'taki `transaction_id` ile [`GET /api/v1/payments/{transaction_id}`](/sanal-pos/inquiries/payment-detail).
 
 ```bash
 curl https://vpos.payven.com.tr/api/v1/payments/$transaction_id \
@@ -191,42 +145,67 @@ curl https://vpos.payven.com.tr/api/v1/payments/$transaction_id \
 
 Yanıt yapısı: [Payment Objesi](/sanal-pos/payment-object).
 
+<Warning>
+`GET /checkout/sessions/{session_id}` müşteri sayfasının kullandığı, kimlik doğrulamasız bir uçtur ve çağrıldığında oturumu "açıldı" sayar. Tamamlanmış oturumda `409 PV_CHECKOUT_SESSION_CLOSED` döner. Sonuç takibi için bu ucu kullanmayın.
+</Warning>
+
+### Oturum durumları
+
+| `status` | Anlam |
+|---|---|
+| `open` | Ödeme alınabilir |
+| `completed` | Ödeme tamamlandı |
+| `failed` | Deneme hakkı doldu veya 3D reddedildi; yeni oturum açın |
+
+Süresi dolan oturum ayrı durum taşımaz, okunamaz hale gelir. Ayrıntı: [Ödeme Oturumu](/sanal-pos/payments/checkout-sessions).
+
 ## Görünüm özelleştirme
 
-Şu anda Payven hosted checkout sayfası **payven markasıyla** yayınlanır. White-label domain, custom CSS, logo + ana renk gibi gelişmiş özelleştirme için:
-- Konsoldan tenant ayarlarını kullanın (logo, ana renk)
-- White-label domain talebi için [satış ekibinize](/resources/support) ulaşın
+Sayfa şablonu (`classic`, `dark`, `livecard`, `minimal`, `spotlight`) ve marka teması (logo, renk, destek bilgileri, satış koşulları) panelden bayi veya tenant bazında ayarlanır; oturum açıldığında sabitlenir. Ayrıntı: [Ödeme Oturumu](/sanal-pos/payments/checkout-sessions). White-label alan adı için [satış ekibinize](/resources/support) ulaşın.
+
+## Makbuz
+
+Ödeme sonrası müşteriye makbuz sayfadan sunulur; sunucu tarafında makbuz almak için [Makbuz](/sanal-pos/payments/receipts) sayfasına bakın.
 
 ## Webhook olayları
 
-Hosted Checkout için yayınlanan olaylar:
-
 | Olay | Açıklama |
 |---|---|
-| `sanalpos.payment.completed` | Müşteri başarıyla ödeme tamamladı |
-| `sanalpos.payment.failed` | Müşteri ödeme yapmaya çalıştı, başarısız |
+| `sanalpos.payment.completed` | Ödeme tamamlandı |
+| `sanalpos.payment.failed` | Ödeme başarısız |
+| `sanalpos.payment.not_completed` | Müşteri 3DS'i bitirmeden ayrıldı (banka reddi değil) |
 | `sanalpos.three_ds.completed` / `sanalpos.three_ds.failed` | 3DS akışlı modlarda ek olarak yayınlanır |
+| `sanalpos.payment.authorized` | Ön provizyon yetkilendirildi |
 
-Hosted Checkout'a özgü `checkout.session.*` olayları yol haritasındadır — şu an session durumunu `GET /api/v1/checkout/sessions/{id}` ile sorgulayarak takip edin. Bkz. [Webhook Olayları](/sanal-pos/webhooks/events).
+Bkz. [Webhook Olayları](/sanal-pos/webhooks/events).
 
 ## Yaygın hatalar
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `400` | `non_3d_not_allowed` | Tenant policy'sinde Non-3D kapalı |
-| `400` | `merchant_id_required` | Aktif merchant kimliği bulunamadı |
-| `404` | `session_not_found` | `session_id` geçersiz |
-| `410` | `session_expired` | Session süresi dolmuş |
+| `400` | `merchant_context_missing` | Hiçbir bayi bilgisi gönderilmedi |
+| `404` | `PV_CHECKOUT_SESSION_NOT_FOUND` | `session_id` geçersiz |
+| `409` | `PV_CHECKOUT_SESSION_EXPIRED` | Oturum süresi dolmuş |
+| `409` | `PV_CHECKOUT_SESSION_CLOSED` | Oturum tamamlanmış |
+| `409` | `PV_CHECKOUT_MAX_ATTEMPTS_EXCEEDED` | Deneme hakkı dolmuş |
+| `422` | `PV_NON_3D_NOT_ALLOWED` | Bayide Non-3D kapalı (ödeme adımında) |
+| `422` | `validation_failed` | Geçersiz alan (örn. `amount` `0`'dan küçük) |
 
-Hata yanıtı RFC 9457 problem+json formatındadır.
+Hata yanıtı `problem+json` zarfındadır (`code`, `message`, `category`, `param`). Tüm oturum hataları: [Ödeme Oturumu](/sanal-pos/payments/checkout-sessions).
 
 ## Sonraki adımlar
 
 <CardGroup cols={2}>
+  <Card title="Ödeme Oturumu" icon="window" href="/sanal-pos/payments/checkout-sessions">
+    Oturum alanları, ömrü, şablon ve tema.
+  </Card>
   <Card title="Pay-by-Link" icon="link" href="/sanal-pos/payments/pay-by-link">
-    Bankaya ait barındırma sayfası ile link tabanlı ödeme.
+    Yeniden kullanılabilir ödeme linkleri ve banka linki.
   </Card>
   <Card title="Webhook entegrasyonu" icon="bell" href="/sanal-pos/webhooks/overview">
     Asenkron sonuçları gerçek zamanlı yakalayın.
+  </Card>
+  <Card title="Makbuz" icon="receipt" href="/sanal-pos/payments/receipts">
+    Ödeme ve iade makbuzu.
   </Card>
 </CardGroup>

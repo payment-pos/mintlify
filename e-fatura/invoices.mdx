@@ -1,0 +1,72 @@
+---
+title: "Belge Uçları"
+description: "Belge oluşturma gövdesi, düzeltme, iade, iptal, PDF ve listeleme."
+---
+
+## Belge oluşturma gövdesi
+
+`POST /api/v1/invoices` · `CanManageInvoices` · pasif/onaysız bayi için kapalı
+
+| Alan | Açıklama |
+|---|---|
+| `buyer_party_id` / `buyer` | Kayıtlı cari kartı ya da serbest alıcı: `tax_number` (10 hane VKN / 11 hane TCKN), `title`, `tax_office`, `address`, `district`, `city`, `country`, `email`, `phone`, `save_as_party` |
+| `lines[]` | Kalemler: `item_name`, `item_code`, `quantity`, `unit_code` (varsayılan `C62`), `unit_price` (kuruş, KDV hariç), `vat_rate`, `discount_rate` / `discount_amount`, `line_amount`, `vat_amount`, `vat_exemption_code`, `withholding_code`, `withholding_rate`, `product_id`, `save_as_product` |
+| `issue_date` | Boşsa şimdi (TR günü) |
+| `currency`, `exchange_rate` | TRY dışında kur zorunlu |
+| `scenario_type`, `profile_type` | Boşsa `satis` ve bayi varsayılanı. Alıcı mükellef değilse `e_arsiv_fatura` zorlanır |
+| `external_id` | Sizin belge numaranız; tekildir |
+| `source_feature` + `source_reference` | Belgeyi başka bir kayda bağlar (ör. `sanalpos` + işlem kimliği). Aynı kayıt için ikinci satış belgesi `409 PV_SOURCE_ALREADY_INVOICED` |
+| `original_invoice` | `scenario_type: iade` ise zorunlu: `invoice_id` (Payven belgesi) ya da `invoice_number` + `issue_date` |
+| `notes`, `send_mode` | Not; `draft` / `immediate` |
+
+Birim kodları ve KDV oranları için `GET /invoices/unit-codes`, `GET /invoices/vat-rates`.
+
+```json
+{
+  "id": "5b0d2f7a-3c1e-4e0f-9a52-8d3b7a6c1f10",
+  "invoice_number": "PVN2026000123",
+  "ettn": "c1a9b2e4-7d3f-4a58-8f6e-2b9c4d5e6f70",
+  "document_kind": "e_fatura",
+  "profile_type": "ticari_fatura",
+  "scenario_type": "satis",
+  "status": "sent",
+  "issue_date": "2026-10-16T14:05:00+03:00",
+  "buyer_tax_number": "1234567890",
+  "currency": "TRY",
+  "line_extension_amount": 100000,
+  "tax_total_amount": 20000,
+  "payable_amount": 120000,
+  "external_id": "ORDER-1001"
+}
+```
+
+Liste yanıtı `can_cancel`, `can_retry`, `can_sync`, `can_resend_to_buyer`, `supports_document_download` gibi **backend kararı** bayraklar taşır; hangi aksiyonun uygun olduğunu bunlardan okuyun.
+
+## Düzeltme ve silme
+
+| Uç | Koşul |
+|---|---|
+| `PUT /invoices/{id}` | Yalnız kesilmemiş (`draft`/`failed`) belge; numara ve ETTN değişmez. Alıcı VKN'si değişirse mükellefiyet yeniden sorulur |
+| `DELETE /invoices/{id}` | Yalnız taslak (`409 PV_INVOICE_NOT_DRAFT`) |
+
+## İade faturası
+
+`POST /api/v1/invoices/{id}/return` — Kabul edilmiş e-Fatura iptal edilemez; düzeltmenin yolu iadedir. Alıcı ve kalemler orijinalden kopyalanır.
+
+- Gövde boşsa **kalanın tamamı** iade edilir. İade belgesi varsayılan olarak taslak açılır (`send_mode: draft`); aynı istekte kesmek için `immediate` gönderin. `external_id`, `issue_date`, `notes` verilebilir.
+- `lines[]` verilirse kısmi iade; `amount` (KDV dahil kuruş) verilirse kalemlere orantılı dağıtılır.
+- Önceki iadelerle toplam orijinali aşamaz (`422 PV_RETURN_EXCEEDS_ORIGINAL`).
+
+## İptal
+
+`POST /api/v1/invoices/{id}/cancel` · `CanCancelInvoices` · gövde: `{ "reason": "..." }`. Kesilmiş **e-Fatura** için `422 PV_EFATURA_CANCEL_NOT_ALLOWED` döner ve iade önerilir; e-Arşiv belge entegratörün iptal penceresi içinde iptal edilebilir (`PV_CANCEL_WINDOW_EXPIRED`).
+
+## Belge, listeleme, gelen fatura
+
+| Uç | Açıklama |
+|---|---|
+| `GET /invoices` | Filtreler: `status`, `document_kind`, `scenario_type`, `issuer_kind`, `start_date`, `end_date`, `page`, `page_size` |
+| `GET /invoices/{id}` | Detay: kalemler, durum geçmişi, `can_*` bayrakları |
+| `GET /invoices/{id}/document` | Belge PDF'i (destekleyen entegratörde) |
+| `GET /invoices/incoming`, `GET /invoices/incoming/{document_id}` | Gelen faturalar |
+| `POST /invoices/incoming/{document_id}/accept` · `/reject` | Gelen faturaya karar; verilen karar değiştirilemez (`409 PV_INCOMING_INVOICE_ALREADY_DECIDED`) |

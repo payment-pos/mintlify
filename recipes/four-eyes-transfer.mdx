@@ -1,9 +1,9 @@
 ---
 title: "Reçete — 4-Eyes Toplu Transfer"
-description: "İki onaylı toplu para transferi: paket oluştur, onayla, gönder."
+description: "İki onaylı para transferi: transferleri oluştur, ikinci kullanıcı onaylasın, sonucu webhook ile yakala."
 ---
 
-Para Transferi modülünde **4-eyes (iki onay) ilkesi** zorunludur: bir kullanıcı (örn. operatör) toplu transfer paketi oluşturur, ikinci kullanıcı (örn. yönetici) onaylar, ardından paket bankaya gönderilir. Bu reçete uçtan uca akışı gösterir.
+Para Transferi'nde **4-göz (iki onay) ilkesi** bayi ve organizasyon ayarıyla açılır: transferi oluşturan kullanıcı kendi transferini onaylayamaz, ikinci bir kullanıcı onaylar ve onay anında transfer bankaya gönderim kuyruğuna alınır. Bu reçete bir toplu ödemeyi (örn. maaş) uçtan uca gösterir.
 
 ## Akış
 
@@ -15,175 +15,186 @@ sequenceDiagram
     participant Payven
     participant Bank
 
-    Op->>App: Paketi oluştur (CSV ya da API)
+    Op->>App: Ödeme listesini hazırla
     App->>Payven: POST /transfers/bulk/create
-    Payven-->>App: { batch_id, status: "pending_approval" }
+    Payven-->>App: [{ transfer_id, ... }] (durum: pending)
+    Payven-)App: webhook: para-transferi.transfer.created
 
-    Mgr->>App: Paketi inceleyip onayla / reddet
+    Mgr->>App: Listeyi incele, onayla / reddet
     App->>Payven: POST /transfers/bulk/approve
-    Payven-->>App: { status: "approved" }
+    Payven-->>App: { successfully_approved, results[] }
+    Payven-)App: webhook: para-transferi.transfer.approved
 
-    App->>Payven: POST /transfers/bulk/send
     Payven->>Bank: Her transfer için ayrı banka çağrısı
-    Payven-)App: webhook: para-transferi.transfer.completed | para-transferi.transfer.failed (her transfer için)
+    Payven-)App: webhook: para-transferi.transfer.completed | failed
 ```
 
-## 1. Paketi oluştur
+## 1. Transferleri oluştur
+
+Tek istekte birden fazla transfer oluşturulur; her biri bağımsız bir kayıttır. `X-Request-Id` ile verdiğiniz değer (paket numaranız) tüm transferlere ve webhook'lardaki `request_id` alanına yazılır.
 
 ```bash
 curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/create \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Idempotency-Key: payroll-2026-05-batch-1" \
+  -H "Idempotency-Key: payroll-2026-10-batch-1" \
+  -H "X-Request-Id: PAYROLL-2026-10" \
   -H "Content-Type: application/json" \
   -d '{
-    "external_batch_id": "PAYROLL-2026-05",
-    "description":       "Mayis 2026 maas",
-    "transfers": [
+    "items": [
       {
-        "external_id":    "PR-2026-05-001",
-        "amount":         { "amount": 5000000, "currency": "TRY" },
-        "recipient_id":   "rcp_8e3f5c12...",
-        "description":    "Mayis maas — Ahmet Yilmaz",
-        "transfer_type":  "EFT"
+        "external_id":     "PR-2026-10-001",
+        "description":     "Ekim maaş - Ahmet Yılmaz",
+        "transfer_type":   "fast",
+        "amount":          { "value": 5000000, "currency_code": "TRY" },
+        "recipient": {
+          "holder_name": "Ahmet Yılmaz",
+          "iban":        "TR330006100519786457841326"
+        }
       },
       {
-        "external_id":    "PR-2026-05-002",
-        "amount":         { "amount": 4500000, "currency": "TRY" },
-        "recipient_id":   "rcp_9f3d2b8e...",
-        "description":    "Mayis maas — Ayse Demir",
-        "transfer_type":  "FAST"
+        "external_id":     "PR-2026-10-002",
+        "description":     "Ekim maaş - Ayşe Demir",
+        "transfer_type":   "eft",
+        "amount":          { "value": 4500000, "currency_code": "TRY" },
+        "recipient": {
+          "holder_name": "Ayşe Demir",
+          "iban":        "TR640006400000112345678901"
+        }
       }
     ]
   }'
 ```
 
-Yanıt:
-
-```json
-{
-  "batch_id":          "btc_8e3f5c12...",
-  "status":            "pending_approval",
-  "transfer_count":    2,
-  "total_amount":      9500000,
-  "currency":          "TRY",
-  "created_by":        "user_op_123",
-  "created_at":        "2026-05-08T09:00:00+03:00"
-}
-```
+| Alan | Açıklama |
+|---|---|
+| `items[].external_id` | Sizin sisteminizdeki transfer kimliği (olaylarda geri gelir) |
+| `items[].transfer_type` | `fast`, `eft`, `remittance` (havale) ya da `credit_card` |
+| `items[].amount` | `value` **kuruş** (`5000000` = 50.000,00 ₺), `currency_code` `TRY` |
+| `items[].recipient` | Kayıtlı alıcı için `recipient_id`; aksi halde `holder_name` + `iban` (ya da `account_number`, kart transferinde `card_details`) |
+| `items[].source_account_id` | Gönderici hesap. Bayi yalnız kendi hesabını seçer; seçilmezse onay sırasında bağlanır |
+| `items[].metadata` | Serbest anahtar-değer; olaylarda geri gelir |
 
 <Note>
-**Alıcılar (recipients)** önceden tanımlı olmalıdır. Yeni alıcı için: [Alıcılar](/para-transferi/recipients/overview).
+Alıcı ve hesap kavramları: [Alıcılar](/para-transferi/recipients/overview). Gönderici hesaplar bayi veya organizasyon tarafından tanımlanır.
 </Note>
 
-## 2. Paketi onayla (ikinci kullanıcı)
+Yanıt, oluşturulan her transfer için `transfer_id` içerir. Transfer `pending` durumunda bekler; para henüz hareket etmemiştir.
 
-Onay yapan kullanıcı **paketi oluşturandan farklı** olmalı. Backend bunu rol bazlı kontrol eder (`transfer-admin` rolü).
+## 2. İkinci kullanıcı onaylasın
+
+Onaylayan kullanıcı, transferi **oluşturandan farklı** olmalıdır. Aynı kullanıcı onaylamaya çalışırsa ilgili kalem reddedilir (`results[].is_success: false`); istek bütünüyle `200` döner, başarısızlık **kalem bazında** raporlanır.
 
 ```bash
 curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/approve \
   -H "Authorization: Bearer $MANAGER_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{ "batch_id": "btc_8e3f5c12..." }'
+  -d '{
+    "transfers": [
+      { "transfer_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6", "approval_note": "Ekim bordrosu onaylandı" },
+      { "transfer_id": "9f3d2b8e-1c4a-4d7b-8e3f-5c129a7b4c8d" }
+    ]
+  }'
 ```
 
-Aynı kullanıcı onaylamaya çalışırsa:
-
-```http
-HTTP/1.1 422 Unprocessable Entity
-Content-Type: application/problem+json
-```
 ```json
 {
-  "type":   "https://docs.payven.com.tr/errors/four_eyes_violation",
-  "title":  "4-eyes ihlali",
-  "status": 422,
-  "code":   "four_eyes_violation",
-  "detail": "Paketi oluşturan kullanıcı kendi paketini onaylayamaz."
+  "total_requested": 2,
+  "successfully_approved": 2,
+  "failed": 0,
+  "results": [
+    { "transfer_id": "8e3f5c12-...", "is_success": true, "message": "Transfer approved successfully." },
+    { "transfer_id": "9f3d2b8e-...", "is_success": true, "message": "Transfer approved successfully." }
+  ]
 }
 ```
 
+Kalem bazlı hata örnekleri: iki-göz kuralı (`message`: "İki-göz kuralı: Kendi oluşturduğunuz transferi onaylayamazsınız."), yanlış durum (`Transfer cannot be approved. Current status: ...`), gönderici hesabın seçilmemesi (`error_code: PV_TRANSFER_REQUEST_SENDER_ACCOUNT_REQUIRED`). Gönderici hesabı onayda vermek için kalemde `connector_account_id` kullanılır.
+
 ### Reddetme
 
-Hata fark edilirse paket reddedilir:
+Hata fark edilirse kalemler bankaya gönderilmeden reddedilir; para hiç hareket etmez:
 
 ```bash
 curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/reject \
   -H "Authorization: Bearer $MANAGER_TOKEN" \
-  -d '{ "batch_id": "btc_8e3f5c12...", "reason": "Tutar yanlis — Ayse'nin maasi 4500 degil 5500" }'
+  -H "Content-Type: application/json" \
+  -d '{
+    "transfers": [
+      { "transfer_id": "9f3d2b8e-1c4a-4d7b-8e3f-5c129a7b4c8d", "rejection_reason": "Tutar yanlış: 45.000 değil 55.000" }
+    ]
+  }'
 ```
 
-Reddedilen paket bir daha kullanılamaz; yeni bir paket oluşturmanız gerekir.
+Reddedilen transfer yeniden kullanılamaz; yeni bir transfer oluşturun. Red `para-transferi.transfer.rejected` olayını yayınlar.
 
-## 3. Paketi gönder (banka çağrıları başlar)
+## 3. Sonucu webhook ile yakalayın
 
-Onay sonrası her transfer **bağımsız** olarak bankaya gönderilir.
-
-```bash
-curl -X POST https://transfer.payven.com.tr/api/v1/transfers/bulk/send \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Idempotency-Key: send-payroll-2026-05" \
-  -d '{ "batch_id": "btc_8e3f5c12..." }'
-```
-
-`status: "sending"` döner. Asenkron çalışır — webhook ile her transferin sonucunu yakalayın:
+Onaydan sonra her transfer **bağımsız** olarak bankaya gider; ayrıca bir "gönder" çağrısı gerekmez. Bir kalem başarısız olursa diğerleri etkilenmez.
 
 ```json
 {
-  "id":   "evt_...",
-  "type": "para-transferi.transfer.completed",
+  "id":       "evt_8e3f5c129a7b4c8dbc4e2c963f66afa6",
+  "object":   "event",
+  "type":     "para-transferi.transfer.completed",
+  "created":  "2026-10-16T09:01:23.451+03:00",
+  "livemode": true,
   "data": {
-    "transfer_id":     "trf_...",
-    "external_id":     "PR-2026-05-001",
-    "batch_id":        "btc_8e3f5c12...",
-    "status":          "completed",
-    "bank_reference":  "EFT-REF-789",
-    "completed_at":    "2026-05-08T09:01:23+03:00"
+    "object": {
+      "event_type":   "para-transferi.transfer.completed",
+      "transfer_id":  "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+      "status":       "completed",
+      "amount":       5000000,
+      "currency":     "try",
+      "external_id":  "PR-2026-10-001",
+      "receipt_no":   "EFT-REF-789",
+      "transfer_type": "fast",
+      "request_id":   "PAYROLL-2026-10",
+      "occurred_at":  "2026-10-16T09:01:23+03:00"
+    }
   }
 }
 ```
 
-Bir transfer başarısız olursa diğerleri devam eder — paket kısmi başarılı (`partially_completed`) olabilir.
+<Warning>
+`delivered` ve `outcome_unknown` **kesin sonuç değildir.** Ödemeyi yalnız `completed`'da başarılı, `failed`'da başarısız kapatın. `outcome_unknown` alan transferi yeniden göndermeyin; banka ilk isteği işlemiş olabilir. Alan listesi: [Para Transferi Webhook Olayları](/para-transferi/webhooks/events).
+</Warning>
 
-## 4. Paket durumunu sorgula
+Başarısız (`failed`) bir transferi düzeltip yeniden göndermek için `POST /transfers/bulk/send` kullanılır (`transfers[].transfer_id`).
+
+## 4. Durumu sorgula
 
 ```bash
-curl https://transfer.payven.com.tr/api/v1/transfers?batch_id=btc_... \
+curl "https://transfer.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+
+curl "https://transfer.payven.com.tr/api/v1/transfers/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/history" \
   -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-Yanıt: paketteki tüm transferler ve mevcut durumları.
+Transfer durumları: `pending`, `approved`, `awaiting_funds`, `processing`, `delivered`, `completed`, `failed`, `rejected`, `refunded`. `awaiting_funds`, transferin bayinin hakedişinden karşılandığı ve Cüzdan'ın fon kararını beklediği durumdur.
+
+## Excel / CSV ile paket
+
+Satırları dosyadan yükleyip tek paket olarak onaylatmak isterseniz **paket** uçları kullanılır: `POST /bulk-transfers/preview` (doğrular, kaydetmez), `POST /bulk-transfers` (paketi ve kalemlerini onay bekler durumda açar), `POST /bulk-transfers/{id}/approve`. Paket onayını da oluşturandan farklı kullanıcı yapar (`403 PV_BULK_TRANSFER_SELF_APPROVAL`); paketteki kalemler tek tek onaylanamaz. Ayrıntı: [Toplu Transfer Paketleri](/para-transferi/transfers/bulk-batches).
 
 ## Hata senaryoları
 
-| Hata | HTTP | `code` | Çözüm |
+| Durum | HTTP / alan | `code` | Çözüm |
 |---|---|---|---|
-| Aynı kullanıcı onaylamaya çalışıyor | 422 | `four_eyes_violation` | İkinci kullanıcı yetkili olmalı |
-| Hesap yetersiz bakiye | 422 | `insufficient_account_balance` | Kaynak hesaba para aktarın |
-| IBAN hatası (alıcı) | 422 | `invalid_iban` | Alıcı kayıt bilgisini kontrol edin |
-| Banka bağlantı hatası | 503 | `connector_unavailable` | Smart Retry alternatif konnektör dener |
-| Paket zaten onaylanmış | 409 | `invalid_state_transition` | Paket durumunu sorgulayın |
-
-## Dekont (receipt)
-
-Başarılı her transferin dekontunu indirin:
-
-```bash
-# PDF olarak
-curl -O https://transfer.payven.com.tr/api/v1/transfers/{id}/receipt/download \
-  -H "Authorization: Bearer $PAYVEN_TOKEN"
-
-# Base64 olarak (e-posta eki için)
-curl https://transfer.payven.com.tr/api/v1/transfers/{id}/receipt/base-64 \
-  -H "Authorization: Bearer $PAYVEN_TOKEN"
-```
+| Kendi paketini onaylamaya çalışmak (paket) | 403 | `PV_BULK_TRANSFER_SELF_APPROVAL` | İkinci kullanıcı onaylamalı |
+| Kendi transferini onaylamaya çalışmak | `results[].is_success: false` | n/a (mesaj) | İkinci kullanıcı onaylamalı |
+| Gönderici hesap yok | `results[].error_code` | `PV_TRANSFER_REQUEST_SENDER_ACCOUNT_REQUIRED` | `connector_account_id` verin |
+| Pasif / onaysız bayi | 422 | `merchant_inactive`, `merchant_not_approved` | Bayinin durumunu düzeltin |
+| Doğrulama (IBAN, tutar) | 422 | `validation_failed` | `errors[]` içindeki alanı düzeltin |
+| Aynı `Idempotency-Key` farklı gövde | 409 | `idempotency_key_in_use` | Yeni anahtar kullanın |
 
 ## Kontrol listesi
 
-<Check>Operatör ve yönetici **farklı** rollere sahip mi (4-eyes)?</Check>
-<Check>Alıcılar (`recipients`) onboarding sırasında IBAN doğrulaması ile eklendi mi?</Check>
-<Check>`Idempotency-Key` paket-bazlı (`payroll-2026-05-batch-1`) mi?</Check>
-<Check>Webhook handler'ınız `para-transferi.transfer.completed` ve `para-transferi.transfer.failed` olaylarını dinliyor mu?</Check>
-<Check>Paket reddetme akışı UI'da var mı (operatöre geri bildirim)?</Check>
+<Check>Oluşturan ve onaylayan **farklı kullanıcılar** mı (4-göz ayarı açık mı)?</Check>
+<Check>`Idempotency-Key` paket bazlı ve deterministik mi (`payroll-2026-10-batch-1`)?</Check>
+<Check>Webhook handler'ınız `para-transferi.transfer.completed` ve `para-transferi.transfer.failed` olaylarını `X-Payven-Event-Id` ile tekilleştirerek işliyor mu?</Check>
+<Check>`outcome_unknown` alan transfer yeniden gönderilmiyor mu?</Check>
+<Check>Test modunda (test anahtarı) uçtan uca denendi mi? Test modundaki transferler bankaya gitmez, simüle edilir.</Check>
 
 ## İlgili sayfalar
 

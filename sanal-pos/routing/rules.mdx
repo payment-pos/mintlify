@@ -1,171 +1,120 @@
 ---
 title: "Yönlendirme Kuralları"
-description: "BIN aralığı, tutar, taksit ve kart filtrelerine göre konnektör seçimi."
+description: "BIN, tutar, taksit ve kart filtrelerine göre banka konfigürasyonu seçimi."
 ---
 
-Yönlendirme kuralları, bir ödeme isteğine **hangi konnektörün** yanıt vereceğini belirler. Her kural bir filtre kümesi + bir hedef konnektör + opsiyonel fallback konnektör tanımlar. Engine kuralları **`priority` sırasında** değerlendirir; ilk eşleşen kural seçilir.
+Bir yönlendirme kuralı; **filtreler** (BIN, tutar, taksit, para birimi, kart markası/tipi), bir **hedef** banka konfigürasyonu ve isteğe bağlı **yedek** konfigürasyon tanımlar. Yazma uçları `CanManageRouting` (varsayılan: `tenant-admin`), okuma ve `resolve` uçları `CanViewRouting` izni ister. İki kural seti ve hangisinin kullanıldığı: [genel bakış](/sanal-pos/routing/overview).
 
-## Endpoint'ler
+## Gelişmiş kurallar — `/routing-rules`
 
 ```http
-GET    /api/v1/routing-rules                      # Liste
+GET    /api/v1/routing-rules                      # Liste (sayfalı)
 GET    /api/v1/routing-rules/{id}                 # Tek kural
-POST   /api/v1/routing-rules                      # Yeni kural
-PUT    /api/v1/routing-rules/{id}                 # Güncelleme
-DELETE /api/v1/routing-rules/{id}                 # Silme
+POST   /api/v1/routing-rules                      # Yeni kural — 201, gövde: kural id (UUID)
+PUT    /api/v1/routing-rules/{id}                 # Güncelleme — 204
+DELETE /api/v1/routing-rules/{id}                 # Silme — 204
 POST   /api/v1/routing-rules/bulk-delete          # Toplu silme
-POST   /api/v1/routing-rules/{id}/activate
-POST   /api/v1/routing-rules/{id}/deactivate
-PATCH  /api/v1/routing-rules/{id}/score           # Skor güncelleme
+PATCH  /api/v1/routing-rules/{id}/score           # Yalnız skor alanları — 204
+POST   /api/v1/routing-rules/{id}/activate        # 204
+POST   /api/v1/routing-rules/{id}/deactivate      # 204
+POST   /api/v1/routing-rules/resolve              # Simülasyon
 ```
 
-## Kural oluşturma
+### Kural oluşturma
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Idempotency-Key: routing-rule-bonus-garanti" \
   -H "Content-Type: application/json" \
   -d '{
-    "name":                       "Bonus 1-12 taksit Garanti",
-    "priority":                   10,
-    "is_active":                  true,
-    "card_bin":                   "454671",
-    "card_bin_end":               "454699",
-    "installment_count":          null,
-    "min_amount":                 100,
-    "max_amount":                 20000000,
-    "currency":                   "TRY",
-    "card_brand_filter":          "bonus",
-    "card_type_filter":           "credit",
-    "target_connector_config_id": "cfg_garanti_prod-001",
-    "fallback_connector_config_id":"cfg_akbank_prod-001",
-    "weight":                     70,
-    "success_rate":               99.2,
-    "average_response_time_ms":   850,
-    "cost_score":                 80,
-    "daily_transaction_limit":    100000
+    "name":                         "Bonus kredi kartları",
+    "priority":                     10,
+    "card_bin":                     "454671",
+    "card_bin_end":                 "454699",
+    "min_amount":                   100,
+    "max_amount":                   20000000,
+    "currency":                     "TRY",
+    "card_brand_filter":            "bonus",
+    "card_type_filter":             "credit",
+    "target_connector_config_id":   "5b2e7c10-4f11-4b7a-9d3e-0a8c1f6d2e44",
+    "fallback_connector_config_id": "a91c33d2-7e50-42c8-b6a1-3d9f0e5b7c18",
+    "weight":                       70,
+    "cost_score":                   80,
+    "daily_transaction_limit":      100000
   }'
 ```
 
-## Alan referansı
+### Alan referansı
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `name` | string | Zorunlu | İnsan-okur ad (raporlamada görünür) |
-| `priority` | short | Zorunlu | Değerlendirme sırası (düşük sayı = önce). 0-32767. |
-| `is_active` | bool | Opsiyonel | Varsayılan `true` |
-| `card_bin` | string | Opsiyonel | BIN başlangıcı (1-6 hane). Tek BIN için `card_bin_end` ile aynı verin. |
-| `card_bin_end` | string | Opsiyonel | BIN aralığı sonu — `card_bin`–`card_bin_end` aralığı eşleşir |
-| `installment_count` | short | Opsiyonel | Spesifik taksit sayısı (boş = her taksit) |
-| `min_amount`, `max_amount` | long (kuruş) | Zorunlu | Tutar aralığı |
-| `currency` | string | Opsiyonel | Para birimi filtresi (boş = her para birimi). Şu an üretimde yalnız `TRY` aktif. |
-| `card_brand_filter` | enum | Opsiyonel | `bonus`, `maximum`, `axess`, `world`, `paraf`, `cardfinans`, `wings` |
+| `name` | string | Zorunlu | En çok 100 karakter |
+| `priority` | short | Zorunlu | Düşük sayı = önce; `>= 0` |
+| `card_bin` | string | Opsiyonel | 6–8 haneli sayısal BIN |
+| `card_bin_end` | string | Opsiyonel | Aralık sonu; verilirse `card_bin` zorunlu, aynı uzunlukta ve `card_bin`'den küçük olmamalı |
+| `installment_count` | short | Opsiyonel | Verilirse taksit sayısı **birebir** eşleşmeli (`> 0`). Boş = her taksit |
+| `min_amount`, `max_amount` | long (kuruş) | Opsiyonel | `0` = sınır yok. İkisi de doluysa `min_amount <= max_amount` |
+| `currency` | string | Opsiyonel | ISO-4217 büyük harf (`TRY`). Boş = her para birimi |
+| `card_brand_filter` | enum | Opsiyonel | Kart markası, snake_case (`bonus`, `axess`, `world`, `maximum`, `cardfinans`, `paraf`, `advantage`, `bankkart`) |
 | `card_type_filter` | enum | Opsiyonel | `credit`, `debit`, `prepaid` |
-| `target_connector_config_id` | UUID | Zorunlu | Birinci tercih — hangi konnektör konfigürasyonu yanıtlayacak |
-| `fallback_connector_config_id` | UUID | Opsiyonel | Birinci başarısız olursa Smart Retry hangisini denesin |
-| `weight` | short | Opsiyonel | 0-100 — A/B trafik dağılımı veya skoring katkısı |
-| `success_rate` | decimal | Opsiyonel | Son ölçülen başarı oranı (0-100) — score motoruna girer |
-| `average_response_time_ms` | int | Opsiyonel | Son ortalama yanıt süresi — skor motoruna girer |
-| `cost_score` | short | Opsiyonel | 0-100 (yüksek = daha ucuz). Skor motoruna girer. |
-| `daily_transaction_limit` | int | Opsiyonel | Günlük işlem limiti — aşılırsa kural pas geçilir |
+| `target_connector_config_id` | UUID | Zorunlu | Birinci tercih banka konfigürasyonu |
+| `fallback_connector_config_id` | UUID | Opsiyonel | Hedef geçici hata verirse denenecek konfigürasyon; hedefle aynı olamaz |
+| `is_active` | bool | Opsiyonel | Varsayılan `true` |
+| `weight` | short | Opsiyonel | 1–100, varsayılan 50 |
+| `success_rate` | decimal | Opsiyonel | 0–100, varsayılan 100 |
+| `average_response_time_ms` | int | Opsiyonel | `>= 0` |
+| `cost_score` | short | Opsiyonel | 1–100, yüksek = daha ucuz; varsayılan 50 |
+| `daily_transaction_limit` | int | Opsiyonel | `> 0`; günlük sayaç dolunca kural o gün pas geçilir |
 
-## Skor formülü
+`GET` yanıtlarında ek olarak `id`, `target_connector_config_name`, `fallback_connector_config_name`, `daily_transaction_count`, `composite_score`, `created`, `last_modified` bulunur.
 
-Engine kuralı eşleşen aday konnektörler için bileşik skor üretir:
+### Sıralama ve skor
+
+Bir kural, **tanımladığı tüm filtreler** isteği karşılıyorsa eşleşir. Eşleşenler sırayla şu ölçütlerle dizilir: (1) **özgüllük** — tanımlı filtre sayısı çok olan önce, (2) **bileşik skor** yüksek olan önce, (3) `priority` düşük olan önce.
 
 ```
-score = (weight × 0.30) + (success_rate × 0.30) + ((1000 − response_ms) × 0.20) + (cost_score × 0.20)
+bileşik_skor = weight × 0,25 + success_rate × 0,35 + yanıt_skoru × 0,20 + cost_score × 0,20
+yanıt_skoru  = max(0, 100 − average_response_time_ms / 50)
 ```
 
-En yüksek skorlu konnektör seçilir. Eşit skorda `priority` daha düşük olan kazanır.
+Katsayılar varsayılan değerlerdir ve Identity Ayarlar'daki `sanalpos.routing:scoring:*` anahtarlarıyla değişir. Eşleşen kural sayısı en az aday sayısından azsa listeye kısmen eşleşen, ardından kalan aktif kurallar da eklenir.
 
-<Note>
-**`success_rate` ve `average_response_time_ms`** alanları konsol ve background
-job'lar tarafından canlı veriden güncellenir — manuel girmenize gerek yok.
-İlk oluşturmada makul varsayılanları (örn. 100 ve 800) verin.
-</Note>
+### Simülasyon
 
-## Skor güncelleme (canlı veriyle)
-
-```bash
-curl -X PATCH https://vpos.payven.com.tr/api/v1/routing-rules/{id}/score \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "success_rate":            98.5,
-    "average_response_time_ms":920
-  }'
-```
-
-Skor güncellemesi otomatik agent (background job) tarafından dakikada bir yapılır. Manuel müdahale nadir gereklidir.
-
-## Aktif / pasif
-
-```bash
-# Pasife al
-curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules/{id}/deactivate \
-  -H "Authorization: Bearer $PAYVEN_TOKEN"
-
-# Aktif et
-curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules/{id}/activate \
-  -H "Authorization: Bearer $PAYVEN_TOKEN"
-```
-
-## Toplu silme
-
-```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules/bulk-delete \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{ "ids": ["uuid1", "uuid2", "uuid3"] }'
-```
-
-## Basit kurallar (`/simple-routing-rules`)
-
-Yeni başlayanlar için **Simple Routing Rules** alternatifi vardır. Aynı CRUD pattern'iyle çalışır ama skor motoru olmadan, "şu BIN'e şu konnektör" mantığında düz yapı sunar:
-
-```http
-GET    /api/v1/simple-routing-rules
-POST   /api/v1/simple-routing-rules
-PUT    /api/v1/simple-routing-rules/{id}
-DELETE /api/v1/simple-routing-rules/{id}
-POST   /api/v1/simple-routing-rules/bulk-delete
-POST   /api/v1/simple-routing-rules/{id}/activate
-POST   /api/v1/simple-routing-rules/{id}/deactivate
-```
-
-## Hata response'ları
-
-| HTTP | `code` | Anlam |
-|---|---|---|
-| `404` | `connector_not_found` | `target_connector_config_id` veya `fallback_connector_config_id` bulunamadı |
-| `422` | `validation_failed` | `min_amount > max_amount`, BIN format hatası, vb. |
-| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
-
-## Resolve simülasyonu
-
-Bir koşul setine göre hangi kuralların eşleşeceğini önceden hesaplamak için:
+`resolve` hangi kuralların seçileceğini gösterir; üretim trafiğini etkilemez ve salt-okunur kimlik bilgisiyle de çağrılabilir.
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules/resolve \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "card_bin":    "454671",
-    "amount":      15000,
-    "installment": 3,
-    "card_brand":  "bonus",
-    "card_type":   "credit"
+    "card_bin":          "454671",
+    "amount":            15000,
+    "installment_count": 3,
+    "currency":          "TRY",
+    "card_brand":        "bonus",
+    "card_type":         "credit"
   }'
 ```
 
-Yanıtta skor sıralı eşleşen kurallar listesi döner. Production trafiğine etki etmez.
+Yanıt, yürütme sırasıyla kural nesnelerinin listesidir (yukarıdaki alanlar + `composite_score`).
 
-## Yol haritası
+## Basit kurallar — `/simple-routing-rules`
 
-- **Conditional rule tree** — `AND/OR` operatörlü ağaç tabanlı koşullar
-- **A/B traffic split** — aynı koşula iki konnektör + ağırlık dağıtımı
-- **Rule clone** — mevcut kuralı kopyalayıp düzenleme
+Varsayılan moddur; skor alanı yoktur. Gelişmiş kurallarla aynı uç kümesine ek olarak `GET .../export` ve `GET .../export/schema` sunar.
 
-Güncellemeler için: [Changelog](/resources/changelog).
+| Alan | Tip | Açıklama |
+|---|---|---|
+| `name`, `priority` | string, short | Ad ve sıra |
+| `bank_code` | string | Kartı çıkaran bankanın 5 haneli TCMB kodu (örn. `00062`); kart BIN'inden çözülür. Boş = tüm bankalar. BIN bankası çözülemeyen kart, bankaya sabitlenmiş kurala girmez |
+| `has_installment` | bool | `true` yalnız taksitli, `false` yalnız tek çekim, boş = fark etmez |
+| `min_amount`, `max_amount` | long (kuruş) | Opsiyonel |
+| `currency`, `card_brand_filter`, `card_type_filter` | | Gelişmiş kurallardaki gibi |
+| `target_connector_config_id`, `fallback_connector_config_id` | UUID | Hedef ve yedek |
+| `is_active` | bool | Varsayılan `true` |
+
+Bayiye özel kurallar, şirket geneli kurallardan **önce** değerlendirilir; şirket geneli kurallar yedek olarak arkasına eklenir. Bayi yalıtımı açıksa şirket geneli kurallar o bayi için hiç kullanılmaz.
+
+## Hatalar
+
+Hatalar [`PayvenProblemDetails`](/sanal-pos/errors/overview) zarfıyla döner: doğrulama hataları `422 validation_failed` (`param` ilk hatalı alanı gösterir), olmayan kural `404`, yetkisiz rol `403`.

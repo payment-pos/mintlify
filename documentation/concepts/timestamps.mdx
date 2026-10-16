@@ -106,21 +106,14 @@ print(istanbul.strftime("%d.%m.%Y %H:%M"))
 
 ## Tarih aralığı parametreleri
 
-Liste sorgularında tarih aralığı parametreleri **ISO-8601 + explicit offset** ile gönderilir.
-Türkiye saatiyle çalışıyorsanız `+03:00` ekleyin:
+Liste sorgularında tarih aralığı parametreleri **ISO-8601 + explicit offset** ile gönderilir. Parametre adları her ucun şemasında tanımlıdır; işlem, iade ve mutabakat listelerinde `start_date` / `end_date` kullanılır (snake_case):
 
 ```
-GET /api/v1/transactions?from=2026-05-01T00:00:00+03:00&to=2026-05-31T23:59:59+03:00
+GET /api/v1/transactions?start_date=2026-05-01T00:00:00%2B03:00&end_date=2026-05-31T23:59:59%2B03:00
 ```
 
-| Parametre | Yön | Tip |
-|---|---|---|
-| `from` | dahil | ISO-8601 tarih-zaman (offset zorunlu önerilir) |
-| `to` | dahil | ISO-8601 tarih-zaman (offset zorunlu önerilir) |
+<Warning>
+Query string'te `+` karakteri boşluk olarak çözülür. `+03:00` offset'ini **`%2B03:00`** olarak URL-encode edin (HTTP istemci kütüphaneniz parametreleri kendisi kodluyorsa ham `+03:00` verin, ikinci kez kodlamayın). Kodlanmamış `+` ile gelen değer bozulur ve aralık beklediğinizden farklı bir zamana kayar.
+</Warning>
 
-Offset vermezseniz değer UTC kabul edilir — "1 Mayıs 2026 Türkiye saatiyle 00:00" demek
-istiyorsanız `2026-05-01T00:00:00+03:00` gönderin (UTC karşılığı `2026-04-30T21:00:00Z`'dir).
-
-<Tip>
-Mutabakat ve raporlama için **gün başı/sonu** sınırlarını organizasyonunuzun tercih ettiği zaman dilimine göre konsoldan ayarlayabilirsiniz. Detay: [Mutabakat → Yaşam Döngüsü](/sanal-pos/reconciliation/lifecycle).
-</Tip>
+Offset vermezseniz değer UTC kabul edilir. "1 Mayıs 2026 Türkiye saatiyle 00:00" demek istiyorsanız `2026-05-01T00:00:00+03:00` gönderin (UTC karşılığı `2026-04-30T21:00:00Z`'dir).

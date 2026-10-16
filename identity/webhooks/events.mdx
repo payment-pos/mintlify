@@ -1,0 +1,77 @@
+---
+title: "Olaylar (GET /events)"
+description: "Webhook'u kaçırsanız bile tüm ürünlerin olaylarını geriye dönük çekin."
+---
+
+Payven her olayı saklar. Ucunuz kapalıyken, bir teslim kaybolduğunda ya da ilk kurulumda geçmişi doldurmak istediğinizde olayları `GET /events` ile çekebilirsiniz. Her öğe, webhook ile gönderilen zarfla **aynı nesnedir**; webhook ile API'yi aynı ayrıştırıcıyla işleyebilirsiniz.
+
+## Endpoint
+
+```http
+GET /api/v1/events
+GET /api/v1/events/{id}
+```
+
+Bearer access token ve `CanViewWebhooks` izni gerekir. Kapsam [webhook uçlarıyla](/identity/webhooks/endpoints) aynıdır: bayi kapsamlı çağıran yalnız kendi bayisinin olaylarını görür; bayi seçmeyen tenant yöneticisi tenant genelini görür. **Mod da kapsamdır:** test anahtarı yalnız test olaylarını, canlı anahtar yalnız canlı olayları görür.
+
+```bash
+curl "https://identity.payven.com.tr/api/v1/events?type=sanalpos.payment.*&created_gte=2026-10-01T00:00:00%2B03:00&page=1&page_size=50" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+| Query | Açıklama |
+|---|---|
+| `type` | Tam olay kodu (`sanalpos.payment.completed`) veya önek (`sanalpos.payment.*`) |
+| `resource_id` | Olayın bağlı olduğu kaynağın Guid'i (ör. işlem kimliği) |
+| `created_gte`, `created_lte` | Olay zamanı aralığı. `+03:00` ofsetini yazın (`+` karakteri URL'de `%2B`) |
+| `page`, `page_size` | Sayfalama |
+
+Sonuçlar en yeniden eskiye sıralıdır.
+
+## Yanıt
+
+```json
+{
+  "items": [
+    {
+      "id":          "evt_8e3f5c129a7b4c8dbc4e2c963f66afa6",
+      "object":      "event",
+      "type":        "sanalpos.payment.completed",
+      "created":     "2026-10-16T14:05:12.451+03:00",
+      "livemode":    true,
+      "api_version": "2026-09-24",
+      "resource_id": "8c3a1f0e-...",
+      "merchant_id": "3fa85f64-...",
+      "data": {
+        "object": {
+          "event_type":     "sanalpos.payment.completed",
+          "transaction_id": "8c3a1f0e-...",
+          "status":         "completed",
+          "amount":         150000,
+          "currency":       "TRY",
+          "external_id":    "ORDER-1001"
+        }
+      }
+    }
+  ],
+  "page": 1, "total_pages": 1, "total_count": 1,
+  "has_previous_page": false, "has_next_page": false
+}
+```
+
+| Alan | Açıklama |
+|---|---|
+| `id` | `evt_...`; webhook'taki `X-Payven-Event-Id` ile aynı, **tekilleştirme anahtarı** |
+| `type` | `{ürün}.{kaynak}.{eylem}` biçiminde olay kodu |
+| `created` | Olayın oluştuğu an (`+03:00`) |
+| `livemode` | `true` canlı, `false` test |
+| `api_version` | Zarf sözleşmesinin sürümü |
+| `data.object` | Ürünün olay gövdesi (snake_case; tutarlar kuruş). Alanlar olay tipine göre [ürün sayfalarında](/documentation/concepts/webhook-events) |
+
+`GET /events/{id}` tek olayı döner; bulunamazsa veya kapsam dışındaysa `404`.
+
+## Webhook ile birlikte kullanım
+
+1. Webhook'tan gelen olayı `id` ile tekilleştirerek işleyin.
+2. Ucunuz bir süre kapalı kaldıysa, son işlediğiniz olayın `created` zamanından itibaren `created_gte` ile `GET /events` çağırıp aradaki olayları tamamlayın.
+3. Bir teslimin neden başarısız olduğuna bakmak için [teslim ve deneme kayıtlarını](/identity/webhooks/endpoints) kullanın.

@@ -1,0 +1,69 @@
+---
+title: "Entegrasyon Akışı"
+description: "Mükellef sorgusu, belge oluşturma, kesim ve durum takibi."
+---
+
+<Steps>
+  <Step title="Token alın ve bayiyi belirtin">
+    API anahtarınızla Identity'den token alın ([Kimlik Doğrulama](/documentation/concepts/authentication));
+    anahtarda **e-Fatura** yetkisi seçili olmalıdır. Birden çok bayiniz varsa `X-External-Merchant-Id`
+    (ya da `X-Merchant-Id`) başlığını gönderin.
+  </Step>
+  <Step title="Canlı için bayi hazırlığını doğrulayın">
+    `GET /api/v1/merchant-profile` yanıtında `is_ready: true` olmalıdır; değilse `blocking_reason` eksiği söyler.
+    Satıcı kimliği (VKN, unvan, adres) bayinin Identity kaydından gelir ve belgeye basılır. Fatura kaydını açmak
+    ve entegratörü seçmek **operatörün** işidir; bayi rolü kesim varsayılanlarını düzenler.
+    **Test modunda kurulum istenmez.**
+  </Step>
+  <Step title="Alıcının mükellefiyetini öğrenin (isteğe bağlı)">
+    `GET /api/v1/taxpayers/{tax_number}` alıcının e-Fatura mükellefi olup olmadığını döner. Belge oluştururken tür zaten bu sorgudan çözülür.
+  </Step>
+  <Step title="Belgeyi oluşturun ve kesin">
+    ```bash
+    curl -X POST https://efatura.payven.com.tr/api/v1/invoices \
+      -H "Authorization: Bearer $PAYVEN_TOKEN" \
+      -H "X-External-Merchant-Id: BAYI-001" \
+      -H "Idempotency-Key: inv-ORDER-1001" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "external_id": "ORDER-1001",
+        "send_mode": "immediate",
+        "buyer": {
+          "tax_number": "1234567890",
+          "title": "Örnek Ticaret A.Ş.",
+          "tax_office": "Kadıköy",
+          "address": "Örnek Mah. 1. Sok. No:3",
+          "city": "İstanbul",
+          "email": "muhasebe@ornek.example",
+          "save_as_party": true
+        },
+        "lines": [
+          { "item_name": "Danışmanlık hizmeti", "quantity": 1, "unit_code": "C62",
+            "unit_price": 100000, "vat_rate": 20 }
+        ]
+      }'
+    ```
+    - `unit_price` **KDV hariç kuruş**tur (`100000` = 1.000,00 TL); KDV `vat_rate` yüzdesiyle eklenir.
+    - Alıcıyı cari kartından vermek için `buyer` yerine `buyer_party_id` gönderin; kalemler için `product_id` kullanılabilir (gönderdiğiniz değer kart değerini ezer).
+    - `external_id` sizin belge/sipariş numaranızdır; aynı değerle ikinci fatura `409 PV_DUPLICATE_EXTERNAL_ID` alır.
+    - `send_mode: "draft"` taslak bırakır; kesim için `POST /invoices/{id}/issue`.
+    - Para birimi boşsa bayi varsayılanı (TRY) kullanılır; TRY dışında `exchange_rate` zorunludur.
+  </Step>
+  <Step title="Durumu izleyin">
+    Yanıtta `status`, `invoice_number`, `ettn` bulunur. Durum akışı:
+
+    `draft` → `queued` → `sending` → `sent` → `accepted` | `rejected`; hata halinde `failed`, iptalde `cancelled`.
+
+    `sent` belgeler her 5 dakikada GİB durumuna göre güncellenir; anlık için `POST /invoices/{id}/sync`. Sonucu [webhook](/e-fatura/webhooks) ile alın.
+  </Step>
+</Steps>
+
+## Başarısız ve belirsiz gönderim
+
+| Durum | Davranış |
+|---|---|
+| Kesin hata | Belge `failed` olur, numara seriye geri verilir. İçeriği `PUT /invoices/{id}` ile düzeltin, `POST /invoices/{id}/retry` ile yeniden gönderin |
+| `422 PV_SEND_INDETERMINATE` | Belge entegratörde oluşmuş **olabilir**. Düzeltme yapmayın; önce `retry`/`sync` ile durumu netleştirin, aksi halde ikinci yasal belge doğabilir |
+| Alıcıya e-posta | `POST /invoices/{id}/resend-to-buyer` kesilmiş belgeyi yeniden yollar, yeni belge üretmez |
+
+Hata kodlarının tamamı: [Hata Kodları ve Sandbox](/e-fatura/errors-sandbox).

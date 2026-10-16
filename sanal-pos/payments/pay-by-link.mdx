@@ -1,17 +1,150 @@
 ---
 title: "Pay-by-Link (Ödeme Linki)"
-description: "SMS, e-posta veya WhatsApp ile gönderilebilen banka barındırmalı ödeme linki üretin."
+description: "SMS, e-posta veya WhatsApp ile gönderilebilen ödeme linkleri: Payven barındırmalı yeniden kullanılabilir link ve banka barındırmalı tek linki."
 ---
 
-Pay-by-Link, müşteriye gönderebileceğiniz **banka barındırmalı ödeme linki** üretir. Müşteri linke tıklayıp bankanın güvenli sayfasında ödemeyi yapar. Çağrı merkezi, abonelik yenileme, ofis dışı satış senaryoları için idealdir.
+Pay-by-Link, kart bilgisi toplamadan müşteriye bir ödeme adresi göndermenizi sağlar. İki yöntem vardır:
 
-<Note>
-**Hosted Checkout vs Pay-by-Link** — İkisi de barındırmalı sayfa kullanır. Aralarındaki fark:
-- **Hosted Checkout** → sayfayı **Payven** barındırır, multi-banka taksit seçimi gösterir.
-- **Pay-by-Link** → sayfayı **banka** barındırır (örn. HalkBank Order Link). Tek-banka, tek-link.
-</Note>
+| | Ödeme linki (`/payment-links`) | Banka linki (`/payments/order-link`) |
+|---|---|---|
+| Sayfayı barındıran | **Payven** (hosted checkout) | **Banka** |
+| Kullanım | Yeniden kullanılabilir, sabit veya müşterinin seçtiği tutar, ürünlü satış, abonelik | Tek işlem için tek link |
+| Bağlantı | Kalıcı adres: `{host}/l/{slug}` | Bankanın verdiği adres |
+| Gereksinim | Alt özellik `payment-links` | Bankanın link desteği |
 
-## Akış
+## Ödeme linki
+
+Link bir kez tanımlanır; müşteri her açışında Payven bir [ödeme oturumu](/sanal-pos/payments/checkout-sessions) başlatır. Çağrı merkezi, sosyal medya, e-posta, QR ve abonelik tahsilatı için uygundur.
+
+```mermaid
+sequenceDiagram
+    participant App as Sunucunuz
+    participant Payven
+    participant Customer as Müşteri
+
+    App->>Payven: POST /payment-links
+    Payven-->>App: id, slug, checkout_url
+    App->>Customer: checkout_url (SMS / e-posta / QR)
+    Customer->>Payven: /l/{slug} sayfası, form + kart
+    Payven->>Payven: Oturum + 3DS + otorizasyon
+    Payven-)App: webhook (sanalpos.payment.completed)
+```
+
+### Link oluşturma
+
+```http
+POST /api/v1/payment-links
+```
+
+Yetki: `CanManagePaymentLinks` (varsayılan roller: `tenant-admin`, `tenant-user`, `merchant-admin`, `merchant-cashier`). Bayi kapsamı `X-Merchant-Id` / `X-External-Merchant-Id` başlığından gelir. Yanıt `201 Created`.
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/payment-links \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title":        "Aidat Ödemesi",
+    "description":  "Mayıs 2026 aidatı",
+    "amount_mode":  "fixed",
+    "fixed_amount": 150000,
+    "currency":     "TRY",
+    "collect_email": true,
+    "collect_phone": true,
+    "max_uses":     1,
+    "expires_at":   "2026-06-01T23:59:00+03:00",
+    "success_url":  "https://example.com/tesekkurler",
+    "custom_fields": [
+      { "key": "daire_no", "label": "Daire No", "type": "text", "required": true, "max_length": 10 }
+    ],
+    "metadata": { "donem": "2026-05" }
+  }'
+```
+
+| Alan | Tip | Zorunluluk | Açıklama |
+|---|---|---|---|
+| `title` | string | **Zorunlu** | En fazla 200 karakter |
+| `description` | string | Opsiyonel | En fazla 2000 karakter |
+| `slug` | string | Opsiyonel | Adres kodu (3-32 karakter: `a-z`, `0-9`, `-`, `_`); boşsa 10 karakterlik rastgele kod. Kullanımdaysa hata |
+| `amount_mode` | enum | Opsiyonel | `fixed` (varsayılan), `customer_chooses`, `line_items` |
+| `fixed_amount` | int (kuruş) | `fixed` ise zorunlu | `0`'dan büyük |
+| `min_amount`, `max_amount`, `suggested_amounts` | int (kuruş) | `customer_chooses` için | `min_amount` ≤ `max_amount`; önerilen tutarlar `0`'dan büyük |
+| `items` | object[] | `line_items` ise zorunlu | `product_id`, `max_quantity`, `quantity_adjustable`; en fazla 20 ürün. Bkz. ürün kataloğu (`/products`) |
+| `shipping_rates` | object[] | Opsiyonel | `display_name`, `amount`, `free_over_subtotal`, `delivery_estimate` |
+| `currency` | string | Opsiyonel | ISO-4217, varsayılan `TRY` |
+| `allowed_installments` | int[] | Opsiyonel | Her biri 1-12; tek değer sabit taksit anlamına gelir |
+| `installments_disabled` | bool | Opsiyonel | Taksidi kapatır; sabit taksitle birlikte verilemez |
+| `payment_mode` | enum | Opsiyonel | `non_3d`, `three_d_secure`, `three_d_pay`, `three_d_pay_hosting`; boşsa tenant politikası |
+| `allow_pre_auth` | bool | Opsiyonel | Ön provizyon seçeneği |
+| `collect_email` (varsayılan `true`), `collect_phone`, `collect_shipping_address`, `collect_billing_address`, `collect_invoice_details` | bool | Opsiyonel | Müşteriden toplanacak bilgiler |
+| `require_terms_acceptance`, `terms_url`, `allow_promotion_codes` | bool / url / bool | Opsiyonel | Satış koşulu onayı ve indirim kodu alanı |
+| `custom_fields` | object[] | Opsiyonel | Müşteriden alınacak ek alanlar: `key`, `label`, `type` (`text` / `number` / `dropdown`), `required`, `max_length`, `options`, `help_text`. Sabit bilgileri `metadata` ile gönderin |
+| `card_commission_type`, `card_commission_rate`, `card_commission_fixed_amount` | enum / decimal / int | Opsiyonel | Kart komisyonunu müşteriye yansıtır (`percentage` / `fixed`); yalnız ürün satışında (`line_items`) |
+| `experience` | enum | Opsiyonel | `classic` (tek ödeme sayfası) veya `shop` (mağaza deneyimi) |
+| `suppressed_capabilities` | string[] | Opsiyonel | Bu link için kapatılacak otomasyon kodları (örn. fatura kesimi); bilinmeyen kod reddedilir |
+| `expires_at` | tarih | Opsiyonel | Gelecekte olmalı; `+03:00` kullanın |
+| `max_uses` | int | Opsiyonel | `0`'dan büyük; dolunca link ödeme kabul etmez |
+| `splits` | object[] | Opsiyonel | Pazaryeri payları (`sub_merchant_id`, `amount`, komisyon) |
+| `recurring` | object | Opsiyonel | Abonelik: `period` (`daily` / `weekly` / `monthly` / `yearly`), `interval`, `count`. Yalnız sabit tutarlı, ürünsüz, paysız linkte |
+| `success_url`, `cancel_url`, `confirmation_message` | string | Opsiyonel | Ödeme sonrası yönlendirme ve teşekkür mesajı |
+| `metadata` | object | Opsiyonel | Anahtar-değer |
+
+Yanıt `PaymentLinkDto`'dur: gönderdiğiniz alanlara ek olarak `id`, `slug`, `current_uses`, `is_active`, `is_storefront`, `created`, `last_modified` ve **`checkout_url`** (`{host}/l/{slug}`) içerir. Müşteriye `checkout_url`'i iletin; Payven mail/SMS göndermez.
+
+### Yönetim uçları
+
+| Uç | Açıklama |
+|---|---|
+| `GET /payment-links` | Liste (sayfalı). Filtreler: `is_active`, `amount_mode`, `experience`, `start_date`, `end_date`, `derived_status` (`active`, `expired`, `used_up`, `canceled`) |
+| `GET /payment-links/{id}` | Detay |
+| `PUT /payment-links/{id}` | Yapılandırmayı **tümden değiştirir** (gövde oluşturma ile aynı); gönderilmeyen alan varsayılana döner |
+| `POST /payment-links/{id}/activate` | Linki yeniden açar. Kullanım sınırı veya süre aşılmışsa `409` |
+| `POST /payment-links/{id}/deactivate` | Linki kapatır; yeni ödeme alınmaz |
+| `DELETE /payment-links/{id}` | Linki arşivler, slug yeniden kullanılabilir |
+| `GET /payment-links/{id}/summary` | `view_count`, `checkout_start_count`, `payment_count`, `gross_amount`, `failed_count`, `not_completed_count`, `last_payment_at` |
+| `GET /payment-links/export` · `/export/schema` | Dışa aktarma |
+
+Okuma uçları `CanViewPaymentLinks` ister. Linkten yapılan ödemeleri `GET /transactions?payment_link_id={id}` ile listeleyebilirsiniz. Mağaza (`/payment-links/storefront*`) uçları panel ayarıdır.
+
+### Müşteri tarafı
+
+Müşteri `/l/{slug}` adresini açar; sayfa kimlik doğrulamasız `checkout/links/{slug}` uçlarını kullanır (link bilgisi, satış koşulları, sepet fiyat önizlemesi, `sessions` ile ödeme oturumu başlatma). Her ödeme denemesi bir [ödeme oturumudur](/sanal-pos/payments/checkout-sessions), aynı ömür ve deneme kurallarıyla.
+
+### Durumlar
+
+`is_active=false`, süresi dolmuş (`expires_at`) veya kullanım sınırı dolmuş (`current_uses >= max_uses`) link ödeme kabul etmez; müşteri `409 PV_CHECKOUT_PAYMENT_LINK_UNAVAILABLE` görür. Stokta olmayan ürünlü linkte `409 PV_CHECKOUT_OUT_OF_STOCK`.
+
+### Hatalar
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `422` | `validation_failed` | Alan kuralı ihlali (tutar modu, tarih geçmişte, taksit aralığı, ürün sayısı...) |
+| `422` | `PV_PAYMENT_LINK_RECURRING_NOT_ALLOWED` | Abonelik yalnız sabit tutarlı, ürünsüz, paysız linkte |
+| `422` | `PV_PAYMENT_LINK_COMMISSION_REQUIRES_PRODUCTS` | Kart komisyonu yalnız ürün satışında |
+| `409` | `PV_PAYMENT_LINK_STOREFRONT_MANAGED` | Mağaza linki bu uçlarla değiştirilmez |
+| `409` | `invalid_state` | Slug kullanımda, link açılamıyor |
+| `404` | `resource_not_found` | Link yok |
+
+### Webhook olayları
+
+| Olay | Açıklama |
+|---|---|
+| `sanalpos.payment.completed` / `sanalpos.payment.failed` / `sanalpos.payment.not_completed` | Linkten başlayan ödemenin sonucu. Payload'da `payment_link_id` yoktur; `transaction_id` ile işlemi okuyup `GET /transactions?payment_link_id={id}` ile linke bağlayın |
+| `sanalpos.payment_link.exhausted` | `max_uses` dolduğunda |
+| `sanalpos.subscription.*` | Aboneli linklerde taksit tahsilatları |
+
+Bkz. [Webhook Olayları](/sanal-pos/webhooks/events).
+
+### Test
+
+Test modundaki bayinin linki de çalışır; ödeme Payven simülatörüne düşer. Bkz. [Sandbox](/sanal-pos/test/sandbox).
+
+---
+
+## Banka linki (order link)
+
+Bazı bankalar ödeme sayfasını kendisi barındırır. Bu durumda Payven bankadan **tek kullanımlık link** ister, siz müşteriye iletirsiniz. Müşteri ödemeyi bankanın güvenli sayfasında yapar.
+
+### Akış
 
 ```mermaid
 sequenceDiagram
@@ -23,21 +156,22 @@ sequenceDiagram
     App->>Payven: POST /payments/order-link
     Payven->>Bank: Order link oluşturma
     Bank-->>Payven: Banka link URL'si
-    Payven-->>App: PaymentOperationResult<br/>+ extra_properties.payment_link
+    Payven-->>App: transaction_id + extra_properties.payment_link
     App->>Customer: SMS / E-posta ile link gönder
     Customer->>Bank: Link'e tıklar
     Bank-->>Customer: Ödeme + 3DS akışı
     Bank-)Payven: Banka callback
     Payven-)App: webhook (sanalpos.payment.completed)
+    Payven-->>Customer: return_url'e yönlendirme
 ```
 
-## Endpoint
+### İstek
 
 ```http
 POST /api/v1/payments/order-link
 ```
 
-## İstek
+Yetki: `CanManageTransactions`; pasif veya onaysız bayi için `422 merchant_inactive` / `merchant_not_approved`.
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/payments/order-link \
@@ -46,40 +180,39 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/order-link \
   -H "Content-Type: application/json" \
   -d '{
     "external_id":    "ORDER-1001",
-    "amount":         { "amount": 15000, "currency": "TRY" },
+    "amount":         15000,
+    "currency":       "TRY",
     "installment":    1,
     "description":    "Sipariş #1001 ödemesi",
     "customer_email": "musteri@example.com",
     "customer_phone": "+905551234567",
-    "return_url":     "https://example.com/odeme/sonuc",
-    "callback_url":   "https://api.example.com/webhooks/3d-callback"
+    "return_url":     "https://example.com/odeme/sonuc"
   }'
 ```
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `amount.amount` | long (kuruş) | Zorunlu | Tutar |
-| `amount.currency` | enum | Zorunlu | Şu an yalnız `"TRY"` kabul edilir |
-| `installment` | int | Opsiyonel | Sabit taksit (varsayılan `1`). Banka linkinde müşteriye sunulur. |
+| `amount` | int (kuruş) | **Zorunlu** | `0`'dan büyük. Düz sayıdır |
+| `currency` | string | Opsiyonel | ISO-4217, varsayılan `TRY` |
+| `installment` | int | Opsiyonel | Sabit taksit, varsayılan `1` |
 | `external_id` | string | Önerilir | Sipariş kimliğiniz |
-| `description` | string | Opsiyonel | Müşteriye gösterilecek ödeme açıklaması |
-| `customer_email` | string | Opsiyonel | Müşteri e-posta (raporlama için) |
-| `customer_phone` | string | Opsiyonel | Müşteri telefon (raporlama için) |
-| `return_url` | url | Zorunlu | Ödeme sonrası müşterinin dönmesi gereken URL |
-| `callback_url` | url | Opsiyonel | Bankanın callback gönderdiği endpoint (sunucu-sunucu) |
-| `extra_properties` | object | Opsiyonel | Konnektör-spesifik özel alanlar |
+| `description` | string | Opsiyonel | Ödeme açıklaması |
+| `customer_email`, `customer_phone` | string | Opsiyonel | Müşteri bilgisi |
+| `return_url` | url | Opsiyonel | Ödeme sonrası müşterinin yönlendirileceği adres (http/https). Boşsa `callback_url` kullanılır |
+| `callback_url` | url | Opsiyonel | `return_url` yoksa dönüş adresi olarak kullanılır. Bankaya iletilmez; banka sonucu Payven'e bildirir |
+| `extra_properties` | object | Opsiyonel | Ek anahtar-değer çiftleri |
 
-## Yanıt
+### Yanıt
 
 ```json
 {
   "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
   "status":         "processing",
+  "is_success":     true,
   "extra_properties": {
-    "payment_link":      "https://hosted.bank.example.com/pay/abc123def456",
-    "provider_order_id": "BANK-ORDER-789",
-    "processed_at":      "2026-05-03T13:00:00.123+03:00",
-    "expires_at":        "2026-05-04T13:00:00.000+03:00"
+    "payment_link": "https://hosted.bank.example.com/pay/abc123def456",
+    "processed_at": "2026-05-03T13:00:00.1230000+00:00",
+    "expires_at":   "2026-05-04T13:00:00.0000000+00:00"
   }
 }
 ```
@@ -87,77 +220,37 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/order-link \
 | `extra_properties` alanı | Açıklama |
 |---|---|
 | `payment_link` | Müşteriye gönderilecek tam URL |
-| `provider_order_id` | Bankadaki sipariş referans kimliği |
-| `processed_at` | Linkin oluşturulduğu zaman |
-| `expires_at` | Linkin geçerlilik süresi (banka politikasına göre belirlenir, genelde 24 saat) |
+| `processed_at` | Linkin oluşturulduğu an |
+| `expires_at` | Linkin geçerlilik süresi (banka belirler, çoğunlukla 24 saat); bankanın bildirmediği durumda boş |
 
-`status: "processing"` → link oluşturuldu, müşteri ödeme yapana kadar bu durumda kalır. Müşteri ödediğinde callback ile durum `completed`/`failed` olarak güncellenir.
+`status: "processing"`: link oluştu, müşteri ödeyene kadar bu durumda kalır; sonuç `completed` / `failed` olarak güncellenir. Son durumu [`GET /payments/{transaction_id}`](/sanal-pos/inquiries/payment-detail) ile okuyun.
 
-## Müşteriye iletme
+### Müşteriye iletme
 
-`payment_link` URL'sini istediğiniz kanaldan iletin. Payven otomatik mail/SMS göndermez — bu sizin sorumluluğunuzdadır.
+Payven otomatik mail/SMS göndermez; `payment_link` adresini kendi kanalınızdan iletin (SMS, e-posta, WhatsApp, QR).
 
-| Kanal | Pratik öneriler |
-|---|---|
-| SMS | URL kısaltıcı (örn. `pyv.tr`) ile 160 karakter sınırını aşmayın. URL kısaltmayı sizin sisteminizde yapabilirsiniz. |
-| E-posta | Tam URL'yi `<a href="...">` etiketinde verin. |
-| WhatsApp / Telegram | Tam URL veya QR olarak gönderin. |
-| QR kod | URL'yi 3rd party kütüphane ile QR kod görseline dönüştürüp fiş/ekranda gösterin. |
+### Banka linki hataları
 
-## Tek tıklama vs çoklu deneme
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `422` | `validation_failed` | Tutar `0` veya geçersiz URL |
+| `422` | `ORDER_LINK_FAILED` | Banka link üretemedi. Bayide yönlendirme kuralıyla birden çok banka varsa sırayla denenir; hepsi başarısızsa bu hata döner (`provider_error_code` banka kodunu taşır) |
+| `422` | `merchant_limit_exceeded` | Bayi hacim limiti aşılır |
 
-Banka linkinin davranışı **konnektöre özgüdür**. Tipik patternler:
+Linki iptal eden bir uç yoktur; link süresi dolana kadar geçerlidir.
 
-| Senaryo | Banka davranışı |
-|---|---|
-| Müşteri ilk denemede başarılı | Link tek kullanımlık — ikinci kez çalışmaz |
-| Müşterinin ilk denemesi reddedildi | Çoğu banka müşteriye yeniden deneme şansı verir |
-| Süre doldu | Link artık çalışmaz — yeni link üretmek gerekir |
-
-Final durumu görmek için: [GET /api/v1/payments/{transaction_id}](/sanal-pos/inquiries/payment-detail).
-
-## Linki "iptal etme"
-
-Mevcut implementasyonda explicit bir DELETE endpoint'i yoktur — banka tarafında link süresini önceden kapatmak için ya:
-- Linkin doğal süresinin dolmasını bekleyin (banka politikası), veya
-- Sipariş tarafında ödemeyi geçersiz işaretleyip yeni süreç başlatın.
-
-Operasyonel iptal süreci için [destek ekibimize](/resources/support) ulaşın.
-
-## Webhook olayları
+### Webhook olayları
 
 | Olay | Açıklama |
 |---|---|
-| `sanalpos.payment.completed` | Müşteri linkten ödemeyi başarıyla yaptı |
-| `sanalpos.payment.failed` | Müşteri ödeme yaptı ama banka reddetti |
-| `sanalpos.three_ds.completed` / `sanalpos.three_ds.failed` | 3DS akışı tetiklendiğinde |
+| `sanalpos.payment.completed` | Müşteri linkten ödemeyi tamamladı |
+| `sanalpos.payment.failed` | Banka ödemeyi reddetti |
+| `sanalpos.three_ds.completed` / `sanalpos.three_ds.failed` | 3DS sonucu |
 
-Detay: [Webhook Olayları](/sanal-pos/webhooks/events).
+### Sandbox
 
-## Tipik kullanım kalıpları
+Test modundaki bayide link bankaya değil Payven simülatörüne açılır; kayıt gerçek yazılır, bankaya gidilmez.
 
-<AccordionGroup>
-  <Accordion title="Çağrı merkezi">
-    Operatör müşteriyle telefonda görüşür, sipariş alır:
-    1. CRM'den `POST /payments/order-link` çağrısı.
-    2. `payment_link`'i alır, kendi SMS / e-posta sisteminden gönderir.
-    3. Operatör müşterinin ödeme yapmasını beklemeden çağrıyı kapatabilir.
-    4. Webhook ile `sanalpos.payment.completed` geldiğinde sipariş onaylanır.
-  </Accordion>
-  <Accordion title="Abonelik yenileme">
-    Otomatik recurring kullanmıyorsanız:
-    1. Vade tarihinden 3 gün önce link üret.
-    2. Müşteriye e-posta ile gönder.
-    3. Müşteri ödediğinde aboneliği uzat.
-  </Accordion>
-  <Accordion title="QR kodla mağaza ödemesi">
-    1. Kasa ekranında `payment_link`'in QR kodunu göster (3rd party QR kütüphanesi ile).
-    2. Müşteri telefonuyla okur.
-    3. Banka sayfasında ödemeyi yapar.
-    4. Kasiyer webhook bildirimini bekler.
-  </Accordion>
-</AccordionGroup>
+### Konnektör desteği
 
-## Konnektör desteği
-
-Pay-by-Link tüm konnektörlerde değil, **`order_link` operasyonunu destekleyen** konnektörlerde çalışır. Şu an aktif: HalkBank VPOS. Diğer konnektörler için destek genişlemektedir — güncel liste için konsoldan **Ayarlar → Konnektörler** ekranını kontrol edin.
+Banka linki yalnızca link (order link) operasyonunu destekleyen bankalarda çalışır. Desteklenen bankalar tenant'a göre değişir; Payven yapılandırılmış ve desteği olan bankalardan birini seçer. Destek yoksa istek `ORDER_LINK_FAILED` ile döner.

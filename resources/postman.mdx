@@ -1,19 +1,18 @@
 ---
 title: "Postman ve API Koleksiyonları"
-description: "Tüm ürünler için indirilebilir API koleksiyonları."
+description: "İndirilebilir Postman koleksiyonu ve OpenAPI şemalarından içe aktarma."
 ---
 
 | Ürün | Postman | Environment | .http |
 |---|---|---|---|
 | Sanal POS | [İndir](https://docs.payven.com.tr/files/payven-sanalpos.postman_collection.json) | [İndir](https://docs.payven.com.tr/files/payven-sanalpos.postman_environment.json) | [İndir](https://docs.payven.com.tr/files/payven-sanalpos.http) |
 
-Sanal POS koleksiyonu **61 istek** içerir: kimlik doğrulama, bayi ve connector tanımlama,
-ödeme (Non-3D / 3D Secure / hosted checkout), iade-iptal-capture, recurring, işlem sorgulama
-ve webhook uçları (İşyeri API'si). Identity uçlarının kullanımı da Auth + Bayi Yönetimi klasörlerinde yer alır.
+Sanal POS koleksiyonu **61 istek** içerir: kimlik doğrulama, bayi ve connector tanımlama, ödeme (Non-3D / 3D Secure / Hosted Checkout), iade-iptal-capture, tekrarlayan ödeme, işlem sorgulama ve webhook uçları. Identity uçlarının kullanımı da Auth ve Bayi Yönetimi klasörlerinde yer alır.
 
 Kullanım rehberi: [Sanal POS → Postman](/sanal-pos/test/postman).
 
 <Note>
-Diğer ürünler (Para Transferi, Fatura Ödeme, Fraud) için koleksiyonlar hazırlanıyor.
-İhtiyacınız varsa [destek ekibimize](/resources/support) yazın.
+Diğer ürünler (Para Transferi, Identity, Fraud) için hazır koleksiyon yoktur; ürünün OpenAPI şemasını Postman'e **Import → Link** ile aktarabilirsiniz. Şema adresleri: [SDK ve Araçlar](/resources/sdk-roadmap#openapi-semalari).
 </Note>
+
+Ortam değişkenlerindeki adresleri (`vpos_base_url`, `identity_base_url`, `merchant_base_url`) kurulumunuzun adresleriyle değiştirin; test için **test ortamlı API anahtarınızın** `client_id` ve `client_secret` değerlerini girin. Test ve canlı aynı adreste olduğundan ortam geçişi yalnız anahtarı değiştirmektir.

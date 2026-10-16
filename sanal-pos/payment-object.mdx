@@ -3,19 +3,25 @@ title: "Payment Objesi"
 description: "Sanal POS ödeme yanıtlarında dönen alanların referansı."
 ---
 
-Payment objesi, bir ödemenin **mevcut durumu** ve banka tarafından dönen detayları tek bir yapıda taşır. İki varyantı vardır:
+Payment objesi, bir ödemenin **mevcut durumu** ve tutar bilgisini tek bir yapıda taşır. İki varyantı vardır:
 
-- **`PaymentOperationResult`** — yazma operasyonlarında (`POST /payments`, `/refund`, `/void`, `/capture`) döner
-- **`PaymentStatus`** — sorgulama operasyonunda (`GET /payments/{id}`) döner; `PaymentOperationResult` üzerine ek alanlar koyar
+- **`PaymentOperationResult`** — yazma operasyonlarında (`POST /payments`, `/3d/init`, `/order-link`, `/capture`, `/refund`, `/void`) döner
+- **`PaymentStatus`** — sorgulamada (`GET /payments/{id}`) döner; `PaymentOperationResult` üzerine ek alanlar koyar
 
 ## PaymentOperationResult
 
-Yazma endpoint'lerinden dönen temel yapı:
+Yazma endpoint'lerinden dönen temel yapı (başarılı `POST /payments`):
 
 ```json
 {
-  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":         "completed",
+  "transaction_id":        "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":                "completed",
+  "is_success":            true,
+  "message":               "İşlem başarıyla tamamlandı",
+  "amount":                15000,
+  "total_customer_amount": 15000,
+  "interest_amount":       0,
+  "currency":              "TRY",
   "extra_properties": {
     "processed_at":            "2026-05-03T12:34:58.123+03:00",
     "receipt_id":              "RCPT-20260503-0001",
@@ -31,91 +37,105 @@ Yazma endpoint'lerinden dönen temel yapı:
 |---|---|---|
 | `transaction_id` | UUID | Payven tarafından atanan benzersiz işlem kimliği. Sorgulama / aksiyon endpoint'lerinde URL parametresi olarak kullanılır. |
 | `status` | enum | İşlemin mevcut durumu — bkz. [Status değerleri](#status-degerleri) |
-| `extra_properties` | object \| null | Banka-spesifik ek alanlar — anahtarları konnektöre göre değişir |
+| `is_success` | bool | Operasyon başarılı mı. Karar için HTTP durum kodunu kullanın (`2xx` → başarılı); bu alan yalnızca yardımcıdır. |
+| `message` | string \| null | İnsan-okur durum mesajı |
+| `amount` | long (kuruş) \| null | Müşteriden çekilen **toplam** tutar, vade farkı dahil. Ödeme oluşturma yanıtlarında dolar; iade/iptal/capture yanıtlarında yoktur. |
+| `total_customer_amount` | long (kuruş) \| null | `amount` ile aynı değer (bayi tarafında netlik için) |
+| `interest_amount` | long (kuruş) \| null | Vade farkı. Peşin işlemde ve vade farkını bayinin üstlendiği taksitte `0`. Temel satış tutarı `amount - interest_amount`'tır. |
+| `currency` | string \| null | ISO-4217 alfa-3, büyük harf (örn. `TRY`) |
+| `extra_properties` | object \| null | Banka-spesifik ek alanlar — hangi anahtarların dolduğu bankaya göre değişir |
 
-İşlem başarılı mı bilgisini **HTTP durum kodundan** okuyun (`2xx` → başarılı). Hata durumunda yanıt `application/problem+json` formatında döner (aşağıda).
+Tutarlar daima **kuruş** cinsinden `long`'tur (`15000` = 150,00 TL). Başarılı olmayan operasyon HTTP `4xx/5xx` ve `application/problem+json` döner ([aşağıda](#hata-responselari)).
 
 ### `extra_properties` içeriği
 
-Tüm konnektörler aşağıdaki anahtarları doldurmaya çalışır (banka desteklemiyorsa boş string olur):
+Anahtarlar snake_case'tir. Tüm bankalar aşağıdaki anahtarları doldurmaya çalışır (banka desteklemiyorsa boş string olur):
 
 | Anahtar | Açıklama |
 |---|---|
-| `processed_at` | Banka tarafında işlem tamamlanma zamanı (ISO-8601) |
+| `processed_at` | İşlemin tamamlanma zamanı (`+03:00`) |
 | `receipt_id` | Banka makbuz numarası |
-| `external_id` | Sizin sisteminizdeki sipariş kimliği (istek body'sindeki `external_id` echo edilir) |
+| `external_id` | Bankadan dönen sipariş referansı. Sizin `external_id` değeriniz işlem kaydında saklanır ve `GET /transactions/{id}` ile okunur. |
 | `provider_transaction_id` | Bankadaki işlem kimliği (banka log'larında arama için) |
-| `auth_code` | 6 haneli onay kodu (Visa/MC için) |
+| `auth_code` | Onay kodu |
 | `host_reference` | Bankadaki kalıcı referans numarası |
 
-Konnektöre özgü ek alanlar (HalkBank `tax_certificate_no`, NestPay `xid`, vb.) aynı sözlükte döner. Hangi alanların doldurulduğunu test ortamında görerek doğrulamanız önerilir.
+Bankaya özgü ek alanlar aynı sözlükte döner; test modunda yalnızca simüle edilen alanlar bulunur.
 
 ## PaymentStatus
 
-`GET /api/v1/payments/{transaction_id}` ile sorgulamada `PaymentOperationResult` üzerine **ek alanlar** koyar. Başarısız ödemenin sorgusunda da yanıt `200 OK` döner (kaynak vardır, yalnızca `status: "failed"`); banka tarafından gelen hata detayı `error_code` ve `provider_error_code` alanlarıyla birlikte taşınır.
+`GET /api/v1/payments/{transaction_id}`, `PaymentOperationResult` alanlarına ek olarak şunları taşır. Başarısız ödemenin sorgusu da `200 OK` döner (kaynak vardır, yalnızca `status: "failed"`).
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-...",
-  "status":              "completed",
-  "amount":              15000,
-  "currency":            "TRY",
-  "is_3d_secure":        false,
-  "created":             "2026-05-03T12:34:56.789+03:00",
-  "basket_id":           "BASKET-2026-001",
-  "error_code":          null,
-  "provider_error_code": null,
-  "extra_properties":    { ... }
+  "transaction_id":        "8e3f5c12-...",
+  "status":                "failed",
+  "is_success":            false,
+  "message":               "Yetersiz bakiye",
+  "error_code":            "PV_INSUFFICIENT_FUNDS",
+  "amount":                15000,
+  "total_customer_amount": 15000,
+  "interest_amount":       0,
+  "currency":              "TRY",
+  "is3_d_secure":          false,
+  "created":               "2026-05-03T12:34:56.789+03:00",
+  "basket_id":             "BASKET-2026-001"
 }
 ```
 
 | Ek alan | Tip | Açıklama |
 |---|---|---|
-| `amount` | long (kuruş) | İşlem tutarı |
-| `currency` | string | İşlem para birimi (genelde `TRY`; DCC akışında yabancı kart için yerel kart para birimi) |
-| `is_3d_secure` | bool | İşlem 3D Secure ile mi yapıldı |
-| `created` | datetime | İşlemin Payven tarafında oluşturulma zamanı |
+| `is3_d_secure` | bool | İşlem 3D Secure ile mi yapıldı |
+| `created` | datetime | İşlemin oluşturulma zamanı (`+03:00`) |
 | `basket_id` | string \| null | İstek body'sinden gelen sepet kimliği |
-| `error_code` | string \| null | Yalnız `failed` ödemelerde dolar — örn. `bank_declined` |
-| `provider_error_code` | string \| null | Yalnız `failed` ödemelerde dolar — bankanın orijinal yanıt kodu (örn. `51` yetersiz bakiye) |
+| `error_code` | string \| null | İşlem geçmişindeki son hata kodu |
+| `message` | string \| null | İşlem geçmişindeki son hata mesajı (hata yoksa boş) |
+
+<Note>
+Sorgu yanıtında `extra_properties` ve `provider_error_code` **yoktur**. Bankanın ham kodu için `GET /payments/{id}/query` (banka durum sorgusu) veya `GET /payments/{id}/history` (işlem geçmişi) kullanın. `is_success`, sorguda yalnızca `completed` ve `authorized` için `true`'dur.
+</Note>
 
 ## Status değerleri
 
-`status` alanı `TransactionStatus` enum'unun **snake_case wire formatı**dır. Tam liste:
+`status` alanı `TransactionStatus` enum'unun **snake_case wire formatı**dır:
 
 | `status` (wire) | Anlam | Sonraki adım |
 |---|---|---|
-| `created` | İşlem kaydedildi, henüz konnektöre gönderilmedi | Otomatik — handler bankaya iletir |
-| `processing` | Konnektörde, banka yanıtı bekleniyor | Asenkron — webhook veya `GET` ile takip |
-| `three_d_secure_init_processing` | 3DS init başlatıldı, müşteri bankaya yönlendirilmeli | Müşteriyi yanıttaki `html_content` veya bank URL'sine yönlendirin |
-| `three_d_secure_auth_processing` | 3DS auth tamamlanmayı bekliyor (callback yolda) | Asenkron — webhook ile takip |
-| `authorized` | Banka onayladı, ön provizyon (PreAuth) | `/capture` ile çekim yapın |
-| `capture_processing` | Capture isteği konnektörde | Asenkron |
+| `created` | İşlem kaydedildi, henüz bankaya gönderilmedi | Otomatik |
+| `processing` | Bankada, yanıt bekleniyor | Asenkron — webhook veya `GET` ile takip |
+| `three_d_secure_init_processing` | 3DS başlatıldı, müşteri bankaya yönlendirilmeli | Müşteriyi yanıttaki yönlendirmeye gönderin |
+| `three_d_secure_auth_processing` | 3DS dönüşü alındı, otorizasyon sürüyor | Asenkron — webhook ile takip |
+| `authorized` | Banka onayladı, ön provizyon (Pre-Auth) | `/capture` ile çekim yapın |
+| `capture_processing` | Capture isteği bankada | Asenkron |
 | `completed` | İşlem tamamlandı (Sale veya Capture sonrası) | İade/iptal yapılabilir |
-| `refund_processing` | İade isteği konnektörde | Asenkron |
+| `refund_processing` | İade isteği bankada | Asenkron |
 | `refunded` | Tüm tutar iade edildi | — |
-| `canceled_processing` | İptal (void) isteği konnektörde | Asenkron |
+| `canceled_processing` | İptal (void) isteği bankada | Asenkron |
 | `canceled` | İptal edildi | — |
-| `failed` | Banka reddetti veya teknik hata | `error_code` + `provider_error_code` inceleyin |
+| `failed` | Banka reddetti veya teknik hata | `error_code` ve işlem geçmişini inceleyin |
+| `not_completed` | Müşteri 3DS'i tamamlamadan ayrıldı; para hareketi yok | Yeni ödeme başlatın |
+
+`failed` bankanın **aktif reddidir**; `not_completed` ise sonuçlanmamış terktir (para çekilmemiştir). İkisi de nihaidir.
 
 <Note>
-**Hesaplanan (calculated) durumlar — wire'da `status` alanında görünmez:**
+**Hesaplanan durumlar — `status` alanında görünmez:**
 
-- **Kısmi iade (partially refunded):** Üst Transaction `status` alanı `completed` kalır; iade alt-Transaction'ı ayrı kayıt olarak yazılır (`status: refunded`). Kısmi mi tam mı iade olduğu `Transaction.RefundedAmount` ve `Transaction.Amount` karşılaştırmasından runtime'da hesaplanır.
-- **Settlement (gün sonu mutabakat):** `status` enum'unda `settled` değeri yoktur. Settlement durumu ayrı `Settlement` kaynağında izlenir — bkz. [Settlement Kayıtları](/sanal-pos/reporting/settlements).
+- **Kısmi iade:** Üst işlemin `status` alanı `completed` kalır; iade ayrı bir iade kaydı olarak yazılır ve `GET /refunds` ile listelenir. `GET /transactions?status=partially_refunded` filtresi bu işlemleri (net tutarı brüt tutardan küçük olanları) döndürür.
+- **Hakediş (settlement):** `status` içinde `settled` değeri yoktur; hakediş ayrı bir kaynakta izlenir.
 </Note>
 
 ```mermaid
 stateDiagram-v2
     [*] --> created: POST /payments
-    created --> processing: konnektöre gönderildi
+    created --> processing: bankaya gönderildi
     created --> three_d_secure_init_processing: 3DS init
-    processing --> authorized: PreAuth onaylandı
+    processing --> authorized: Pre-Auth onaylandı
     processing --> completed: Sale onaylandı
     processing --> failed: banka reddi
-    three_d_secure_init_processing --> three_d_secure_auth_processing: müşteri 3DS tamamladı
+    three_d_secure_init_processing --> three_d_secure_auth_processing: banka dönüşü geldi
     three_d_secure_init_processing --> failed: 3DS başarısız
-    three_d_secure_auth_processing --> authorized: PreAuth + 3DS
+    three_d_secure_init_processing --> not_completed: müşteri terk etti
+    three_d_secure_auth_processing --> authorized: Pre-Auth + 3DS
     three_d_secure_auth_processing --> completed: Sale + 3DS
     three_d_secure_auth_processing --> failed: otorizasyon reddi
     authorized --> capture_processing: POST /capture
@@ -125,30 +145,27 @@ stateDiagram-v2
     completed --> canceled_processing: POST /void (gün içi)
     completed --> refund_processing: POST /refund
     canceled_processing --> canceled: void onaylandı
-    canceled_processing --> failed: void reddi
-    refund_processing --> refunded: iade onaylandı
-    refund_processing --> failed: iade reddi
+    refund_processing --> refunded: tam iade onaylandı
+    refund_processing --> completed: kısmi iade onaylandı
     canceled --> [*]
     refunded --> [*]
     failed --> [*]
+    not_completed --> [*]
     completed --> [*]
 ```
 
 ## Hata response'ları
 
-İşlem reddi, iş kuralı ihlali ve banka reddi dahil tüm hata durumları [RFC 9457 problem+json](/documentation/concepts/errors#hata-yanit-formati) formatında, uygun HTTP durum koduyla döner. Banka kodları için: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
+İşlem reddi, iş kuralı ihlali ve banka reddi dahil tüm hata durumları [problem+json](/sanal-pos/errors/overview) formatında, uygun HTTP durum koduyla döner. Banka reddinde zarf ek olarak şunları taşır:
 
-Failed bir ödemeyi sonradan `GET /api/v1/payments/{id}` ile sorgularsanız `200 OK` döner; `error_code` ve `provider_error_code` response body'sinde yer alır.
+```json
+{
+  "status":              422,
+  "code":                "PV_INSUFFICIENT_FUNDS",
+  "message":             "Bakiye yetersiz.",
+  "provider_error_code": "51",
+  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6"
+}
+```
 
-## Yol haritası — zenginleştirilmiş alanlar
-
-Aşağıdaki sub-objeler ileride yanıta eklenecektir (kontrat genişlemesi, breaking change değil):
-
-- **`card`** — `bin_number`, `last_four_digits`, `scheme` (`visa`/`mastercard`/`troy`/`amex`), `type` (`credit`/`debit`/`prepaid`), `program` (`bonus`/`maximum`/`axess`/`paraf`/`world`), `bank_code`, `bank_name`
-- **`connector`** — `code`, `configuration_id` — şu an `extra_properties` içinde
-- **`three_ds`** — `protocol_version` (`1.0`/`2.1`/`2.2`), `cavv`, `eci`, `xid`, `result` (`Y`/`N`/`U`/`A`)
-- **`fraud`** — `score` (0-100), `decision` (`allow`/`review`/`block`), `rules_triggered[]`
-- **`metadata`** — sizin tanımladığınız anahtar-değer çiftleri (max 50 anahtar)
-- **`captured_amount`**, **`refunded_amount`**, **`completed_at`**, **`settlement_date`**
-
-Geçişin tarihi [Changelog](/resources/changelog) üzerinden duyurulacaktır. Şu an bu alanların ekvivalanları `extra_properties` veya ayrı endpoint'lerle elde edilebilir.
+`code` Payven'in kanonik kodudur ([Payven Hata Kodları](/sanal-pos/errors/payven-codes)); `provider_error_code` bankanın ham kodudur ([Banka Kodları](/sanal-pos/errors/bank-codes)); `transaction_id` reddedilen işlemi sonradan sorgulamanızı sağlar.

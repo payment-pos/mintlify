@@ -1,82 +1,137 @@
 ---
 title: "Ödeme Detayı"
-description: "Tek bir ödemenin son durumunu ve banka yanıt detaylarını sorgulayın."
+description: "Tek bir ödemenin son durumunu ve banka durumunu sorgulayın."
 ---
 
-Bir ödemenin **mevcut** durumunu ve banka tarafından dönen detayları çekmek için kullanılır.
+Bir ödemenin **mevcut** durumunu öğrenmek için kullanılır. Üç sorgu vardır:
 
-## Endpoint
+| İhtiyaç | Uç |
+|---|---|
+| Ödemenin Payven'deki son durumu (hafif, sık kullanılan) | `GET /api/v1/payments/{transaction_id}` |
+| Ödemenin bankadaki durumu ile Payven kaydının karşılaştırması | `GET /api/v1/payments/{transaction_id}/query` |
+| Kart, banka, komisyon, 3DS ve webhook teslim ayrıntılarıyla zengin kayıt | `GET /api/v1/transactions/{id}` — bkz. [İşlem Listesi](/sanal-pos/inquiries/transaction-list) |
+
+Üçü de `CanViewTransactions` yetkisi ister; `transaction_id`, ödeme oluşturma yanıtında dönen UUID'dir. Yalnız çağıran işletmeye (veya şirketin işletmelerine) ait işlemler görünür.
+
+## Ödeme durumu
 
 ```http
 GET /api/v1/payments/{transaction_id}
 ```
-
-`transaction_id` parametresi UUID formatındadır — `POST /payments` veya `POST /payments/3d/init` çağrılarının yanıtında dönen kimlik.
-
-## İstek
 
 ```bash
 curl https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6 \
   -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-## Yanıt
-
-`PaymentStatus` (genişletilmiş `PaymentOperationResult`) döner:
+Yanıt `PaymentStatus` yapısındadır:
 
 ```json
 {
-  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":              "completed",
-  "amount":              15000,
-  "currency":            "TRY",
-  "is_3d_secure":        false,
-  "created":             "2026-05-03T12:34:56.789+03:00",
-  "basket_id":           "BASKET-2026-001",
-  "error_code":          null,
-  "provider_error_code": null,
-  "extra_properties": {
-    "processed_at":            "2026-05-03T12:34:58.123+03:00",
-    "auth_code":               "123456",
-    "host_reference":          "PAYVEN-REF-789",
-    "provider_transaction_id": "9f3d2b8e-..."
+  "transaction_id":        "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":                "completed",
+  "is_success":            true,
+  "amount":                15000,
+  "total_customer_amount": 15000,
+  "interest_amount":       0,
+  "currency":              "TRY",
+  "is3_d_secure":          false,
+  "created":               "2026-05-03T12:34:56.789+03:00",
+  "basket_id":             "BASKET-2026-001"
+}
+```
+
+Başarısız ödemenin sorgusu da `200 OK` döner (kaynak vardır); `status: "failed"` olur, `error_code` ve `message` işlem geçmişindeki son hatayı taşır:
+
+```json
+{
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":         "failed",
+  "is_success":     false,
+  "message":        "Bakiye yetersiz.",
+  "error_code":     "PV_INSUFFICIENT_FUNDS",
+  "amount":         15000,
+  "currency":       "TRY",
+  "is3_d_secure":   true,
+  "created":        "2026-05-03T12:34:56.789+03:00"
+}
+```
+
+<Note>
+Bu yanıtta `extra_properties` (`auth_code`, `host_reference`...) ve `provider_error_code` **yoktur**. Bankanın ham kodu ve referanslar için `GET /payments/{id}/query`, [İşlem Geçmişi](/sanal-pos/inquiries/payment-history) ya da `GET /transactions/{id}` kullanın. `is_success` yalnız `completed` ve `authorized` için `true`'dur.
+</Note>
+
+Alan ve durum referansı: [Payment Objesi](/sanal-pos/payment-object).
+
+## Banka durum sorgusu
+
+```http
+GET /api/v1/payments/{transaction_id}/query
+```
+
+Payven kaydını ve bankanın o işlem için verdiği durumu yan yana döner. Sonuç belirsiz kalmış (`processing`, 3DS bekleyen) bir işlemin gerçek durumunu anlamak için kullanın; **durum değiştirmez**.
+
+```json
+{
+  "transaction_id":           "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":                   "completed",
+  "is_success":               true,
+  "external_query_available": true,
+  "internal": {
+    "status":      "completed",
+    "amount":      15000,
+    "net_amount":  15000,
+    "currency":    "TRY",
+    "auth_code":   "123456",
+    "created_at":  "2026-05-03T12:34:56.789+03:00"
+  },
+  "external": {
+    "status":       "completed",
+    "amount":       15000,
+    "auth_code":    "123456",
+    "processed_at": "2026-05-03T12:34:58.123+03:00"
   }
 }
 ```
 
-Tam alan referansı: [Payment Objesi](/sanal-pos/payment-object).
+`internal` Payven kaydını, `external` bankanın yanıtını taşır; banka sorgusunu desteklemiyorsa `external_query_available` `false` olur. Banka sorgusu başarısız olursa `422 QUERY_FAILED` döner. İsteğe bağlı `order_id` sorgu parametresi banka sipariş numarasını elle belirtir.
+
+<Note>
+Kayıt ile banka ayrışıyorsa (banka onaylamış, Payven kaydı `failed`/`processing`) düzeltme **destek / operatör aksiyonudur**: `POST /payments/{id}/reconcile` yalnızca işlemin oluştuğu Türkiye gününde çalışır ve `CanManageTransactions` yetkisi ister. Sonuç webhook ile de bildirilir.
+</Note>
 
 ## Tipik kullanım
 
-- **3DS akışı sonrası `success_url`/`fail_url`'de** — sunucu tarafında final durumu doğrulamak (URL parametreleri güvenilmez)
+- **3DS dönüşünde `success_url`/`fail_url`'de** — final durumu sunucu tarafında doğrulamak (URL parametreleri güvenilmez)
 - **Webhook gelmemiş bir ödeme** için son durumu öğrenmek
 - **Müşteri destek talebinde** geçmiş bir işlemi incelemek
-- **Durum geçişi sonrası** (örn. iade, capture) güncel durum sorgusu
+- **Durum geçişi sonrası** (iade, capture, iptal) güncel durum sorgusu
 
 <Warning>
-**Polling kullanmayın.** Yüksek hacimli senaryolarda her ödeme için periyodik
-`GET` çağrısı yapmayın — bunun yerine [webhook](/sanal-pos/webhooks/overview)
-entegre edin. Webhook gelmemişse İşyeri paneli › **Geliştirici › Webhook'lar** ekranından
-(ya da `POST /webhook-endpoints/deliveries/{id}/retry` ile) teslimi yeniden gönderebilir veya
-olayı `GET /events` ile çekebilirsiniz.
+**Polling kullanmayın.** Yüksek hacimli senaryolarda her ödeme için periyodik `GET` çağrısı yapmayın; [webhook](/sanal-pos/webhooks/overview) entegre edin. Webhook gelmemişse teslimi yeniden gönderebilir veya olayı `GET /events` ile çekebilirsiniz.
 </Warning>
 
-## Hata response'ları
+## Hata yanıtları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `payment_not_found` | Verilen `transaction_id` bulunamadı veya bu merchant'a ait değil |
-| `403` | `forbidden` | Yetki yok |
+| `404` | — | `transaction_id` bulunamadı ya da bu işletmeye ait değil |
+| `403` | `forbidden` | `CanViewTransactions` yetkisi yok |
+| `422` | `QUERY_FAILED` | Banka durum sorgusu başarısız (`/query`) |
 
 Hata yanıtı RFC 9457 problem+json formatındadır.
+
+## Test ortamı
+
+Test modundaki bir işlemin `/query` sorgusu bankaya gitmez; yalnız `internal` blok dolar ve `external_query_available` `false` olur. `GET /payments/{id}` canlıdaki gibi çalışır.
 
 ## Sonraki adımlar
 
 <CardGroup cols={2}>
   <Card title="İşlem Listesi" icon="list" href="/sanal-pos/inquiries/transaction-list">
-    Sayfalı liste + filtreleme.
+    Sayfalı liste, filtreleme ve dışa aktarma.
   </Card>
   <Card title="İşlem Geçmişi" icon="clock-rotate-left" href="/sanal-pos/inquiries/payment-history">
-    Bir işlemin durum geçişi timeline'ı.
+    Bir işlemin durum geçişi zaman çizelgesi.
   </Card>
 </CardGroup>

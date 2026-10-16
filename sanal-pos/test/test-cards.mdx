@@ -1,39 +1,127 @@
 ---
 title: "Test Kartları"
-description: "Sandbox ortamında kullanılabilecek test kart numaralarına nasıl erişilir."
+description: "Sandbox'ta başarı, ret, zaman aşımı gibi senaryoları tetikleyen test kartlarını tanımlama ve kullanma."
 ---
 
-Test kart numaraları **bankanın test ortamı tarafından** belirlenir; her banka konnektörü kendi test kart matrisini sağlar. Payven sandbox'ında hangi kartların geçerli olduğu, organizasyonunuzun aktif konnektör konfigürasyonlarına bağlıdır.
+Test kartı, belirli bir **senaryoyu** (başarı, yetersiz bakiye, zaman aşımı...) simüle eden kayıtlı bir kart numarasıdır. Payven bu kartlarla yapılan ödemeleri **bankaya göndermeden** kendi simülatöründe sonuçlandırır.
 
-## Konsoldan güncel matrisi alın
+<Note>
+[Test modunda](/sanal-pos/test/sandbox) kayıtlı olmayan her geçerli kart numarası **başarıyla** sonuçlanır. Başarısızlık senaryosu denemek için aşağıdaki gibi bir test kartı tanımlayın. Kayıtlı test kartının senaryosu, istek test modunda olsun ya da olmasın aynen uygulanır.
+</Note>
 
-Sandbox konfigürasyonlarınıza göre derlenmiş, sürekli güncellenen test kartı listesi konsolda mevcuttur:
+## Hazır test kartları
 
-→ [Konsol → Test Kartları](https://dashboard.payven.com.tr/test-cards)
+Her tenant'ta aşağıdaki kartlar hazır gelir. Hepsi **başarı** senaryosundadır; son kullanma tarihi `12/2030`, CVV `000`:
 
-Bu ekran şunları gösterir:
+| Kart numarası | Şema | Program |
+|---|---|---|
+| `4040830800000000` | Visa | Bonus |
+| `4268860000000009` | Visa | Bonus |
+| `4924949494949494` | Visa | Paraf |
+| `4983420000000000` | Visa | Paraf |
+| `4183440000000006` | Visa | Maximum |
+| `5406670000000008` | MasterCard | Maximum |
+| `4543580000000004` | Visa | Maximum |
 
-- **Başarılı işlem kartları** — Visa / Mastercard / Troy / Amex
-- **Banka tarafı ret senaryoları** — yetersiz bakiye, kart bloke, limit aşımı, geçersiz CVV
-- **3DS test akışı** — challenge / frictionless tetikleyen kartlar, test SMS / şifre
-- **Taksit testi** — kart programı (Bonus / Maximum / Axess / World) bazlı destekli taksit aralıkları
-- **Geçerli son kullanma tarihi ve CVV** — her kart için bankanın kabul ettiği değerler
+Güncel liste için `GET /api/v1/test-cards` çağırın.
 
-## Test akışı modları
+## Senaryolar
 
-Sandbox'ta iki farklı çalışma modu vardır — bkz. [Sandbox Ortamı](/sanal-pos/test/sandbox#banka-cagri-modu):
+`expected_result` alanı kartın vereceği sonucu belirler:
 
-| Mod | Test kartı kaynağı |
+| `expected_result` | Sonuç | Hata kodu (`provider_error_code`) |
+|---|---|---|
+| `success` | İşlem onaylanır (Pre-Auth ise `authorized`, Sale ise `completed`) | — |
+| `declined` | Banka reddi | `DECLINED` |
+| `insufficient_funds` | Yetersiz bakiye | `INSUFFICIENT_FUNDS` |
+| `invalid_card` | Geçersiz kart | `INVALID_CARD` |
+| `timeout` | Zaman aşımı | `TIMEOUT` |
+| `three_d_secure_required` | 3D Secure gerekli | `3DS_REQUIRED` |
+| `gateway_error` | Ağ geçidi hatası | `GATEWAY_ERROR` |
+| `random_failure` | Her denemede başarı, `declined`, `insufficient_funds`, `gateway_error` veya `timeout`'tan biri | ilgili kod |
+
+Senaryo, ödeme akışındaki tüm adımlara uygulanır: satış, 3D Secure dönüşü, capture, iade ve iptal aynı kartın senaryosuyla sonuçlanır. Başarısız senaryoda ödeme isteği hata zarfı ile döner ([Hata Kodları](/sanal-pos/errors/overview)); senaryonun kodu `provider_error_code` alanında gelir.
+
+`custom_error_code` ve `custom_error_message` verirseniz kartın hata kodu/mesajı varsayılan yerine bunlar olur; `simulated_delay_ms` (0-30000) yanıtı o kadar geciktirir.
+
+## Test kartı oluşturma
+
+```http
+POST /api/v1/test-cards
+Idempotency-Key: test-card-insufficient-001
+```
+
+```json
+{
+  "card_number":         "4111111111111111",
+  "card_holder_name":    "Test Kullanici",
+  "expiry_month":        12,
+  "expiry_year":         2030,
+  "cvv":                 "000",
+  "card_schema_type":    "visa",
+  "card_type":           "credit",
+  "card_brand":          "bonus",
+  "expected_result":     "insufficient_funds",
+  "custom_error_code":   null,
+  "custom_error_message": null,
+  "simulated_delay_ms":  500,
+  "label":               "Yetersiz bakiye senaryosu"
+}
+```
+
+| Alan | Zorunlu | Kural |
+|---|---|---|
+| `card_number` | Evet | 12-19 hane, Luhn geçerli; aynı numara iki kez kaydedilemez |
+| `card_holder_name` | Hayır | Varsayılan `Test User`, en çok 100 karakter |
+| `expiry_month` / `expiry_year` | Hayır | Ay 1-12, yıl ≥ 2024. Varsayılan `12` / `2030` |
+| `cvv` | Hayır | 3-4 hane. Varsayılan `000` |
+| `card_schema_type` | Hayır | `visa` (varsayılan), `master_card`, `amex`, `troy`, `union_pay`, `proprietary` |
+| `card_type` | Hayır | `credit` (varsayılan), `debit`, `prepaid` |
+| `card_brand` | Hayır | `bonus`, `axess`, `world`, `maximum`, `cardfinans`, `paraf`, `advantage`, `bankkart`, `other` (varsayılan) |
+| `expected_result` | Hayır | Yukarıdaki tablo; varsayılan `success` |
+| `custom_error_code` / `custom_error_message` | Hayır | Senaryonun hata kodunu / mesajını ezer |
+| `simulated_delay_ms` | Hayır | 0-30000 ms |
+| `label` | Hayır | En çok 200 karakter |
+
+`201 Created` ile kart döner; `card_number` ve `cvv` alanları yanıtta açık, `masked_card_number` maskelidir.
+
+### Toplu üretim
+
+```http
+POST /api/v1/test-cards/generate
+```
+
+```json
+{
+  "count":            10,
+  "bin_prefix":       "999900",
+  "expected_result":  "declined",
+  "card_schema_type": "visa",
+  "card_type":        "credit",
+  "card_brand":       "other"
+}
+```
+
+`count` 1-50, `bin_prefix` 4-15 hane olmalıdır; Luhn-geçerli numaralar üretilir. `201 Created` ile kart listesi döner.
+
+## Yönetim uçları
+
+| İşlem | Endpoint |
 |---|---|
-| **Mock konnektör** | Payven tarafı sahte yanıt üretir. Numara biçimi (Luhn) doğruysa tipik senaryolar simüle edilebilir. |
-| **Banka test ortamı konnektörü** | Bankanın resmi test kart listesi geçerlidir. Bu kartlar dışındaki numaraları banka reddeder. |
+| Listele (sayfalı; `expected_result`, `card_schema_type` filtresi) | `GET /api/v1/test-cards` |
+| Detay | `GET /api/v1/test-cards/{id}` |
+| Oluştur | `POST /api/v1/test-cards` |
+| Güncelle | `PUT /api/v1/test-cards/{id}` |
+| Sil | `DELETE /api/v1/test-cards/{id}` |
+| Aktif / pasif yap | `POST /api/v1/test-cards/{id}/activate` · `/deactivate` |
+| Toplu üret | `POST /api/v1/test-cards/generate` |
 
-Hangi konfigürasyona ait olduğunuza göre yukarıdaki konsol ekranı doğru kartları otomatik filtreler.
+Listeleme ve yönetim uçları ayrı izinlerle korunur (görüntüleme / yönetim). Pasif kart senaryo uygulamaz.
 
-## Üretim simülasyonu
-
-Yüksek hacim testi için Payven **load test ortamı** sunar. Anlaşmanıza dahil olup olmadığını kontrol edin — değilse [destek ekibine](/resources/support) yazın.
+<Warning>
+**Canlı ortamda test kartı oluşturma kapalıdır** (`422 test_cards_disabled_in_production`): bankaya gitmeden başarılı işlem üreten kart canlıda "bedava ödeme" riskidir. Tenant yöneticisi bunu bilinçli olarak açabilir.
+</Warning>
 
 ## PCI uyumu
 
-Sandbox test kartları **gerçek kart değildir**, dolayısıyla saklamak/loglamak teknik olarak ihlal değildir. Yine de production kodunuzun gerçek kartı işlemediğinden emin olmak için sandbox'ta da aynı disiplinle çalışın — kart numarasını veritabanına/loga yazmayın.
+Test kartları **gerçek kart değildir**. Yine de production kodunuzun gerçek kartı işlemediğinden emin olmak için sandbox'ta da aynı disiplinle çalışın — kart numarasını veritabanına/loga yazmayın.

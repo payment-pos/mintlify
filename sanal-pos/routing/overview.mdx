@@ -1,138 +1,53 @@
 ---
 title: "Akıllı Yönlendirme — Genel Bakış"
-description: "Bileşik skor tabanlı dinamik banka yönlendirme motoru."
+description: "Ödeme isteğinin hangi banka konfigürasyonundan geçeceğini belirleyen yönlendirme kuralları."
 ---
 
-Akıllı Yönlendirme, her ödeme isteğini **gerçek zamanlı koşullara** göre en uygun konnektöre (bankaya) yönlendiren motordur. Hangi bankaya gideceği:
+Yönlendirme, her ödeme isteğini kart, tutar ve taksit bilgisine göre bayinin tanımlı **banka konfigürasyonlarından** birine gönderir. Entegrasyonunuz açısından yönlendirme **şeffaftır**: ödeme isteğinde banka seçmezsiniz, Payven seçer; sonuç işlemin `connector_code` ve `connector_configuration_id` alanlarında görünür.
 
-- BIN aralığı
-- Tutar
-- Taksit sayısı
-- Kart birliği (Visa/MC/Troy)
-- Kart tipi (kredi/banka)
-- 3DS durumu
-- Banka sağlık durumu (latency, hata oranı)
-- Komisyon oranları
-- Trafik dağıtım hedefi
+<Note>
+Yönlendirme kuralları ticari bir ayardır. Varsayılan yetkilendirmede kuralları **yalnız şirket yöneticisi
+(`tenant-admin`)** oluşturur, değiştirir ve siler; bayi API anahtarı kuralları **okuyabilir** ve
+`resolve` ile simüle edebilir. `sanalpos.routing` alt özelliği şirket için kapalıysa uçlar `403` döner.
+</Note>
 
-gibi parametrelerin **bileşik skoruna** göre belirlenir.
+## İki mod
 
-## Neden akıllı yönlendirme?
+| Mod | Ayar | Uç | Çalışma biçimi |
+|---|---|---|---|
+| **Basit** (varsayılan) | `sanalpos.routing:mode` boş ya da `simple` | `/simple-routing-rules` | Koşulları sağlayan kurallar özgüllük ve `priority` sırasıyla dizilir |
+| **Gelişmiş** | `sanalpos.routing:mode = advanced` | `/routing-rules` | Eşleşen kurallar özgüllük, bileşik skor ve `priority` sırasıyla dizilir |
 
-| Sorun | Çözüm |
+Mod; skor katsayıları ve en az aday sayısı gibi ayarlarla birlikte Identity Ayarlar'dan (`GET /api/v1/settings?feature_prefix=sanalpos.routing`) şirket ya da bayi düzeyinde yönetilir.
+
+## Yürütme planı
+
+Kurallar **sıralı bir aday listesi** üretir; ödeme bu listeyi sırayla dener:
+
+1. Her kuralın **hedef** (`target_connector_config_id`) ve varsa **yedek** (`fallback_connector_config_id`) konfigürasyonu plana eklenir. Kural sırası korunur; kural içinde önce hedef, sonra yedek gelir.
+2. Pasif konfigürasyonlar ve ilgili işlemi desteklemeyen bankalar plandan çıkarılır. Bayinin banka profilinde Non-3D kapalıysa ya da CVV zorunluysa o banka da elenir.
+3. Aday sayısı ayardaki en az değerin (`routing:min_execution_candidates`, varsayılan 5) altındaysa bayinin diğer aktif konfigürasyonları öncelik sırasıyla **kural dışı yedek** olarak eklenir. Sağlıksız işaretli bankalar bu kural dışı grubun sonuna itilir; kural grubunun sırası değişmez.
+4. Basit modda **taksitli** isteklerde (2+ taksit) bu öncelik yedeği varsayılan olarak uygulanmaz: taksit bankayla yapılmış ticari bir anlaşmadır, eşleşen kural yoksa istek tahmin edilen bir bankaya gitmez.
+
+Plan boşsa istek `422` ile reddedilir:
+
+| `code` | Anlam |
 |---|---|
-| "Bonus kartlarını Garanti'ye yönlendirmek daha düşük komisyonlu" | BIN bazlı kural |
-| "Akbank tarafında 5xx oranı yükseldi, geçici olarak başka bankaya yönlendir" | Circuit breaker |
-| "Yüksek tutar işlemleri büyük bankaya gitsin" | Tutar bazlı kural |
-| "9-12 taksitte sadece anlaşmamızın olduğu banka çalışsın" | Taksit bazlı filtre |
-| "Trafiği iki banka arasında %70-%30 dağıt" | Ağırlık bazlı dağıtım |
+| `PV_ROUTING_RULE_NOT_FOUND` | Kurallar isteği karşılamadı (örn. taksit için kural tanımlı değil) |
+| `PV_CONNECTOR_NOT_FOUND` | Plandaki hiçbir banka işlemi gerçekleştiremiyor |
 
-## Yapı
+Bir deneme **kesin reddedilirse** (yetersiz bakiye, geçersiz kart gibi) plan durur ve işlem `failed` olur; geçici/altyapı kaynaklı hatalarda sıradaki adaya geçilir. Ayrıntı: [Smart Retry](/sanal-pos/routing/smart-retry).
 
-```mermaid
-flowchart TB
-    Request[Ödeme İsteği]
-    Engine[Routing Engine]
-    Rule1[Kural: 9+ taksit → Yapı Kredi]
-    Rule2[Kural: Bonus kart → Garanti]
-    Rule3[Varsayılan: Akbank %70, İş Bankası %30]
-    Connector[Seçilen Konnektör]
+## Sonraki adımlar
 
-    Request --> Engine
-    Engine --> Rule1
-    Engine --> Rule2
-    Engine --> Rule3
-    Rule1 --> Connector
-    Rule2 --> Connector
-    Rule3 --> Connector
-```
-
-Engine kuralları **sırayla** değerlendirir. Bir kural eşleşirse o konnektör seçilir; eşleşmeyen kural bir sonraki kurala düşer. Hiçbir kural eşleşmezse varsayılan kural devreye girer.
-
-## Yönlendirme adımları
-
-1. **Kuralları sırayla değerlendir** — istek koşullara karşı kontrol edilir.
-2. **Skor hesapla** — eşleşen her kural için bir bileşik skor üretilir (banka sağlığı, komisyon, ağırlık).
-3. **En yüksek skorlu konnektörü seç**.
-4. **Smart Retry hazır olsun** — birinci konnektör başarısız olursa fallback için sıralanmış alternatifler.
-
-## Kural yapısı
-
-Bir kural şu bileşenlerden oluşur:
-
-| Alan | Açıklama |
-|---|---|
-| `name` | Açıklayıcı isim |
-| `priority` | Değerlendirme sırası (düşük sayı = önce) |
-| `conditions[]` | Koşullar (AND/OR) |
-| `connectors[]` | Eşleşince hedeflenecek konnektörler (ağırlıklı) |
-| `enabled` | Aktif mi? |
-
-Detay: [Yönlendirme Kuralları](/sanal-pos/routing/rules).
-
-## Banka sağlığı
-
-Engine, gerçek zamanlı banka sağlığını izler:
-
-- Son 5 dakikadaki başarı oranı
-- Ortalama yanıt süresi
-- 5xx hata yoğunluğu
-
-Bir bankanın hata oranı eşiği (örn. %10) aşarsa **circuit breaker** devreye girer ve o banka geçici olarak yönlendirme havuzundan çıkarılır. Detay: [Circuit Breaker](/sanal-pos/routing/circuit-breaker).
-
-## Smart Retry
-
-Yönlendirilen banka geçici hata verirse istek **otomatik olarak** alternatif konnektöre yönlendirilir — kullanıcı yeniden ödeme yapmaz. Detay: [Smart Retry](/sanal-pos/routing/smart-retry).
-
-## Kuralları yönetme
-
-Kurallar konsoldan veya API üzerinden yönetilir. **İki kural seti** vardır:
-
-- **`/routing-rules`** — gelişmiş bileşik skor motoru (BIN + tutar + taksit + sağlık + ağırlık)
-- **`/simple-routing-rules`** — basit "şu koşulda şu konnektör" kuralları (yeni başlayanlar için)
-
-```http
-GET    /api/v1/routing-rules                       # Liste (sayfalı)
-GET    /api/v1/routing-rules/{id}                  # Tek kural detayı
-POST   /api/v1/routing-rules                       # Yeni kural
-PUT    /api/v1/routing-rules/{id}                  # Güncelleme
-DELETE /api/v1/routing-rules/{id}                  # Silme
-POST   /api/v1/routing-rules/bulk-delete           # Toplu silme
-POST   /api/v1/routing-rules/{id}/activate
-POST   /api/v1/routing-rules/{id}/deactivate
-PATCH  /api/v1/routing-rules/{id}/score            # Skor güncelleme
-```
-
-`simple-routing-rules` aynı CRUD pattern'i + `bulk-delete`, `activate`, `deactivate` aksiyonları ile kullanılır.
-
-## Simülasyon
-
-Bir işlemin hangi kurala düşeceğini önceden görmek için iki yol:
-
-- **Konsoldaki Routing Simulator** ekranı (görsel arayüz)
-- **Public `/resolve` endpoint'i** — bir koşul setine göre eşleşen kuralları döndürür:
-
-```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/routing-rules/resolve \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "card_bin":     "454671",
-    "amount":       15000,
-    "installment":  3,
-    "card_brand":   "bonus",
-    "card_type":    "credit",
-    "currency":     "TRY"
-  }'
-```
-
-Yanıt: skor sırasına göre eşleşen kuralların listesi. Production trafiğine etki etmez — yalnız okur.
-
-## Settings (varsayılan davranış)
-
-```http
-GET /api/v1/routing-rules/settings
-PUT /api/v1/routing-rules/settings
-```
-
-Hiçbir kural eşleşmediğinde devreye giren default davranışı (varsayılan konnektör, fallback davranışı) yapılandırır.
+<CardGroup cols={3}>
+  <Card title="Yönlendirme Kuralları" icon="route" href="/sanal-pos/routing/rules">
+    Kural alanları, doğrulama kuralları, simülasyon.
+  </Card>
+  <Card title="Smart Retry" icon="rotate" href="/sanal-pos/routing/smart-retry">
+    Yedek bankaya geçiş ve çift çekim koruması.
+  </Card>
+  <Card title="Banka Sağlığı" icon="heart-pulse" href="/sanal-pos/routing/circuit-breaker">
+    Sağlık durumu ve devre kesici.
+  </Card>
+</CardGroup>

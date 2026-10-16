@@ -1,9 +1,9 @@
 ---
 title: "MCC Kodları"
-description: "Merchant Category Code lookup — sektör ve iş kolu eşleştirme."
+description: "Merchant Category Code listesi: sektör ve iş kolu eşleştirme."
 ---
 
-**MCC** (Merchant Category Code), kart endüstrisinde merchant'ı sektörüne göre sınıflayan 4 haneli ISO standardıdır. Mutabakat, fraud kuralları, raporlama ve banka komisyonu hesaplamasında kullanılır.
+**MCC** (Merchant Category Code), kart endüstrisinde işyerini sektörüne göre sınıflayan 4 haneli ISO 18245 kodudur. İşyeri kaydı, banka entegrasyonları ve raporlama sektöre göre çalışır.
 
 ## Endpoint
 
@@ -14,61 +14,43 @@ GET /api/v1/lookups/mcc-codes
 Bearer access token gerektirir.
 
 ```bash
-curl "https://identity.payven.com.tr/api/v1/lookups/mcc-codes?search_term=restoran&page=1&page_size=20" \
+curl "https://identity.payven.com.tr/api/v1/lookups/mcc-codes?search_term=restoran" \
   -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
 | Query parametresi | Açıklama |
 |---|---|
 | `search_term` | Kod veya açıklamada "içerir" araması |
-| `category` | Üst kategori filtresi (örn. `food`, `retail`, `travel`) |
-| `page`, `page_size` | Sayfalama (default `1`, `50`; max `200`) |
+| `category` | Kategori filtresi |
+| `include_inactive` | Pasif kodları da getir |
+
+Liste **sayfalı değildir**; düz dizi döner.
 
 ## Yanıt
 
-`200 OK` — sayfalı liste:
-
 ```json
-{
-  "items": [
-    {
-      "code":            "5812",
-      "description":     "Yiyecek Servisleri ve Restoranlar",
-      "description_en":  "Eating Places, Restaurants",
-      "category":        "food"
-    },
-    {
-      "code":            "5814",
-      "description":     "Fast Food Restoranlar",
-      "description_en":  "Fast Food Restaurants",
-      "category":        "food"
-    }
-  ],
-  "page":              1,
-  "total_pages":       1,
-  "total_count":       2,
-  "has_previous_page": false,
-  "has_next_page":     false
-}
+[
+  {
+    "id":             "5b1f...",
+    "code":           "5812",
+    "description":    "Yiyecek Servisleri ve Restoranlar",
+    "description_en": "Eating Places, Restaurants",
+    "category":       "food",
+    "is_active":      true
+  }
+]
 ```
+
+| Alan | Açıklama |
+|---|---|
+| `code` | 4 haneli MCC |
+| `description`, `description_en` | Türkçe / İngilizce açıklama |
+| `category` | Sektör kategorisi (katalogdaki değere göre) |
 
 ## Kullanım
 
-- **Onboarding** — yeni merchant kaydederken sektör seçimi
-- **Fraud kuralları** — belirli MCC'ler için ek kontrol (örn. `7273` = arkadaş bulma servisleri için yüksek risk skoru)
-- **Banka komisyonu** — bazı bankalar MCC bazlı komisyon hesaplar
-- **Raporlama** — işlemleri sektöre göre gruplama
+- **İşyeri kaydı** sırasında sektör seçimi
+- **Banka entegrasyonları**: bazı bankalar MCC'yi üye işyeri kaydında ister; Payven bayi kaydındaki MCC'yi bağlayıcı (connector) kurulum formuna ön doldurur
+- **Raporlama**: işlemleri sektöre göre gruplama
 
-## Yaygın kategoriler
-
-| Kategori | Örnek MCC | Açıklama |
-|---|---|---|
-| `retail` | `5311`, `5651` | Mağazalar, giyim |
-| `food` | `5812`, `5814`, `5411` | Restoran, fast food, market |
-| `travel` | `4511`, `7011`, `4789` | Havayolu, otel, ulaşım |
-| `online` | `5969`, `7372` | E-ticaret, yazılım |
-| `services` | `7311`, `8011`, `8021` | Reklam, sağlık |
-| `entertainment` | `7832`, `7922` | Sinema, tiyatro |
-| `utilities` | `4900`, `4814` | Elektrik / gaz / su, telekom |
-
-Tam liste **800+ koddan** oluşur (ISO 18245 standardı). Kataloğu uygulamanızın başlangıcında bir kez çekip cache'lemeniz önerilir — yıl içinde nadiren güncellenir.
+Katalog uygulama açılışında bir kez çekilip önbelleğe alınabilir; yıl içinde nadiren güncellenir.

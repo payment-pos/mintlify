@@ -3,43 +3,46 @@ title: "IP Whitelist"
 description: "API anahtarınızı belirli IP adreslerinden gelen çağrılarla sınırlandırın."
 ---
 
-Production ortamında **IP whitelist kullanmanızı şiddetle öneririz**. Whitelist, anahtarınız sızsa bile sınırlanmış IP'ler dışından kullanılmasını engeller.
+Canlı (production) anahtarlarında **izinli IP listesi kullanmanızı şiddetle öneririz**. Liste, anahtarınız sızsa bile yalnız sizin sunucularınızdan kullanılabilmesini sağlar.
 
 ## Nasıl çalışır?
 
-API anahtarı oluştururken veya düzenlerken bir IP listesi tanımlarsınız. Whitelist boş bırakılırsa **tüm IP'lerden** erişim açıktır.
+İzinli IP listesi **API anahtarı bazındadır**: anahtar oluşturulurken ya da düzenlenirken `allowed_ips` alanına yazılır. Liste boş bırakılırsa tüm IP'lerden erişim açıktır.
 
-| Whitelist durumu | Davranış |
+| Liste durumu | Davranış |
 |---|---|
 | Boş | Tüm IP'lerden istek kabul edilir |
 | Bir veya daha fazla giriş | Yalnızca listedeki IP'lerden gelen istekler kabul edilir |
 
-Whitelist dışı bir IP'den istek gelirse `403 Forbidden` ve `ip_not_allowed` koduyla reddedilir (RFC 9457 problem+json).
+Kontrol **iki yerde** uygulanır: token alırken (`POST /auth/{slug}/token`) ve token ile yapılan **her API isteğinde**. Liste dışı bir IP'den gelen istek `403 api_key_ip_not_allowed` ile reddedilir (problem+json). Anahtarı güncellediğinizde yeni liste, yeni token'larda ve bir sonraki istekte geçerli olur.
 
 ## Desteklenen formatlar
+
+Girişler virgül, noktalı virgül, boşluk ya da satır sonu ile ayrılır.
 
 | Format | Örnek | Anlam |
 |---|---|---|
 | Tek IP | `52.18.42.10` | Sadece bu IP |
 | CIDR aralığı | `52.18.42.0/24` | 256 adresli aralık |
-| IPv6 | `2a05:d018:abc::1` | IPv6 desteği |
+| IPv6 | `2a05:d018:abc::1` ya da `2a05:d018:abc::/48` | IPv6 adresi ve aralığı |
+
+Geçersiz bir giriş varsa anahtar kaydedilmez: `422 api_key_allowed_ips_invalid`.
 
 ## Yapılandırma
 
 <Steps>
-  <Step title="Konsola gidin">
-    [Konsol → Ayarlar → API Anahtarları](https://dashboard.payven.com.tr/api-settings) sayfasını açın.
-  </Step>
-  <Step title="Anahtarı düzenleyin">
-    Sınırlamak istediğiniz anahtarın yanındaki **Düzenle** butonuna tıklayın.
+  <Step title="Anahtarı açın">
+    İşyeri paneli › **Ayarlar › Entegrasyon › API anahtarları** ekranında anahtarı seçin (organizasyon geneli anahtarlar organizasyon yöneticisinin panelindeki API anahtarları ekranındadır).
   </Step>
   <Step title="IP'leri ekleyin">
-    Sunucu IP'lerinizi tek tek veya CIDR formatında ekleyin. Aynı satırda virgülle ayırabilirsiniz.
+    Sunucu IP'lerinizi tek tek ya da CIDR biçiminde ekleyin.
   </Step>
   <Step title="Kaydedin">
-    Değişiklik **anında** etkilidir.
+    Değişiklik hemen etkilidir.
   </Step>
 </Steps>
+
+API ile: `POST /merchants/me/api-keys` (ya da `PUT .../{id}`) gövdesinde `"allowed_ips": "52.18.42.10, 52.18.43.0/24"`.
 
 ## Sunucunuzun IP'sini öğrenmek
 
@@ -55,27 +58,27 @@ console.log(await res.text());
 </CodeGroup>
 
 <Warning>
-**NAT/Load Balancer arkasındaysanız**, çıkış IP'leriniz bunlardır — uygulama sunucularınız değil. Cloud sağlayıcı NAT Gateway veya statik IP kullanın.
+**NAT / Load Balancer arkasındaysanız**, Payven'in gördüğü adres çıkış IP'nizdir; uygulama sunucularınızın iç adresleri değil. Bulut sağlayıcı NAT Gateway ya da statik IP kullanın. Payven önünde bir ters vekil varsa istemci IP'si vekilin ilettiği başlıklardan çözümlenir.
 </Warning>
 
 ## Webhook tarafı
 
-Payven'in **size** gönderdiği webhook istekleri sabit IP havuzlarından çıkar. Güncel havuz listesini almak için [destek ekibimize](/resources/support) ulaşın — değişikliklerde önceden e-posta ile bildirilir.
+Payven'in **size** gönderdiği webhook istekleri Payven'in çıkış adreslerinden gelir. Güvenlik duvarınızda izin vermek için güncel çıkış adreslerini [destek ekibimizden](/resources/support) alın.
 
 <Note>
-**Önerilen yaklaşım:** Webhook tarafında **birincil güvenlik mekanizması imza doğrulamadır**, IP filtresi değildir. [HMAC-SHA256 imza doğrulama](/sanal-pos/webhooks/signature) kurun; IP filtresi yalnızca isteğe bağlı ek katman olarak değerlendirin.
+Webhook tarafında **birincil güvenlik mekanizması imza doğrulamadır**, IP filtresi değildir. [HMAC-SHA256 imza doğrulamayı](/sanal-pos/webhooks/signature) kurun; IP filtresini yalnızca ek katman olarak değerlendirin.
 </Note>
 
 ## Sık karşılaşılan sorunlar
 
 <AccordionGroup>
-  <Accordion title="403 ip_not_allowed dönüyor ama IP whitelist'te">
-    Cloud ortamlarda çıkış IP'si dinamik olabilir (örn. AWS NAT Gateway elastic IP'siz). Statik bir IP atayıp tekrar deneyin.
+  <Accordion title="403 api_key_ip_not_allowed dönüyor ama IP listede">
+    Bulut ortamlarında çıkış IP'si dinamik olabilir (örn. sabit IP atanmamış NAT Gateway). Statik bir çıkış IP'si atayıp tekrar deneyin. Token'ı bir ortamda, API'yi başka bir ortamda çağırıyorsanız iki çıkış adresi de listede olmalıdır.
   </Accordion>
-  <Accordion title="Sandbox'ta whitelist'i devre dışı bırakabilir miyim?">
-    Evet — geliştirme aşamasında sandbox anahtarınız için listeyi boş bırakabilirsiniz. Production'da ise mutlaka tanımlayın.
+  <Accordion title="Test anahtarında IP kısıtını kapatabilir miyim?">
+    Evet. Test anahtarının listesini boş bırakabilirsiniz; canlı anahtarda mutlaka tanımlayın.
   </Accordion>
   <Accordion title="IPv6 destekleniyor mu?">
-    Evet. CIDR notasyonu da geçerlidir.
+    Evet. CIDR gösterimi IPv6 için de geçerlidir.
   </Accordion>
 </AccordionGroup>

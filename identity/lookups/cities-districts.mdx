@@ -1,68 +1,82 @@
 ---
-title: "Şehir ve İlçe"
-description: "Türkiye il ve ilçe listesi — onboarding adres formları için."
+title: "İl, İlçe, Vergi Dairesi ve Tatiller"
+description: "Adres formları, e-Fatura bilgileri ve iş günü hesabı için referans listeler."
 ---
 
-İl ve ilçe lookup'ları; merchant onboarding ve adres formlarında dropdown doldurmak için kullanılır. Sayfalama yoktur — tüm il/ilçe listesi tek seferde döner.
+İl, ilçe, vergi dairesi ve resmî tatil listeleri; işyeri onboarding'i, adres / fatura formları ve valör (iş günü) hesabı için kullanılır. Hepsi Bearer token ister ve **sayfasız düz dizi** döner.
 
-## Şehirler
+## İller
 
 ```http
 GET /api/v1/lookups/cities
 ```
 
 ```bash
-curl https://identity.payven.com.tr/api/v1/lookups/cities \
+curl "https://identity.payven.com.tr/api/v1/lookups/cities?search_term=ist" \
   -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-Yanıt — şehir listesi (81 il):
-
 ```json
 [
-  { "id": "abc-...", "code": "34", "name": "İstanbul", "country": "TUR", "is_active": true },
-  { "id": "def-...", "code": "06", "name": "Ankara",   "country": "TUR", "is_active": true },
-  { "id": "ghi-...", "code": "35", "name": "İzmir",    "country": "TUR", "is_active": true }
+  { "id": "abc-...", "code": "34", "name": "İstanbul", "country": "TUR", "is_active": true }
 ]
 ```
 
-| Alan | Açıklama |
+| Query parametresi | Açıklama |
 |---|---|
-| `id` | UUID |
-| `code` | Plaka kodu (`34`, `06`, ...) — districts sorgusunda `city_code` filtresi olarak kullanılır |
-| `name` | Türkçe isim |
-| `country` | Ülke kodu (`TUR`) |
-| `is_active` | Aktiflik |
+| `code` | Plaka kodu filtresi |
+| `search_term` | Ad araması |
+| `include_inactive` | Pasifleri de getir |
 
-Query parametreleri: `code` (plaka filtresi), `search_term`, `include_inactive`.
+`code` plaka kodudur (`34`, `06`); ilçe ve vergi dairesi sorgularında `city_code` olarak kullanılır.
 
 ## İlçeler
 
 ```http
-GET /api/v1/lookups/districts?city_code={plaka}
-```
-
-İlçeleri **şehir bazında** çekersiniz. Tüm ilçeleri tek seferde almak mümkün ama 950+ kayıt — seçilen şehre göre lazy-load önerilir.
-
-```bash
-curl "https://identity.payven.com.tr/api/v1/lookups/districts?city_code=34" \
-  -H "Authorization: Bearer $PAYVEN_TOKEN"
+GET /api/v1/lookups/districts?city_code=34
 ```
 
 ```json
 [
-  { "id": "...", "city_code": "34", "name": "Kadıköy",  "is_active": true },
-  { "id": "...", "city_code": "34", "name": "Beşiktaş", "is_active": true },
-  { "id": "...", "city_code": "34", "name": "Şişli",    "is_active": true }
+  { "id": "...", "city_code": "34", "name": "Kadıköy", "is_active": true }
 ]
 ```
 
-| Query parametresi | Tip | Açıklama |
-|---|---|---|
-| `city_code` | string | Plaka kodu filtresi (`34`) — boş bırakılırsa tüm ilçeler döner |
-| `search_term` | string | İsim araması |
-| `include_inactive` | bool | Pasif kayıtları da getir |
+| Query parametresi | Açıklama |
+|---|---|
+| `city_code` | Plaka kodu. Verilmezse tüm ilçeler döner (950+ kayıt); il seçimine göre sorgulamanız önerilir |
+| `search_term`, `include_inactive` | Ad araması / pasifler |
 
-## Caching
+## Vergi daireleri
 
-Bu liste **çok nadir** değişir (yeni ilçe atanması nadirdir). İstemcinizde **7 günlük** cache uygulayabilirsiniz.
+```http
+GET /api/v1/lookups/tax-offices?city_code=34&search_term=kadıköy
+```
+
+GİB vergi daireleri; e-Fatura alıcı / satıcı bilgisi ve işyeri vergi kaydı için kullanılır.
+
+```json
+[
+  { "id": "...", "code": "...", "city_code": "34", "district_name": "Kadıköy", "name": "Kadıköy Vergi Dairesi", "is_active": true }
+]
+```
+
+## Resmî tatiller
+
+```http
+GET /api/v1/lookups/public-holidays?year=2026
+```
+
+Valör ("T+1") bankacılıkta **iş günü** demektir; hafta sonu kodda hesaplanır, resmî tatiller (dini bayramlar, köprü günleri) ise ilan edilir ve bu listeden okunur.
+
+```json
+[
+  { "id": "...", "date": "2026-10-29", "name": "Cumhuriyet Bayramı", "is_half_day": false, "is_active": true }
+]
+```
+
+`date` saat dilimsiz tarihtir (`YYYY-MM-DD`). `year` verilmezse tüm yıllar döner. Yazma uçları (`POST`, `PUT`, `DELETE /lookups/public-holidays`) `tenant-admin` / `tenant-user` rolü ister ve yönetim araçlarına aittir.
+
+## Önbellek
+
+Bu listeler çok nadir değişir; 7 günlük önbellek uygulayabilirsiniz. Tatil takvimi yıl başında güncellenir.

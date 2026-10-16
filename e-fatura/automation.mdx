@@ -1,0 +1,58 @@
+---
+title: "Otomatik Kesim"
+description: "Sanal POS satışı tamamlandığında faturanın kendiliğinden kesilmesi."
+---
+
+Bayi tek bir **otomasyon kuralı** tanımlar; Sanal POS'ta satış tamamlandığında (tek `OrderPaidEvent`) e-Fatura belgeyi kendisi oluşturur. Satışı yayınlayan Sanal POS e-Fatura'yı tanımaz; kargo ve bildirim de aynı olayı dinler.
+
+## Kural tanımı
+
+`PUT /api/v1/automation-rules` · `CanManageAutomationRules` — tetikleyici başına tek kural (upsert).
+
+```json
+{
+  "trigger": "sanal_pos_payment_completed",
+  "send_mode": "immediate",
+  "scenario_type": "satis",
+  "item_name": "Online satış",
+  "vat_rate": 20,
+  "amount_includes_vat": true,
+  "min_amount": 0,
+  "max_amount": null,
+  "issue_for_unidentified_buyer": true,
+  "is_active": true
+}
+```
+
+| `trigger` | Ne zaman |
+|---|---|
+| `sanal_pos_payment_completed` | Satış tamamlandı → satış faturası |
+| `sanal_pos_payment_refunded` | İade → iade faturası |
+| `sanal_pos_payment_voided` | Satış geri alındı → iade/iptal |
+
+`GET /automation-rules` kuralları listeler; `DELETE /automation-rules/{id}` siler. `min_amount` / `max_amount` kuruştur ve `min <= max` olmalıdır. Kuralı **açmak** (`is_active: true`) bayinin paketinde e-Fatura yeteneği ister; kapatmak her pakette serbesttir.
+
+## Üç kapı
+
+Belge ancak şu üçü de açıksa kesilir:
+
+1. Tenant'ta `e-fatura` modülü açık.
+2. Bayinin paketi e-Fatura'yı kapsıyor. Paket yoksa olay hata değil, **tüketilmiş** sayılır; belge oluşmaz.
+3. Bayinin otomasyon kuralı aktif.
+
+## Belge nasıl kurulur?
+
+- Satışın kalemleri varsa her kalem kendi adı, kodu ve **kendi KDV oranı** ile belgeye iner; kuraldaki `item_name` / `vat_rate` yalnız tek kalemli (tutar linki gibi) satışlarda kullanılır. Kargo ayrı kalemdir, indirim ayrı kalem olmaz.
+- Belge tutarı **tahsil edilen tutara** eşitlenir; kısmi kapamada kalemler orantılı küçülür.
+- İade ve kısmi iade de faturalanır; tutar kalemlerin henüz iade edilmemiş kısmına dağıtılır. Tam geri almada yalnız kalan iade edilir.
+- Aynı satış için ikinci belge üretilmez (`source_type=automation`, `source_reference` tekil).
+
+## Belge kaybolmaz
+
+| Durum | Sonuç |
+|---|---|
+| Alıcı mükellefiyeti sorgulanamadı | Belge **taslak** saklanır, `PV_TAXPAYER_CHECK_PENDING` ile işaretlenir; arka plan işi (10 dk) sorguyu tekrarlar, kural "hemen gönder" diyorsa keser |
+| Bayinin fatura kaydı yok / kesim kapalı | Taslak, `PV_AUTOMATION_SETUP_PENDING` ile işaretlenir; kayıt tamamlanınca devam eder |
+| Orijinal belge henüz kesilmemişken tam geri alma | Taslak `PV_AUTOMATION_SOURCE_REVERSED` ile işaretlenir, otomatik kesilmez |
+
+Otomatik kesilen belge `source_feature: "sanalpos"` ile satışa bağlanır; belge ve işlem birbirinden görünür. Sonuç `e-fatura.invoice.*` olaylarıyla bildirilir ([Webhook'lar](/e-fatura/webhooks)).

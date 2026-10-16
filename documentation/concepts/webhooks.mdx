@@ -8,7 +8,7 @@ e-Fatura gibi olayları gerçek zamanlı bildirir. Polling yerine olay güdüml�
 
 **Tek uç tüm ürünlerin olaylarını alır.** Bir webhook ucu (**endpoint**) tanımlarsınız; Sanal POS,
 Para Transferi, Fatura Ödeme, Cüzdan, e-Fatura ... olaylarının hepsi aynı adrese gelir. Ürün başına
-ayrı abonelik yoktur ve uçlar ürün API'lerinde değil **İşyeri API'sinde** yönetilir.
+ayrı abonelik yoktur ve uçlar ürün API'lerinde değil **Identity'de** (olay merkezi) yönetilir.
 
 <Note>
 Olay kodlarının tam listesi: [Webhook Olay Referansı](/documentation/concepts/webhook-events).
@@ -41,16 +41,17 @@ sequenceDiagram
 
 ## Webhook ucu oluşturmak
 
-Uçlar **İşyeri API'sinde** (`https://merchant.payven.com.tr/api/v1/webhook-endpoints`) yönetilir.
-Panelden de açabilirsiniz: İşyeri paneli › **Geliştirici › Webhook'lar**.
+Uçlar Identity'de (`https://identity.payven.com.tr/api/v1/webhook-endpoints`) yönetilir; İşyeri API'si
+kuruluysa aynı yol İşyeri API'si adresinde de (`https://merchant.payven.com.tr/api/v1/webhook-endpoints`) çalışır ve isteği Identity'ye iletir.
+Panelden de açabilirsiniz: İşyeri paneli › **Ayarlar › Entegrasyon › Webhook adresleri**.
 
 <Warning>
-API anahtarınızla uç yönetecekseniz anahtarın **İşyeri API'si (`merchant`)** kapsamı seçili olmalıdır;
-aksi halde istek `401 audience_invalid` döner. Uç açmak/değiştirmek `CanManageWebhooks` yetkisi ister.
+Uç açmak/değiştirmek `CanManageWebhooks`, okumak `CanViewWebhooks` yetkisi ister. İşyeri API'si adresini kullanacaksanız API anahtarınızın
+**İşyeri API'si (`merchant`)** kapsamı seçili olmalıdır; aksi halde istek `401 audience_invalid` döner (Identity adresi için ek kapsam gerekmez).
 </Warning>
 
 ```bash
-curl -X POST https://merchant.payven.com.tr/api/v1/webhook-endpoints \
+curl -X POST https://identity.payven.com.tr/api/v1/webhook-endpoints \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -112,10 +113,6 @@ olaylarını alır. Tenant yöneticisinin bayi seçmeden açtığı uç **tüm b
 | `POST /webhook-endpoints/deliveries/{delivery_id}/retry` | Teslimi hemen yeniden dene |
 | `GET /webhook-endpoints/event-types` | Abone olunabilecek olay kodları (Türkçe ad + açıklama) |
 
-<Note>
-Ürün API'lerindeki eski `/api/v1/webhook-subscriptions` uçları kaldırıldı: yazma istekleri
-**`410 webhook_subscriptions_moved`** döner ve bu kayıtlar teslim almaz.
-</Note>
 
 ## İstek formatı
 
@@ -194,7 +191,7 @@ Bir uç **3 gün** boyunca hiç başarılı teslim yapamazsa kapatılır (`statu
 ## Kaçırılan olayları çekmek — `GET /events`
 
 ```http
-GET https://merchant.payven.com.tr/api/v1/events?type=sanalpos.payment.*&created_gte=2026-09-20T00:00:00%2B03:00&page=1&page_size=50
+GET https://identity.payven.com.tr/api/v1/events?type=sanalpos.payment.*&created_gte=2026-09-20T00:00:00%2B03:00&page=1&page_size=50
 ```
 
 Her öğe webhook zarfıyla **aynı nesnedir**. Filtreler: `type` (tam ad ya da `sanalpos.payment.*`),

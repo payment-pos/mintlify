@@ -1,92 +1,125 @@
 ---
 title: "API Anahtarı Yönetimi"
-description: "Server-to-server entegrasyonlar için OAuth 2.0 Client Credentials çiftleri."
+description: "Server-to-server entegrasyonlar için test / canlı ortamlı OAuth 2.0 Client Credentials çiftleri."
 ---
 
-Payven'de "API anahtarı", **OAuth 2.0 Client Credentials çiftidir**. Bir API anahtarı oluşturduğunuzda Identity arka tarafta yeni bir OAuth client kaydeder ve size `client_id` + `client_secret` çifti verir. Bu çift ile [`POST /auth/{slug}/token`](/documentation/concepts/authentication) endpoint'inden access token alır, ürün servislerine `Authorization: Bearer ...` ile çağrı yaparsınız.
+Payven'de "API anahtarı", **OAuth 2.0 Client Credentials çiftidir**. Anahtar oluşturduğunuzda Identity yeni bir OAuth client kaydeder ve size `client_id` + `client_secret` verir. Bu çiftle [`POST /auth/{slug}/token`](/documentation/concepts/authentication) üzerinden access token alır, ürün servislerine `Authorization: Bearer ...` ile çağrı yaparsınız.
 
 <Note>
-**Uzun ömürlü vs kısa ömürlü:** `client_id` + `client_secret` çifti **uzun ömürlü** kimlik bilgisidir; API çağrılarında doğrudan kullanılmaz. Bunlarla **kısa ömürlü access token** üretilir; istek başına gönderilen Bearer token budur. Tek başına `client_id` ile API çağrısı yapamazsınız.
+`client_id` + `client_secret` **uzun ömürlü** kimlik bilgisidir ve API çağrılarında doğrudan kullanılmaz. İstek başına gönderilen, bunlarla üretilen **kısa ömürlü (5 dk) access token**'dır.
 </Note>
 
 ## Anahtar yapısı
 
 | Bileşen | Açıklama | Örnek |
 |---|---|---|
-| `client_id` | Public tanımlayıcı (OAuth client ID) | `pvk-payven-a1b2c3` |
-| `client_secret` | Gizli — yalnızca oluşturma + rotasyon anında bir kez gösterilir | `whsec_AbC...XyZ` |
+| `client_id` | Public tanımlayıcı. `pvk-{tenant-adı}-{ortam}-{rastgele}` biçimindedir; yalnız `pvk-` öneki anlam taşır, gerisi görüntü içindir. API'de `keycloak_client_id` alanında döner | `pvk-payven-test-a1b2c3d4` |
+| `client_secret` | Gizli. Yanıtta `secret` alanıdır | 40 karakter |
+| `environment` | `test` veya `live`. **Oluşturulurken seçilir, sonradan değişmez** | `test` |
+| `access_level` | `full` (varsayılan) veya `read_only` | `full` |
+| `features` | Anahtarın erişebileceği API'ler (kapsam) | `["sanalpos", "para-transferi"]` |
 
-Client ID prefix'i `pvk-{tenant-slug}-{rastgele}` formatındadır. Sandbox/production ayrımı **tenant slug'ı** üzerinden yapılır (sandbox tenant'ı için ayrı slug + ayrı API key).
+### Test ve canlı ortam
 
-## Endpoint'ler
+Ortam, anahtarla yapılan **her isteğin modunu** belirler (token'daki `environment` claim'i): `test` anahtarla yapılan istekler test verisini görür ve bankaya / kuruma gitmez; `live` anahtar gerçek işlem üretir. Ortamı değiştirmek mümkün değildir (`422 api_key_environment_immutable`); diğer ortam için yeni anahtar üretin.
 
-Bearer access token gerektirir (kullanıcı `tenant-admin` rolünde olmalı).
+- Test modundaki (`sandbox`) bayiye **canlı anahtar verilemez** (`422 api_key_live_requires_live_merchant`). Bayi canlıya geçince mevcut test anahtarları test olarak kalır.
+- **Test anahtarının secret'ı sonradan yeniden okunabilir** (`GET .../{id}/secret`); eklenti kurulumu için kolaylıktır. **Canlı anahtarın secret'ı yalnız oluşturma / rotasyon yanıtında bir kez** gösterilir (`422 api_key_secret_not_revealable`).
+
+### Erişim düzeyi
+
+`access_level: "read_only"` anahtar yalnız okur; durum değiştiren her istek `403 credential_read_only` alır. Düzey sonradan değiştirilebilir; değişince mevcut oturumlar düşürülür ve entegrasyon yeni token alır. Raporlama / izleme entegrasyonları için salt okunur anahtar kullanın.
+
+### Yapay zekâ asistanı anahtarı (`kind: "agent"`)
+
+`kind: "agent"` anahtar yapay zekâ asistanı (MCP) bağlantısı içindir: daima salt okunurdur, izinleri `agent_scopes` ile belirlenir ve tek parça (`pvak_...`) anahtar olarak `agent_key` alanında bir kez gösterilir. Tür sonradan değişmez (`422 api_key_kind_immutable`).
+
+## İki yüzey
+
+| Yüzey | Route | Kim çağırır | Kapsam |
+|---|---|---|---|
+| Tenant | `/api/v1/tenants/me/api-keys` | `tenant-admin` (yazma), `tenant-admin` / `tenant-user` (okuma) | Tenant'ın tüm anahtarları; bayi bağlanabilir (`merchant_id`) |
+| Bayi | `/api/v1/merchants/me/api-keys` | `merchant-admin` (yazma), `merchant-admin` / `merchant-user` (okuma) | Yalnız **çağıranın kendi bayisi** |
+
+Bayi yüzeyinde `merchant_id` istekten alınmaz, token'dan yazılır (gövdedeki değer ezilir); plan ve limit override'ları bayi tarafından yazılamaz. Başka bayinin anahtarı `404` döner. Bayi yüzeyinde liste **sayfasız düz dizidir** ve ek olarak [`GET /merchants/me/api-keys/assignable-scopes`](/identity/api-keys/create) vardır.
 
 ```http
 GET    /api/v1/tenants/me/api-keys                    # Liste (sayfalı)
 GET    /api/v1/tenants/me/api-keys/{id}               # Tek anahtar
 POST   /api/v1/tenants/me/api-keys                    # Yeni anahtar
-PUT    /api/v1/tenants/me/api-keys/{id}               # Güncelleme
-DELETE /api/v1/tenants/me/api-keys/{id}               # Silme (revoke)
+PUT    /api/v1/tenants/me/api-keys/{id}               # Güncelleme (tam değiştirme)
+DELETE /api/v1/tenants/me/api-keys/{id}               # Kalıcı silme
 POST   /api/v1/tenants/me/api-keys/{id}/rotate-secret # Secret rotasyonu
+GET    /api/v1/tenants/me/api-keys/{id}/secret        # Test anahtarının secret'ı
 ```
+
+Bayi yüzeyinde aynı yedi uç `/api/v1/merchants/me/api-keys` altında bulunur.
 
 ## Liste
 
 ```bash
-curl https://identity.payven.com.tr/api/v1/tenants/me/api-keys \
+curl "https://identity.payven.com.tr/api/v1/tenants/me/api-keys?environment=live&include_inactive=false" \
   -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-Yanıt — sayfalı `ApiKeyDto` listesi:
+| Query | Açıklama |
+|---|---|
+| `page`, `page_size` | Sayfalama (varsayılan `1` / `50`) |
+| `search_term` | Ad / `client_id` araması |
+| `include_inactive` | Pasif anahtarları da getir |
+| `environment` | `test` veya `live`. Verilirse yalnız o ortamın sunucu anahtarları döner |
 
 ```json
 {
   "items": [
     {
-      "id":                       "8e3f5c12-...",
-      "tenant_id":                "1a2b3c4d-...",
-      "keycloak_client_id":       "pvk-payven-a1b2c3",
-      "display_name":             "Production — Ödeme Servisi",
-      "contact_email":            "ops@example.com",
-      "merchant_id":              "M-IST-001",
-      "plan_id":                  "abc-...",
-      "plan_code":                "standard",
-      "plan_name":                "Standart Plan",
-      "daily_limit_override":     null,
-      "monthly_limit_override":   null,
-      "rate_limit_override":      null,
-      "effective_daily_limit":    100000,
-      "effective_monthly_limit":  3000000,
-      "effective_rate_limit":     200,
-      "allowed_ips":              "52.18.42.10,52.18.42.0/24",
-      "expires_at":               null,
-      "is_active":                true,
-      "created":                  "2026-01-15T10:00:00.000+03:00"
+      "id":                      "8e3f5c12-...",
+      "tenant_id":               "1a2b3c4d-...",
+      "keycloak_client_id":      "pvk-payven-live-a1b2c3d4",
+      "display_name":            "Production — Ödeme Servisi",
+      "contact_email":           "ops@example.com",
+      "merchant_id":             "M-IST-001",
+      "environment":             "live",
+      "access_level":            "full",
+      "kind":                    "standard",
+      "agent_scopes":            null,
+      "features":                ["sanalpos", "para-transferi"],
+      "is_managed":              true,
+      "client_type":             "server",
+      "plan_id":                 "abc-...",
+      "plan_code":               "standard",
+      "plan_name":               "Standart Plan",
+      "daily_limit_override":    null,
+      "monthly_limit_override":  null,
+      "rate_limit_override":     null,
+      "effective_daily_limit":   100000,
+      "effective_monthly_limit": 3000000,
+      "effective_rate_limit":    200,
+      "allowed_ips":             "52.18.42.10,52.18.42.0/24",
+      "expires_at":              null,
+      "is_active":               true,
+      "allow_offline_access":    false,
+      "created":                 "2026-01-15T10:00:00.000+03:00"
     }
   ],
-  "page":              1,
-  "total_pages":       1,
-  "total_count":       4,
-  "has_previous_page": false,
-  "has_next_page":     false
+  "page": 1, "total_pages": 1, "total_count": 1,
+  "has_previous_page": false, "has_next_page": false
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `keycloak_client_id` | OAuth Client Credentials akışında `client_id` olarak kullanılan public tanımlayıcı |
-| `display_name` | İnsan-okur ad (raporlama için) |
-| `merchant_id` | Bu anahtarın "default merchant"ı — access token claim'ine yansır |
-| `plan_*` | Atanmış plan (rate limit + günlük/aylık limit kaynağı) |
-| `*_override` | Plan default'unu override eden tenant-spesifik limit |
-| `effective_*` | Override'lar uygulanmış nihai limit (access token claim'ine basılır) |
-| `allowed_ips` | CSV IP / CIDR listesi |
-| `expires_at` | Anahtarın otomatik pasifleşeceği tarih (boş = sınırsız) |
-| `is_active` | Pasif anahtarlar token üretemez |
+| `id` | Anahtarın UUID'si; route'larda `{id}` olarak kullanılır |
+| `keycloak_client_id` | Token alırken `client_id` olarak gönderilen değer |
+| `merchant_id` | Anahtarın bağlı olduğu bayi (external id). Boş = tenant geneli. Token'a yansır |
+| `*_override` / `effective_*` | Plan limitini ezen değerler / nihai limit. Limitler token claim'lerine basılır |
+| `allowed_ips` | Virgülle ayrılmış IP / CIDR listesi. Boş = kısıtsız |
+| `expires_at` | Anahtarın son kullanma anı; geçince token verilmez (`401 api_key_expired`) |
+| `is_managed` | `false` = sistem client'ı (salt okunur gösterilir, değiştirilemez) |
+| `allow_offline_access` | Uzun ömürlü (offline) refresh token izni |
 
 <Note>
-**`client_secret` listede her zaman gizli.** Sadece oluşturma + rotasyon yanıtında bir kez döner.
+`client_secret` listede ve detayda **hiç dönmez**. Yalnız oluşturma ve rotasyon yanıtında (ve test anahtarı için `.../secret` ucunda) bulunur.
 </Note>
 
 ## Yaşam döngüsü
@@ -95,19 +128,19 @@ Yanıt — sayfalı `ApiKeyDto` listesi:
 flowchart LR
     A[POST .../api-keys] --> B[Aktif]
     B -->|POST .../rotate-secret| B
-    B -->|PUT .../api-keys/id<br/>is_active=false| C[Pasif]
-    C -->|PUT .../api-keys/id<br/>is_active=true| B
+    B -->|PUT is_active=false| C[Pasif]
+    C -->|PUT is_active=true| B
     B -->|DELETE| D[Silinmiş]
     C -->|DELETE| D
 ```
 
 ## En iyi uygulamalar
 
-<Check>**Ortam başına ayrı anahtar** — sandbox tenant'ı için ayrı `client_id` üret, production'la karıştırma.</Check>
-<Check>**Servis başına ayrı anahtar** — sızıntı durumunda etki alanı sınırlı kalır, audit kolaylaşır.</Check>
-<Check>**Production için IP whitelist zorunlu** — `allowed_ips` doldurmadan production anahtar dağıtmayın.</Check>
-<Check>**6 ayda bir rotasyon** — `rotate-secret` ile secret'ı yenileyin (eski 24 saat geçerli kalır, zero-downtime geçiş).</Check>
-<Check>**Ekipten ayrılma protokolü** — bir kişi ayrıldığında o kişinin erişebildiği anahtarları rotasyona alın.</Check>
+<Check>**Ortam başına ayrı anahtar** — test ve canlıyı aynı anahtarla karıştırmayın; ortam zaten değişmez.</Check>
+<Check>**Servis başına ayrı anahtar, dar kapsam** — yalnız ihtiyaç duyulan `features` seçilsin; sızıntıda etki alanı küçük kalır.</Check>
+<Check>**Raporlama için `read_only`** — yazma gerektirmeyen entegrasyonlara salt okunur anahtar verin.</Check>
+<Check>**Canlı anahtarda `allowed_ips` doldurun** — bkz. [IP Whitelist](/documentation/concepts/ip-whitelist).</Check>
+<Check>**Düzenli rotasyon** — secret'ı yenileyin; eski secret anında geçersiz olur, dağıtımı buna göre planlayın.</Check>
 
 Detay: [API Anahtarı En İyi Uygulamaları](/documentation/security/api-key-best-practices).
 
@@ -115,15 +148,15 @@ Detay: [API Anahtarı En İyi Uygulamaları](/documentation/security/api-key-bes
 
 <CardGroup cols={2}>
   <Card title="Yeni anahtar oluştur" icon="plus" href="/identity/api-keys/create">
-    Adım adım kayıt + secret saklama.
+    Alanlar, API kapsamı ve secret saklama.
   </Card>
   <Card title="Secret rotasyonu" icon="arrows-rotate" href="/identity/api-keys/rotate">
-    Sızıntı şüphesi veya zamanlı rotation.
+    Yeni secret üretme ve geçiş.
   </Card>
-  <Card title="Anahtar revoke" icon="trash" href="/identity/api-keys/revoke">
-    Pasif/sil — kullanılmayan anahtarları temizle.
+  <Card title="Pasife alma / silme" icon="trash" href="/identity/api-keys/revoke">
+    Anahtarı devre dışı bırakma veya kalıcı silme.
   </Card>
   <Card title="Token alma akışı" icon="key" href="/documentation/concepts/authentication">
-    Aldığınız client_id+secret ile token nasıl alınır?
+    `client_id` + `client_secret` ile token.
   </Card>
 </CardGroup>

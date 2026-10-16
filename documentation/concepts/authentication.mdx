@@ -8,9 +8,11 @@ Payven API'leri **OAuth 2.0 Client Credentials** akışı ile çalışır. Backe
 İki kısa adım:
 
 1. **Token al** — `client_id` + `client_secret` ile Identity'den `access_token` iste.
-2. **API'yi çağır** — `Authorization: Bearer <access_token>` header'ı ile Sanal POS, Para Transferi, Fraud veya Identity endpoint'lerini kullan.
+2. **API'yi çağır** — `Authorization: Bearer <access_token>` header'ı ile anahtarınızın kapsadığı ürünlerin (Sanal POS, Para Transferi, Cüzdan, Identity ...) endpoint'lerini kullan.
 
 Token süresi dolduğunda yenisini alır veya `refresh_token` ile yenilersin. Kod örnekleri bu döngüyü sizin için yönetir.
+
+`client_id` değeri anahtarın ortamını taşır: `pvk-<kısa-ad>-test-<kod>` **test**, `pvk-<kısa-ad>-live-<kod>` **canlı** moddadır. Test anahtarıyla yapılan her istek test modunda işlenir ([Hesap Yapısı](/documentation/account-model#test-ve-canli-mod)). Anahtarı İşyeri paneli › Ayarlar › Entegrasyon ekranından ya da `POST /merchants/me/api-keys` ile oluşturursunuz.
 
 ## Akış (özet)
 
@@ -18,7 +20,7 @@ Token süresi dolduğunda yenisini alır veya `refresh_token` ile yenilersin. Ko
 sequenceDiagram
     participant App as Sizin Backendiniz
     participant Id as Payven Identity
-    participant API as Ürün API (Sanal POS / Para Transferi / Fraud)
+    participant API as Ürün API (Sanal POS / Para Transferi / ...)
 
     App->>Id: POST /auth/{slug}/token<br/>{ client_id, client_secret }
     Id-->>App: { token: { access_token, refresh_token, expires_in: 300, ... }, challenge: null }
@@ -45,7 +47,7 @@ Content-Type: application/json
 curl https://identity.payven.com.tr/api/v1/auth/payven/token \
   -H "Content-Type: application/json" \
   -d '{
-    "client_id":     "pvk_live_xxxxxxxxxxxxxxxxxxxx",
+    "client_id":     "pvk-payven-live-a1b2c3d4",
     "client_secret": "YOUR_CLIENT_SECRET"
   }'
 ```
@@ -101,7 +103,7 @@ curl https://vpos.payven.com.tr/api/v1/payments \
   }'
 ```
 
-Ek bir merchant header'ı göndermeniz gerekmez; merchant bağlamı token'dan çözümlenir. Birden fazla merchant adına işlem yapıyorsanız `X-Merchant-Id` ile override edebilirsiniz — bkz. [Sanal POS → Kimlik Doğrulama](/sanal-pos/authentication).
+**Bayiye bağlı** anahtarla ek bir merchant header'ı göndermeniz gerekmez; bayi token'dan çözümlenir (token'daki bayiyle çelişen header `403 merchant_context_mismatch` alır). **Organizasyon geneli** anahtarla işlem yapan uçlarda `X-Merchant-Id` (UUID) ya da `X-External-Merchant-Id` header'ı zorunludur; yoksa `400 merchant_context_missing` döner — bkz. [Hesap Yapısı](/documentation/account-model#merchant-kimligi-iki-form) ve [Sanal POS → Kimlik Doğrulama](/sanal-pos/authentication).
 
 ## 3. Adım — Token yenile
 
@@ -439,16 +441,32 @@ class PayvenClient {
 
 ## Hata response'ları
 
-| HTTP | Code | Anlam | Çözüm |
+### Token uçları (`/token`, `/refresh`)
+
+| HTTP | `code` | Anlam | Çözüm |
 |---|---|---|---|
-| `400` | `bad_request` | Request body geçersiz JSON veya zorunlu alan eksik | Body'nin geçerli JSON olduğunu ve `client_id` + `client_secret` alanlarının dolu gönderildiğini kontrol edin |
-| `401` | `invalid_credentials` | `client_id` / `client_secret` yanlış | Konsoldan API anahtarınızı kontrol edin |
-| `401` | `invalid_token` | Access token geçersiz | Refresh akışını çalıştırın |
-| `401` | `token_expired` | Access token süresi geçti | Refresh edin |
-| `401` | `invalid_refresh_token` | Refresh token expire / revoke | Yeni `client_credentials` ile baştan token alın |
-| `403` | `realm_suspended` | Tenant askıya alınmış | Müşteri ilişkileriniz ile iletişime geçin |
-| `404` | `realm_not_found` | `{slug}` geçersiz | Onboarding'de verilen slug'ı kontrol edin |
+| `400` | `client_credentials_required` | `client_id` ya da `client_secret` boş | İki alanı da dolu gönderin |
+| `401` | `client_unauthorized` | Anahtar ya da secret geçersiz; anahtar pasif ya da silinmiş | Retry etmeyin; anahtar durumunu ve secret'ı kontrol edin |
+| `401` | `api_key_expired` | Anahtarın son kullanma tarihi geçmiş | Yeni anahtar oluşturun ya da süresini uzatın |
+| `403` | `api_key_ip_not_allowed` | İstek, anahtarın izinli IP listesinde olmayan bir adresten geldi | [IP Whitelist](/documentation/concepts/ip-whitelist) |
+| `401` | `refresh_token_expired` | `/refresh`: oturum sona erdi (**beklenen**) | `client_credentials` ile yeniden token alın |
+| `401` | `refresh_token_invalid` | `/refresh`: token bozuk, başka realm'e ait ya da iptal edilmiş | Saklama/kod hatası, inceleyin |
+| `404` | `tenant_not_found` | `{slug}` geçersiz | Onboarding'de verilen kısa adı kontrol edin |
 | `429` | `rate_limit_exceeded` | Token endpoint'ine çok istek | `Retry-After` header'ına uyun, token'ı cache'leyin |
+
+### Ürün API'leri
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `401` | `unauthorized` | Token yok, geçersiz ya da süresi dolmuş: yeni token alın |
+| `401` | `audience_invalid` | Token bu ürün için geçerli değil: anahtarın ürün seçimine bu ürünü ekleyin |
+| `401` | `api_key_expired` | Anahtarın süresi dolmuş |
+| `403` | `api_key_ip_not_allowed` | İstek izinli IP dışından geldi |
+| `403` | `credential_read_only` | `read_only` anahtar durum değiştiren (POST/PUT/PATCH/DELETE) bir uca istek attı |
+| `403` | `forbidden` | Anahtarın/rolün bu işlem için izni yok |
+| `403` | `feature_not_available` | Ürün organizasyonunuzda ya da bayinin paketinde etkin değil |
+| `403` | `merchant_context_mismatch` | Header'daki bayi, token'daki bayiyle uyuşmuyor |
+| `400` | `merchant_context_missing` | Organizasyon geneli anahtarla bayi header'ı gönderilmedi |
 
 Tam yanıt formatı için: [Hata Yönetimi](/documentation/concepts/errors).
 
@@ -467,12 +485,12 @@ Tam yanıt formatı için: [Hata Yönetimi](/documentation/concepts/errors).
     Hayır — Payven iki adımlı bir akış kullanır: önce `client_id` + `client_secret` ile kısa ömürlü bir access token alırsınız, sonra her API çağrısında bu token'ı kullanırsınız. Üstteki kod örneklerindeki istemci sınıfı bu adımı sizin için saklar; tek bir `call(...)` ile çağırırsınız.
   </Accordion>
   <Accordion title="Token süresini uzatabilir miyim?">
-    Standart yapılandırmada 5dk access / 30 gün refresh idle. Daha uzun süre ihtiyacı için müşteri başarısı ekibine ulaşın — `offline_access` scope ile expire olmayan refresh token tahsis edilebilir.
+    Access token süresi 5 dakikadır ve değişmez; sunucu-sunucu entegrasyonda yeniden `/token` çağırmak tek istektir. Refresh token ömrü yukarıdaki tabloda. Arka planda kesintisiz çalışan entegrasyonlar için anahtar oluşturulurken **offline erişim** izni açılabilir; bu anahtarlar `/token` isteğine `"offline": true` ekleyerek günlerce yaşayan bir refresh token alır. Offline refresh token uzun ömürlü bir kimliktir; yalnız gerçekten gerekliyse açın.
   </Accordion>
   <Accordion title="Birden fazla servisi tek token'la çağırabilir miyim?">
-    Evet — Identity'den alınan access token, planınızdaki tüm aktif ürünlerde geçerlidir. Sanal POS, Para Transferi, Fraud, Identity — hepsi aynı token ile çağrılır.
+    Evet — token, anahtarın oluşturulurken seçilen ürünlerin hepsinde geçerlidir. Sanal POS, Para Transferi, Cüzdan, Identity gibi ürünler aynı token ile çağrılır. Seçilmeyen bir ürün `401 audience_invalid` döner.
   </Accordion>
   <Accordion title="Test (sandbox) ortamı?">
-    Sandbox endpoint'leri ayrı bir tenant slug ile yayında: `https://identity-sandbox.payven.com.tr` ve `https://vpos-sandbox.payven.com.tr`. Sandbox `client_id`'leri canlıdan ayrıdır; üretim parasıyla işlem yapılmaz, kart numarası test BIN'leri kullanır.
+    Test için ayrı adres yoktur. Aynı adreste **test ortamlı bir API anahtarı** (`client_id` içinde `-test-`) kullanırsınız; bu anahtarla yapılan her istek test modunda işlenir, bankaya gitmez ve gerçek para hareketi oluşturmaz. Canlı için ayrı bir anahtar üretilir. Bkz. [Hızlı Başlangıç](/documentation/quickstart).
   </Accordion>
 </AccordionGroup>

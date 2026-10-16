@@ -1,0 +1,125 @@
+---
+title: "Fraud Kuralları"
+description: "Hız, tutar, coğrafya ve kara liste kurallarını API ile listeleyin, oluşturun ve güncelleyin."
+---
+
+Kural, bir süreçte (`sanal_pos`, `para_transferi`, `fatura_odeme`) işlem bilgisine uygulanan koşul + karardır. Eşleşen kuralların **en sıkı kararı** geçerli olur (Block > Review > Challenge > Approve); `block` bulunduğunda değerlendirme durur. Karar etkileri için [Fraud Yönetimi](/fraud/overview).
+
+Base URL: `https://fraud.payven.com.tr/api/v1`. Okuma `Fraud.CanViewRules`, yazma `Fraud.CanManageRules` izni ister (alt-feature `fraud.rules.custom`).
+
+## Kural tipleri
+
+| `type` | Koşul | `expression_json` alanları |
+|---|---|---|
+| `velocity` | Belirli sürede aynı anahtardan en fazla N işlem | `key` (`Card`, `Ip`, `Email`, `Device`, `Merchant`), `windowSeconds` (1-86400), `maxCount` (>=1), `score` |
+| `amount_threshold` | Tutar eşiği, isteğe bağlı 3DS durumu | `amountMinorGte`, `amountMinorLte` (**kuruş**; en az biri zorunlu), `currency` (ISO-4217, 3 harf), `threeDStatus` (ör. `["None","Failed"]`), `score` |
+| `geo` | Kartın BIN ülkesi listede **değilse** | `binCountryNotIn` (2 harfli ülke kodları, ör. `["TR"]`), `score` |
+| `blacklist` | Değer kara listede ise | `entryTypes` (`Card`, `Email`, `Ip`, `Device`, `Iban`, `Merchant`; boş = hepsi), `score` |
+
+`custom` tipi **desteklenmez**: oluşturma `422 fraud_rule_type_not_supported` döner. Özel koşul gerekiyorsa mevcut tiplerle ifade edin.
+
+<Warning>
+`expression_json` bir **JSON metnidir** (string) ve içindeki anahtarlar `camelCase` yazılır (`windowSeconds`, `amountMinorGte`). Wire'daki diğer alanların aksine bu iç JSON'da `snake_case` anahtar **tanınmaz**. Yanlış / eksik alan `422 fraud_rule_expression_invalid` ile reddedilir ve mesaj sebebi söyler.
+</Warning>
+
+`score` (0-1000) loga ve uyarıya yazılan bilgi amaçlı risk puanıdır; **kararı belirlemez**, karar kuralın `action` alanından gelir. Verilmezse `action`'a göre varsayılan atanır (block 900, review 600, challenge 400, approve 100).
+
+## Kural listesi
+
+```bash
+curl "https://fraud.payven.com.tr/api/v1/fraud/rules?process=sanal_pos&is_active=true&page=1&page_size=50" \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+| Query | Açıklama |
+|---|---|
+| `process` | `sanal_pos`, `para_transferi`, `fatura_odeme` |
+| `is_active` | `true` / `false` |
+| `page`, `page_size` | Sayfalama |
+
+```json
+{
+  "items": [
+    {
+      "id":              "6f1a...",
+      "tenant_id":       "1a2b3c4d-...",
+      "merchant_id":     null,
+      "process":         "sanal_pos",
+      "code":            "tr-base-velocity-card",
+      "name":            "Kart Hız Limiti (60sn'de 5)",
+      "description":     "Aynı kart 60 saniyede 5+ işlem denerse incelemeye alır.",
+      "type":            "velocity",
+      "expression_json": "{\"key\":\"Card\",\"windowSeconds\":60,\"maxCount\":5,\"score\":700}",
+      "action":          "review",
+      "priority":        20,
+      "is_active":       true,
+      "created":         "2026-10-01T09:00:00.000+03:00",
+      "last_modified":   "2026-10-01T09:00:00.000+03:00"
+    }
+  ],
+  "page": 1, "total_pages": 1, "total_count": 1,
+  "has_previous_page": false, "has_next_page": false
+}
+```
+
+`merchant_id: null` tenant geneli, dolu ise o bayiye özel kuraldır. Bayi seçili değilken (tenant yöneticisi, bayi başlığı yok) liste tenant geneli ve tüm bayilere özel kuralları, bayi seçiliyken yalnız o bayinin kurallarını gösterir. Dışa aktarma: `GET /fraud/rules/export` ve `/export/schema`.
+
+## Kural oluşturma
+
+```bash
+curl -X POST https://fraud.payven.com.tr/api/v1/fraud/rules \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Idempotency-Key: rule-high-amount-1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "process":         "sanal_pos",
+    "code":            "yuksek-tutar-engelle",
+    "name":            "50.000 TL üzeri engelle",
+    "type":            "amount_threshold",
+    "expression_json": "{\"amountMinorGte\":5000000,\"currency\":\"TRY\",\"score\":950}",
+    "action":          "block",
+    "priority":        15,
+    "is_active":       true
+  }'
+```
+
+| Alan | Zorunluluk | Açıklama |
+|---|---|---|
+| `process` | Zorunlu | `sanal_pos`, `para_transferi`, `fatura_odeme` |
+| `code` | Zorunlu | En çok 120 karakter; küçük harfe çevrilir. Bayi + süreç içinde tekil (`409 fraud_rule_code_duplicate`) |
+| `name` | Zorunlu | En çok 200 karakter |
+| `type` | Zorunlu | `velocity`, `amount_threshold`, `geo`, `blacklist` |
+| `expression_json` | Zorunlu | Tipe uygun koşul (yukarıdaki tablo) |
+| `action` | Opsiyonel | `approve`, `challenge`, `review` (varsayılan), `block` |
+| `priority` | Opsiyonel | `>= 0`, varsayılan `100`. **Küçük değer önce çalışır** |
+| `is_active` | Opsiyonel | Varsayılan `true` |
+| `description` | Opsiyonel | Serbest açıklama |
+
+Kuralın kapsamı istekten gelmez: bayi kapsamlı çağıranın kuralı kendi bayisine, bayi seçmeyen tenant yöneticisinin kuralı tenant geneline yazılır (`tenant_id` / `merchant_id` gövdede gönderilse de sunucu ezer). `201 Created` ve kural nesnesi döner.
+
+<Note>
+Tutarlar **kuruştur**: 50.000 TL = `5000000`. `currency` ISO-4217 büyük harf olmalıdır; verilmezse kural her para birimine uygulanır.
+</Note>
+
+## Güncelleme ve silme
+
+```bash
+curl -X PATCH https://fraud.payven.com.tr/api/v1/fraud/rules/6f1a... \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "action": "review", "is_active": false }'
+```
+
+`PATCH` kısmi güncellemedir: yalnız `name`, `description`, `expression_json`, `action`, `priority`, `is_active` değişir (gönderilmeyen alan korunur). `process`, `type` ve `code` sonradan değişmez; farklı bir tip için yeni kural oluşturun. `expression_json` kuralın mevcut tipine göre doğrulanır.
+
+`DELETE /fraud/rules/{id}` kuralı siler (`204`). Başka bayinin ya da kapsam dışı kural için `404` döner. Geçici kapatmak için `is_active: false` kullanın.
+
+## Hata yanıtları
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `403` | `forbidden` | İzin yok veya `fraud.rules.custom` kapalı |
+| `404` | `resource_not_found` | Kural yok veya kapsam dışı |
+| `409` | `fraud_rule_code_duplicate` | Aynı bayi + süreç + `code` mevcut |
+| `422` | `fraud_rule_type_not_supported` | `custom` tipi |
+| `422` | `fraud_rule_expression_invalid` | `expression_json` geçersiz |
+| `422` | `validation_failed` | `code` / `name` boş ya da çok uzun, `priority` negatif |

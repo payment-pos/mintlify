@@ -3,7 +3,11 @@ title: "İade"
 description: "Bir ödemenin tamamını veya bir kısmını müşteriye geri ödeme."
 ---
 
-Başarılı bir ödemenin **tamamını** veya **bir kısmını** iade edebilirsiniz. İade banka tarafında gerçekleşir; tutar müşterinin kartına geri yansır. Mutabakat öncesi yapılan iadeler "void/cancel" mantığıyla, mutabakat sonrası iadeler ise "refund" satırıyla işlenir — Payven bu kararı banka durumuna göre otomatik verir.
+Başarılı (`completed`) bir ödemenin **tamamını** veya **bir kısmını** iade edebilirsiniz. İade banka tarafında gerçekleşir; tutar müşterinin kartına geri yansır. Mutabakat öncesi ve sonrası ayrımını banka durumuna göre Payven yönetir.
+
+<Note>
+Bu uç **doğrudan iade** yetkisi (`CanRefundDirectly`) ister; varsayılan olarak yalnızca `tenant-admin` rolünde açıktır. Onay akışıyla iade için [İade Talepleri](/sanal-pos/payments/refund-requests) kullanılır.
+</Note>
 
 ## Endpoint
 
@@ -28,14 +32,14 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `amount` | int (kuruş) | Opsiyonel | İade tutarı. Boş bırakılırsa **kalan tüm tutar** iade edilir. |
-| `currency` | string | Opsiyonel | Para birimi. Belirtilmezse orijinal işlemin para birimi kullanılır. |
-| `reason` | string | Opsiyonel | Serbest metin iade notu (max 500 karakter). Raporlamada görünür. |
-| `reason_code` | enum | Opsiyonel | Yapılandırılmış iade sebebi: `customer_request`, `out_of_stock`, `duplicate_charge`, `product_defect`, `fraud`, `wrong_amount`, `other` |
-| `extra_properties` | object | Opsiyonel | Konnektör-spesifik özel alanlar |
+| `amount` | int (kuruş) | **Zorunlu** | İade tutarı, `0`'dan büyük. Kalan tutarı aşamaz. Tam iade için kalan tutarı (`net_amount`) gönderin. |
+| `currency` | string | Opsiyonel | ISO-4217 kodu. Boşsa orijinal işlemin para birimi kullanılır; farklıysa istek reddedilir. |
+| `reason` | string | Opsiyonel | Serbest metin iade notu (en fazla 500 karakter). |
+| `reason_code` | enum | Opsiyonel | `customer_request`, `out_of_stock`, `duplicate_charge`, `product_defect`, `fraud`, `wrong_amount`, `other` |
+| `extra_properties` | object | Opsiyonel | Ek anahtar-değer çiftleri; işlem kaydına eklenir. Kart verisi anahtarları yok sayılır. |
 
 <Warning>
-**Idempotency-Key kullanın.** Operatör arayüzünde butonun iki kez basılması veya client tarafı retry sırasında **iki kez iade gerçekleşmesini** engeller. Önerilen pattern: `refund-{transaction_id}-{slot}` (slot = 1, 2, 3 ... her kısmi iade için artar).
+**Idempotency-Key kullanın.** Çift tıklama veya istemci retry'ında **iki kez iade** gerçekleşmesini engeller. Önerilen desen: `refund-{transaction_id}-{slot}` (her kısmi iade için slot artar).
 </Warning>
 
 ## Başarılı response
@@ -46,88 +50,125 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
   "status":         "completed",
   "is_success":     true,
   "extra_properties": {
-    "refund_id":              "5c1f0f42-2f0b-4b3d-9f7a-6ad1c2b48e91",
-    "original_transaction_id":"8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-    "external_id":            "ORDER-1001",
-    "refund_transaction_id":  "REFUND-9f3d2b8e",
-    "refunded_amount":        "5000",
-    "processed_at":           "2026-05-03T12:00:01.2340000+00:00",
-    "receipt_id":             "RCPT-4471",
-    "host_reference":         "REFUND-REF-789"
+    "refund_id":               "5c1f0f42-2f0b-4b3d-9f7a-6ad1c2b48e91",
+    "original_transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+    "external_id":             "ORDER-1001",
+    "refund_transaction_id":   "REFUND-9f3d2b8e",
+    "refunded_amount":         "5000",
+    "processed_at":            "2026-05-03T12:00:01.2340000+00:00",
+    "receipt_id":              "RCPT-4471",
+    "host_reference":          "REFUND-REF-789"
   }
 }
 ```
 
 | `extra_properties` alanı | Açıklama |
 |---|---|
-| `refund_id` | **Payven tarafındaki iade kaydının kimliği.** İadeyi bizde tekil olarak takip etmek, destek talebi açmak ve iade listesi/raporlarıyla eşleştirmek için bu değeri saklayın. |
-| `original_transaction_id` | İade edilen **orijinal ödemenin** Payven kimliği (üst seviyedeki `transaction_id` ile aynı değer; entegrasyon netliği için burada da tekrarlanır). |
-| `external_id` | Ödeme oluşturulurken gönderdiğiniz **kendi sipariş numaranız**. İadeyi kendi sisteminizdeki sipariş kaydıyla eşleştirmek için kullanın. |
-| `refund_transaction_id` | Bankanın/konnektörün iade için döndürdüğü kimlik. Banka mutabakatında kullanılır. |
-| `refunded_amount` | Bankanın iade ettiği tutar (kuruş). |
-| `processed_at` | İadenin banka tarafında işlendiği an (bu alan UTC döner — yanıtın diğer tarih alanları Türkiye saatindedir). |
-| `receipt_id` | Konnektör dekont/makbuz numarası (banka döndürdüyse). |
+| `refund_id` | **Payven tarafındaki iade kaydının kimliği.** `GET /refunds` listesindeki `id` ve `sanalpos.refund.completed` webhook'undaki `refund_id` ile aynıdır; iadeyi tekil takip etmek için saklayın. |
+| `original_transaction_id` | İade edilen orijinal ödemenin kimliği (üst seviyedeki `transaction_id` ile aynı). |
+| `external_id` | Ödeme oluştururken gönderdiğiniz kendi sipariş numaranız. |
+| `refund_transaction_id` | Bankanın iade için döndürdüğü kimlik (mutabakatta kullanılır). |
+| `refunded_amount` | İade edilen tutar (kuruş). |
+| `processed_at` | İadenin işlendiği an. |
+| `receipt_id` | Banka dekont/makbuz numarası (banka döndürdüyse). |
 | `host_reference` | RRN / host referansı (banka döndürdüyse). |
 
 <Note>
-`transaction_id` **orijinal ödemenin** kimliğidir, iadenin değil — kısmi iadelerde her çağrıda aynı değer döner. İadenin kendi kimliği `extra_properties.refund_id`, orijinal ödemeye ait alanlar ise `original_transaction_id` ve `external_id` alanlarıdır. Başarısız iade denemelerinde de `refund_id` döner (audit kaydı yazılır), böylece başarısız denemeyi de referans verebilirsiniz.
+Üst seviyedeki `transaction_id` **orijinal ödemenin** kimliğidir, iadenin değil — kısmi iadelerde her çağrıda aynı değer döner.
 </Note>
 
-| `status` sonucu | Anlam |
-|---|---|
-| `completed` | Kısmi iade — ana işlem `completed` kalır, ayrı bir refund alt-Transaction'ı yazılır. Kalan tutar yine iade edilebilir. |
-| `refunded` | Tüm tutar iade edildi (cumulative) |
-| `refund_processing` | İade konnektörde, asenkron — webhook ile takip edin |
+| HTTP | `status` | Anlam |
+|---|---|---|
+| `200` | `completed` | Kısmi iade yapıldı — ana işlem `completed` kalır, kalan tutar yine iade edilebilir. |
+| `200` | `refunded` | Kalan tutarın tamamı iade edildi. |
+| `202` | işlemin mevcut durumu | İade bayinin **cüzdan bakiyesi** yetersiz olduğu için bekletildi, bankaya gidilmedi (aşağıya bakın). |
 
 <Note>
-Wire seviyesinde **`partially_refunded` adında bir status yoktur.** Kısmi iade, ana Transaction'ın `status`'unu değiştirmez (`completed` kalır); her iade ayrı bir iade kaydı olarak yazılır. Kalan iade edilebilir tutarı `GET /payments/{id}` yanıtındaki `net_amount` alanından okuyun.
+Kısmi iade için ayrı bir işlem durumu yoktur: ana işlem `completed` kalır. Kalan iade edilebilir tutarı [`GET /payments/{id}`](/sanal-pos/inquiries/payment-detail) yanıtındaki `net_amount` alanından okuyun.
 </Note>
 
 ## Çoklu kısmi iade
 
-Bir işleme **birden fazla** kısmi iade yapabilirsiniz. Toplam iade tutarı orijinal işlem tutarını aşamaz.
+Bir işleme birden fazla kısmi iade yapabilirsiniz; toplam, orijinal tutarı aşamaz.
 
-| İade no | Tutar | Toplam iade | Ana işlem `status` | Alt iade kaydı |
-|---|---|---|---|---|
-| 1 | 5000 | 5000 | `completed` | yeni `refunded` |
-| 2 | 5000 | 10000 | `completed` | yeni `refunded` |
-| 3 | 5000 | 15000 | `refunded` (toplam = orijinal) | yeni `refunded` |
+| İade no | Tutar | Toplam iade | Ana işlem `status` |
+|---|---|---|---|
+| 1 | 5000 | 5000 | `completed` |
+| 2 | 5000 | 10000 | `completed` |
+| 3 | 5000 | 15000 | `refunded` (toplam = orijinal) |
 
-İşlem detayını [`GET /api/v1/payments/{transaction_id}`](/sanal-pos/inquiries/payment-detail) ile sorgulayarak kalan iade edilebilir tutarı `net_amount` alanında görebilirsiniz.
+## Cüzdan karşılıklı iade (bakiye bekleyen iade)
 
-## Süre kısıtları
+Tenant'ta `sanalpos.refunds:wallet_funded` ayarı açıksa iade, bankaya gitmeden önce bayinin cüzdan karşılığına (bakiye + kredi limiti) bakılarak yapılır. Karşılık yoksa iade reddedilmez, bekletilir ve **`202 Accepted`** döner:
+
+```json
+{
+  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status": "completed",
+  "is_success": true,
+  "message": "İade, bayinin cüzdan bakiyesi doğrulanana kadar bekletildi.",
+  "extra_properties": {
+    "refund_request_id": "0b1e8a3e-6c8b-4c43-8e53-1a2f9d1f5c11",
+    "refund_state": "awaiting_funds"
+  }
+}
+```
+
+- `refund_state = awaiting_funds`: iade **henüz yapılmadı**. Bakiye yeterli olunca otomatik denenir; kayıt [iade talepleri](/sanal-pos/payments/refund-requests) listesinde `awaiting_funds` durumunda görünür.
+- Bekleyen bir talep varken aynı işlemde yeni iade `409 PV_REFUND_ALREADY_QUEUED` alır.
+- 202'yi başarı saymayın; kesinleşen iade için `sanalpos.refund.completed` webhook'unu bekleyin.
+- Test modundaki bayinin iadesi bu kapıya takılmaz.
+
+## Mutabakat ve komisyon
 
 | Durum | İade davranışı |
 |---|---|
-| Mutabakat öncesi (gün içi) | Banka iptal (void) ile işlenir — komisyon yansımaz |
-| Mutabakat sonrası | Banka iade (refund) satırı oluşur — komisyon iade politikası bankaya bağlı |
-| 180 gün sonrası | Çoğu banka iade kabul etmez (`bank_refund_period_expired`) |
+| Mutabakat öncesi (gün içi) | Banka tarafında iptal olarak işlenebilir — komisyon yansımaz |
+| Mutabakat sonrası | Banka iade satırı oluşur — komisyon iadesi banka anlaşmanıza tabidir |
 
-<Tip>
-Mutabakat öncesi iadelerde banka komisyonu çoğu durumda yansımaz; mutabakat sonrası iadelerde komisyon iadesi banka anlaşmanıza tabidir. Anlaşma detayı için müşteri başarısı ekibine ulaşın.
-</Tip>
+İade süresi bankaya bağlıdır; banka reddederse `422 REFUND_FAILED` döner ve `provider_error_code` banka kodunu taşır.
+
+## Belirsiz sonuç
+
+Banka iade sonucunu bildirmezse `504 PV_BANK_RESULT_UNKNOWN` döner ve işlem `refund_processing` durumunda **kilitli** kalır. **Tekrar denemeyin:** ilk istek bankada gerçekleşmiş olabilir, ikinci deneme çift iade yaratır. Sonuç doğrulanana kadar o işlemde yeni iade/iptal `409 PV_BANK_RESULT_PENDING` alır; sonuç kesinleşince `sanalpos.refund.completed` veya `sanalpos.refund.failed` webhook'u gelir.
 
 ## Hata response'ları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `payment_not_found` | İşlem bulunamadı |
-| `422` | `payment_not_refundable` | İşlem iade edilemez durumda (örn. zaten iade edilmiş, başarısız, iptal edilmiş) |
-| `422` | `payment_already_refunded` | Tüm tutar zaten iade edilmiş |
-| `422` | `refund_exceeds_original` | İade tutarı kalan tutardan büyük |
-| `422` | `bank_refund_period_expired` | Banka iade süresi dolmuş |
-| `422` | `bank_declined` | Banka iadeyi reddetti — yanıttaki `provider_error_code`'a bakın |
+| `400` | `invalid_request_body` | Gövde okunamadı (JSON / enum biçimi) |
+| `404` | `PV_TRANSACTION_NOT_FOUND` | İşlem bulunamadı |
+| `409` | `ALREADY_REFUNDED` | Kalan tutar yok, işlem tamamen iade edilmiş |
+| `409` | `REFUND_NOT_ALLOWED` | İşlem mevcut durumunda iade edilemez |
+| `409` | `PV_BANK_RESULT_PENDING` | İşlemde sonucu doğrulanmayı bekleyen banka işlemi var |
+| `409` | `PV_REFUND_ALREADY_QUEUED` | İşlem için bekleyen / bakiye bekleyen iade zaten var |
+| `422` | `INVALID_REFUND_AMOUNT` | Tutar `0` veya negatif |
+| `422` | `REFUND_AMOUNT_EXCEEDS_REMAINING` | Tutar kalan iade edilebilir tutardan büyük |
+| `422` | `REFUND_CURRENCY_MISMATCH` | Para birimi orijinal işlemle eşleşmiyor |
+| `422` | `REFUND_NOT_SUPPORTED` | İşlemin bankası iade desteklemiyor |
+| `422` | `REFUND_FAILED` | Banka iadeyi reddetti — `provider_error_code`'a bakın |
+| `504` | `PV_BANK_RESULT_UNKNOWN` | Banka sonucu bildirmedi, işlem doğrulanıyor |
 
-Hata yanıtı RFC 9457 problem+json formatındadır. Detay: [Hata Yönetimi](/documentation/concepts/errors).
+Hata yanıtı `problem+json` zarfındadır (`code`, `message`, `category`, `param`). Detay: [Hata Yönetimi](/documentation/concepts/errors).
+
+## İade sorgulama
+
+| Uç | Açıklama |
+|---|---|
+| `GET /api/v1/refunds` | İade listesi (sayfalı, filtreli); `/export` ve `/export/schema` ile dışa aktarma |
+| `GET /api/v1/refunds/{id}` | Detay: `refund_amount`, `original_amount`, `status` (`pending` / `completed` / `failed`), `reason_code`, banka yanıtı, aynı işlemin diğer iadeleri (`sibling_refunds`) |
+
+Yetki: `CanViewTransactions`.
 
 ## Webhook olayları
 
 | Olay | Açıklama |
 |---|---|
-| `sanalpos.refund.completed` | İade başarıyla tamamlandı (tam veya kısmi). `data.status` yeni durumu (`partially_refunded` / `refunded`) yansıtır. |
+| `sanalpos.refund.completed` | İade tamamlandı. `data.refund_id` iadenin kendi kimliği, `data.refund_amount` bu iadenin tutarı, `data.remaining_amount` kalan net tutar, `data.status` işlemin yeni durumu (`completed` / `refunded`). |
+| `sanalpos.refund.failed` | Banka iadeyi reddetti veya hata oluştu. |
 
-Detay: [Webhook Olayları](/sanal-pos/webhooks/events).
+Bir işlemde birden fazla iade olabileceğinden eşleştirmeyi `transaction_id` ile değil `refund_id` ile yapın. Detay: [Webhook Olayları](/sanal-pos/webhooks/events).
 
 ## Test
 
-Sandbox'ta test kartlarıyla yapılan ödemeler iade edilebilir. Banka iade reddi senaryolarını tetiklemek için özel test kartlarını kullanın: [Test Kartları](/sanal-pos/test/test-cards).
+Test kartıyla yapılan işlemlerin iadesi bankaya gitmeden simüle edilir; kayıt gerçek yazılır ve webhook gelir. Bkz. [Sandbox](/sanal-pos/test/sandbox), [Test Kartları](/sanal-pos/test/test-cards).

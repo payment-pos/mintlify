@@ -15,6 +15,8 @@ Non-3D ödeme en basit ödeme akışıdır. Tek bir API isteğiyle ödeme tamaml
 POST /api/v1/payments
 ```
 
+Gerekli yetki `CanManageTransactions`. İstek bir işletme adına yapılır: işletme kapsamlı API anahtarı bayiyi kendiliğinden taşır; şirket (tenant) düzeyindeki kimliklerde `X-Merchant-Id` (veya `X-External-Merchant-Id`) başlığı zorunludur. Pasif ya da onaysız işletme ödeme alamaz (`merchant_inactive` / `merchant_not_approved`, `422`).
+
 ## Akış
 
 ```mermaid
@@ -24,10 +26,10 @@ sequenceDiagram
     participant Bank as Banka
 
     App->>Payven: POST /payments
-    Payven->>Payven: Akıllı yönlendirme<br/>(BIN + amount + installment)
+    Payven->>Payven: Doğrulama + akıllı yönlendirme<br/>(BIN + tutar + taksit)
     Payven->>Bank: Banka API isteği
     Bank-->>Payven: Onay / Red
-    Payven-->>App: PaymentOperationResult
+    Payven-->>App: 200 PaymentOperationResult<br/>veya 4xx problem+json
     Payven-)App: webhook (asenkron)
 ```
 
@@ -233,34 +235,42 @@ $response = json_decode(curl_exec($ch), true);
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `external_id` | string | Önerilir | Sizin sisteminizdeki sipariş kimliği. İdeal olarak `Idempotency-Key` ile aynı seed'den üretin. |
+| `external_id` | string | **Zorunlu** | Sipariş kimliğiniz; ödemenin idempotency anahtarıdır (aşağıya bakın). Boşsa `422 external_id_required`. |
 | `basket_id` | string | Opsiyonel | Sepet kimliği (raporlama için) |
-| `amount.amount` | int (kuruş) | Zorunlu | Tutar — kuruş cinsinden tam sayı |
-| `amount.currency` | enum | Zorunlu | Şu an yalnız `"TRY"` kabul edilir. Yabancı kart için DCC akışında çevrim yanıtta döner — bkz. [Tutarlar](/documentation/concepts/amounts) |
-| `installment` | int | Zorunlu | Taksit sayısı (`1` = peşin). Banka & BIN desteği gerekir. |
-| `operation_type` | enum | Opsiyonel | `sale` (varsayılan, anında çekim) veya `pre_auth` (ön provizyon — sonradan `/capture` gerekir) |
+| `amount.amount` | int (kuruş) | Zorunlu | Müşteriden çekilecek nihai toplam, kuruş cinsinden tam sayı; `0`'dan büyük olmalı (taksitte vade farkı dahil) |
+
+| `amount.currency` | string | Opsiyonel | ISO-4217 büyük harf; boşsa `TRY`. Şu an yalnız `TRY` işlem görür — bkz. [Tutarlar](/documentation/concepts/amounts) |
+| `installment` | int | Opsiyonel | Taksit sayısı, `1`–`12` (varsayılan `1` = peşin). Bkz. [Taksit](/sanal-pos/payments/installment) |
+| `connector_config_id` | uuid | Opsiyonel | [Taksit teklifinden](/sanal-pos/payments/installment) gelen banka kimliği; verilirse yönlendirme atlanır ve ödeme o bankadan geçer |
+| `operation_type` | enum | Opsiyonel | `sale` (varsayılan, anında çekim) veya `pre_auth` (ön provizyon; sonra `/capture`) |
 | `card.holder_name` | string | Zorunlu | Kart üzerindeki isim |
-| `card.number` | string | Zorunlu | 13-19 haneli kart numarası (boşluksuz, Luhn checksum geçerli) |
+| `card.number` | string | Zorunlu | Kart numarası (Luhn geçerli olmalı) |
 | `card.expire_month` | string | Zorunlu | İki hane (`01`–`12`) |
-| `card.expire_year` | string | Zorunlu | Dört hane (`2030`) |
-| `card.cvv` | string | Zorunlu | 3 hane (Amex için 4) |
-| `buyer.id` | string | Önerilir | Müşteri kimliğiniz (fraud sinyalleri için) |
-| `buyer.name`, `surname`, `email`, `phone` | string | Önerilir | Müşteri bilgileri (banka risk skoru için) |
-| `buyer.ip_address` | string | Önerilir | Müşterinin IP adresi (fraud için kritik) |
-| `buyer.identity_number` | string | Opsiyonel | TC kimlik no (yüksek tutarlı işlemlerde bazı bankalar zorunlu kılar) |
-| `billing_address`, `shipping_address` | object | Opsiyonel | Adres alanları — bazı bankalar/3DS senaryoları için risk skoruna girer |
-| `basket_items[]` | array | Opsiyonel | Sepet kalemleri (`name`, `price`, `quantity`) |
-| `description` | string | Opsiyonel | İşlem açıklaması (banka ekstresi açıklamasına yansıyabilir) |
-| `extra_properties` | object | Opsiyonel | Konnektör-spesifik özel alanlar (advanced) |
+| `card.expire_year` | string | Zorunlu | İki veya dört hane (`30` / `2030`) |
+| `card.cvv` | string | Koşullu | 3–4 haneli rakam. Zorunluluğu işletmenizin ödeme politikasına bağlıdır (`PV_CVV_REQUIRED`); gönderilirse biçimi doğrulanır |
+| `buyer.id`, `name`, `surname`, `email`, `phone` | string | Önerilir | Müşteri bilgileri. `email` geçerli e-posta olmalı |
+| `buyer.ip_address` | string | Önerilir | Müşterinin IPv4/IPv6 adresi (fraud için kritik) |
+| `buyer.identity_number` | string | Opsiyonel | TC kimlik no (bazı bankalar yüksek tutarda ister) |
+| `billing_address`, `shipping_address` | object | Opsiyonel | Gönderilirse `city` ve `address` zorunlu; ayrıca `contact_name`, `country`, `postal_code` |
+| `basket_items[]` | array | Opsiyonel | `name` (boş olamaz), `price` (> 0), `quantity` (> 0); gönderilirse en az bir kalem |
+| `description` | string | Opsiyonel | İşlem açıklaması |
+| `splits[]` | array | Opsiyonel | Marketplace alt bayi dağılımı. Toplamı `amount`'u aşamaz; alt bayiler aktif, onaylı ve üst bayiye bağlı olmalıdır. İstek banka çağrısından önce doğrulanır |
+| `extra_properties` | object | Opsiyonel | Bankaya özgü ek alanlar (ileri seviye) |
 
-<Note>
-İlgili headers — bu istek için zorunlu olanlar:
-- `Authorization: Bearer <token>` (Identity'den alınan access token)
-- `Idempotency-Key` (önerilir — yeniden gönderim koruması için bkz. [Idempotency](/documentation/concepts/idempotency))
-- `Content-Type: application/json`
-</Note>
+Gerekli başlıklar: `Authorization: Bearer <token>` (veya API anahtarı), `Content-Type: application/json`. `Idempotency-Key` önerilir — bkz. [Idempotency](/documentation/concepts/idempotency).
 
-## Başarılı response
+### external_id ve tekrar gönderim
+
+`external_id` işletme başına tekil bir sipariş anahtarıdır. Aynı değerle gelen ikinci istek yeni çekim yapmaz:
+
+| Mevcut işlemin durumu | Yanıt |
+|---|---|
+| `completed`, `authorized`, `refunded`, `canceled` | Mevcut sonuç aynen döner (`200`) |
+| `failed` / `not_completed` | Mevcut başarısız sonuç döner; yeni deneme için **yeni bir `external_id`** kullanın |
+| Devam eden (`created`, `processing`, 3DS veya iade/iptal/çekim işleniyor) | `409 PV_DUPLICATE_ORDER` + mevcut `transaction_id` |
+| Başarılı ama farklı tutar / para birimi | `422 PV_ORDER_AMOUNT_MISMATCH` |
+
+## Başarılı yanıt
 
 ```http
 HTTP/1.1 200 OK
@@ -270,8 +280,13 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 
 ```json
 {
-  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":         "completed",
+  "transaction_id":        "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":                "completed",
+  "is_success":            true,
+  "amount":                15000,
+  "total_customer_amount": 15000,
+  "interest_amount":       0,
+  "currency":              "TRY",
   "extra_properties": {
     "processed_at":            "2026-05-03T12:34:58.123+03:00",
     "receipt_id":              "RCPT-20260503-0001",
@@ -283,37 +298,91 @@ X-Correlation-Id: 9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8
 }
 ```
 
-`HTTP 200` + `status: "completed"` → ödeme başarıyla tamamlandı. Detaylı alan referansı: [Payment Objesi](/sanal-pos/payment-object).
+| Alan | Açıklama |
+|---|---|
+| `status` | `sale` için `completed`, `pre_auth` için `authorized` |
+| `amount` / `total_customer_amount` | Müşteriden çekilen toplam tutar (kuruş) — gönderdiğiniz nihai tutar |
+| `interest_amount` | Payven ödemede vade farkı hesaplamaz; `0` döner. Taksitli satışta vade farklı toplamı [teklif ucundan](/sanal-pos/payments/installment) alıp `amount` olarak gönderin |
 
-## Banka tarafından red
+Tam alan referansı: [Payment Objesi](/sanal-pos/payment-object). Sonradan [GET /payments/{id}](/sanal-pos/inquiries/payment-detail) ile sorgulayabilirsiniz.
 
-Banka reddinde response `422 Unprocessable Entity` + `application/problem+json` döner; `code: "bank_declined"` ile birlikte bankanın orijinal kodu `provider_error_code` alanında taşınır. Tam payload yapısı: [Hata Yönetimi](/documentation/concepts/errors#hata-yanit-formati). Banka kodları: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes).
+## Durumlar
 
-Sonradan `GET /api/v1/payments/{id}` ile sorgulandığında failed ödeme `200 OK` döner; `error_code` ve `provider_error_code` response body'sinde yer alır.
-
-## Validasyon hatası
-
-Eksik veya geçersiz alanlar `422 Unprocessable Entity` ile RFC 9457 problem+json döner:
-
-```http
-HTTP/1.1 422 Unprocessable Entity
-Content-Type: application/problem+json
+```mermaid
+stateDiagram-v2
+    [*] --> created
+    created --> processing
+    processing --> completed: sale onaylandı
+    processing --> authorized: pre_auth onaylandı
+    processing --> failed: banka reddi
+    authorized --> completed: capture
+    authorized --> canceled: void
+    completed --> canceled: void (aynı gün, tam tutar)
+    completed --> refunded: iade
 ```
+
+Non-3D istek senkron sonuçlanır; başarılı yanıtta `status` zaten `completed` ya da `authorized`'dır. Banka cevap vermezse sonuç belirsiz kalabilir (`504 PV_BANK_RESULT_UNKNOWN`): **aynı siparişi yeniden denemeyin**, işlem doğrulanır ve sonuç webhook ile bildirilir.
+
+## Banka reddi
+
+Banka reddinde yanıt `application/problem+json` döner (durum kodu hata kataloğundan gelir, genellikle `422`). `code` Payven'in kanonik kodudur (ör. `PV_INSUFFICIENT_FUNDS`; eşleşme yoksa `PV_PAYMENT_FAILED`), bankanın ham kodu `provider_error_code`'dadır; oluşan işlem kaydı `transaction_id` ile bildirilir ve `failed` durumundadır.
 
 ```json
 {
-  "type":   "https://docs.payven.com.tr/errors/validation_failed",
-  "title":  "Validasyon hatası",
-  "status": 422,
-  "code":   "validation_failed",
-  "detail": "1 alan geçersiz",
+  "type":                "https://docs.payven.com.tr/errors/pv_payment_failed",
+  "title":               "Ödeme işlemi başarısız oldu.",
+  "status":              422,
+  "code":                "PV_PAYMENT_FAILED",
+  "message":             "Ödeme işlemi başarısız oldu.",
+  "category":            "provider_error",
+  "provider_error_code": "51",
+  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6"
+}
+```
+
+Kodlar: [Payven Hata Kodları](/sanal-pos/errors/payven-codes), banka kodları: [Banka Yanıt Kodları](/sanal-pos/errors/bank-codes). Zarf yapısı: [Hata Yönetimi](/documentation/concepts/errors#hata-yanit-formati).
+
+Banka çağrısından önce yakalanan başlıca durumlar:
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `422` | `external_id_required` | `external_id` boş |
+| `422` | `validation_failed` | Alan biçimi geçersiz (`errors[]` ve `param` ilk alanı gösterir) |
+| `422` | `PV_NON_3D_NOT_ALLOWED` | İşletmenizde Non-3D ödeme kapalı — [3D Secure](/sanal-pos/payments/3d-secure) kullanın |
+| `422` | `PV_CVV_REQUIRED` / `PV_INVALID_CVV` | CVV zorunlu ya da geçersiz |
+| `422` | `PV_INVALID_CARD_NUMBER` / `PV_INVALID_CARD_EXPIRY` / `PV_CARD_EXPIRED` | Kart numarası (Luhn) ya da son kullanma tarihi geçersiz |
+| `422` | `PV_INSTALLMENT_NOT_ALLOWED` | Taksit bu işletme / kart (borç, ön ödemeli) için uygun değil |
+| `422` | `merchant_limit_exceeded` | İşlem işletmenin tanımlı limitini aşıyor |
+| `409` | `PV_DUPLICATE_ORDER` | Aynı `external_id` ile devam eden işlem var |
+| `422` | `PV_ORDER_AMOUNT_MISMATCH` | Aynı `external_id` farklı tutarla kullanılmış |
+
+```json
+{
+  "type":     "https://docs.payven.com.tr/errors/validation_failed",
+  "title":    "Validasyon hatası",
+  "status":   422,
+  "code":     "validation_failed",
+  "category": "invalid_request_error",
+  "param":    "card.expire_month",
   "errors": [
-    { "field": "card.number", "code": "invalid_card", "message": "Kart numarası Luhn checksum'ı geçmiyor." }
+    { "field": "card.expire_month", "message": "ExpireMonth 01-12 aralığında olmalıdır." }
   ]
 }
 ```
 
-Detay: [Hata Yönetimi](/documentation/concepts/errors).
+## Webhook olayları
+
+| Olay | Ne zaman |
+|---|---|
+| `sanalpos.payment.completed` | `sale` başarıyla tamamlandı |
+| `sanalpos.payment.authorized` | `pre_auth` ile tutar bloke edildi |
+| `sanalpos.payment.failed` | Ödeme başarısız (tüm bankalar denendikten sonra tek kez) |
+
+Alt bayi dağılımı varsa `sanalpos.payment_split.*` olayları ayrıca oluşur. Liste: [Webhook Olayları](/sanal-pos/webhooks/events).
+
+## Test ortamı
+
+Test modundaki işletmenin Non-3D isteği bankaya gitmez; gerçek bir işlem kaydı yazılır, yaşam döngüsü ve webhook'lar canlıdaki gibi çalışır. Varsayılan sonuç **başarıdır** (`completed`). Red, yetersiz bakiye, zaman aşımı gibi senaryolar için Payven test kartlarını kullanın — bkz. [Sandbox](/sanal-pos/test/sandbox) ve [Test Kartları](/sanal-pos/test/test-cards).
 
 ## Sonraki adımlar
 

@@ -16,16 +16,16 @@ description: "Tutarı bloke edip daha sonra çekim yapma — iki aşamalı ödem
 
 ```mermaid
 flowchart LR
-    A[POST /payments<br/>operation_type=pre_auth] --> B[authorized]
+    A[POST /payments veya /payments/3d/init<br/>operation_type=pre_auth] --> B[authorized]
     B -->|POST .../capture| C[completed]
     B -->|POST .../void| D[canceled]
 ```
 
-`completed` durumundan sonra mutabakata dahil etme süreci ayrı `Settlement` kaynağında izlenir — bkz. [Settlement Kayıtları](/sanal-pos/reporting/settlements).
+Capture sonrası işlem `completed` olur ve normal bir satış gibi mutabakata girer — bkz. [Mutabakat Yaşam Döngüsü](/sanal-pos/reconciliation/lifecycle).
 
 ## 1. Ön provizyon (Pre-Auth)
 
-Non-3D veya 3D Secure akışı ile başlatılır — tek farkı body'de `operation_type: "pre_auth"` parametresi.
+[Non-3D](/sanal-pos/payments/non-3d) (`POST /payments`) veya [3D Secure](/sanal-pos/payments/3d-secure) (`POST /payments/3d/init`) akışıyla başlatılır — tek fark gövdede `operation_type: "pre_auth"` olmasıdır. `external_id` zorunludur.
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/payments/3d/init \
@@ -49,19 +49,21 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/3d/init \
   }'
 ```
 
-3DS akışı [3D Secure](/sanal-pos/payments/3d-secure) ile aynıdır; sale yerine pre-auth ile sonuçlanır.
+3DS adımları [3D Secure](/sanal-pos/payments/3d-secure) ile aynıdır; sonuç `completed` yerine `authorized` olur.
 
 ### Başarılı sonuç
 
-3DS tamamlandıktan sonra `GET /api/v1/payments/{transaction_id}` çağırınca:
+Non-3D yanıtında (3DS akışında sonuç `GET /api/v1/payments/{transaction_id}` ile alınır):
 
 ```json
 {
-  "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
-  "status":         "authorized",
-  "amount":         50000,
-  "currency":       "TRY",
-  "is_3d_secure":   true,
+  "transaction_id":        "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "status":                "authorized",
+  "is_success":            true,
+  "amount":                50000,
+  "total_customer_amount": 50000,
+  "interest_amount":       0,
+  "currency":              "TRY",
   "extra_properties": {
     "processed_at":   "2026-05-03T12:34:58.123+03:00",
     "auth_code":      "123456",
@@ -70,13 +72,15 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/3d/init \
 }
 ```
 
-`status: "authorized"` → tutar bloke edildi ama henüz çekilmedi.
+`status: "authorized"` → tutar bloke edildi ama henüz çekilmedi. Olay: `sanalpos.payment.authorized`.
 
 ## 2. Çekim (Capture)
 
 ```http
 POST /api/v1/payments/{transaction_id}/capture
 ```
+
+Gerekli yetki `CanManageTransactions`. Gövde bir JSON nesnesi olmalıdır (tam tutar için boş `{}` yeterli); gövdesiz ya da bozuk JSON `400 invalid_request_body` döner.
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6/capture \
@@ -91,57 +95,65 @@ curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-9a7b-4c8d-bc4e-
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `amount.amount` | int (kuruş) | Opsiyonel | Çekilecek tutar. Boş veya `0` gönderilirse **kalan tüm rezerve tutar** çekilir. |
-| `amount.currency` | string | Opsiyonel | Para birimi (boşsa orijinal işlemin para birimi) |
-| `reason` | string | Opsiyonel | Capture sebebi (raporlama için) |
-| `extra_properties` | object | Opsiyonel | Konnektör-spesifik özel alanlar |
+| `amount.amount` | int (kuruş) | Opsiyonel | Çekilecek tutar. Boş veya `0` ise **kalan tüm rezerve tutar** çekilir; verilirse `0`'dan büyük olmalı |
+| `amount.currency` | string | Opsiyonel | Boşsa işlemin para birimi; işlemin para birimiyle aynı olmalı |
+| `reason` | string | Opsiyonel | Çekim sebebi (en fazla 500 karakter) |
+| `extra_properties` | object | Opsiyonel | Bankaya özgü ek alanlar |
 
-### Başarılı response
+### Başarılı yanıt
 
 ```json
 {
   "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
   "status":         "completed",
+  "is_success":     true,
   "extra_properties": {
-    "processed_at":    "2026-05-03T18:00:01.234+03:00",
-    "auth_code":       "789012",
-    "host_reference":  "PAYVEN-CAP-790",
-    "captured_amount": "47500",
-    "released_amount": "2500"
+    "capture_id":             "b7d1a3c0-5e2f-4a11-9d0c-31f6a8e2c4b9",
+    "processed_at":           "2026-05-03T18:00:01.234+03:00",
+    "captured_amount":        "475.00",
+    "provider_transaction_id":"9f3d2b8e-...",
+    "capture_transaction_id": "CAP-9f3d2b8e",
+    "receipt_id":             "RCPT-4472",
+    "host_reference":         "PAYVEN-CAP-790"
   }
 }
 ```
 
-`captured_amount` (47500) < orijinal `amount` (50000) → **kısmi çekim** yapıldı, kalan **2500 kuruş otomatik olarak rezervasyondan serbest bırakıldı**.
+<Note>
+`extra_properties.captured_amount` **TL cinsinden ondalık metindir** (`"475.00"`), kuruş değildir. İşlemin güncel tutarını `GET /payments/{id}` ile kuruş olarak okuyabilirsiniz.
+</Note>
 
 ### Kısmi çekim kuralları
 
-<Check>`amount` ≤ orijinal `amount` olmalıdır. Aşan değer `capture_amount_exceeds_authorization` ile reddedilir.</Check>
-<Check>Bir Pre-Auth için **tek capture** yapılabilir. Aşamalı çekim için her bölümü ayrı bir Pre-Auth olarak başlatın.</Check>
-<Check>Capture **24 saat içinde** yapılmalıdır. Süreyi aştıktan sonra rezervasyon banka tarafında otomatik düşer; capture endpoint'i `pre_auth_expired` döner.</Check>
+<Check>Çekim tutarı kalan rezerve tutarı aşamaz; aşan istek `409 CAPTURE_NOT_ALLOWED` ile reddedilir.</Check>
+<Check>Capture yalnız `authorized` durumundaki işlemde yapılır. Başarılı capture işlemi `completed` yapar; **bir ön provizyon için tek çekim** yapılır. Kalan tutar işleme dahil edilmez (işlemin net tutarı çekilen kadardır).</Check>
+<Check>Rezervasyonun banka tarafında ne kadar süre tutulacağı bankaya bağlıdır; bekleyen provizyonları zamanında çekin. Banka çekimi reddederse `422 CAPTURE_FAILED` ve bankanın ham kodu `provider_error_code` ile döner.</Check>
 
 ## 3. İptal (Void)
 
-Çekim yapılmadan rezervasyonu serbest bırakmak için:
+Çekim yapmadan rezervasyonu serbest bırakmak için [iptal](/sanal-pos/payments/void) edin. İptal, işlemin oluşturulduğu **Türkiye takvim günü** içinde yapılabilir; sonrasında yalnızca capture ya da iade yolu kalır:
 
 ```bash
 curl -X POST https://vpos.payven.com.tr/api/v1/payments/8e3f5c12-.../void \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Idempotency-Key: hotel-1001-void"
+  -H "Idempotency-Key: hotel-1001-void" \
+  -H "Content-Type: application/json" \
+  -d '{}'
 ```
 
-Detay: [İptal (Void)](/sanal-pos/payments/void).
-
-## Hata response'ları
+## Hata yanıtları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `404` | `payment_not_found` | İşlem bulunamadı |
-| `422` | `payment_not_pre_auth` | Bu işlem bir Pre-Auth değil (zaten Sale) |
-| `422` | `capture_amount_exceeds_authorization` | Çekim tutarı rezerve tutarı aşıyor |
-| `422` | `pre_auth_expired` | 24 saatlik capture süresi aşıldı |
-| `422` | `payment_already_captured` | Zaten çekim yapılmış |
-| `422` | `bank_declined` | Banka çekim isteğini reddetti |
+| `404` | `PV_TRANSACTION_NOT_FOUND` | İşlem bulunamadı |
+| `400` | `invalid_request_body` | Gövde okunamadı |
+| `409` | `CAPTURE_NOT_ALLOWED` | İşlem `authorized` değil (zaten çekilmiş, iptal edilmiş, `sale`) ya da tutar kalan rezerveyi aşıyor |
+| `409` | `PV_BANK_RESULT_PENDING` | İşlemde sonucu doğrulanmayı bekleyen başka bir banka işlemi var |
+| `422` | `CAPTURE_CURRENCY_MISMATCH` | Para birimi işlemle aynı değil |
+| `422` | `NO_REMAINING_AMOUNT` | Çekilecek kalan tutar yok |
+| `422` | `CAPTURE_NOT_SUPPORTED` | İşlemin geçtiği banka capture desteklemiyor |
+| `422` | `CAPTURE_FAILED` / `CAPTURE_EXCEPTION` | Banka çekimi reddetti (`provider_error_code` bankanın ham kodu) |
+| `504` | `PV_BANK_RESULT_UNKNOWN` | Banka sonucu bildirmedi; işlem doğrulanıyor — yeniden denemeyin, sonuç kesinleşince bildirilir |
 
 Hata yanıtı RFC 9457 problem+json formatındadır. Detay: [Hata Yönetimi](/documentation/concepts/errors).
 
@@ -150,10 +162,8 @@ Hata yanıtı RFC 9457 problem+json formatındadır. Detay: [Hata Yönetimi](/do
 | Aşama | Mutabakat hareketi |
 |---|---|
 | Pre-Auth | Mutabakata **dahil değil** — yalnızca blokaj |
-| Capture | Capture günü mutabakatına dahil edilir |
+| Capture | Çekilen tutar mutabakata girer |
 | Void (capture'dan önce) | Mutabakatta hareket görünmez |
-
-Detay: [Mutabakat Yaşam Döngüsü](/sanal-pos/reconciliation/lifecycle).
 
 ## Webhook olayları
 
@@ -164,3 +174,7 @@ Detay: [Mutabakat Yaşam Döngüsü](/sanal-pos/reconciliation/lifecycle).
 | `sanalpos.void.completed` | Pre-Auth iptal edildi (capture'dan önce) |
 
 Detay: [Webhook Olayları](/sanal-pos/webhooks/events).
+
+## Test ortamı
+
+Test modunda ön provizyon ve çekim bankaya gitmeden simüle edilir; durum geçişleri ve webhook'lar canlıdaki gibi çalışır. Ön provizyon yaptığınız simüle işlemin capture ve void çağrıları da simüle edilir.

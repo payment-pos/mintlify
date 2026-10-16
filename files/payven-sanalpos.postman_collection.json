@@ -48,7 +48,7 @@
           "    }, function (err, res) {",
           "      if (err) { console.error('Token alinamadi:', err); return; }",
           "      let body = null; try { body = res.json(); } catch (e) { }",
-          "      const token = body && (body.access_token || (body.data && body.data.access_token));",
+          "      const token = body && body.token && body.token.access_token;",
           "      if (!token) { console.error('Token yaniti beklenen sekilde degil:', res.text()); return; }",
           "      pm.environment.set('access_token', token);",
           "      const ttl = (body.expires_in || (body.data && body.data.expires_in) || 300) * 1000;",
@@ -545,7 +545,7 @@
     },
     {
       "name": "Connector Konfigleri (SanalPos)",
-      "description": "Tenant duzeyinde tanimli banka konfigleri (Garanti VPOS prod, Akbank test, vb.). Bulk banka profili isteginde `connector_config_id` icin buradaki Guid'i kopyalayip ortam `connector_config_id` degiskenine yazin.",
+      "description": "Tenant duzeyinde tanimli banka konfigleri (örn. bir VPOS canlı, bir VPOS test). Bulk banka profili isteginde `connector_config_id` icin buradaki Guid'i kopyalayip ortam `connector_config_id` degiskenine yazin.",
       "item": [
         {
           "name": "Listele",
@@ -615,7 +615,7 @@
                 }
               ]
             },
-            "description": "Tenant duzeyinde tanimli banka konfigurasyonlari (PaginatedList). **Banka profilinde kullanilan `connector_config_id` buradaki `id`'dir.**\n\nHer item (`ConnectorConfigurationDto`):\n```\n{\n  \"id\": \"<guid>\",                 // -> connector_config_id\n  \"connector_id\": \"<guid>\",\n  \"connector_name\": \"NestPay\",\n  \"connector_code\": \"nestpay\",\n  \"name\": \"Garanti VPOS Prod\",\n  \"mode\": \"test|production\",\n  \"bank_code\": \"...\",\n  \"priority\": 0,\n  \"is_active\": true,\n  \"created\": \"...\", \"last_modified\": \"...\"\n  // kredensiyal alanlari (api_key/terminal_id/store_id/...) maskeli/yetkiye bagli doner\n}\n```\n\nFiltreler (opsiyonel): `connector_id` (belirli bankanin konfigleri), `mode`, `include_inactive`.\n\nTest script'i ilk AKTIF konfigurasyonun `id`'sini otomatik ortam `connector_config_id`'ye yazar."
+            "description": "Tenant duzeyinde tanimli banka konfigurasyonlari (PaginatedList). **Banka profilinde kullanilan `connector_config_id` buradaki `id`'dir.**\n\nHer item (`ConnectorConfigurationDto`):\n```\n{\n  \"id\": \"<guid>\",                 // -> connector_config_id\n  \"connector_id\": \"<guid>\",\n  \"connector_name\": \"Örnek VPOS\",\n  \"connector_code\": \"ornek_vpos\",\n  \"name\": \"Örnek VPOS Prod\",\n  \"mode\": \"test|production\",\n  \"bank_code\": \"...\",\n  \"priority\": 0,\n  \"is_active\": true,\n  \"created\": \"...\", \"last_modified\": \"...\"\n  // kredensiyal alanlari (api_key/terminal_id/store_id/...) maskeli/yetkiye bagli doner\n}\n```\n\nFiltreler (opsiyonel): `connector_id` (belirli bankanin konfigleri), `mode`, `include_inactive`.\n\nTest script'i ilk AKTIF konfigurasyonun `id`'sini otomatik ortam `connector_config_id`'ye yazar."
           },
           "response": []
         }

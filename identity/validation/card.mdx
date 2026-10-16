@@ -1,9 +1,9 @@
 ---
 title: "Kart Doğrulama"
-description: "Kart numarasının formatını doğrulayın ve banka bilgilerini çözümleyin."
+description: "Kart numarasının uzunluk ve Luhn kontrolünü yapın, BIN'den banka bilgisini çözümleyin."
 ---
 
-Bu endpoint, kart numarasının **Luhn algoritması** + uzunluk kontrolü yapar ve aynı zamanda BIN'den banka/kart bilgilerini çözümler. Tek istek, iki iş.
+Bu uç, kart numarasında **uzunluk + Luhn** kontrolü yapar ve aynı çağrıda BIN tablosundan banka / kart bilgisini çözümler. Durumsuzdur: numara kaydedilmez. Ödeme isteği göndermeden önce form düzeyinde hızlı geri bildirim için kullanılır; kartın bankada geçerli olup olmadığını (limit, aktiflik) **söylemez**.
 
 ## Endpoint
 
@@ -13,117 +13,99 @@ POST /api/v1/validation/card
 
 Bearer access token gerektirir.
 
-## İstek
-
 ```bash
 curl -X POST https://identity.payven.com.tr/api/v1/validation/card \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{ "number": "4546711234567894" }'
+  -d '{ "card_number": "4546711234567894", "resolve": true }'
 ```
 
 | Alan | Tip | Zorunluluk | Açıklama |
 |---|---|---|---|
-| `number` | string | Zorunlu | Tam kart numarası (boşluksuz, 13-19 hane). Bu değer **saklanmaz**. |
+| `card_number` | string | Zorunlu | Kart numarası. Boşluk / tire temizlenir. Maskeli girdi de kabul edilir (`97923201******6591`) |
+| `resolve` | bool | Opsiyonel | Varsayılan `true`. `false` ise yalnız format / Luhn kontrolü yapılır, BIN çözümlenmez |
 
 ## Yanıt
 
-`200 OK` — `CardValidationResultDto`:
+`200 OK`:
 
 ```json
 {
-  "is_valid":     true,
-  "luhn_valid":   true,
-  "length_valid": true,
-  "length":       16,
-  "bin":          "454671",
-  "masked_number":"454671******7894",
-  "schema_type":  "visa",
+  "is_valid":       true,
+  "luhn_valid":     true,
+  "length_valid":   true,
+  "length":         16,
+  "bin":            "454671",
+  "masked_number":  "454671******7894",
+  "schema_type":    "visa",
   "bank_bin": {
-    "id":           "abc-...",
-    "bin_start":    "454671",
-    "bin_end":      "454671",
-    "card_scheme":  "visa",
-    "card_type":    "credit",
-    "card_program": "bonus",
-    "country":      "TR"
+    "id": "abc-...", "bank_code": "00062", "bank_name": "Türkiye Garanti Bankası",
+    "bin_start": "45467100", "bin_end": "45467199",
+    "schema_type": "visa", "card_type": "credit", "card_brand": "bonus",
+    "card_length": 16, "is_active": true
   },
   "bank": {
-    "id":            "8e3f5c12-...",
-    "code":          "GARANTI",
-    "name":          "Garanti BBVA",
-    "bkm_member_id": "62"
+    "id": "8e3f5c12-...", "code": "00062", "name": "Türkiye Garanti Bankası",
+    "swift_code": "TGBATRIS", "logo_url": null, "is_active": true
   },
-  "error_message": null
+  "error_message":  null,
+  "is_masked":      false,
+  "luhn_verifiable": true,
+  "known_digit_count": 16,
+  "expected_length": null
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `is_valid` | Genel geçerlilik (`luhn_valid && length_valid`) |
-| `luhn_valid` | Luhn checksum geçerli mi |
-| `length_valid` | Uzunluk kart birliğine uygun mu |
+| `is_valid` | Genel geçerlilik: tam numarada `length_valid && luhn_valid` |
+| `luhn_valid`, `length_valid`, `length` | Luhn sonucu; uzunluk 12-19 aralığında mı; hane sayısı |
 | `bin` | İlk 6 hane |
-| `masked_number` | `BIN******SON4` formatı — loglarda saklanabilir |
-| `schema_type` | `visa`, `mastercard`, `troy`, `amex`, vb. |
-| `bank_bin` | BIN aralığı + program bilgisi |
-| `bank` | BIN'den çözümlenen banka |
-| `error_message` | `is_valid: false` ise sebep |
+| `masked_number` | İlk 6 + son 4 görünür maske; loglarda saklanabilir |
+| `schema_type` | Kart birliği (`visa`, `master_card`, `troy`, `amex` ...). BIN tablosunda eşleşme varsa tablodaki değer, yoksa numaradan tahmin |
+| `bank_bin`, `bank` | BIN eşleşmesi ve banka. Eşleşme yoksa `null`; `resolve: false` ise `null` |
+| `error_message` | `is_valid: false` ise sebep metni (ör. Luhn başarısız, uzunluk geçersiz) |
+
+### Maskeli girdi
+
+Destek ekranlarından kopyalanan maskeli numaralar da çözümlenir. Bu durumda `is_masked: true` ve `luhn_verifiable: false` döner (Luhn hesaplanamaz); BIN çözülebilirse `expected_length` kartın beklenen uzunluğunu, `known_digit_count` açık hane sayısını verir ve `is_valid` yalnız "açık hane sayısı beklenen uzunluğu aşmıyor" anlamına gelir. Açık önek 6 haneden kısaysa BIN çözülemez ve `error_message` sebebi söyler.
 
 <Warning>
-Kart numarası bu istekte **saklanmaz** ve sunucu loglarına yazılmaz. Yine de PCI-DSS kuralları gereği kart numarasını yalnızca güvenli kanal (TLS) üzerinden iletin ve sızıntıya neden olabilecek loglara (ör. APM trace) yazmaktan kaçının.
+Numara bu çağrıda saklanmaz ve loglanmaz. Yine de tam kart numarasını yalnızca TLS üzerinden, **kendi sunucunuz aracılığıyla** gönderin; tarayıcıdan Identity'ye token taşımayın ve kart numarasını log / APM izlerine yazmayın.
 </Warning>
 
-## Geçersiz kart örnegi
+## Geçersiz örnek
 
 ```json
 {
-  "is_valid":     false,
-  "luhn_valid":   false,
-  "length_valid": true,
-  "length":       16,
-  "bin":          "454671",
-  "masked_number":"454671******7895",
-  "schema_type":  "visa",
-  "bank_bin":     null,
-  "bank":         null,
-  "error_message":"Kart numarası Luhn checksum'ı geçmiyor."
+  "is_valid": false, "luhn_valid": false, "length_valid": true, "length": 16,
+  "bin": "454671", "masked_number": "454671******7895", "schema_type": "visa",
+  "bank_bin": { "...": "..." }, "bank": { "...": "..." },
+  "error_message": "Luhn kontrolü başarısız"
 }
 ```
 
-## Tipik kullanım: inline form validasyonu
+Geçersiz numara **`200 OK`** ile döner; sebep `error_message`'dadır. Boş numarada da `200` ve `is_valid: false` döner.
+
+## Tipik kullanım: form doğrulama
 
 ```javascript
-async function validateCardOnBlur(cardNumber) {
-  const digits = cardNumber.replace(/\D/g, "");
-  if (digits.length < 13) return;
-
-  // Backend BFF üzerinden — frontend Identity'e direkt token taşımayın
+// Kendi backend'iniz üzerinden çağırın
+async function validateCard(cardNumber) {
   const res = await fetch("/api/validation/card", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ number: digits }),
+    body: JSON.stringify({ card_number: cardNumber.replace(/\D/g, "") }),
   });
-  const result = await res.json();
-
-  if (!result.is_valid) {
-    showFieldError("card_number", result.error_message);
-    return;
-  }
-
-  showBankLogo(result.bank?.code);
-  showSchemeIcon(result.schema_type);
-  if (result.bank_bin?.card_type === "debit") {
-    hideInstallmentDropdown();
-  }
+  const r = await res.json();
+  if (!r.is_valid) return { error: r.error_message };
+  return { bankCode: r.bank?.code, scheme: r.schema_type, cardType: r.bank_bin?.card_type };
 }
 ```
 
-## Hata response'ları (HTTP)
+## Hata yanıtları (HTTP)
 
-`is_valid: false` durumu **`200 OK`** ile döner — `error_message` alanı sebebi içerir. Aşağıdaki HTTP hataları yalnızca istek formatı hatalı olduğunda döner:
-
-| HTTP | `code` | Anlam |
-|---|---|---|
-| `400` | `validation_failed` | `number` alanı eksik veya boş |
-| `400` | `bad_request` | Request body geçersiz JSON |
+| HTTP | Anlam |
+|---|---|
+| `400` | İstek gövdesi geçersiz JSON veya `card_number` alanı hiç gönderilmedi |
+| `401` | Token yok / geçersiz |

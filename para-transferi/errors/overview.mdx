@@ -3,153 +3,169 @@ title: "Hata Kodları"
 description: "Para Transferi domain hata kodları ve banka yanıt kodları."
 ---
 
-Para Transferi hata kodları üç kategoride döner: **Payven domain kodları** (transfer iş kuralı), **HTTP canonical kodlar** (auth, validation, rate limit) ve **banka yanıt kodları** (`provider_error_code`).
+Para Transferi hataları üç yerde karşınıza çıkar: **istek hataları** (HTTP durumu + `code`), toplu işlemlerde **kalem sonuçları** (`results[].error_code`) ve transfer üzerindeki **terminal hata alanları** (`error_code` / `provider_error_code`).
 
-Tüm hatalar [RFC 9457 problem+json](/documentation/concepts/errors) formatında uygun HTTP durum koduyla döner:
+Tüm istek hataları [RFC 9457 problem+json](/documentation/concepts/errors) formatında, Payven hata zarfıyla döner:
 
 ```http
-HTTP/1.1 422 Unprocessable Entity
+HTTP/1.1 409 Conflict
 Content-Type: application/problem+json
 ```
 
 ```json
 {
-  "type":          "https://docs.payven.com.tr/errors/insufficient_balance",
-  "title":         "Kaynak hesapta yeterli bakiye yok",
-  "status":        422,
-  "code":          "insufficient_balance",
-  "detail":        "Talep edilen tutar (1.500.000 kuruş) hesap bakiyesini aşıyor.",
-  "instance":      "/api/v1/transfers/bulk/send",
-  "correlation_id": "9f1c8e76-..."
+  "type":           "https://docs.payven.com.tr/errors/PV_TRANSFER_EXTERNAL_ID_DUPLICATE",
+  "title":          "Conflict",
+  "status":         409,
+  "code":           "PV_TRANSFER_EXTERNAL_ID_DUPLICATE",
+  "message":        "Bu harici ID (external_id) ile oluşturulmuş bir transfer zaten var.",
+  "detail":         "Bu harici ID (external_id) ile oluşturulmuş bir transfer zaten var.",
+  "category":       "invalid_request_error",
+  "instance":       "/api/v1/transfers/bulk/create",
+  "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
 }
 ```
 
-## Transfer yaşam döngüsü
+| Alan | Açıklama |
+|---|---|
+| `code` | Makine-okunur kod. Kararınızı bu alana dayandırın |
+| `message` / `detail` | `Accept-Language`'e göre Türkçe / İngilizce açıklama |
+| `category` | `invalid_request_error`, `authentication_error`, `permission_error`, `rate_limit_error`, `idempotency_error`, `provider_error`, `api_error` |
+| `param` | Doğrulama hatasında ilk hatalı alan |
+| `errors[]` | `422 validation_failed` yanıtında alan bazlı hatalar |
+| `provider_error_code` | Banka reddinde bankanın ham kodu |
+| `correlation_id` | `X-Correlation-Id` ile aynı değer; destek talebinde paylaşın |
 
-| HTTP | `code` | Anlam |
+## Kayıt bulunamadı (404)
+
+| `code` | Anlam |
+|---|---|
+| `PV_TRANSFER_NOT_FOUND` | `id` bulunamadı veya bu bayi/organizasyona ait değil |
+| `PV_BULK_TRANSFER_NOT_FOUND` | Toplu transfer paketi bulunamadı |
+| `PV_RECIPIENT_NOT_FOUND` | Alıcı bulunamadı |
+| `PV_RECURRING_TRANSFER_NOT_FOUND` | Tekrarlayan transfer planı bulunamadı |
+| `PV_CONNECTOR_ACCOUNT_NOT_FOUND` | Gönderici hesap bulunamadı ya da pasif |
+| `PV_CONNECTOR_CONFIGURATION_NOT_FOUND` | Banka bağlantısı bulunamadı ya da pasif |
+
+`GET /transfers/{id}` ve `/history` kayıt yoksa genel `404 resource_not_found` döner.
+
+## Durum çakışması (409)
+
+Gördüğünüz durum eskimiştir; girdiniz bozuk değildir. Listeyi tazeleyip yeniden değerlendirin.
+
+| `code` | Anlam | Ne yapmalı |
 |---|---|---|
-| `404` | `transfer_not_found` | Verilen `transfer_id` bulunamadı veya bu tenant'a ait değil |
-| `404` | `source_account_not_found` | `source_account_id` bulunamadı |
-| `404` | `recipient_not_found` | `recipient_id` bulunamadı |
-| `422` | `invalid_state_transition` | Transfer mevcut durumdan istenen aksiyona geçemez (örn. `pending` olmayan transfer onaylanamaz) |
-| `422` | `payment_already_approved` | Transfer zaten onaylanmış |
-| `422` | `payment_already_sent` | Transfer zaten gönderilmiş |
-| `422` | `payment_already_rejected` | Transfer zaten reddedilmiş |
-| `409` | `PV_TRANSFER_INVALID_STATE` | Transfer bu durumda bu işleme uygun değil |
+| `PV_TRANSFER_EXTERNAL_ID_DUPLICATE` | `bulk/create`: `external_id` bu bayide daha önce kullanılmış **ya da** aynı istek içinde tekrar ediyor (parçalı ödemede `{id}-{n}` kimlikleri dahil). **İstek bütünüyle reddedilir, hiçbir transfer oluşmaz** | `GET /transfers?external_id=` ile mevcut transferi bulun; büyük olasılıkla önceki denemeniz başarılıydı |
+| `PV_DUPLICATE_REQUEST` | `bulk/create`: bu `X-Request-Id` ile daha önce transfer oluşturulmuş | `GET /transfers?request_id=` ile paketi sorgulayın; yeni paket için yeni `X-Request-Id` kullanın |
+| `PV_TRANSFER_INVALID_STATE` | Transfer bu durumda bu işleme uygun değil (ör. `sync`, `PATCH`, kalem düzenleme) | Güncel durumu sorgulayın |
+| `PV_TRANSFER_OUTCOME_UNKNOWN` | Banka yanıt vermedi; transfer `processing`'te kalır, **başarısız değildir** (`bulk/send` kaleminde döner; `provider_error_code` = `PV_CONNECTOR_NO_RESPONSE`) | **Yeniden göndermeyin.** `completed` / `failed` webhook'unu bekleyin veya [`/sync`](/para-transferi/transfers/outcome-resolution) çağırın |
+| `PV_TRANSFER_RESOLUTION_NOT_ALLOWED` | `resolve` yalnız `processing` / `delivered` transferde çalışır | — |
+| `PV_RECEIPT_NOT_AVAILABLE` | Transferin mevcut durumunda dekont/makbuz yok (`delivered`, `completed`, `refunded` dışı) | Durum değişince tekrar deneyin |
+| `PV_PAYOUT_TRANSFER_CLOSED` | Hakediş çekim havalesi kapandı ve bloke bayiye geri verildi; yeniden gönderilemez / onaylanamaz | Bayi yeni çekim talebi açar |
+| `PV_BULK_TRANSFER_INVALID_STATE` | Paket bu durumda bu işleme uygun değil (ör. onaylanmış paket iptal edilemez) | Paket durumunu sorgulayın |
+| `PV_BULK_ITEM_REQUIRES_BATCH_APPROVAL` | Paket kalemi tek başına onaylanamaz (`bulk/approve` kaleminde döner) | Paketi `/bulk-transfers/{id}/approve` ile onaylayın |
+| `PV_RECURRING_TRANSFER_INVALID_STATE` | Plan bu durumda bu işleme uygun değil | — |
+| `PV_RECURRING_TRANSFER_NOT_PENDING_APPROVAL` | Talimat onay beklemiyor | — |
+| `PV_RECURRING_TRANSFER_NOT_APPROVED` | Talimat onaylanmadan çalıştırılamaz | Önce `POST /recurring-transfers/{id}/approve` |
+| `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı gövde için kullanılmış | Yeni anahtar üretin |
+| `idempotency_request_in_progress` | Aynı anahtarlı istek hâlâ işleniyor | `Retry-After` sonra aynı isteği tekrarlayın |
 
-## Tekrar ve belirsiz sonuç
-
-Bu kodlar çift ödemeyi önlemek içindir; aldığınızda **yeniden denemeden önce** mevcut kaydı sorgulayın.
-
-| HTTP / yer | `code` | Anlam | Ne yapmalı |
-|---|---|---|---|
-| `409` | `PV_TRANSFER_EXTERNAL_ID_DUPLICATE` | `bulk/create`: `external_id` bu bayide daha önce kullanılmış **ya da** aynı istek içinde tekrar ediyor. **İstek bütünüyle reddedilir, hiçbir transfer oluşmaz** | `GET /transfers?external_id=` ile mevcut transferi bulun; büyük olasılıkla önceki denemeniz başarılıydı |
-| `409` | `PV_DUPLICATE_REQUEST` | `bulk/create`: bu `X-Request-Id` ile daha önce transfer oluşturulmuş | `GET /transfers?request_id=` ile paketi sorgulayın; yeni paket için yeni `X-Request-Id` kullanın |
-| `bulk/send` kalemi (`results[].error_code`) | `PV_TRANSFER_OUTCOME_UNKNOWN` | Banka yanıt vermedi (zaman aşımı). Transfer `processing`'te kalır, **başarısız değildir**; `provider_error_code` = `PV_CONNECTOR_NO_RESPONSE` | **Yeniden göndermeyin.** Sonuç otomatik ya da operatörce kesinleşir; `completed` / `failed` webhook'unu bekleyin |
-
-Toplu transfer paketlerinde (Excel, `POST /bulk-transfers` ve önizlemesi) daha önce kullanılmış ya da
+Toplu transfer paketlerinde (`POST /bulk-transfers` ve önizlemesi) daha önce kullanılmış ya da
 dosyada tekrar eden referanslar istek hatası değil **geçersiz satır** olarak döner (önizlemede de
 görünür) ve pakete alınmaz. Önizleme ile oluşturma arasında aynı referans başka bir istekle kullanılırsa
-oluşturma `409 PV_TRANSFER_EXTERNAL_ID_DUPLICATE` döner; önizlemeyi yenileyip tekrar deneyin. Uç
-ayrıntıları: [API Referansı](/api-reference/transfer).
+oluşturma `409 PV_TRANSFER_EXTERNAL_ID_DUPLICATE` döner; önizlemeyi yenileyip tekrar deneyin.
 
-## Tutar ve hesap kuralları
+## İş kuralı ve doğrulama (422)
+
+| `code` | Anlam |
+|---|---|
+| `validation_failed` | İstek alanları geçersiz — `errors[]` / `param` ile detay (tutar ≤ 0, eksik alıcı adı, `external_id` > 250 karakter, geçersiz `metadata` vb.) |
+| `PV_NO_VALID_TRANSFER` | `bulk/create`'te geçerli hiçbir kalem kalmadı; `message` atlanan kalemleri ve nedenlerini sıralar (kaynak hesap bulunamadı, IBAN çözümlenemedi, tutar/ad geçersiz) |
+| `PV_EXTERNAL_ID_RESERVED` | `external_id` sistemin ayırdığı bir önekle (`payout:`) başlayamaz |
+| `PV_SENDER_ACCOUNT_NOT_OWNED` | Gönderici hesap bu bayiye ait değil. Kendi hesabınızı seçin ya da hesap vermeden talep oluşturun |
+| `PV_SENDER_ACCOUNT_NOT_TENANT` | Transfer talebi yalnız organizasyona ait bir gönderici hesapla onaylanabilir |
+| `PV_SENDER_ACCOUNT_INACTIVE` | Gönderici hesap ya da bağlı banka bağlantısı pasif |
+| `PV_TEST_CONNECTOR_IN_LIVE_MODE` | Gönderici hesabın bağlantısı test modunda; canlı transfer bu hesaptan gönderilemez |
+| `PV_TENANT_TRANSFER_REQUIRES_TENANT_ACCOUNT` | Bayi seçmeden oluşturulan transfer organizasyonun gönderici hesaplarından biriyle gönderilmelidir |
+| `PV_TRANSFER_REQUEST_SENDER_ACCOUNT_REQUIRED` | Hesapsız talebin onayında `connector_account_id` zorunlu |
+| `PV_TRANSFER_REQUEST_INSUFFICIENT_FUNDS` | Bayinin çekilebilir bakiyesi talep tutarını karşılamıyor |
+| `PV_TRANSFER_SYNC_FAILED` | Transfer bankayla eşitlenemedi (banka durum sorgusunu desteklemiyor ya da kayıt dönmedi); mevcut durum korunur |
+| `PV_TRANSFER_DECLINED` | Banka transferi gerçekleştirmedi; `provider_error_code` bankanın ham kodudur |
+| `PV_RECIPIENT_IBAN_MISSING` | Alıcının IBAN bilgisi yok |
+| `PV_CONNECTOR_OWNER_MISMATCH` | Kayıt, bağlı olduğu yapılandırma/hesapla aynı sahibe ait olmalı |
+| `sandbox_operation_not_supported` | Test modunda üretilen kayıt için bankaya gitmesi gereken işlem istendi (dekont, yeniden gönderim) |
+
+## Yetki (403)
+
+| `code` | Anlam |
+|---|---|
+| `forbidden` | Kimliğin bu uç için izni yok — [Yetkilendirme](/para-transferi/authentication#yetkilendirme) |
+| `PV_BULK_TRANSFER_SELF_APPROVAL` | 4-göz: oluşturduğunuz ya da kalemini düzenlediğiniz paketi onaylayamazsınız |
+| `PV_RECURRING_TRANSFER_SELF_APPROVAL` | 4-göz: onaya gönderdiğiniz talimatı onaylayamazsınız |
+| `PV_TRANSFER_REQUEST_REQUIRES_TENANT_APPROVER` | Organizasyon hesabına bağlı talebi yalnız organizasyon (`tenant-*`) kullanıcıları onaylayabilir |
+| `PV_TENANT_FUNDED_SEND_REQUIRES_TENANT_ROLE` | Organizasyon hesabından çıkan başarısız transferi yalnız organizasyon kullanıcıları yeniden gönderebilir |
+| `PV_RECURRING_TENANT_FUNDED_REQUIRES_TENANT_ROLE` | Organizasyon hesabına bağlı talimatın tutarını değiştirmek, yeniden etkinleştirmek ya da hemen çalıştırmak yalnız organizasyon kullanıcılarına açıktır |
+| `PV_TENANT_ACCOUNTS_REQUIRE_TENANT_ROLE` | Organizasyon gönderici hesaplarını yalnız organizasyon kullanıcıları görebilir |
+| `feature_not_available` | Modül organizasyonunuzda etkin değil |
+
+`bulk/approve` ve `bulk/reject` kalem bazlı çalıştığından yukarıdaki kalem düzeyi kodlar HTTP `200`
+yanıtın `results[].error_code` alanında döner; 4-göz ret mesajı `message`'dadır ve `error_code` boş olabilir.
+
+## Bayi bağlamı
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `422` | `invalid_amount` | Tutar pozitif değil, sıfır veya minimum altında |
-| `422` | `invalid_currency` | Para birimi desteklenmiyor (şu an yalnız `TRY`) |
-| `422` | `insufficient_balance` | Kaynak hesapta yeterli bakiye yok |
-| `422` | `daily_limit_exceeded` | Hesap günlük transfer limiti aşıldı |
-| `422` | `monthly_limit_exceeded` | Hesap aylık transfer limiti aşıldı |
-| `422` | `single_transfer_limit_exceeded` | Tek transferde izin verilen üst tutar aşıldı |
-| `403` | `source_account_inactive` | Kaynak hesap pasif |
-| `403` | `source_account_unauthorized` | Bu kullanıcı kaynak hesaba yetkili değil |
-
-## Alıcı / IBAN
-
-| HTTP | `code` | Anlam |
-|---|---|---|
-| `422` | `invalid_iban` | IBAN checksum'ı geçmiyor |
-| `422` | `iban_not_eligible` | IBAN seçilen transfer tipinde işlenemez (örn. yurtdışı IBAN'a FAST) |
-| `422` | `recipient_blocked` | Alıcı blacklist'te |
-| `422` | `recipient_validation_failed` | TC kimlik / vergi kimliği IBAN sahibiyle eşleşmiyor (banka tarafı kontrolü) |
-| `422` | `invalid_card` | Kart numarası Luhn checksum'ı geçmiyor (kart transferi) |
-
-## Transfer tipi
-
-| HTTP | `code` | Anlam |
-|---|---|---|
-| `422` | `unsupported_transfer_type` | Bu kaynak hesap bu transfer tipini desteklemiyor |
-| `422` | `fast_amount_limit` | FAST için maksimum tutar (200.000 TL) aşıldı |
-| `422` | `fast_window_closed` | FAST sistemi geçici olarak hizmet dışı |
-| `422` | `eft_window_closed` | EFT saatleri dışında EFT talebi |
+| `400` | `merchant_context_missing` | Hiçbir bayi formu gelmedi |
+| `422` | `merchant_not_found` | Bayi bildirildi ama kayda çözülemedi |
+| `422` | `merchant_inactive` | Bayi pasif — para hareketi başlatan uçlar kapalı |
+| `422` | `merchant_not_approved` | Bayi onaysız — para hareketi başlatan uçlar kapalı |
 
 ## Banka tarafı
 
-| HTTP | `code` | Anlam |
+Bankanın reddi `error_code` (kanonik Payven kodu) ve `provider_error_code` (bankanın **ham** kodu)
+olarak iki alanda taşınır. Bankaya göre değişen ham kodlar bu sayfada listelenmez; destek talebinde
+`provider_error_code` ve `correlation_id` değerlerini paylaşın.
+
+| Değer | Nerede | Anlam |
 |---|---|---|
-| `422` | `bank_declined` | Banka transferi reddetti — `provider_error_code` daha spesifik bilgi taşır |
-| `504` | `bank_timeout` | Banka yanıt vermedi. Bankaya ulaşmış bir transfer gönderimi zaman aşımına uğrarsa transfer `failed` olmaz, `processing`'te kalır — bkz. `PV_TRANSFER_OUTCOME_UNKNOWN` |
-| `503` | `connector_unavailable` | Banka konnektörü geçici olarak devre dışı (circuit breaker açık) |
-| `502` | `bank_system_error` | Banka tarafında bilinmeyen hata |
+| `PV_CONNECTOR_NO_RESPONSE` | `provider_error_code` | Banka yanıt vermedi; sonuç bilinmiyor. Transfer `processing`'te kalır — yeniden göndermeyin |
+| `PV_CONNECTOR_TOKEN_UNAVAILABLE` | `bulk/send` kaleminde `provider_error_code`, `deferred` sayacı | Banka oturumu alınamadı, istek bankaya **gitmedi**. Transfer `approved`'a döner ve onaydan itibaren 2 saat otomatik yeniden denenir; süre dolarsa `failed` olur |
+| `504 PV_TIMEOUT` | HTTP | İşlem zaman aşımına uğradı |
 
-## Validasyon ve auth
-
-| HTTP | `code` | Anlam |
-|---|---|---|
-| `400` | `validation_failed` | İstek alanları geçersiz — `errors[]` ile detay |
-| `400` | `tenant_id_required` | `X-Tenant-Id` header'ı eksik |
-| `401` | `invalid_token` | Token eksik / geçersiz |
-| `403` | `forbidden` | Rol yetersiz (örn. `transfer-admin` gerektiren endpoint'e `transfer-operator` ile istek) |
-| `409` | `idempotency_key_in_use` | Aynı `Idempotency-Key` farklı body için kullanılmış |
-| `429` | `rate_limit_exceeded` | İstek limiti aşıldı — `Retry-After` header'ına uyun |
-
-## Banka yanıt kodları (`provider_error_code`)
-
-`bank_declined` durumunda banka tarafından dönen orijinal kod `provider_error_code` alanında taşınır. Yaygın kodlar:
-
-| Kod | Açıklama | Müşteriye gösterim |
-|---|---|---|
-| `01` | Yetersiz bakiye | "Hesabınızda yeterli bakiye yok." |
-| `02` | Hesap bulunamadı | "Alıcı IBAN'ı geçersiz veya kapalı." |
-| `03` | Hesap dondurulmuş / blokeli | "Alıcı hesabı işleme uygun değil." |
-| `04` | Limit aşımı | "Bu transfer banka limitlerini aşıyor." |
-| `05` | TC kimlik eşleşmiyor | "Alıcı bilgilerinde uyumsuzluk." |
-| `91` | Banka sistemi yanıt vermedi | Bankaya göre değişir |
-| `96` | Sistem hatası | Bankaya göre değişir |
-| `PV_CONNECTOR_NO_RESPONSE` | Banka yanıt vermedi; sonuç bilinmiyor (transfer `processing`'te kalır) | (Yeniden göndermeyin; sonuç kesinleşince bildirilir) |
-
-Banka-spesifik tam kod listesi konsoldaki **Konnektör Hata Kodları** ekranında bulunabilir.
-
-## Müşteriye gösterme
-
-`detail` alanı son kullanıcıya gösterilebilir nitelikte yazılır. Yine de hassas durumlarda (recipient_blocked, fraud şüphesi) genel bir mesajla geçiştirmek daha güvenlidir:
+`failed` transferin kodu `GET /transfers/{id}` yanıtındaki `error_code` / `provider_error_code`
+alanlarındadır; webhook gövdesinde aynı alanlar bulunur. Hata gösterimi için `message` alanı
+kullanılabilir; hassas durumlarda (alıcı kara listesi, fraud şüphesi) genel bir mesajla geçiştirmek
+daha güvenlidir:
 
 ```javascript
 function userMessage(problem) {
   switch (problem.code) {
-    case "insufficient_balance":
-    case "daily_limit_exceeded":
-    case "monthly_limit_exceeded":
-      return problem.detail;
-    case "recipient_blocked":
-    case "recipient_validation_failed":
-      return "Transfer gerçekleştirilemedi. Lütfen alıcı bilgilerinizi kontrol edin.";
-    case "bank_declined":
-      return "Bankanız transferi onaylamadı. Lütfen sonra tekrar deneyin.";
+    case "PV_TRANSFER_REQUEST_INSUFFICIENT_FUNDS":
+      return problem.message;
+    case "PV_TRANSFER_DECLINED":
+      return "Bankanız transferi onaylamadı. Lütfen alıcı bilgilerini kontrol edin.";
     default:
       return "Transfer şu an gerçekleştirilemedi. Lütfen tekrar deneyin.";
   }
 }
 ```
 
+## Genel hatalar
+
+| HTTP | `code` | Anlam |
+|---|---|---|
+| `401` | `unauthorized` / `tenant_required` | Token eksik, geçersiz ya da `tenant_id` claim'i yok |
+| `404` | `resource_not_found` | Kaynak bulunamadı |
+| `422` | `validation_failed` | Doğrulama hatası |
+| `429` | `rate_limit_exceeded` | İstek limiti aşıldı — `Retry-After` header'ına uyun |
+| `500` | `PV_UNEXPECTED_ERROR` | Beklenmeyen hata — `correlation_id` ile destek talebi açın |
+
 ## Destek talebi
 
 Her hata yanıtında dönen **`correlation_id`** değerini paylaşın — log zincirini saniyeler içinde bulabiliriz. Response header'ındaki `X-Correlation-Id` ile gövdedeki `correlation_id` aynı değerdir.
 
 ```text
-Konu:    Transfer 422 — insufficient_balance
+Konu:    Transfer 422 — PV_TRANSFER_DECLINED
 Detay:   correlation_id: 9f1c8e76-...
          transfer_id:   8e3f5c12-...
          external_id:   PAYROLL-001

@@ -1,51 +1,42 @@
 ---
 title: "Taksit"
-description: "Kart programlarına göre taksitli ödeme alma."
+description: "Taksit teklifi alma ve taksitli ödeme."
 ---
 
-Taksitli ödeme, müşterinin tutarı **eşit aylık taksitler halinde** ödediği akıştır. Hangi taksitlerin uygulanabileceği üç parametreye bağlıdır:
+Taksitli ödeme, müşterinin tutarı **eşit aylık taksitler halinde** ödediği akıştır. Hangi taksitlerin ve hangi vade farkının uygulanacağı üç şeye bağlıdır:
 
-1. **Banka kart programı** (Bonus, Maximum, Axess, World, Paraf, Cardfinans, vb.)
-2. **Organizasyonunuzun banka anlaşması** (her banka kendi taksit kampanyalarını tanımlar)
-3. **Ödeme tutarı** (her bankanın taksit başına minimum tutarı vardır)
+1. **Kartın bankası ve türü** (BIN'den çözülür; yalnız kredi kartında taksit yapılır)
+2. **İşletmenizin banka profili ve taksit politikası** (azami taksit, oranlar, vade farkı modu)
+3. **Ödeme tutarı**
 
 ## İstekte taksit alanı
 
-`CreatePaymentRequest` ve `Init3DRequest` body'lerinde `installment` alanı taksit sayısını taşır:
+`POST /payments` ve `POST /payments/3d/init` gövdesindeki `installment` alanı taksit sayısını taşır:
 
 ```json
 {
-  "amount":         { "amount": 60000, "currency": "TRY" },
+  "external_id":    "ORDER-1001",
+  "amount":         { "amount": 62400, "currency": "TRY" },
   "installment":    6,
-  "operation_type": "sale",
-  "card":           { ... }
+  "connector_config_id": "5b1c0f7e-2d4a-4e0b-9a55-7c2f1e8d3a10",
+  "card":           { "...": "..." }
 }
 ```
 
 | Değer | Anlam |
 |---|---|
 | `1` | Peşin (varsayılan) |
-| `2`–`12` | Aylık taksit sayısı |
+| `2`–`12` | Aylık taksit sayısı; aralık dışı değer `422 validation_failed` |
 
-Banka taksiti destekliyorsa onaylar; desteklemiyorsa `422 PV_INVALID_INSTALLMENT` veya
-`422 PV_INSTALLMENT_NOT_ALLOWED` hatası döner — bkz. [Payven Hata Kodları](/sanal-pos/errors/payven-codes#taksit-kodlari).
+<Note>
+**Payven ödeme sırasında vade farkı hesaplamaz.** `amount`, müşteriden çekilecek **nihai toplamdır** (vade farkı dahil). Vade farklı bir plan seçildiyse teklifteki `plans[].total_amount_kurus` değerini `amount` olarak gönderin; ödeme yanıtında `interest_amount` `0` döner. Taksit sayısı gönderdiğiniz `installment` değeridir.
+</Note>
 
 ## Müşteriye uygun seçenekleri sunma
 
-Müşteri kart numarasını yazdığında, BIN'e göre uygun taksit seçeneklerini göstermek istiyorsunuz. İki yaklaşım:
-
 <Tabs>
   <Tab title="Hosted Checkout (kolay)">
-    [Hosted Checkout](/sanal-pos/payments/hosted-checkout) sayfası taksit seçeneklerini **otomatik** doldurur — kart programı, BIN ve banka anlaşması bazlı tüm sınırları Payven yönetir.
-
-    Sadece üst sınır koymak isterseniz `allowed_installments` ile filtreleyin:
-
-    ```json
-    {
-      "amount":               { "amount": 60000, "currency": "TRY" },
-      "allowed_installments": [1, 3, 6, 9]
-    }
-    ```
+    [Hosted Checkout](/sanal-pos/payments/hosted-checkout) sayfası taksit seçeneklerini müşteri kartı girince **otomatik** gösterir; BIN, banka profili ve vade farkını Payven yönetir.
   </Tab>
   <Tab title="Direct API">
     Müşteri kart numarasını yazınca BIN + tutar ile **taksit teklifi** isteyin:
@@ -61,63 +52,110 @@ Müşteri kart numarasını yazdığında, BIN'e göre uygun taksit seçenekleri
       }'
     ```
 
-    | Request alanı | Zorunluluk | Açıklama |
+    | İstek alanı | Zorunluluk | Açıklama |
     |---|---|---|
-    | `card_bin` | Zorunlu | İlk 6 hane (16 haneli PAN da kabul edilir, ilk 6 kullanılır) |
-    | `amount_kurus` | Zorunlu | Toplam tutar (kuruş, > 0) |
-    | `currency` | Opsiyonel | Default `TRY` |
-    | `connector_config_id` | Opsiyonel | Belirli bankadan teklif iste; verilmezse routing'den ilk eşleşme |
-    | `installment_count` | Opsiyonel | Taksit tercihi biliniyorsa routing taksit-bilinçli eşleşir (1–12) |
+    | `card_bin` | Zorunlu | Yalnız rakam, en az 6 hane (16 haneli kart numarası da gönderilebilir; ilk 6 hane kullanılır) |
+    | `amount_kurus` | Zorunlu | Toplam tutar, kuruş, `0`'dan büyük |
+    | `currency` | Opsiyonel | Boşsa `TRY` |
+    | `connector_config_id` | Opsiyonel | Belirli bir bankadan teklif iste; verilmezse yönlendirmeden ilk eşleşme |
+    | `installment_count` | Opsiyonel | Taksit tercihi biliniyorsa yönlendirme taksit-bilinçli eşleşir (`1`–`12`) |
 
-    Yanıt; banka bilgisi (`bank_code`, `bank_name`), yabancı kart işareti (`is_foreign_card`)
-    ve her geçerli taksit planı için bir `options[]` listesi döner. Her plan kendi
-    `connector_config_id` değerini taşır — müşteri planı seçtikten sonra bu değeri
-    `POST /payments` veya `POST /payments/3d/init` isteğine `connector_config_id` olarak
-    **geri gönderin**: teklifte gösterilen oran/kampanya birebir o banka üzerinden uygulanır
-    (routing bypass edilir, sapma olmaz).
+    Teklif ucu yalnız okuma yapar; işletme kapsamı (`X-Merchant-Id`) ödeme uçlarındaki gibidir.
+
+    ```json
+    {
+      "card_bin":     "454671",
+      "amount_kurus": 60000,
+      "currency":     "TRY",
+      "bank_code":    "00062",
+      "bank_name":    "Garanti BBVA",
+      "is_foreign_card": false,
+      "merchant_bank_profile_configured": true,
+      "connector_config_id": "5b1c0f7e-2d4a-4e0b-9a55-7c2f1e8d3a10",
+      "plans": [
+        {
+          "connector_config_id":    "5b1c0f7e-2d4a-4e0b-9a55-7c2f1e8d3a10",
+          "count":                  1,
+          "total_amount_kurus":     60000,
+          "per_installment_kurus":  60000,
+          "interest_rate":          null,
+          "interest_amount_kurus":  0,
+          "interest_mode":          "faizsiz"
+        },
+        {
+          "connector_config_id":    "5b1c0f7e-2d4a-4e0b-9a55-7c2f1e8d3a10",
+          "count":                  6,
+          "total_amount_kurus":     62400,
+          "per_installment_kurus":  10400,
+          "interest_rate":          4.0,
+          "interest_amount_kurus":  2400,
+          "interest_mode":          "musteri_oder"
+        }
+      ]
+    }
+    ```
+
+    | Alan | Açıklama |
+    |---|---|
+    | `is_foreign_card` | BIN tanınmadı (yabancı kart); taksit listesi boş ya da yalnız peşin olabilir |
+    | `merchant_bank_profile_configured` | `false` ise işletmenin bu banka için taksit politikası tanımlı değildir, yalnız peşin döner |
+    | `plans[].count` | Taksit sayısı (`1` = peşin) |
+    | `plans[].total_amount_kurus` | Müşterinin ödeyeceği toplam (vade farkı dahil) |
+    | `plans[].per_installment_kurus` | Tek taksit tutarı |
+    | `plans[].interest_rate` / `interest_amount_kurus` | Vade farkı oranı (%) ve tutarı; faizsiz / işletme üstlenir modunda `null` / `0` |
+    | `plans[].interest_mode` | `faizsiz` (kampanya), `bayi_ustlenir` (vade farkını işletme öder), `musteri_oder` (müşteriye yansır) |
+
+    Müşteri planı seçtikten sonra planın `connector_config_id` değerini `POST /payments` veya `POST /payments/3d/init` isteğine **aynen geri gönderin**: teklifteki oran ve kampanya o banka üzerinden birebir uygulanır (yönlendirme atlanır, sapma olmaz).
   </Tab>
 </Tabs>
 
-## Yanıttaki taksit bilgisi
+## BIN sorgusu
 
-`PaymentStatus` (sorgulama) yanıtında işlem yapılırken kullanılan taksit sayısı bulunur:
+Kartın bankasını, şemasını ve türünü ödeme öncesinde öğrenmek için (ör. borç kartında taksit seçeneğini gizlemek):
+
+```bash
+curl https://vpos.payven.com.tr/api/v1/bins/454671 \r
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+`POST /api/v1/bins/check` (gövde: `{ "bin": "454671" }`) aynı sonucu döner; kart numarasının URL'de yer almaması gereken istemcilerde bunu kullanın. Gerekli yetki `CanViewTransactions`.
 
 ```json
 {
-  "transaction_id": "...",
-  "amount":         60000,
-  "currency":       "TRY",
-  "is_3d_secure":   true,
-  "extra_properties": {
-    "auth_code":               "123456",
-    "host_reference":          "PAYVEN-REF-789",
-    "provider_transaction_id": "9f3d2b8e-..."
-  }
+  "bin":      "454671",
+  "found":    true,
+  "schema":   "visa",
+  "card_type":"credit",
+  "bank_code":"00062",
+  "bank_name":"Garanti BBVA",
+  "bank_logo_url": "https://cdn.payven.com.tr/banks/garanti.svg"
 }
 ```
 
-Taksit sayısı request'te belirttiğiniz değerdir; banka onayında `extra_properties.installment` da olabilir (konnektöre göre değişir).
+BIN tanınmıyorsa `found: false` döner (yabancı ya da bilinmeyen kart).
 
 ## Taksit kuralları
 
-<Check>**Borç/prepaid kartında taksit yok.** Bu kartlarda `installment > 1` `422 invalid_installment` ile reddedilir.</Check>
-<Check>**Yabancı kartta taksit yok.** Yurt dışı bankalarının kartları taksite uygun değildir.</Check>
-<Check>**Minimum tutar.** Her bankanın taksit başına minimum tutar şartı vardır (genelde 100 ₺).</Check>
-<Check>**Maximum taksit.** Bankaya göre değişir. Yaygın üst sınır 12 ay; bazı kampanyalarda 18-24 ay.</Check>
-<Check>**Komisyon kart programına bağlı.** Her banka kendi taksit kampanyasını tanımlar — organizasyon anlaşmanıza yansır.</Check>
+<Check>**Borç ve ön ödemeli kartta taksit yok.** `installment > 1` ile gelen istek bankaya gitmeden `422 PV_INSTALLMENT_NOT_ALLOWED` ile reddedilir. Kart türü çözülemezse karar bankaya bırakılır.</Check>
+<Check>**Yabancı kartta taksit** işletmenin banka profilinde açıksa yapılır; kapalıysa `422 PV_FOREIGN_CARD_INSTALLMENT_NOT_ALLOWED`.</Check>
+<Check>**Azami taksit ve vade farkı** işletmenin banka profilindeki politikaya bağlıdır ve yalnız teklifte hesaplanır; ödeme isteğinde teklifteki toplamı ve `connector_config_id`yi göndererek aynı planı uygulatırsınız.</Check>
+<Check>**Hosted Checkout oturumunda** işletme sabit bir taksit planı belirlemişse sayfa taksit seçimini göstermez (`PV_CHECKOUT_SESSION_INSTALLMENT_NOT_ALLOWED` yalnız taksite kapalı oturumda döner).</Check>
 
-## Hata response'ları
+## Yanıttaki taksit bilgisi
+
+Ödeme yanıtındaki `amount` gönderdiğiniz nihai toplamdır. İşlem kaydında taksit sayısı `installment_count` alanında görünür — bkz. [İşlem Listesi](/sanal-pos/inquiries/transaction-list). Bankanın ek kampanyası (bonus taksit, erteleme) olursa `bank_additional_install_count` ve `bank_defering_month` alanlarında yer alır.
+
+## Hata yanıtları
 
 | HTTP | `code` | Anlam |
 |---|---|---|
-| `422` | `invalid_installment` | Taksit sayısı bu kart için desteklenmiyor (debit/prepaid/yurtdışı kart, tutar minimumu altında, banka destek vermiyor) |
-| `422` | `bank_declined` | Banka taksit talebini reddetti (anlaşma dışı) |
+| `422` | `validation_failed` | `installment` 1–12 dışında; teklif isteğinde `card_bin` / `amount_kurus` geçersiz |
+| `422` | `PV_INSTALLMENT_NOT_ALLOWED` | Taksit bu işletme / kart (borç, ön ödemeli) için uygun değil |
+| `422` | `PV_FOREIGN_CARD_INSTALLMENT_NOT_ALLOWED` | Yabancı kart ile taksit kapalı |
+| `422` | Banka kodu + `provider_error_code` | Banka taksit talebini reddetti |
 
-Hata yanıtı RFC 9457 problem+json formatındadır.
+Hata yanıtı RFC 9457 problem+json formatındadır. Kodlar: [Payven Hata Kodları](/sanal-pos/errors/payven-codes).
 
-## Yol haritası
+## Test ortamı
 
-- **Public installment lookup endpoint** — BIN + tutar kombinasyonu için izin verilen taksit listesini canlı sorgulama
-- **Kampanya editor UI** — banka kampanyalarını konsoldan kural motoruna eklemek
-
-Güncellemeler için: [Changelog](/resources/changelog).
+Test modunda taksit teklifi işletme politikanızdan hesaplanır, ödeme ise bankaya gitmeden simüle edilir. Ayrıntı: [Sandbox](/sanal-pos/test/sandbox).

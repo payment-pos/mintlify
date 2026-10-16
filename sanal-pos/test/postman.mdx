@@ -33,12 +33,12 @@ Sanal POS API'sini hızlı denemek için iki koleksiyon sunuyoruz:
   </Step>
   <Step title="Değişkenleri doldurun">
     Environment değişkenlerine kimlik bilgilerinizi yazın:
-    - `client_id`: `pvk_test_...` veya `pvk_live_...` (service-account client id)
+    - `client_id`: API anahtarınızın `pvk-...` kimliği (test anahtarı test modunda çalışır)
     - `client_secret`: secret değeriniz
     - `slug`: tenant slug'ınız (örn. `payven`)
-    - `identity_base_url`: `https://identity-sandbox.payven.com.tr` veya `https://identity.payven.com.tr`
-    - `vpos_base_url`: `https://vpos-sandbox.payven.com.tr` veya `https://vpos.payven.com.tr`
-    - `merchant_base_url`: `https://merchant-sandbox.payven.com.tr` veya `https://merchant.payven.com.tr` (İşyeri API'si — webhook uçları ve olaylar; API anahtarının `merchant` kapsamı seçili olmalı)
+    - `identity_base_url`: `https://identity.payven.com.tr`
+    - `vpos_base_url`: `https://vpos.payven.com.tr`
+    - `merchant_base_url`: `https://merchant.payven.com.tr` (İşyeri API'si — webhook uçları ve olaylar; API anahtarının `merchant` kapsamı seçili olmalı)
   </Step>
   <Step title="Token alın (otomatik)">
     Koleksiyonun **Pre-request Script**'i, `access_token` boşsa veya süresi dolmak üzereyse
@@ -117,9 +117,9 @@ if (Date.now() >= expiry - 60_000) {
       client_secret: pm.environment.get("client_secret"),
     })},
   }, (err, res) => {
-    const data = res.json();
-    pm.environment.set("access_token", data.access_token);
-    pm.environment.set("token_expires_at", String(Date.now() + data.expires_in * 1000));
+    const data = res.json(); // /token yanıtı { token: { access_token, expires_in, ... }, challenge: null } zarfındadır
+    pm.environment.set("access_token", data.token.access_token);
+    pm.environment.set("token_expires_at", String(Date.now() + data.token.expires_in * 1000));
   });
 }
 ```

@@ -1,0 +1,42 @@
+---
+title: "Hata Kodları ve Sandbox"
+description: "Fatura Ödeme hata kodları, kurum reddi ve test modu davranışı."
+---
+
+Hata zarfı fleet genelinde aynıdır ([Hata Yönetimi](/documentation/concepts/errors)): `code`, `message`, `category`, `param`. Kurum reddinde ek olarak `provider_error_code` (kurumun ham kodu) gelir; karar `code` üzerinden, destek talebi `provider_error_code` üzerinden yürür.
+
+## Ürün kodları
+
+| Kod | HTTP | Anlam |
+|---|---|---|
+| `PV_INQUIRY_FAILED` | 422 | Sorgu yapılamadı |
+| `PV_PAYMENT_FAILED` | 422 | Kuruma ödeme gerçekleşmedi (kurum eşlemesi yoksa varsayılan kod) |
+| `PV_CANCELLATION_FAILED` | 422 | Ödeme iptal edilemedi |
+| `PV_CONNECTOR_NOT_CONFIGURED` | 422 | Bu kurum için aktif entegratör tanımlı değil |
+| `sandbox_operation_not_supported` | 422 | Test faturasında desteklenmeyen işlem |
+| `PV_TIMEOUT` | 504 | Zaman aşımı; sonuç belirsiz olabilir |
+| `PV_UNEXPECTED_ERROR` | 500 | Beklenmeyen hata |
+
+Ortak kodlar: `validation_failed` (422), `resource_not_found` (404), `merchant_context_missing` (400), `merchant_inactive` / `merchant_not_approved` (422), `idempotency_key_in_use` (409).
+
+<Note>
+İş kuralı reddi (ör. kurum "ödenmiş fatura" der) 5xx dönmez; 5xx yalnız beklenmeyen hata ve zaman aşımıdır. 504'te yeniden ödemeden önce ödemenin oluşup oluşmadığını kontrol edin.
+</Note>
+
+## Sandbox (test modu)
+
+Test modu şu yollardan biriyle açılır: **test API anahtarı**, panelin test seçimi (`X-Payven-Mode: test`) ya da bayinin ortamının `sandbox` olması. Test modunda:
+
+- Kurum çağrısı **yapılmaz**; sorgu ve ödeme Payven simülatöründe çalışır, kayıtlar gerçek yazılır.
+- Test kayıtları canlı listelerde görünmez; aynı TCKN iki modda ayrı sepettir.
+- Webhook'lar **yine gönderilir**; yalnız bayiye giden SMS/e-posta bildirimleri susturulur.
+- Simüle edilen tahsilat Cüzdan'ın test defterine yazılır.
+- Simüle faturanın canlı kuruma ödenmesi mümkün değildir (`sandbox_operation_not_supported`).
+
+### Test aboneleri
+
+Belirli bir senaryoyu zorlamak için **test abonesi** tanımlayın (`/api/v1/testsubscribers`, `CanManageInvoices`). Abone numarası sorgulandığında kayıtlı senaryo uygulanır, bayi hangi modda olursa olsun:
+
+`success`, `bill_not_found`, `already_paid`, `insufficient_balance`, `invalid_subscriber`, `timeout`, `gateway_error`, `provider_declined`, `random_failure`.
+
+Bayi "Tüm test verilerini sil" dediğinde test faturaları, tahsilatlar ve sepetler temizlenir.

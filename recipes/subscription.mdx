@@ -1,9 +1,9 @@
 ---
 title: "Reçete — Subscription"
-description: "Saved card ile tekrarlayan (recurring) ödeme akışı — ilk işlemde kartı kaydet, sonraki dönemleri otomatik çek."
+description: "Tekrarlayan ödeme planı: kart bir kez alınır, taksitler belirlenen periyotta otomatik tahsil edilir."
 ---
 
-Bu reçete, abonelik (örn. aylık SaaS, bağış, sigorta primi) gibi **tekrarlayan ödeme** senaryolarını gösterir. İlk işlemde kart bilgisi alınır ve **token** olarak Payven'e kaydedilir; sonraki dönemlerde kart bilgisi olmadan, yalnız bu token ile ödeme alınır (Card-on-File / Merchant-Initiated Transaction — MIT).
+Bu reçete abonelik (örn. aylık SaaS, bağış, sigorta primi) gibi **tekrarlayan tahsilat** senaryosunu gösterir. Plan bir kez oluşturulur; **her vade gününde Payven taksiti kendisi çeker**. Sunucunuzda zamanlayıcı (cron) çalıştırmanız ya da kart token'ı saklamanız gerekmez; sonuçları webhook ile alırsınız.
 
 ## Akış
 
@@ -14,164 +14,176 @@ sequenceDiagram
     participant Payven
     participant Bank
 
-    Note over User,Bank: 1. İlk dönem (CIT — Customer-Initiated)
     User->>App: Aboneliğe başla + kart bilgisi
-    App->>Payven: POST /payments<br/>{ store_card: true, ... }
-    Payven->>Bank: Otorizasyon (3DS önerilir)
-    Bank-->>Payven: Onay
-    Payven-->>App: { transaction_id, card_token }
-    Note over App: card_token'ı saklayın<br/>(asla raw kart no'sunu değil)
+    App->>Payven: POST /recurring<br/>{ amount, period, installment_count, card ... }
+    Payven->>Bank: Plan açılır (3DS seçildiyse doğrulama)
+    Payven-->>App: { is_success, plan: { id, status: "active" } }
 
-    Note over App,Bank: 2. Sonraki dönemler (MIT — Merchant-Initiated)
-    App->>App: Cron: ay sonu fatura
-    App->>Payven: POST /payments/recurring<br/>{ card_token, amount }
-    Payven->>Bank: MIT otorizasyon (3DS yok)
-    Bank-->>Payven: Onay / Red
-    Payven-)App: webhook: sanalpos.payment.completed | sanalpos.payment.failed
+    loop Her vade günü
+        Payven->>Bank: Taksit tahsilatı
+        Payven-)App: webhook: sanalpos.subscription.charged | failed
+    end
+    Payven-)App: webhook: sanalpos.subscription.completed
 ```
 
-## 1. İlk işlem — kartı kaydet
+## 1. Planı oluştur
 
-İlk dönemde standart bir 3DS ödemesi başlatın ve `store_card: true` ile kartın saklanmasını isteyin. **Tüketici akışında 3DS kullanın** — chargeback sorumluluğu bankaya geçer ve banka sonraki MIT'leri bağlamak için CIT auth'unu kullanır.
+Kart bilgisi yalnız bu istekte gönderilir. Bayiye bağlı bir anahtar kullanıyorsanız bayi header'ı gerekmez; organizasyon geneli anahtarda `X-Merchant-Id` ekleyin.
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/payments/3d/init \
+curl -X POST https://vpos.payven.com.tr/api/v1/recurring \
   -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Idempotency-Key: subscription-1001-init" \
+  -H "Idempotency-Key: sub-1001-create" \
   -H "Content-Type: application/json" \
   -d '{
-    "external_id": "SUB-1001-INIT",
-    "amount":      { "amount": 9900, "currency": "TRY" },
-    "installment": 1,
-    "store_card":  true,
+    "external_id":       "SUB-1001",
+    "amount":            { "amount": 9900, "currency": "TRY" },
     "card": {
       "holder_name":  "Test Kullanici",
-      "number":       "4546711234567894",
+      "number":       "4111111111111111",
       "expire_month": "12",
       "expire_year":  "2030",
-      "cvv":          "000"
+      "cvv":          "123"
     },
-    "buyer": {
-      "id":    "cust-001",
-      "email": "user@example.com"
-    },
-    "success_url": "https://example.com/3ds/basarili",
-    "fail_url":    "https://example.com/3ds/basarisiz"
+    "buyer":             { "id": "cust-001", "email": "user@example.com" },
+    "description":       "Aylık üyelik",
+    "period":            "monthly",
+    "interval":          1,
+    "installment_count": 12,
+    "start_date":        "2026-11-01T00:00:00+03:00",
+    "secure_type":       "three_ds",
+    "return_url":        "https://example.com/abonelik/tamam"
   }'
 ```
 
-3DS akışı tamamlandığında yanıt:
+| Alan | Açıklama |
+|---|---|
+| `amount.amount` | **Her taksitin** tutarı (kuruş) |
+| `period` / `interval` | `daily`, `weekly`, `monthly`, `yearly` ve çarpan (`monthly` + `1` = ayda bir) |
+| `installment_count` | Toplam çekim sayısı |
+| `start_date` | İlk çekim tarihi (`+03:00` ile) |
+| `secure_type` | `three_ds` ya da `non_three_ds` (varsayılan) |
+| `return_url` | 3D Secure sonrası tarayıcının döneceği adres |
+
+**Tüketici akışında `three_ds` kullanın**: sorumluluk bankaya geçer. Bu durumda yanıt `requires_three_d_secure: true` ve base64 kodlu `html_content` taşır; çözüp müşterinin tarayıcısında render edin. Doğrulama tamamlanınca plan aktifleşir.
 
 ```json
 {
-  "transaction_id": "8e3f5c12-...",
-  "status":         "completed",
-  "card_token":     "ctok_2025_NF8a9P...",
-  "extra_properties": {
-    "auth_code":      "123456",
-    "card_brand":     "visa",
-    "last_four":      "7894"
+  "is_success": true,
+  "requires_three_d_secure": true,
+  "html_content": "PGZvcm0gLi4u...",
+  "plan": {
+    "id": "5c1a7d3e-92b4-4f08-a6c1-8e2d0f4b7a19",
+    "external_id": "SUB-1001",
+    "period": "monthly",
+    "interval": 1,
+    "installment_count": 12,
+    "amount": 9900,
+    "currency": "TRY",
+    "secure_type": "three_ds",
+    "status": "active",
+    "masked_card_number": "411111******1111"
   }
 }
 ```
 
-`card_token`'ı veritabanınıza, **kullanıcı kimliğine bağlı** olarak saklayın. Ham PAN'ı asla saklamayın — token zaten size bunu sağlıyor.
+`plan.id` değerini kendi abonelik kaydınızla birlikte saklayın. Ham kart numarasını saklamayın; plan yaşam döngüsü boyunca Payven kartı sizin yerinize yönetir.
 
 <Warning>
-**`card_token` zorunlu olarak ilgili kullanıcıya bağlı saklanır.** Farklı bir kullanıcının abonelik ödemesinde başkasının token'ını kullanmayın — fraud kuralı tetiklenir ve Payven işlemi reddeder.
+Test modunda (test anahtarı) planın 3D adımı simülatör sayfasıyla ilerler ve bankaya gidilmez. Non-3D plan için bayinin banka konfigürasyonunun tekrarlayan ödemeyi desteklemesi gerekir; desteklemiyorsa `422 PV_RECURRING_NOT_SUPPORTED` döner. Ayrıntılı alan listesi: [Tekrarlayan Ödeme](/sanal-pos/payments/recurring).
 </Warning>
 
-## 2. Sonraki dönemler — token ile çekim
+## 2. Taksit sonuçlarını webhook ile izle
 
-Bir sonraki dönem geldiğinde (cron, billing event, manuel tetikleme):
-
-```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/payments/recurring \
-  -H "Authorization: Bearer $PAYVEN_TOKEN" \
-  -H "Idempotency-Key: subscription-1001-month-2026-06" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "external_id": "SUB-1001-2026-06",
-    "card_token":  "ctok_2025_NF8a9P...",
-    "amount":      { "amount": 9900, "currency": "TRY" },
-    "installment": 1,
-    "buyer": {
-      "id":    "cust-001",
-      "email": "user@example.com"
-    }
-  }'
-```
-
-Yanıt başarılı senaryoda:
+Her vade gününde bir taksit çekilir ve olay yayınlanır. Olayı `X-Payven-Event-Id` ile tekilleştirin.
 
 ```json
 {
-  "transaction_id": "9b2e4d70-...",
-  "status":         "completed",
-  "extra_properties": {
-    "auth_code":     "789012",
-    "scheme_indicator": "MIT",
-    "original_transaction_id": "8e3f5c12-..."
-  }
-}
-```
-
-<Tip>
-**`Idempotency-Key`'i ay+abonelik kimliğinden deterministik üretin** (`subscription-1001-month-2026-06`). Cron iki kez çalıştığında aynı ay için ikinci ödeme oluşmaz.
-</Tip>
-
-## 3. Başarısız ödemenin yönetimi
-
-MIT işleminde 3DS olmadığı için banka reddi olası — yetersiz bakiye, kart limit aşımı, kart süresi dolmuş vb. Webhook ile yakalayın:
-
-```json
-{
-  "id":   "evt_...",
-  "type": "sanalpos.payment.failed",
+  "id":       "evt_8e3f5c129a7b4c8dbc4e2c963f66afa6",
+  "object":   "event",
+  "type":     "sanalpos.subscription.charged",
+  "created":  "2026-11-01T06:00:15.211+03:00",
+  "livemode": true,
   "data": {
-    "transaction_id":          "9b2e4d70-...",
-    "status":                  "failed",
-    "error_code":              "insufficient_funds",
-    "provider_error_code":     "51"
+    "object": {
+      "event_type":         "sanalpos.subscription.charged",
+      "plan_id":            "5c1a7d3e-92b4-4f08-a6c1-8e2d0f4b7a19",
+      "external_id":        "SUB-1001",
+      "plan_status":        "active",
+      "installment_index":  1,
+      "installment_status": "completed",
+      "amount":             9900,
+      "currency":           "TRY",
+      "result_code":        "00",
+      "masked_card_number": "411111******1111",
+      "occurred_at":        "2026-11-01T06:00:15+03:00"
+    }
   }
 }
 ```
 
-Önerilen retry stratejisi:
+| Olay | Anlam |
+|---|---|
+| `sanalpos.subscription.charged` | Taksit çekildi |
+| `sanalpos.subscription.failed` | Taksit çekilemedi (plan otomatik iptal olmaz) |
+| `sanalpos.subscription.cancelled` | Plan iptal edildi |
+| `sanalpos.subscription.completed` | Tüm taksitler tamamlandı |
+| `sanalpos.subscription_charge.reversed` | Çekilmiş taksit bankada geri çevrildi |
+| `sanalpos.subscription_charge.failed` | Çekilmiş görünen taksit sonradan hata olarak raporlandı |
 
-| Banka kodu | Anlam | Retry stratejisi |
-|---|---|---|
-| `51` | Yetersiz bakiye | 3-5 gün sonra 1-2 retry; sonra kullanıcıya kart güncelleme bildirimi |
-| `54` | Kart süresi dolmuş | Retry yapma; kullanıcıdan yeni kart iste |
-| `62` | Kısıtlı kart | Retry yapma; bayi onayı / banka değişikliği gerekli |
-| `91`/`96` | Banka sistemi | Smart Retry zaten devreye girer; otomatik alternatif konnektör denenir |
-| `61` | Limit aşımı | 1-2 gün sonra retry |
+Her çekim ayrıca bir işlem kaydı oluşturur ve `sanalpos.payment.*` olaylarını yayınlar; işlemin `external_id` değeri `{plan_external_id}-{taksit_sırası}` biçimindedir (örn. `SUB-1001-2`).
 
-Üç başarısız retry sonrası **dunning flow**'a (e-posta + uygulama-içi bildirim) geçin.
-
-## 4. Aboneliği iptal etme
-
-Token'ı iptal etmek (kullanıcı aboneliği sonlandırdı):
+Planın ve taksitlerin güncel durumu için:
 
 ```bash
-curl -X POST https://vpos.payven.com.tr/api/v1/payments/{transaction_id}/recurring/cancel \
+curl "https://vpos.payven.com.tr/api/v1/recurring/5c1a7d3e-92b4-4f08-a6c1-8e2d0f4b7a19?force_sync=true" \
   -H "Authorization: Bearer $PAYVEN_TOKEN"
 ```
 
-Bu endpoint, ilk aboneliğin `transaction_id`'sini alır ve ona bağlı saklı kart token'ını iptal eder. Sonraki MIT denemesi `422 token_revoked` döner.
+Yanıt, plan alanlarına ek olarak `installments[]` (her biri `installment_index`, `due_date`, `amount`, `payment_status`: `pending`, `completed`, `error`, `cancelled`) taşır.
 
-## Kontrol listesi (canlıya çıkmadan)
+## 3. Başarısız taksitin yönetimi
 
-<Check>İlk işlem (CIT) **3DS ile** yapıldı mı?</Check>
-<Check>`card_token` veritabanında **kullanıcı ID'si** ile birlikte saklanıyor mu?</Check>
-<Check>Recurring isteklerinde **`Idempotency-Key`** dönem-bazlı deterministik mi?</Check>
-<Check>`sanalpos.payment.failed` webhook'u handler'ınız retry kuyruğuna yazıyor mu?</Check>
-<Check>Kart süresi dolan kullanıcıya bildirim akışı kurulu mu?</Check>
-<Check>Token iptal endpoint'i abonelik iptal akışına bağlı mı?</Check>
+Banka reddi durumunda taksit `error` olur, `sanalpos.subscription.failed` yayınlanır ve `result_code` / `result_message` sebebi taşır. Önerilen strateji (sunucunuzdaki dunning akışı):
+
+| Banka kodu (`result_code`) | Anlam | Strateji |
+|---|---|---|
+| `51` | Yetersiz bakiye | Birkaç gün sonra kullanıcıyı bilgilendirin; kartı güncellemesini isteyin |
+| `54` | Kart süresi dolmuş | Kart son kullanma tarihini güncelleyin (aşağıda) |
+| `62` | Kısıtlı kart | Kullanıcıdan yeni kart isteyin |
+| `91` / `96` | Banka sistemi | Geçici arıza; planı `force_sync=true` ile sorgulayıp durumu doğrulayın |
+
+Kartın son kullanma tarihi değiştiyse plan iptal edilmeden güncellenir:
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/recurring/5c1a7d3e-92b4-4f08-a6c1-8e2d0f4b7a19/update-card-expiry \
+  -H "Authorization: Bearer $PAYVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "expire_month": "03", "expire_year": "2032" }'
+```
+
+Bekleyen bir taksitin tutarı `POST /recurring/{id}/installments/{index}/update-amount` (`{ "amount": 12900 }`), tek taksit iptali `POST /recurring/{id}/installments/{index}/cancel` ile yapılır.
+
+## 4. Aboneliği iptal et
+
+```bash
+curl -X POST https://vpos.payven.com.tr/api/v1/recurring/5c1a7d3e-92b4-4f08-a6c1-8e2d0f4b7a19/cancel \
+  -H "Authorization: Bearer $PAYVEN_TOKEN"
+```
+
+Yalnız `active` plan iptal edilir (aksi halde `409 PV_RECURRING_PLAN_NOT_ACTIVE`); bekleyen tüm taksitler çekilmez ve `sanalpos.subscription.cancelled` yayınlanır.
+
+## Kontrol listesi
+
+<Check>Plan **3D Secure** ile açıldı mı (tüketici akışı)?</Check>
+<Check>`plan.id` abonelik kaydınıza bağlı saklanıyor, kart numarası saklanmıyor mu?</Check>
+<Check>`sanalpos.subscription.failed` olayı dunning akışınıza (kullanıcı bildirimi, kart güncelleme) bağlı mı?</Check>
+<Check>Webhook handler'ınız olayları `X-Payven-Event-Id` ile tekilleştiriyor mu?</Check>
+<Check>Abonelik iptali `POST /recurring/{id}/cancel` çağrısına bağlı mı?</Check>
 
 ## İlgili sayfalar
 
+- [Tekrarlayan Ödeme](/sanal-pos/payments/recurring)
 - [3D Secure Ödeme](/sanal-pos/payments/3d-secure)
 - [Idempotency](/documentation/concepts/idempotency)
 - [Webhook olay kataloğu](/sanal-pos/webhooks/events)
-- [Banka yanıt kodları](/sanal-pos/errors/bank-codes)

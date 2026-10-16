@@ -1,85 +1,83 @@
 ---
 title: "Banka Yanıt Kodları"
-description: "Bankaların döndürdüğü ISO 8583 standardı kodları."
+description: "Bankaların döndürdüğü ham kodlar (provider_error_code) ve Payven karşılıkları."
 ---
 
-Bankalar, ödeme yanıtında **ISO 8583** standardına dayanan 2 haneli kod döner. Banka reddi durumunda Payven `application/problem+json` (RFC 9457) yanıtı döner; bankanın orijinal kodu response body'sindeki `detail` alanında, sonrasında `GET /payments/{id}` ile sorgulandığında `provider_error_code` alanında bulunur.
+Banka bir işlemi reddettiğinde Payven, bankanın **ham yanıt kodunu** hata zarfındaki `provider_error_code` alanında, bu kodun **kanonik Payven karşılığını** ise `code` alanında döner. Çoğu banka ISO 8583 tabanlı 2 haneli kod kullanır; bazı bankalar kendi kod kümesini (örn. `0051`, `VB44`) kullanır.
 
 ```http
-HTTP/1.1 422 Unprocessable Entity
+HTTP/1.1 402 Payment Required
 Content-Type: application/problem+json
 ```
 
 ```json
 {
-  "type":          "https://docs.payven.com.tr/errors/bank_declined",
-  "title":         "Banka işlemi reddetti",
-  "status":        422,
-  "code":          "bank_declined",
-  "detail":        "Yetersiz bakiye (banka kodu: 51)",
-  "instance":      "/api/v1/payments",
-  "correlation_id": "9f1c8e76-..."
+  "type":                "https://docs.payven.com.tr/errors/PV_INSUFFICIENT_FUNDS",
+  "title":               "Yetersiz bakiye.",
+  "status":              402,
+  "code":                "PV_INSUFFICIENT_FUNDS",
+  "message":             "Yetersiz bakiye.",
+  "category":            "provider_error",
+  "provider_error_code": "51",
+  "transaction_id":      "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
+  "instance":            "/api/v1/payments",
+  "correlation_id":      "9f1c8e76-..."
 }
 ```
 
+- `code` istemcinin **karar dayanağıdır**; `provider_error_code` ise destek ekibinin bankada arayacağı koddur. Programatik akışı `provider_error_code`'a bağlamayın.
+- `message` `Accept-Language` başlığına göre Türkçe veya İngilizce gelir.
+- Bankadan gelen kod Payven'in eşleme tablosunda yoksa `code` `PV_UNKNOWN` olur ve ham kod `provider_error_code`'da korunur.
+- HTTP durumu bankaya bağlı kod tablosundan gelir; çoğu ret `402`, kart verisi hataları `400`, güvenlik retleri `403`, geçici banka hataları `503`/`504`'tür. Karar için `code` kullanın, durum koduna sabit bağlanmayın.
+
 ## Sık karşılaşılan kodlar
 
-Aşağıdaki tabloda `provider_error_code` (banka kodu) → eşleşen Payven `code` ve müşteriye gösterilebilecek mesaj örnekleri var.
+Tablo, ISO 8583 kodlarının yaygın eşlemesini gösterir. Eşleme **banka bazında** tutulur ve bazı bankalar farklı kod kümesi kullanır; kesin eşleme için hata yanıtındaki `code` değerine bakın.
 
 | Banka kodu | Açıklama | Payven `code` | Müşteriye gösterim |
 |---|---|---|---|
 | `00` | Onaylandı | — | (Başarılı) |
-| `01` | Bankanızı arayın | `bank_declined` | "Lütfen bankanızla iletişime geçin." |
-| `04` | Karta el konuldu | `bank_declined` | "Bu kart kullanılamaz." |
-| `05` | Do not honor (reddedildi) | `do_not_honor` | "Bankanız işlemi onaylamadı." |
-| `12` | Geçersiz işlem | `bank_declined` | Genel red mesajı |
-| `13` | Geçersiz tutar | `invalid_amount` | Genel red mesajı |
-| `14` | Kart numarası geçersiz | `invalid_card` | "Kart bilgilerinizi kontrol edin." |
-| `15` | Tanınmayan banka | `bank_declined` | Genel red mesajı |
-| `30` | Format hatası | `bank_declined` | Genel red mesajı |
-| `41` | Kart kayıp/çalıntı | `bank_declined` | "Bu kart kullanılamaz." |
-| `43` | Çalıntı kart | `bank_declined` | "Bu kart kullanılamaz." |
-| `51` | Yetersiz bakiye | `insufficient_funds` | "Yetersiz bakiye." |
-| `54` | Kart süresi dolmuş | `card_expired` | "Kartınızın son kullanma tarihi geçmiş." |
-| `55` | Hatalı PIN | `bank_declined` | "Bilgilerinizi kontrol edin." |
-| `57` | Kart sahibi bu işlemi yapamaz | `bank_declined` | Genel red mesajı |
-| `58` | Terminal bu işlemi yapamaz | `config_error` | (Konfigürasyon — destek) |
-| `59` | Şüpheli sahtecilik | `fraud_suspected` | "Bankanızla iletişime geçin." |
-| `61` | Limit aşımı | `limit_exceeded` | "Kart limitiniz yeterli değil." |
-| `62` | Kısıtlı kart | `bin_restricted` | Genel red mesajı |
-| `63` | Güvenlik ihlali | `fraud_suspected` | (İzleme — destek) |
-| `65` | Aktivite limit aşımı | `limit_exceeded` | "Çok fazla deneme yaptınız, lütfen sonra tekrar deneyin." |
-| `75` | PIN deneme limiti aşıldı | `bank_declined` | "Bilgilerinizi kontrol edin." |
-| `82` | Geçersiz CVV | `invalid_cvv` | "Güvenlik kodunuz (CVV) yanlış." |
-| `91` | Banka sistemi yanıt vermedi | `bank_timeout` | (Smart Retry devreye girer) |
-| `92` | Yönlendirme hatası | `config_error` | (Konfigürasyon — destek) |
-| `96` | Sistem hatası | `bank_system_error` | (Smart Retry) |
+| `01` | Bankanızı arayın | `PV_BANK_DECLINED` | "Lütfen bankanızla iletişime geçin." |
+| `05` | Do not honor (reddedildi) | `PV_DO_NOT_HONOR` | "Bankanız işlemi onaylamadı." |
+| `12` | Geçersiz işlem | `PV_UNSUPPORTED_OPERATION` | Genel red mesajı |
+| `13` | Geçersiz tutar | `PV_INVALID_AMOUNT` | Genel red mesajı |
+| `14` | Kart numarası geçersiz | `PV_INVALID_CARD` | "Kart bilgilerinizi kontrol edin." |
+| `41` / `43` | Kayıp / çalıntı kart | `PV_FRAUD_SUSPECTED` | "Bu kart kullanılamaz." |
+| `51` | Yetersiz bakiye | `PV_INSUFFICIENT_FUNDS` | "Yetersiz bakiye." |
+| `54` | Kart süresi dolmuş | `PV_CARD_EXPIRED` | "Kartınızın son kullanma tarihi geçmiş." |
+| `57` | Kart sahibi bu işlemi yapamaz | `PV_BANK_DECLINED` | Genel red mesajı |
+| `58` | Terminal bu işlemi yapamaz | `PV_CONFIG_ERROR` | (Konfigürasyon — destek) |
+| `61` | Limit aşımı | `PV_LIMIT_EXCEEDED` | "Kart limitiniz yeterli değil." |
+| `82` | Geçersiz CVV | `PV_INVALID_CVV` | "Güvenlik kodunuz (CVV) yanlış." |
+| `91` | Banka sistemi yanıt vermedi | `PV_SYSTEM_ERROR` | (Smart Retry devreye girer) |
+| `92` | Yönlendirme hatası | `PV_CONFIG_ERROR` | (Konfigürasyon — destek) |
+| `96` | Sistem hatası | `PV_SYSTEM_ERROR` | (Smart Retry) |
+
+Tabloda olmayan bir kod için `PV_BANK_DECLINED` veya `PV_UNKNOWN` ile birlikte ham kod gelir; müşteriye genel red mesajı gösterin.
 
 ## Banka-spesifik kodlar
 
-Her bankanın kendi özel kodları da olabilir (örn. Garanti'nin "fraud kuralı kategorisi 2"). Bu kodlar konsoldaki **Hata Kodları** ekranında banka bazında listelenir:
-
-[dashboard.payven.com.tr/connector-error-codes](https://dashboard.payven.com.tr/connector-error-codes)
+Her bankanın kendi özel kodları da vardır (örn. fraud kuralı kategorileri, 3DS doğrulama kodları). Bunlar da `provider_error_code` olarak taşınır ve Payven kodlarından birine eşlenir.
 
 ## Müşteriye gösterme prensibi
 
-<Check>**Hassas kodları gizleyin.** "Şüpheli sahtecilik" gibi kodlar müşteriye direkt gösterilmemelidir — fraud filterları açık etmenize neden olabilir.</Check>
+<Check>**Hassas kodları gizleyin.** `PV_FRAUD_SUSPECTED` gibi kodlar müşteriye direkt gösterilmemelidir — fraud filtrelerini açık etmenize neden olabilir.</Check>
 <Check>**Yönlendirici mesaj verin.** "Reddedildi" yerine "Bankanız işlemi onaylamadı, başka bir kart denemek ister misiniz?"</Check>
-<Check>**Smart Retry zaten devrede.** `91`, `96` gibi geçici kodlar için Smart Retry alternatif konnektör dener — kullanıcıya genelde göstermenize gerek yok.</Check>
+<Check>**Smart Retry zaten devrede.** `91`, `96` gibi geçici kodlarda Payven alternatif bankayı dener — kullanıcıya genelde göstermenize gerek yoktur.</Check>
 
 ## Örnek müşteri mesajı eşleme
 
 ```javascript
 function userMessageFromCode(code) {
   const map = {
-    "51": "Bakiyeniz yeterli değil, başka bir kart denemek ister misiniz?",
-    "54": "Kartınızın son kullanma tarihi geçmiş.",
-    "61": "İşlem tutarı kart limitinizi aşıyor.",
-    "82": "Güvenlik kodunuz (CVV) yanlış.",
-    "14": "Kart bilgilerinizde hata var.",
-    "01": "Bankanızla iletişime geçmeniz gerekiyor.",
-    "59": "Bankanız işlemi onaylamadı.",
-    "65": "Çok fazla deneme yapıldı. Lütfen daha sonra tekrar deneyin.",
+    PV_INSUFFICIENT_FUNDS: "Bakiyeniz yeterli değil, başka bir kart denemek ister misiniz?",
+    PV_CARD_EXPIRED:       "Kartınızın son kullanma tarihi geçmiş.",
+    PV_LIMIT_EXCEEDED:     "İşlem tutarı kart limitinizi aşıyor.",
+    PV_INVALID_CVV:        "Güvenlik kodunuz (CVV) yanlış.",
+    PV_INVALID_CARD:       "Kart bilgilerinizde hata var.",
+    PV_BANK_DECLINED:      "Bankanızla iletişime geçmeniz gerekiyor.",
+    PV_DO_NOT_HONOR:       "Bankanız işlemi onaylamadı.",
+    PV_FRAUD_SUSPECTED:    "İşleminiz onaylanmadı.",
   };
   return map[code] || "İşleminiz gerçekleştirilemedi. Lütfen tekrar deneyin.";
 }

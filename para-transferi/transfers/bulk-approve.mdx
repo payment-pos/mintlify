@@ -13,7 +13,7 @@ ayrıca [`bulk/send`](/para-transferi/transfers/bulk-send) çağırmanız gerekm
 POST /api/v1/transfers/bulk/approve
 ```
 
-**Yetki:** transfer onaylama izni (`transfer-admin`).
+**Yetki:** `CanApproveTransfers`.
 
 <Note>
 **Aynı kimlik oluşturup onaylayabilir mi?** Organizasyonunuzda ayrı onaylayıcı (4-göz) kuralı açıksa
@@ -22,8 +22,13 @@ transferi oluşturan kullanıcı / API anahtarı onu onaylayamaz; o kalem `resul
 bazında yapılır.
 </Note>
 
-Toplu transfer paketinden (Excel, `bulk_transfer_batch_id` dolu) gelen kalemler tek tek onaylanamaz
-(`error_code: "PV_BULK_ITEM_REQUIRES_BATCH_APPROVAL"`); paket kendi onay ucuyla onaylanır.
+Toplu transfer paketinden (`bulk_transfer_batch_id` dolu) gelen kalemler tek tek onaylanamaz
+(`error_code: "PV_BULK_ITEM_REQUIRES_BATCH_APPROVAL"`); paket kendi onay ucuyla onaylanır
+([Toplu Transfer Paketi](/para-transferi/transfers/bulk-batches)).
+
+**Onaylanabilir durumlar:** `pending` ve `rejected` (reddedileni geri alma). `processing`, `delivered`,
+`completed`, `failed`, `refunded` ve `approved` transfer yeniden onaylanamaz — bankaya gönderilmiş ya
+da gönderim kuyruğundaki bir transferin yeniden onayı çift ödemeye yol açardı.
 
 ## İstek
 
@@ -87,14 +92,24 @@ Content-Type: application/json
 
 Toplu onayda bazı kalemler onaylanamayabilir; yanıt yine `200 OK` döner, her kalemin akıbeti
 `results[]` içindedir. Karar için `is_success`'i kullanın; `error_code` bazı ret nedenlerinde
-(ör. durum uygun değil, 4-göz) boş gelebilir, açıklama `message` alanındadır.
+(ör. durum uygun değil, 4-göz) boş gelebilir, açıklama `message` alanındadır (bu mesajlar
+İngilizce olabilir). Kalem düzeyinde dönebilen kodlar:
+
+| `error_code` | Anlam |
+|---|---|
+| `PV_TRANSFER_REQUEST_SENDER_ACCOUNT_REQUIRED` | Hesapsız talepte `connector_account_id` verilmedi |
+| `PV_CONNECTOR_ACCOUNT_NOT_FOUND` | Verilen hesap bulunamadı ya da pasif |
+| `PV_SENDER_ACCOUNT_NOT_OWNED` · `PV_SENDER_ACCOUNT_NOT_TENANT` · `PV_SENDER_ACCOUNT_INACTIVE` | Hesap sahipliği / etkinlik kuralı |
+| `PV_TRANSFER_REQUEST_REQUIRES_TENANT_APPROVER` | Organizasyon hesabına bağlı talebi yalnız `tenant-*` kullanıcıları onaylar |
+| `PV_BULK_ITEM_REQUIRES_BATCH_APPROVAL` | Paket kalemi — paketi onaylayın |
+| `PV_PAYOUT_TRANSFER_CLOSED` | Kapanmış hakediş çekim havalesi yeniden onaylanamaz |
 
 ## Onaydan sonra
 
 | Durum | Anlam |
 |---|---|
 | `approved` | Gönderim kuyruğunda; kısa süre içinde `processing` olur |
-| `awaiting_funds` | Bayinin talebi hakedişinden karşılanacak; fon ayrılınca gönderilir |
+| `awaiting_funds` | Bayinin talebi organizasyon hesabıyla onaylandı; tutar bayinin hakedişinden karşılanacak, fon ayrılınca gönderilir. Bakiye yetersizse transfer `rejected` olur |
 
 Sonucu webhook ile dinleyin (`para-transferi.transfer.approved`, ardından `completed` / `delivered` /
 `failed` / `outcome_unknown`) — bkz. [Olay Kataloğu](/para-transferi/webhooks/events).

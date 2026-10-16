@@ -1,0 +1,63 @@
+---
+title: "MCP Araçları"
+description: "Asistanın kullanabildiği araçlar, argümanları ve veri kuralları."
+---
+
+Araçların cevabı servisin ham (snake_case) yanıtıdır; yeniden şekillendirilmez.
+
+## Veri kuralları
+
+| Kural | Ayrıntı |
+|---|---|
+| **Tutar** | Yanıtlarda **kuruş** (`15000` = 150,00 TL). Tek istisna `create_payment_link.amount`: **TL** alır (`1500` ya da `99.90`) |
+| **Tarih** | Argümanlar `YYYY-AA-GG` (Türkiye günü); sunucu bunu `00:00:00+03:00` / `23:59:59+03:00` aralığına çevirir. "Son 1 ay" gibi ifadeler için önce `get_account` ile `now_turkey` alınır |
+| **Sayfa** | `page` 1'den başlar, `page_size` en fazla 50 (varsayılan 20); "hepsini getir" (`0`) kabul edilmez. Toplam için özet araçları kullanılır |
+| **İşletme** | `merchant` argümanı işletme `id` ya da `external_id` alır. Birden çok işletmeye izin verilmişse belirtilmesi zorunludur; tek işletmeyse o kullanılır |
+| **Kart** | Numaralar maskelidir; tam PAN ve CVV hiçbir araçta yoktur |
+
+## Okuma araçları
+
+| Araç | İzin | Ne yapar |
+|---|---|---|
+| `get_account` | `account.read` (daima) | Kullanıcı, şirket, işletme, roller, açık modüller; `now_turkey`; `connection` (ortam, izinler, izinli işletmeler) |
+| `list_merchants` | `merchants.read` | İşletmeleri listeler; `search` (ad, `external_id`, VKN/TCKN) |
+| `list_payments` | `payments.read` | Ödeme listesi: `start_date`, `end_date`, `status`, `merchant`, `search`, `min_amount`, `max_amount` (TL), `installment_count` |
+| `get_payment` | `payments.read` | Tek ödeme detayı (`payment_id`) |
+| `summarize_payments` | `payments.read` | Toplam, adet, başarı oranı |
+| `payment_breakdown` | `payments.read` | `group_by`: `merchant`, `day`, `error_code`, `card_brand`, `connector`; `limit` 1-50 |
+| `list_refunds` | `refunds.read` | İadeler; `status`: `pending`, `completed`, `failed` |
+| `get_balance` | `balance.read` | Bakiye ve yaklaşan hakediş (`upcoming_days` 1-90) |
+| `list_wallet_activity` | `balance.read` | Cüzdan hareketleri; `direction` (`credit`/`debit`), `service` (`sanalpos`, `paratransferi`, `faturaodeme`, `paket`) |
+
+Ödeme `status` değerleri: `completed`, `authorized`, `failed`, `refunded`, `partially_refunded`, `canceled`, `not_completed` (müşteri 3D doğrulamayı bitirmedi).
+
+## Yazma araçları
+
+Yalnız bağlantıda ilgili yazma izni **açıkça verilmişse** listelenir ve çalışır.
+
+| Araç | İzin | Ne yapar |
+|---|---|---|
+| `create_payment_link` | `records.create:payment_link` | Ödeme linki oluşturur ve `checkout_url` döner |
+| `list_pending_transfers` | `actions.approve:transfer` | Onay bekleyen transferleri listeler (okuma) |
+| `approve_transfer` | `actions.approve:transfer` | 1-20 transferi onaylar; **geri alınamaz** |
+
+### `create_payment_link`
+
+| Argüman | Açıklama |
+|---|---|
+| `title` | Zorunlu, en fazla 200 karakter |
+| `amount` | Zorunlu, **TL** |
+| `merchant`, `description` | İşletme; sabit açıklama |
+| `details` | Linke sabit yazılan anahtar-değer bilgiler (en fazla 20 alan; anahtar küçük harf/rakam/alt çizgi) |
+| `custom_fields` | Ödeyenden istenecek en fazla 5 alan: `[{"key":"daire_no","label":"Daire No"}]` (varsayılan zorunlu) |
+| `max_uses`, `expires_in_days` | 1-1000 kullanım (varsayılan 1); 1-365 gün (boşsa süresiz) |
+| `card_commission_rate` | Yüzde. `amount` net kalır, müşteri `amount` + komisyonu öder; link tutarı toplam olur |
+| `idempotency_key` | Boşsa üretilir |
+
+### `approve_transfer`
+
+`transfer_ids` (GUID, 1-20), `confirmed`, `merchant`. **`confirmed: true` olmadan servise gidilmez**; asistan önce tutarı, alıcıyı ve işletmeyi size göstermek ve açık onayınızı almak zorundadır. 4-göz kuralı, limitler ve yetki servis tarafında uygulanır; hata cümlesi asistana aynen iletilir.
+
+<Warning>
+Yazma çağrıları **otomatik tekrar denenmez**. Zaman aşımında işlemin gerçekleşip gerçekleşmediği bilinmez; asistan bunu belirtir ve durumu `list_pending_transfers` / `get_payment` ile kontrol eder.
+</Warning>

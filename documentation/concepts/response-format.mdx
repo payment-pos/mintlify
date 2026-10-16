@@ -7,7 +7,7 @@ Payven API'leri **REST + HTTP semantiği** üzerinde çalışır: HTTP durum kod
 
 ## Başarılı response
 
-Başarılı bir istek için **response body doğrudan kaynak nesnesidir** — wrapper yoktur.
+Başarılı bir istek için **response body doğrudan kaynak nesnesidir**: ek bir `data` / `is_success` zarfı yoktur. Başarı bilgisini **HTTP durum kodundan** okuyun (`2xx`).
 
 ```http
 HTTP/1.1 200 OK
@@ -18,54 +18,53 @@ Content-Type: application/json
 {
   "transaction_id": "8e3f5c12-9a7b-4c8d-bc4e-2c963f66afa6",
   "status": "completed",
+  "is_success": true,
+  "amount": 15000,
+  "currency": "TRY",
   "extra_properties": {
-    "processed_at":  "2026-05-03T15:34:58.123+03:00",
-    "auth_code":     "123456",
+    "processed_at":   "2026-10-16T15:04:05.123+03:00",
+    "auth_code":      "123456",
     "host_reference": "PAYVEN-REF-789"
   }
 }
 ```
 
-İstek başarılı mı bilgisini **HTTP durum kodundan** okuyun (`2xx` → başarılı). Hata durumunda response body `application/problem+json` MIME tipiyle döner (aşağıda).
-
 <Note>
-Tüm property isimleri **snake_case**, enum değerleri **snake_case** olarak yazılır
-(`status: "completed"`, `operation_type: "pre_auth"`). Bu kural hem request body
-hem response body, hem de query parametreleri için geçerlidir.
+Tüm property adları, sözlük anahtarları, enum değerleri ve query parametreleri **snake_case**'dir (`status: "completed"`, `operation_type: "pre_auth"`). İstek gövdesinde alan adları büyük/küçük harf duyarlıdır. Gövdede `null` alanlar açıkça `null` olarak dönebilir; bilinmeyen alanları yok sayın.
 </Note>
+
+Ödeme sonuç nesnelerindeki `is_success` alanı bilgilendiricidir; karar için HTTP durum kodunu ve `status` alanını kullanın. Bazı işlemler `202 Accepted` ile kabul edilir ve sonuç sonradan oluşur (örneğin bakiye beklenen iade).
 
 ## Hata response formatı (RFC 9457)
 
-Hata durumlarında response body `application/problem+json` MIME tipindedir:
-
-```http
-HTTP/1.1 422 Unprocessable Entity
-Content-Type: application/problem+json
-```
+Hata durumlarında response body `application/problem+json` tipindedir ve tek bir zarf kullanır:
 
 ```json
 {
-  "type":           "https://docs.payven.com.tr/errors/refund_exceeds_original",
-  "title":          "İade tutarı orijinali aşıyor",
+  "type":           "https://docs.payven.com.tr/errors/PV_BANK_DECLINED",
+  "title":          "Banka işlemi reddetti.",
   "status":         422,
-  "code":           "refund_exceeds_original",
-  "detail":         "Toplam iade tutarı orijinal tutarı (15000 kuruş) aşamaz.",
-  "instance":      "/api/v1/payments/8e3f5c12-.../refund",
+  "code":           "PV_BANK_DECLINED",
+  "detail":         "Banka işlemi reddetti.",
+  "message":        "Banka işlemi reddetti.",
+  "category":       "provider_error",
+  "provider_error_code": "51",
+  "instance":       "/api/v1/payments",
   "correlation_id": "9f1c8e76-2a3b-4f12-9c8d-12cb24a8a8a8"
 }
 ```
 
 | Alan | Açıklama |
 |---|---|
-| `type` | Hata tipinin kanonik URI'si — dokümantasyon linki olarak da çalışır |
-| `title` | Kısa, insan-okur başlık (Türkçe) |
-| `status` | HTTP status kodu (response body'de yinelenir; HTTP header ile aynı) |
-| `code` | Programatik hata kodu (snake_case). `type` URI'sinin son segmenti |
-| `detail` | Bu özel duruma ilişkin açıklayıcı mesaj |
-| `instance` | Hatanın oluştuğu kaynak yolu |
-| `correlation_id` | İstek zinciri kimliği — destek talebinde paylaşın (response header'ı `X-Correlation-Id` ile aynı değer) |
+| `code` | Programatik hata kodu: karar için bunu kullanın |
+| `message` / `detail` | İnsan-okur açıklama (`message`, `detail`'in aynasıdır) |
+| `category` | `invalid_request_error`, `authentication_error`, `permission_error`, `rate_limit_error`, `idempotency_error`, `provider_error`, `api_error` |
+| `param` | Doğrulama hatasında ilk hatalı alan |
+| `provider_error_code` | Banka/sağlayıcı reddinde bankanın ham kodu |
+| `errors[]` | Doğrulama hatasında alan listesi (`field`, `code`, `message`) |
+| `correlation_id` | `X-Correlation-Id` header'ı ile aynı; destek talebinde paylaşın |
 
-Tam hata kodu kataloğu: [Hata Yönetimi](/documentation/concepts/errors).
+Alanların tam açıklaması ve kod listesi: [Hata Yönetimi](/documentation/concepts/errors).
 
 ## Sayfalı liste response formatı
 
@@ -99,8 +98,7 @@ Content-Type: application/json
 | `has_previous_page` / `has_next_page` | Önceki/sonraki sayfa var mı |
 
 <Note>
-İstek tarafında `page` ve `page_size` query parametreleri kullanılır (`page_size`
-varsayılan 25, üst sınır 100). Response'ta `page_size` döndürülmez — istek değerini siz
+İstek tarafında `page` ve `page_size` query parametreleri kullanılır (`page_size` varsayılan 10, üst sınır 100; `page_size=0` tüm kayıtları döner ve en fazla 5.000 satırla sınırlıdır). Response'ta `page_size` döndürülmez — istek değerini siz
 zaten biliyorsunuz.
 </Note>
 
@@ -115,7 +113,7 @@ Liste endpoint'lerinde ortak query parametreleri:
 | Parametre | Tip | Varsayılan | Açıklama |
 |---|---|---|---|
 | `page` | int | `1` | Sayfa numarası (1-tabanlı) |
-| `page_size` | int | `25` | Sayfa başı kayıt (1–100) |
+| `page_size` | int | `10` | Sayfa başı kayıt (1–100; `0` = tümü, en fazla 5.000) |
 | `search_term` | string | `null` | Adı veya kodu içinde arama (≤ 100 karakter) |
 | `include_inactive` | bool | `false` | Pasif kayıtları da getir |
 
@@ -124,15 +122,15 @@ Liste endpoint'lerinde ortak query parametreleri:
 | Kod | Anlam | Response MIME tipi |
 |---|---|---|
 | `200 OK` | Başarılı senkron işlem | `application/json` |
-| `201 Created` | Yeni kayıt oluşturuldu | `application/json` |
-| `202 Accepted` | İstek alındı, asenkron işlenecek (3D init, hosted checkout, vb.) | `application/json` |
+| `201 Created` | Yeni kayıt oluşturuldu (örn. Hosted Checkout oturumu, webhook ucu) | `application/json` |
+| `202 Accepted` | İstek alındı, sonuç sonradan oluşacak (örn. bakiye beklenen iade, test verisi silme) | `application/json` |
 | `204 No Content` | Başarılı ama response body dönmüyor (logout, void onayı, vb.) | — |
 | `400 Bad Request` | Geçersiz istek (eksik alan, JSON parse) | `application/problem+json` |
 | `401 Unauthorized` | Auth eksik / geçersiz / expire | `application/problem+json` |
-| `403 Forbidden` | Yetki yok / lisans yok / merchant pasif | `application/problem+json` |
+| `403 Forbidden` | Yetki yok / modül kapalı / IP izinli değil | `application/problem+json` |
 | `404 Not Found` | Kaynak bulunamadı | `application/problem+json` |
 | `409 Conflict` | Çakışma (idempotency key farklı body, durum geçişi geçersiz) | `application/problem+json` |
-| `422 Unprocessable Entity` | İş kuralı ihlali (validasyon, kuralsız iade) | `application/problem+json` |
+| `422 Unprocessable Entity` | İş kuralı ihlali (doğrulama, banka reddi, pasif bayi) | `application/problem+json` |
 | `429 Too Many Requests` | Rate limit aşıldı (`Retry-After` header gönderilir) | `application/problem+json` |
 | `5xx` | Sunucu hatası — exponential backoff ile retry edin | `application/problem+json` |
 
@@ -146,7 +144,7 @@ Banka reddi de bir hata response'udur — `422 Unprocessable Entity` + `applicat
 |---|---|
 | `X-Correlation-Id` | Bu isteğin Payven log zincirindeki kimliği. Hata response'larında body içindeki `correlation_id` alanıyla aynı değeri taşır |
 | `X-RateLimit-Limit` / `X-RateLimit-Remaining` / `X-RateLimit-Reset` | Rate limit durumu — bkz. [Rate Limiting](/documentation/concepts/rate-limiting) |
-| `Retry-After` | Yalnız `429` response'unda — kaç saniye sonra tekrar denemeniz gerektiği |
+| `Retry-After` | `429` ve `409 idempotency_request_in_progress` yanıtlarında: kaç saniye sonra tekrar denemeniz gerektiği |
 | `Idempotent-Replayed` | Yalnız idempotent replay'lerde — response cache'den döndüyse `true`. Bkz. [Idempotency](/documentation/concepts/idempotency) |
 
 ## Tarih ve zaman
@@ -176,7 +174,7 @@ Tüm para tutarları **kuruş** cinsinden, tam sayı (`integer`/`long`):
 | 150,00 ₺ | `15000` |
 | 1.999,99 ₺ | `199999` |
 
-Tutar nesneleri her zaman `currency` ile birlikte taşınır:
+Tutar, para birimiyle birlikte taşınır; çoğu uçta `{ "amount", "currency" }` nesnesi ya da yan yana `amount` + `currency` alanlarıdır:
 
 ```json
 { "amount": 15000, "currency": "TRY" }

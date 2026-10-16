@@ -1,80 +1,20 @@
 ---
-title: "SDK & Araçlar Yol Haritası"
-description: "Resmi SDK'lar, MCP server, Postman collection ve OpenAPI codegen rehberi."
+title: "SDK ve Araçlar"
+description: "OpenAPI ile istemci üretimi, Postman koleksiyonu, deneme paneli ve yapay zeka asistanı bağlantısı (MCP)."
 ---
 
-Payven, geleneksel "her dil için resmi SDK" yaklaşımı yerine **AI-native + OpenAPI-native** bir geliştirici deneyimini hedefler. Bu sayfa mevcut araçları ve yakında çıkacakları listeler.
+Payven, her dil için ayrı resmi SDK yerine **OpenAPI tabanlı** bir geliştirici deneyimi sunar: her ürünün şeması yayınlanır, istemciyi kendi dilinizde üretir, token yönetimini ise [Kimlik Doğrulama](/documentation/concepts/authentication#kod-ornekleri-auto-refresh) sayfasındaki hazır istemci sınıflarıyla yaparsınız.
 
-## AI-native: MCP Server (Faz 1)
+## OpenAPI şemaları
 
-[Model Context Protocol](https://modelcontextprotocol.io) (MCP), AI ajanlarının harici servislere standart bir şekilde bağlanmasını sağlar. **`@payven/mcp`** server'ı sayesinde Cursor, Claude, Windsurf veya Continue gibi araçlarda doğrudan Payven API'sini kullanabilirsiniz.
+| Ürün | Şema |
+|---|---|
+| Sanal POS | `https://docs.payven.com.tr/api-reference/sanal-pos/openapi.json` |
+| Para Transferi | `https://docs.payven.com.tr/api-reference/transfer/openapi.json` |
+| Identity | `https://docs.payven.com.tr/api-reference/identity/openapi.json` |
+| Fraud | `https://docs.payven.com.tr/api-reference/fraud/openapi.json` |
 
-```bash
-# Geliyor
-npm install -g @payven/mcp
-```
-
-```jsonc
-// .cursor/mcp.json (örnek)
-{
-  "mcpServers": {
-    "payven": {
-      "command": "npx",
-      "args": ["-y", "@payven/mcp"],
-      "env": {
-        "PAYVEN_CLIENT_ID":     "pvk_test_...",
-        "PAYVEN_CLIENT_SECRET": "..."
-      }
-    }
-  }
-}
-```
-
-Sonra editör içinde: *"Payven'de son 24 saatte başarısız olan ödemeleri listele ve neden başarısız olduklarını açıkla"* yazıp doğrudan çalıştırabilirsiniz.
-
-<Note>
-**Türkiye'nin ilk AI-native fintech altyapısı.** MCP server beta erişimi için
-[destek ekibimize](/resources/support) yazın.
-</Note>
-
-## TypeScript SDK (Faz 2)
-
-```bash
-# Geliyor
-npm install @payven/node
-```
-
-```typescript
-import { PayvenClient } from "@payven/node";
-
-const payven = new PayvenClient({
-  slug:         "payven",
-  clientId:     process.env.PAYVEN_CLIENT_ID!,
-  clientSecret: process.env.PAYVEN_CLIENT_SECRET!,
-});
-
-// Auto token refresh + retry + idempotency dahili
-const payment = await payven.sanalpos.payments.create({
-  externalId:    "ORDER-1001",
-  amount:        { amount: 15000, currency: "TRY" },
-  installment:   1,
-  operationType: "sale",
-  card:          { /* ... */ },
-}, { idempotencyKey: "order-1001-payment" });
-
-console.log(payment.transactionId, payment.status);
-```
-
-**Içerikler:**
-- Auto token refresh + cache
-- Idempotency-Key otomatik üretim opsiyonu
-- Retry + exponential backoff + jitter
-- Tip güvenliği (OpenAPI'den auto-generated)
-- Cancellation token desteği
-
-## Diğer diller — OpenAPI codegen
-
-Resmi SDK olmadığı diller için **[openapi-generator](https://openapi-generator.tech)** ile otomatik istemci üretebilirsiniz. OpenAPI specs'lerimizde `servers` ve `securitySchemes` tanımlı — generator default şablonlarla çalışır.
+Şemalar OpenAPI 3.1'dir ve `securitySchemes` tanımlıdır. [openapi-generator](https://openapi-generator.tech) ile istemci üretilebilir:
 
 ```bash
 # Python
@@ -86,7 +26,7 @@ openapi-generator-cli generate \
 # C# (.NET)
 openapi-generator-cli generate \
   -i https://docs.payven.com.tr/api-reference/sanal-pos/openapi.json \
-  -g csharp-netcore \
+  -g csharp \
   -o ./payven-dotnet
 
 # Go
@@ -94,55 +34,42 @@ openapi-generator-cli generate \
   -i https://docs.payven.com.tr/api-reference/sanal-pos/openapi.json \
   -g go \
   -o ./payven-go
-
-# PHP
-openapi-generator-cli generate \
-  -i https://docs.payven.com.tr/api-reference/sanal-pos/openapi.json \
-  -g php \
-  -o ./payven-php
-
-# Java
-openapi-generator-cli generate \
-  -i https://docs.payven.com.tr/api-reference/sanal-pos/openapi.json \
-  -g java \
-  -o ./payven-java
 ```
 
 <Tip>
-Üretilen istemcide `Authorization: Bearer ...` header'ını manuel set etmeniz veya bir interceptor yazmanız gerekir. Token alma (Identity `/auth/{slug}/token`) için kanonik [Kimlik Doğrulama kod örnekleri](/documentation/concepts/authentication#kod-ornekleri-auto-refresh) kopyalanabilir.
+Üretilen istemcide `Authorization: Bearer ...` header'ını sizin yönetmeniz gerekir. Token alma (`/auth/{slug}/token`) için [Kimlik Doğrulama](/documentation/concepts/authentication#kod-ornekleri-auto-refresh) sayfasındaki sınıfı kopyalayın. İstek gövdesindeki alan adları **snake_case** ve büyük/küçük harf duyarlıdır; üretici ayarlarında özellik adı dönüşümünü kapatın ya da açıkça snake_case eşleyin.
 </Tip>
 
-## Postman Collection
+## Postman koleksiyonu
 
-Postman koleksiyonumuz, ortam değişkenleri ve auto-token-refresh script'i ile birlikte hazırlanıyor.
+Sanal POS koleksiyonu, ortam değişkenleri ve örnek istekleriyle indirilebilir. Bkz. [Postman ve API Koleksiyonları](/resources/postman).
 
-```
-Geliyor: https://docs.payven.com.tr/postman/payven.postman_collection.json
-```
+## Deneme paneli
 
-İçerikler:
-- 2 environment: Sandbox, Production
-- Ortam değişkenleri: `client_id`, `client_secret`, `slug`, `merchant_id`
-- Pre-request script: token cache + auto-refresh
-- Tüm endpoint'ler için örnek request
+API Referansı sekmesindeki her endpoint için tarayıcıdan canlı istek gönderebilirsiniz: [Sanal POS API Referansı](/api-reference/sanal-pos). Deneme panelinde test anahtarı kullanın.
+
+## Yapay zeka asistanı bağlantısı (MCP)
+
+Payven, Claude gibi bir yapay zeka asistanının hesabınıza bağlanıp "son bir ayın ödemelerini getir" gibi soruları yanıtlamasını sağlayan **uzak bir MCP sunucusu** sunar (Streamable HTTP). Yerelde kurulacak bir paket yoktur; asistanınızın bağlayıcı ayarlarına kurulumunuzun MCP adresi (`https://mcp.<alan-adı>`) girilir.
+
+- **Kimlik doğrulama:** asistan OAuth ile bağlanır (PKCE). Onay ekranında hangi işletmelerin ve hangi izinlerin verileceğini siz seçersiniz; bağlantıyı panelde **Bağlı uygulamalar** ekranından istediğiniz an iptal edersiniz. Tarayıcı akışı olmayan ajanlar için API anahtarı ekranında **salt okunur ajan anahtarı** (`pvak_...`) üretilir.
+- **Varsayılan salt okunurdur:** hesap bilgisi, ödeme listesi ve özetleri, iade ve cüzdan hareketleri okunur. Yazma, yalnızca onay ekranında ayrıca verdiğiniz izinle açılır (ödeme linki oluşturma, bekleyen transferi onaylama); ajan anahtarı hiçbir zaman yazamaz.
+- **Test/canlı:** test ortamındaki bağlantı yalnız test verisini görür.
+- Tutarlar kuruş, tarihler Türkiye saatidir; asistan bunları kullanıcıya TL ve yerel saatle sunar.
 
 ## Mevcut araçlar
 
 <CardGroup cols={2}>
   <Card title="Deneme paneli" icon="flask" href="/api-reference/sanal-pos">
-    API Referansı tab'ında her endpoint için tarayıcıdan canlı deneme.
+    API Referansı sekmesinde her endpoint için tarayıcıdan canlı deneme.
   </Card>
   <Card title="Konsol" icon="gauge-high" href="https://dashboard.payven.com.tr">
     İşlem izleme, raporlama, anahtar yönetimi.
   </Card>
   <Card title="Test Kartları" icon="credit-card" href="/sanal-pos/test/test-cards">
-    Sandbox senaryoları için hazır kart numaraları.
+    Test modu senaryoları için kart numaraları.
   </Card>
-  <Card title="Webhook Teslim Kayıtları" icon="bell" href="/documentation/concepts/webhooks">
-    Her teslimin ve denemesinin HTTP kodu, süresi ve yanıtı; tek tıkla yeniden gönderim.
+  <Card title="Postman" icon="paper-plane" href="/resources/postman">
+    İndirilebilir koleksiyon ve ortam dosyaları.
   </Card>
 </CardGroup>
-
-## Geri bildirim
-
-SDK / MCP server / Postman collection için öncelik sırası ve dil tercihi geri bildirimi: [destek ekibine](/resources/support) ulaşın. Beta erişim için kayıt almıyoruz; tüm araçlar hazır olduklarında public olarak yayınlanacak.
